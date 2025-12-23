@@ -1,13 +1,4 @@
-use lofty::{file::TaggedFileExt, tag::Accessor};
-
-// TODO
-enum Rating {
-    Awful,
-    Bad,
-    Ok,
-    Good,
-    Amazing,
-}
+use lofty::file::AudioFile;
 
 fn main() {
     let dir = std::env::args().last().expect("expected dir path");
@@ -19,21 +10,69 @@ fn main() {
             path.display()
         );
 
-        let mut tagged_file = lofty::read_from_path(path).unwrap();
+        let mut file_content = std::fs::File::open(&path).unwrap();
 
-        let tag = match tagged_file.primary_tag_mut() {
-            Some(primary_tag) => primary_tag,
-            None => tagged_file.first_tag_mut().expect("ERROR: No tags found!"),
+        let track = match audio_format {
+            AudioFileFormat::Flac => todo!(),
+            AudioFileFormat::Mp3 => todo!(),
+            AudioFileFormat::Opus => {
+                let opus_file = lofty::ogg::OpusFile::read_from(
+                    &mut file_content,
+                    lofty::config::ParseOptions::new(),
+                )
+                .unwrap();
+
+                let metadata = opus_file.vorbis_comments();
+                Track {
+                    title: metadata.get("TITLE").map(str::to_owned).unwrap_or_default(),
+                    artist: metadata
+                        .get("ARTIST")
+                        .map(str::to_owned)
+                        .unwrap_or_default(),
+                    album: metadata.get("ALBUM").map(str::to_owned).unwrap_or_default(),
+                    rating: metadata
+                        .get("RATING")
+                        .and_then(|s| Rating::try_from(s).ok()),
+                }
+            }
         };
 
-        println!("\n--- Tag Information ---");
-        println!("Tag type: {:?}", tag.tag_type());
-        println!("Title: {}", tag.title().as_deref().unwrap_or("None"));
-        println!("Artist: {}", tag.artist().as_deref().unwrap_or("None"));
-        println!("Album: {}", tag.album().as_deref().unwrap_or("None"));
-        println!("Genre: {}", tag.genre().as_deref().unwrap_or("None"));
+        println!("{track:?}");
 
         break;
+    }
+}
+
+#[derive(Debug)]
+struct Track {
+    title: String,
+    artist: String,
+    album: String,
+    rating: Option<Rating>,
+}
+
+#[derive(Debug)]
+enum Rating {
+    Awful,
+    Bad,
+    Ok,
+    Good,
+    Amazing,
+}
+
+impl TryFrom<&str> for Rating {
+    type Error = std::num::ParseIntError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let num = value.parse::<u8>()?;
+        let rating = match num {
+            0..=20 => Self::Awful,
+            21..=40 => Self::Bad,
+            41..=60 => Self::Ok,
+            61..=80 => Self::Good,
+            81..=255 => Self::Amazing,
+        };
+        Ok(rating)
     }
 }
 
