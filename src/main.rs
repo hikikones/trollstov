@@ -10,30 +10,21 @@ fn main() {
             path.display()
         );
 
-        let mut file_content = std::fs::File::open(&path).unwrap();
+        let mut file = std::fs::File::open(&path).unwrap();
 
         let track = match audio_format {
-            AudioFileFormat::Flac => todo!(),
             AudioFileFormat::Mp3 => todo!(),
+            AudioFileFormat::Flac => {
+                let flac =
+                    lofty::flac::FlacFile::read_from(&mut file, lofty::config::ParseOptions::new())
+                        .unwrap();
+                Track::from_vorbis_comments(flac.vorbis_comments().unwrap())
+            }
             AudioFileFormat::Opus => {
-                let opus_file = lofty::ogg::OpusFile::read_from(
-                    &mut file_content,
-                    lofty::config::ParseOptions::new(),
-                )
-                .unwrap();
-
-                let metadata = opus_file.vorbis_comments();
-                Track {
-                    title: metadata.get("TITLE").map(str::to_owned).unwrap_or_default(),
-                    artist: metadata
-                        .get("ARTIST")
-                        .map(str::to_owned)
-                        .unwrap_or_default(),
-                    album: metadata.get("ALBUM").map(str::to_owned).unwrap_or_default(),
-                    rating: metadata
-                        .get("RATING")
-                        .and_then(|s| Rating::try_from(s).ok()),
-                }
+                let opus =
+                    lofty::ogg::OpusFile::read_from(&mut file, lofty::config::ParseOptions::new())
+                        .unwrap();
+                Track::from_vorbis_comments(opus.vorbis_comments())
             }
         };
 
@@ -49,6 +40,22 @@ struct Track {
     artist: String,
     album: String,
     rating: Option<Rating>,
+}
+
+impl Track {
+    fn from_vorbis_comments(metadata: &lofty::ogg::VorbisComments) -> Self {
+        Self {
+            title: metadata.get("TITLE").map(str::to_owned).unwrap_or_default(),
+            artist: metadata
+                .get("ARTIST")
+                .map(str::to_owned)
+                .unwrap_or_default(),
+            album: metadata.get("ALBUM").map(str::to_owned).unwrap_or_default(),
+            rating: metadata
+                .get("RATING")
+                .and_then(|s| Rating::try_from(s).ok()),
+        }
+    }
 }
 
 #[derive(Debug)]
