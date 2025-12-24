@@ -1,7 +1,15 @@
-use lofty::file::AudioFile;
+use std::borrow::Cow;
+
+use lofty::{
+    file::AudioFile,
+    id3::v2::{Frame, FrameId, Id3v2Tag},
+    tag::Accessor,
+};
 
 fn main() {
     let dir = std::env::args().last().expect("expected dir path");
+
+    let mut count = 0;
 
     for (audio_format, path) in traverse_audio_files(dir) {
         println!(
@@ -13,7 +21,12 @@ fn main() {
         let mut file = std::fs::File::open(&path).unwrap();
 
         let track = match audio_format {
-            AudioFileFormat::Mp3 => todo!(),
+            AudioFileFormat::Mp3 => {
+                let mp3 =
+                    lofty::mpeg::MpegFile::read_from(&mut file, lofty::config::ParseOptions::new())
+                        .unwrap();
+                Track::from_id3v2(mp3.id3v2().unwrap())
+            }
             AudioFileFormat::Flac => {
                 let flac =
                     lofty::flac::FlacFile::read_from(&mut file, lofty::config::ParseOptions::new())
@@ -30,7 +43,11 @@ fn main() {
 
         println!("{track:?}");
 
-        break;
+        if count == 20 {
+            break;
+        } else {
+            count += 1;
+        }
     }
 }
 
@@ -43,6 +60,34 @@ struct Track {
 }
 
 impl Track {
+    fn from_id3v2(metadata: &Id3v2Tag) -> Self {
+        Self {
+            title: metadata
+                .title()
+                .as_deref()
+                .map(str::to_owned)
+                .unwrap_or_default(),
+            artist: metadata
+                .artist()
+                .as_deref()
+                .map(str::to_owned)
+                .unwrap_or_default(),
+            album: metadata
+                .album()
+                .as_deref()
+                .map(str::to_owned)
+                .unwrap_or_default(),
+            rating: metadata
+                .get(&FrameId::Valid(Cow::Borrowed("POPM")))
+                .and_then(|frame| match frame {
+                    Frame::Popularimeter(popularimeter_frame) => {
+                        Some(Rating::from_id3v2(popularimeter_frame.rating))
+                    }
+                    _ => None,
+                }),
+        }
+    }
+
     fn from_vorbis_comments(metadata: &lofty::ogg::VorbisComments) -> Self {
         Self {
             title: metadata.get("TITLE").map(str::to_owned).unwrap_or_default(),
@@ -53,7 +98,7 @@ impl Track {
             album: metadata.get("ALBUM").map(str::to_owned).unwrap_or_default(),
             rating: metadata
                 .get("RATING")
-                .and_then(|s| Rating::try_from(s).ok()),
+                .and_then(|s| Rating::from_vorbis_comments(s)),
         }
     }
 }
@@ -67,19 +112,25 @@ enum Rating {
     Amazing,
 }
 
-impl TryFrom<&str> for Rating {
-    type Error = std::num::ParseIntError;
+impl Rating {
+    fn from_id3v2(rating: u8) -> Self {
+        match rating {
+            0..=51 => Rating::Awful,
+            52..=102 => Rating::Bad,
+            103..=153 => Rating::Ok,
+            154..=204 => Rating::Good,
+            205..=255 => Rating::Amazing,
+        }
+    }
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let num = value.parse::<u8>()?;
-        let rating = match num {
+    fn from_vorbis_comments(value: &str) -> Option<Self> {
+        value.parse::<u8>().ok().map(|num| match num {
             0..=20 => Self::Awful,
             21..=40 => Self::Bad,
             41..=60 => Self::Ok,
             61..=80 => Self::Good,
             81..=255 => Self::Amazing,
-        };
-        Ok(rating)
+        })
     }
 }
 
