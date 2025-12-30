@@ -9,46 +9,46 @@ use lofty::{
 fn main() {
     let dir = std::env::args().last().expect("expected dir path");
 
-    let mut count = 0;
+    traverse_audio_files(dir)
+        .take(20)
+        .for_each(|(audio_format, path)| {
+            println!(
+                "Audio File Format: {:?}\nPath: {}",
+                audio_format,
+                path.display()
+            );
 
-    for (audio_format, path) in traverse_audio_files(dir) {
-        println!(
-            "Audio File Format: {:?}\nPath: {}",
-            audio_format,
-            path.display()
-        );
+            let mut file = std::fs::File::open(&path).unwrap();
 
-        let mut file = std::fs::File::open(&path).unwrap();
+            let track = match audio_format {
+                AudioFileFormat::Mp3 => {
+                    let mp3 = lofty::mpeg::MpegFile::read_from(
+                        &mut file,
+                        lofty::config::ParseOptions::new(),
+                    )
+                    .unwrap();
+                    Track::from_id3v2(mp3.id3v2().unwrap())
+                }
+                AudioFileFormat::Flac => {
+                    let flac = lofty::flac::FlacFile::read_from(
+                        &mut file,
+                        lofty::config::ParseOptions::new(),
+                    )
+                    .unwrap();
+                    Track::from_vorbis_comments(flac.vorbis_comments().unwrap())
+                }
+                AudioFileFormat::Opus => {
+                    let opus = lofty::ogg::OpusFile::read_from(
+                        &mut file,
+                        lofty::config::ParseOptions::new(),
+                    )
+                    .unwrap();
+                    Track::from_vorbis_comments(opus.vorbis_comments())
+                }
+            };
 
-        let track = match audio_format {
-            AudioFileFormat::Mp3 => {
-                let mp3 =
-                    lofty::mpeg::MpegFile::read_from(&mut file, lofty::config::ParseOptions::new())
-                        .unwrap();
-                Track::from_id3v2(mp3.id3v2().unwrap())
-            }
-            AudioFileFormat::Flac => {
-                let flac =
-                    lofty::flac::FlacFile::read_from(&mut file, lofty::config::ParseOptions::new())
-                        .unwrap();
-                Track::from_vorbis_comments(flac.vorbis_comments().unwrap())
-            }
-            AudioFileFormat::Opus => {
-                let opus =
-                    lofty::ogg::OpusFile::read_from(&mut file, lofty::config::ParseOptions::new())
-                        .unwrap();
-                Track::from_vorbis_comments(opus.vorbis_comments())
-            }
-        };
-
-        println!("{track:?}");
-
-        if count == 20 {
-            break;
-        } else {
-            count += 1;
-        }
-    }
+            println!("{track:?}");
+        });
 }
 
 #[derive(Debug)]
