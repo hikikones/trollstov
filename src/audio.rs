@@ -19,10 +19,18 @@ pub struct Database {
     tracks: Vec<Track>,
 }
 
+impl std::ops::Deref for Database {
+    type Target = Vec<Track>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tracks
+    }
+}
+
 impl Database {
     pub fn new(dir: impl AsRef<Path>) -> Self {
         let tracks = traverse_audio_files(dir)
-            .take(20)
+            .take(40)
             .map(|(audio_format, path)| {
                 let mut file = File::open(&path).unwrap();
 

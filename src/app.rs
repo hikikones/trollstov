@@ -4,12 +4,13 @@ use color_eyre::eyre::WrapErr;
 use crossterm::event::{Event, KeyCode, KeyEventKind};
 use ratatui::{
     CompletedFrame, crossterm,
-    layout::Alignment,
-    style::{Color, Stylize},
-    widgets::{Block, BorderType, Paragraph, Widget},
+    layout::{Constraint, Flex, Layout, Margin, Rect},
+    style::{Color, Style, Stylize},
+    text::Line,
+    widgets::{Block, Cell, HighlightSpacing, Paragraph, Row, Table, TableState, Widget},
 };
 
-use crate::terminal::Terminal;
+use crate::{audio::Database, terminal::Terminal};
 
 const RENDER_FREQUENCY: f64 = 1.0;
 
@@ -21,12 +22,18 @@ pub enum Action {
 
 #[derive(Debug)]
 pub struct App {
-    counter: u8,
+    db: Database,
+    selected: usize,
+    table_state: TableState,
 }
 
 impl App {
-    pub fn new() -> Self {
-        Self { counter: 0 }
+    pub fn new(db: Database) -> Self {
+        Self {
+            db,
+            selected: 0,
+            table_state: TableState::new().with_selected(0),
+        }
     }
 
     pub fn run(mut self, mut terminal: Terminal) -> color_eyre::Result<()> {
@@ -41,7 +48,6 @@ impl App {
             let render_timeout = render_interval.saturating_sub(last_render.elapsed());
             if render_timeout == Duration::ZERO {
                 last_render = Instant::now();
-                self.increment_counter();
                 self.render(&mut terminal)?;
             }
 
@@ -55,12 +61,15 @@ impl App {
                 let action = match event {
                     Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
                         KeyCode::Esc => Action::Quit,
-                        KeyCode::Left => {
-                            self.decrement_counter();
+                        KeyCode::Down => {
+                            self.selected =
+                                usize::min(self.selected + 1, self.db.len().saturating_sub(1));
+                            self.table_state.select(self.selected.into());
                             Action::Render
                         }
-                        KeyCode::Right => {
-                            self.increment_counter();
+                        KeyCode::Up => {
+                            self.selected = self.selected.saturating_sub(1);
+                            self.table_state.select(self.selected.into());
                             Action::Render
                         }
                         _ => Action::None,
@@ -83,39 +92,71 @@ impl App {
         Ok(())
     }
 
-    fn increment_counter(&mut self) {
-        self.counter = self.counter.saturating_add(1);
-    }
-
-    fn decrement_counter(&mut self) {
-        self.counter = self.counter.saturating_sub(1);
-    }
-
     fn render<'a>(&'a mut self, terminal: &'a mut Terminal) -> std::io::Result<CompletedFrame<'a>> {
         terminal.draw(|frame| {
             let area = frame.area();
             let buf = frame.buffer_mut();
 
-            let block = Block::bordered()
-                .title("Amazing Counter App")
-                .title_alignment(Alignment::Center)
-                .border_type(BorderType::Rounded);
+            let [title_area, _, desc_area, body_area] = Layout::vertical([
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(3),
+                Constraint::Min(0),
+            ])
+            .areas(area);
 
-            let text = format!(
-                "This is a TUI template.\n\
-                Press `Esc` to stop running.\n\
-                Press left and right to increment and decrement the counter respectively.\n\
-                Counter: {}",
-                self.counter
-            );
+            // Title
+            Line::from("Snowflake").centered().render(title_area, buf);
 
-            let paragraph = Paragraph::new(text)
-                .block(block)
-                .fg(Color::Cyan)
-                .bg(Color::Black)
-                .centered();
+            // Description
+            Paragraph::new(
+                "A simple music app for the terminal.\n\
+                Press `Esc` to quit.\n\
+                Browse tracks with arrows and play music with media keys.\n",
+            )
+            .centered()
+            .render(desc_area, buf);
 
-            paragraph.render(area, buf);
+            // Body
+            const MAX_WIDTH: u16 = 72;
+            const MARGIN: u16 = 2;
+            let body = center_horizontal(body_area, Constraint::Length(MAX_WIDTH + MARGIN))
+                .inner(Margin::new(MARGIN, MARGIN));
+
+            let widths = [
+                Constraint::Length(20),
+                Constraint::Length(16),
+                Constraint::Length(20),
+                Constraint::Length(6),
+                Constraint::Length(6),
+            ];
+            let rows = self.db.iter().map(|track| {
+                Row::new([
+                    track.title(),
+                    track.artist(),
+                    track.album(),
+                    "1:23",
+                    "*****",
+                ])
+            });
+            let table = Table::new(rows, widths)
+                .header(Row::new([
+                    Cell::from("Title"),
+                    Cell::from("Artist"),
+                    Cell::from("Album"),
+                    Cell::from("Time"),
+                    Cell::from("Rating"),
+                ]))
+                .row_highlight_style(Style::new().reversed());
+
+            frame.render_stateful_widget(table, body, &mut self.table_state);
         })
     }
+}
+
+fn center_horizontal(area: Rect, constraint: Constraint) -> Rect {
+    let [area] = Layout::horizontal([constraint])
+        .flex(Flex::Center)
+        .areas(area);
+    area
 }
