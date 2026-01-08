@@ -9,20 +9,18 @@ pub struct Terminal {
     clear: bool,
 }
 
-pub fn init() -> std::io::Result<Terminal> {
-    let terminal = ratatui::try_init()?;
-
-    Ok(Terminal {
-        terminal,
-        clear: false,
-    })
-}
-
-pub fn restore() -> std::io::Result<()> {
-    ratatui::try_restore()
-}
-
 impl Terminal {
+    pub fn init() -> std::io::Result<Terminal> {
+        Ok(Terminal {
+            terminal: ratatui::try_init()?,
+            clear: false,
+        })
+    }
+
+    pub fn restore() -> std::io::Result<()> {
+        ratatui::try_restore()
+    }
+
     pub fn draw<F>(&mut self, render_callback: F) -> std::io::Result<CompletedFrame<'_>>
     where
         F: FnOnce(&mut Frame),
@@ -38,7 +36,7 @@ impl Terminal {
         })
     }
 
-    pub fn temp_leave<T>(&mut self, f: impl FnOnce() -> std::io::Result<T>) -> std::io::Result<T> {
+    pub fn _temp_leave<T>(&mut self, f: impl FnOnce() -> std::io::Result<T>) -> std::io::Result<T> {
         let mut stdout = std::io::stdout();
 
         execute!(stdout, LeaveAlternateScreen)?;
