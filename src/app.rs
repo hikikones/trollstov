@@ -5,9 +5,9 @@ use crossterm::event::{Event, KeyCode, KeyEventKind};
 use ratatui::{
     CompletedFrame, crossterm,
     layout::{Constraint, Flex, Layout, Margin, Rect},
-    style::{Color, Style, Stylize},
-    text::Line,
-    widgets::{Block, Cell, HighlightSpacing, Paragraph, Row, Table, TableState, Widget},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Paragraph, Widget},
 };
 
 use crate::{audio::Database, terminal::Terminal};
@@ -23,16 +23,18 @@ pub enum Action {
 #[derive(Debug)]
 pub struct App {
     db: Database,
-    selected: usize,
-    table_state: TableState,
+    current: usize,
+    scroll: usize,
+    selected: Option<usize>,
 }
 
 impl App {
     pub fn new(db: Database) -> Self {
         Self {
             db,
-            selected: 0,
-            table_state: TableState::new().with_selected(0),
+            current: 0,
+            scroll: 0,
+            selected: None,
         }
     }
 
@@ -62,14 +64,16 @@ impl App {
                     Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
                         KeyCode::Esc => Action::Quit,
                         KeyCode::Down => {
-                            self.selected =
-                                usize::min(self.selected + 1, self.db.len().saturating_sub(1));
-                            self.table_state.select(self.selected.into());
+                            self.current =
+                                usize::min(self.current + 1, self.db.len().saturating_sub(1));
                             Action::Render
                         }
                         KeyCode::Up => {
-                            self.selected = self.selected.saturating_sub(1);
-                            self.table_state.select(self.selected.into());
+                            self.current = self.current.saturating_sub(1);
+                            Action::Render
+                        }
+                        KeyCode::Enter => {
+                            self.selected = Some(self.current);
                             Action::Render
                         }
                         _ => Action::None,
@@ -111,45 +115,96 @@ impl App {
             // Description
             Paragraph::new(
                 "A simple music app for the terminal.\n\
-                Press `Esc` to quit.\n\
-                Browse tracks with arrows and play music with media keys.\n",
+                Press Esc to quit.\n\
+                Browse tracks with arrow keys and select with Enter.",
             )
             .centered()
             .render(desc_area, buf);
 
-            // Body
-            const MAX_WIDTH: u16 = 72;
+            // Table of tracks
+            const MAX_WIDTH: u16 = 128;
             const MARGIN: u16 = 2;
             let body = center_horizontal(body_area, Constraint::Length(MAX_WIDTH + MARGIN))
                 .inner(Margin::new(MARGIN, MARGIN));
 
-            let widths = [
-                Constraint::Length(20),
-                Constraint::Length(16),
-                Constraint::Length(20),
-                Constraint::Length(6),
-                Constraint::Length(6),
-            ];
-            let rows = self.db.iter().map(|track| {
-                Row::new([
-                    track.title(),
-                    track.artist(),
-                    track.album(),
-                    "1:23",
-                    "*****",
-                ])
-            });
-            let table = Table::new(rows, widths)
-                .header(Row::new([
-                    Cell::from("Title"),
-                    Cell::from("Artist"),
-                    Cell::from("Album"),
-                    Cell::from("Time"),
-                    Cell::from("Rating"),
-                ]))
-                .row_highlight_style(Style::new().reversed());
+            let time_width = 6;
+            let rating_width = 6;
+            let remaining_width = body.width.saturating_sub(time_width + rating_width);
+            let info_width = remaining_width / 3;
+            let spacing = 1;
 
-            frame.render_stateful_widget(table, body, &mut self.table_state);
+            let [header_area, table_area] =
+                Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(body);
+
+            let mut x = header_area.x;
+            for (header, width, spacing) in [
+                ("Title", info_width, spacing),
+                ("Artist", info_width, spacing),
+                ("Album", info_width, spacing),
+                ("Time", time_width, spacing),
+                ("Rating", rating_width, 0),
+            ] {
+                let col = Rect {
+                    width: width.saturating_sub(spacing),
+                    height: 1,
+                    x,
+                    y: header_area.y,
+                };
+                Span::raw(header).render(col, buf);
+                x += width;
+            }
+
+            let height = table_area.height as usize;
+            if self.current > self.scroll {
+                let height_diff = self.current - self.scroll;
+                let height = height.saturating_sub(1);
+                if height_diff > height {
+                    self.scroll += height_diff - height;
+                }
+            } else if self.scroll > self.current {
+                let height_diff = self.scroll - self.current;
+                self.scroll -= height_diff;
+            }
+
+            let mut x = table_area.x;
+            let mut y = table_area.y;
+
+            self.db
+                .iter()
+                .enumerate()
+                .skip(self.scroll)
+                .take(height)
+                .for_each(|(i, track)| {
+                    for (text, width, spacing) in [
+                        (track.title(), info_width, spacing),
+                        (track.artist(), info_width, spacing),
+                        (track.album(), info_width, spacing),
+                        ("1:23", time_width, spacing),
+                        ("*****", rating_width, 0),
+                    ] {
+                        let col = Rect {
+                            width: width.saturating_sub(spacing),
+                            height: 1,
+                            x,
+                            y,
+                        };
+
+                        let mut style = Style::new();
+                        if self.current == i {
+                            style.fg = Some(Color::Yellow);
+                        }
+                        if let Some(selected) = self.selected
+                            && selected == i
+                        {
+                            style.add_modifier.insert(Modifier::BOLD);
+                        }
+
+                        Span::styled(text, style).render(col, buf);
+                        x += width;
+                    }
+                    x = table_area.x;
+                    y += 1;
+                });
         })
     }
 }
