@@ -11,7 +11,7 @@ use ratatui::{
 };
 
 use crate::{
-    audio::{AudioPlayback, Database},
+    audio::{AudioPlayback, Database, Rating},
     terminal::Terminal,
 };
 
@@ -82,6 +82,15 @@ impl App {
                             let _ = self.audio.play(track.path());
                             Action::Render
                         }
+                        KeyCode::Char(c) => match c {
+                            '1' | '2' | '3' | '4' | '5' => {
+                                let rating = Rating::from_char(c).unwrap();
+                                let track = self.db.iter_mut().nth(self.current).unwrap();
+                                track.set_rating(rating).unwrap();
+                                Action::Render
+                            }
+                            _ => Action::None,
+                        },
                         _ => Action::None,
                     },
                     Event::Resize(_, _) => Action::Render,

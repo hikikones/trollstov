@@ -7,12 +7,12 @@ use std::{
 };
 
 use lofty::{
-    config::ParseOptions,
+    config::{ParseOptions, WriteOptions},
     file::AudioFile,
     flac::FlacFile,
-    id3::v2::{Frame, FrameId, Id3v2Tag},
+    id3::v2::{Frame, FrameId, Id3v2Tag, PopularimeterFrame},
     mpeg::MpegFile,
-    ogg::OpusFile,
+    ogg::{OpusFile, VorbisComments},
     tag::Accessor,
 };
 
@@ -44,6 +44,12 @@ impl std::ops::Deref for Database {
 
     fn deref(&self) -> &Self::Target {
         &self.tracks
+    }
+}
+
+impl std::ops::DerefMut for Database {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.tracks
     }
 }
 
@@ -129,8 +135,44 @@ impl Track {
         }
     }
 
-    pub const fn set_rating(&mut self, rating: Option<Rating>) {
-        self.metadata.rating = rating;
+    pub fn set_rating(&mut self, rating: Rating) -> color_eyre::Result<()> {
+        let mut file = File::open(&self.path)?;
+
+        let new_rating = match self.audio_format {
+            AudioFileFormat::Mp3 => {
+                let mut mpeg = MpegFile::read_from(&mut file, ParseOptions::new()).unwrap();
+                let id3v2 = mpeg.id3v2_mut().unwrap();
+                let new_rating = Metadata::set_rating_id3v2(id3v2, self.metadata.rating, rating);
+                mpeg.save_to_path(&self.path, WriteOptions::new())?;
+                new_rating
+            }
+            AudioFileFormat::Flac => {
+                let mut flac = FlacFile::read_from(&mut file, ParseOptions::new()).unwrap();
+                let vorbis_comments = flac.vorbis_comments_mut().unwrap();
+                let new_rating = Metadata::set_rating_vorbis_comments(
+                    vorbis_comments,
+                    self.metadata.rating,
+                    rating,
+                );
+                flac.save_to_path(&self.path, WriteOptions::new())?;
+                new_rating
+            }
+            AudioFileFormat::Opus => {
+                let mut opus = OpusFile::read_from(&mut file, ParseOptions::new()).unwrap();
+                let vorbis_comments = opus.vorbis_comments_mut();
+                let new_rating = Metadata::set_rating_vorbis_comments(
+                    vorbis_comments,
+                    self.metadata.rating,
+                    rating,
+                );
+                opus.save_to_path(&self.path, WriteOptions::new())?;
+                new_rating
+            }
+        };
+
+        self.metadata.rating = new_rating;
+
+        Ok(())
     }
 
     pub const fn duration(&self) -> Duration {
@@ -184,7 +226,7 @@ impl Metadata {
         }
     }
 
-    fn from_vorbis_comments(metadata: &lofty::ogg::VorbisComments) -> Self {
+    fn from_vorbis_comments(metadata: &VorbisComments) -> Self {
         Self {
             title: metadata.get("TITLE").map(str::to_owned).unwrap_or_default(),
             artist: metadata
@@ -195,6 +237,70 @@ impl Metadata {
             rating: metadata
                 .get("RATING")
                 .and_then(|s| Rating::from_vorbis_comments(s)),
+        }
+    }
+
+    fn set_rating_id3v2(
+        id3v2: &mut Id3v2Tag,
+        current_rating: Option<Rating>,
+        new_rating: Rating,
+    ) -> Option<Rating> {
+        match current_rating {
+            Some(current_rating) => {
+                if current_rating != new_rating {
+                    // Replace rating when they differ
+                    id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
+                        String::new(),
+                        new_rating.into_id3v2(),
+                        0,
+                    )));
+                    Some(new_rating)
+                } else {
+                    // Remove rating when they are the same
+                    let _ = id3v2.remove(&FrameId::Valid(Cow::Borrowed("POPM")));
+                    None
+                }
+            }
+            None => {
+                // Insert new rating
+                id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
+                    String::new(),
+                    new_rating.into_id3v2(),
+                    0,
+                )));
+                Some(new_rating)
+            }
+        }
+    }
+
+    fn set_rating_vorbis_comments(
+        vorbis_comments: &mut VorbisComments,
+        current_rating: Option<Rating>,
+        new_rating: Rating,
+    ) -> Option<Rating> {
+        match current_rating {
+            Some(current_rating) => {
+                if current_rating != new_rating {
+                    // Replace rating when they differ
+                    vorbis_comments.insert(
+                        "RATING".to_string(),
+                        new_rating.into_vorbis_comments().to_string(),
+                    );
+                    Some(new_rating)
+                } else {
+                    // Remove rating when they are the same
+                    let _ = vorbis_comments.remove("RATING");
+                    None
+                }
+            }
+            None => {
+                // Insert new rating
+                vorbis_comments.insert(
+                    "RATING".to_string(),
+                    new_rating.into_vorbis_comments().to_string(),
+                );
+                Some(new_rating)
+            }
         }
     }
 }
@@ -236,7 +342,7 @@ fn duration_display(duration: Duration) -> String {
     format!("{:02}:{:02}", (duration.as_secs() - seconds) / 60, seconds)
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Rating {
     Awful,
     Bad,
@@ -246,13 +352,23 @@ pub enum Rating {
 }
 
 impl Rating {
-    fn from_id3v2(rating: u8) -> Self {
+    const fn from_id3v2(rating: u8) -> Self {
         match rating {
             0..=51 => Rating::Awful,
             52..=102 => Rating::Bad,
             103..=153 => Rating::Ok,
             154..=204 => Rating::Good,
             205..=255 => Rating::Amazing,
+        }
+    }
+
+    const fn into_id3v2(&self) -> u8 {
+        match self {
+            Rating::Awful => 50,
+            Rating::Bad => 100,
+            Rating::Ok => 150,
+            Rating::Good => 200,
+            Rating::Amazing => 250,
         }
     }
 
@@ -264,6 +380,27 @@ impl Rating {
             61..=80 => Self::Good,
             81..=255 => Self::Amazing,
         })
+    }
+
+    const fn into_vorbis_comments(&self) -> &str {
+        match self {
+            Rating::Awful => "20",
+            Rating::Bad => "40",
+            Rating::Ok => "60",
+            Rating::Good => "80",
+            Rating::Amazing => "100",
+        }
+    }
+
+    pub const fn from_char(c: char) -> Option<Self> {
+        match c {
+            '1' => Some(Self::Awful),
+            '2' => Some(Self::Bad),
+            '3' => Some(Self::Ok),
+            '4' => Some(Self::Good),
+            '5' => Some(Self::Amazing),
+            _ => None,
+        }
     }
 }
 
