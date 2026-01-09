@@ -10,7 +10,10 @@ use ratatui::{
     widgets::{Paragraph, Widget},
 };
 
-use crate::{audio::Database, terminal::Terminal};
+use crate::{
+    audio::{AudioPlayback, Database},
+    terminal::Terminal,
+};
 
 const RENDER_FREQUENCY: f64 = 1.0;
 
@@ -20,18 +23,19 @@ pub enum Action {
     Quit,
 }
 
-#[derive(Debug)]
 pub struct App {
     db: Database,
+    audio: AudioPlayback,
     current: usize,
     scroll: usize,
     selected: Option<usize>,
 }
 
 impl App {
-    pub fn new(db: Database) -> Self {
+    pub fn new(db: Database, audio: AudioPlayback) -> Self {
         Self {
             db,
+            audio,
             current: 0,
             scroll: 0,
             selected: None,
@@ -74,6 +78,8 @@ impl App {
                         }
                         KeyCode::Enter => {
                             self.selected = Some(self.current);
+                            let track = self.db.iter().nth(self.current).unwrap();
+                            let _ = self.audio.play(track.path());
                             Action::Render
                         }
                         _ => Action::None,
@@ -116,7 +122,7 @@ impl App {
             Paragraph::new(
                 "A simple music app for the terminal.\n\
                 Press Esc to quit.\n\
-                Browse tracks with arrow keys and select with Enter.",
+                Browse music with arrow keys and play with Enter.",
             )
             .centered()
             .render(desc_area, buf);
