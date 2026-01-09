@@ -3,6 +3,7 @@ use std::{
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 use lofty::{
@@ -53,23 +54,33 @@ impl Database {
             .map(|(audio_format, path)| {
                 let mut file = File::open(&path).unwrap();
 
-                let metadata = match audio_format {
+                let (metadata, properties) = match audio_format {
                     AudioFileFormat::Mp3 => {
-                        let mp3 = MpegFile::read_from(&mut file, ParseOptions::new()).unwrap();
-                        Metadata::from_id3v2(mp3.id3v2().unwrap())
+                        let mpeg = MpegFile::read_from(&mut file, ParseOptions::new()).unwrap();
+                        (
+                            Metadata::from_id3v2(mpeg.id3v2().unwrap()),
+                            Properties::from_mpeg(&mpeg),
+                        )
                     }
                     AudioFileFormat::Flac => {
                         let flac = FlacFile::read_from(&mut file, ParseOptions::new()).unwrap();
-                        Metadata::from_vorbis_comments(flac.vorbis_comments().unwrap())
+                        (
+                            Metadata::from_vorbis_comments(flac.vorbis_comments().unwrap()),
+                            Properties::from_flac(&flac),
+                        )
                     }
                     AudioFileFormat::Opus => {
                         let opus = OpusFile::read_from(&mut file, ParseOptions::new()).unwrap();
-                        Metadata::from_vorbis_comments(opus.vorbis_comments())
+                        (
+                            Metadata::from_vorbis_comments(opus.vorbis_comments()),
+                            Properties::from_opus(&opus),
+                        )
                     }
                 };
 
                 Track {
                     metadata,
+                    properties,
                     path,
                     audio_format,
                 }
@@ -83,33 +94,55 @@ impl Database {
 #[derive(Debug)]
 pub struct Track {
     metadata: Metadata,
+    properties: Properties,
     path: PathBuf,
     audio_format: AudioFileFormat,
 }
 
 impl Track {
-    pub fn title(&self) -> &str {
-        &self.metadata.title
+    pub const fn title(&self) -> &str {
+        self.metadata.title.as_str()
     }
 
-    pub fn artist(&self) -> &str {
-        &self.metadata.artist
+    pub const fn artist(&self) -> &str {
+        self.metadata.artist.as_str()
     }
 
-    pub fn album(&self) -> &str {
-        &self.metadata.album
+    pub const fn album(&self) -> &str {
+        self.metadata.album.as_str()
     }
 
-    pub fn rating(&self) -> Option<Rating> {
+    pub const fn rating(&self) -> Option<Rating> {
         self.metadata.rating
     }
 
-    pub fn set_rating(&mut self, rating: Option<Rating>) {
+    pub const fn rating_display(&self) -> &str {
+        match self.metadata.rating {
+            Some(rating) => match rating {
+                Rating::Awful => "*",
+                Rating::Bad => "**",
+                Rating::Ok => "***",
+                Rating::Good => "****",
+                Rating::Amazing => "*****",
+            },
+            None => "",
+        }
+    }
+
+    pub const fn set_rating(&mut self, rating: Option<Rating>) {
         self.metadata.rating = rating;
     }
 
+    pub const fn duration(&self) -> Duration {
+        self.properties.duration
+    }
+
+    pub const fn duration_display(&self) -> &str {
+        self.properties.duration_display.as_str()
+    }
+
     pub fn path(&self) -> &Path {
-        &self.path
+        self.path.as_path()
     }
 }
 
@@ -164,6 +197,43 @@ impl Metadata {
                 .and_then(|s| Rating::from_vorbis_comments(s)),
         }
     }
+}
+
+#[derive(Debug)]
+struct Properties {
+    duration: Duration,
+    duration_display: String,
+}
+
+impl Properties {
+    fn from_mpeg(mpeg_file: &MpegFile) -> Self {
+        let properties = mpeg_file.properties();
+        Self {
+            duration: properties.duration(),
+            duration_display: duration_display(properties.duration()),
+        }
+    }
+
+    fn from_flac(flac_file: &FlacFile) -> Self {
+        let properties = flac_file.properties();
+        Self {
+            duration: properties.duration(),
+            duration_display: duration_display(properties.duration()),
+        }
+    }
+
+    fn from_opus(opus_file: &OpusFile) -> Self {
+        let properties = opus_file.properties();
+        Self {
+            duration: properties.duration(),
+            duration_display: duration_display(properties.duration()),
+        }
+    }
+}
+
+fn duration_display(duration: Duration) -> String {
+    let seconds = duration.as_secs() % 60;
+    format!("{:02}:{:02}", (duration.as_secs() - seconds) / 60, seconds)
 }
 
 #[derive(Debug, Clone, Copy)]

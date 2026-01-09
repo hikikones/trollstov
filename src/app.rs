@@ -133,11 +133,11 @@ impl App {
             let body = center_horizontal(body_area, Constraint::Length(MAX_WIDTH + MARGIN))
                 .inner(Margin::new(MARGIN, MARGIN));
 
-            let time_width = 6;
+            let spacing = 2;
+            let time_width = 6 + spacing;
             let rating_width = 6;
             let remaining_width = body.width.saturating_sub(time_width + rating_width);
             let info_width = remaining_width / 3;
-            let spacing = 1;
 
             let [header_area, table_area] =
                 Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(body);
@@ -185,8 +185,8 @@ impl App {
                         (track.title(), info_width, spacing),
                         (track.artist(), info_width, spacing),
                         (track.album(), info_width, spacing),
-                        ("1:23", time_width, spacing),
-                        ("*****", rating_width, 0),
+                        (track.duration_display(), time_width, spacing),
+                        (track.rating_display(), rating_width, 0),
                     ] {
                         let col = Rect {
                             width: width.saturating_sub(spacing),
