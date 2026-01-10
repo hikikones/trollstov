@@ -1,5 +1,6 @@
 mod app;
 mod audio;
+mod pages;
 mod terminal;
 
 fn main() -> color_eyre::Result<()> {
