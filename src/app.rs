@@ -5,7 +5,8 @@ use crossterm::event::{Event, KeyCode, KeyEventKind};
 use ratatui::{CompletedFrame, layout::Flex, prelude::*};
 
 use crate::{
-    audio::{AudioPlayback, Database},
+    audio::AudioPlayback,
+    database::Database,
     pages::{Pages, Route},
     terminal::Terminal,
 };

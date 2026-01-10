@@ -3,7 +3,8 @@ use ratatui::prelude::*;
 
 use crate::{
     app::{Action, Colors},
-    audio::{AudioPlayback, Database, Rating},
+    audio::{AudioPlayback, AudioRating},
+    database::Database,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -157,7 +158,7 @@ impl TracksPage {
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
-                    let rating = Rating::from_char(c).unwrap();
+                    let rating = AudioRating::from_char(c).unwrap();
                     let track = db.iter_mut().nth(self.current).unwrap();
                     track.set_rating(rating).unwrap();
                     Action::Render
