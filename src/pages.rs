@@ -4,7 +4,7 @@ use ratatui::prelude::*;
 use crate::{
     app::{Action, Colors},
     audio::AudioRating,
-    jukebox::{Jukebox, TrackSort},
+    jukebox::Jukebox,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -156,12 +156,7 @@ impl TracksPage {
                     Action::Render
                 }
                 's' => {
-                    let new_sort = match jb.get_sort() {
-                        TrackSort::Title => TrackSort::Artist,
-                        TrackSort::Artist => TrackSort::Album,
-                        TrackSort::Album => TrackSort::Title,
-                    };
-                    jb.sort(new_sort);
+                    jb.sort(jb.get_sort().next());
                     Action::Render
                 }
                 _ => Action::None,

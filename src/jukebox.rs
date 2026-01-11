@@ -145,6 +145,7 @@ impl Jukebox {
                 TrackSort::Title => track1.title().cmp(track2.title()),
                 TrackSort::Artist => track1.artist().cmp(track2.artist()),
                 TrackSort::Album => track1.album().cmp(track2.album()),
+                TrackSort::Time => track1.duration_display().cmp(track2.duration_display()),
             });
         self.sort = sort;
     }
@@ -288,6 +289,27 @@ pub enum TrackSort {
     Artist,
     #[default]
     Album,
+    Time,
+}
+
+impl TrackSort {
+    pub const fn next(self) -> Self {
+        match self {
+            Self::Title => Self::Artist,
+            Self::Artist => Self::Album,
+            Self::Album => Self::Time,
+            Self::Time => Self::Title,
+        }
+    }
+
+    pub const fn prev(self) -> Self {
+        match self {
+            Self::Title => Self::Time,
+            Self::Artist => Self::Title,
+            Self::Album => Self::Artist,
+            Self::Time => Self::Album,
+        }
+    }
 }
 
 fn traverse_audio_files(
