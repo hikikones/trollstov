@@ -1,5 +1,6 @@
 use std::{
     fs::File,
+    io::BufReader,
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -15,16 +16,20 @@ use lofty::{
 
 use crate::audio::*;
 
-#[derive(Debug)]
-pub struct Database {
+pub struct Jukebox {
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
+    current: Option<TrackId>,
+    sink: rodio::Sink,
+    _stream: rodio::OutputStream,
 }
 
-impl Database {
-    pub fn new(dir: impl AsRef<Path>) -> Self {
-        let mut tracks = IndexMap::new();
+impl Jukebox {
+    pub fn new(dir: impl AsRef<Path>) -> color_eyre::Result<Self> {
+        let stream = rodio::OutputStreamBuilder::open_default_stream()?;
+        let sink = rodio::Sink::connect_new(stream.mixer());
 
+        let mut tracks = IndexMap::new();
         traverse_audio_files(dir)
             .take(60) // todo: process in another thread
             .map(|(path, audio_format)| {
@@ -62,13 +67,23 @@ impl Database {
             });
 
         let sort = TrackSort::default();
-        let mut database = Self { tracks, sort };
-        database.sort(sort);
-        database
+        let mut jukebox = Self {
+            tracks,
+            sort,
+            current: None,
+            sink,
+            _stream: stream,
+        };
+        jukebox.sort(sort);
+        Ok(jukebox)
     }
 
     pub fn is_empty(&self) -> bool {
         self.tracks.is_empty()
+    }
+
+    pub fn is_playing(&self) -> bool {
+        self.sink.empty()
     }
 
     pub fn len(&self) -> usize {
@@ -134,8 +149,21 @@ impl Database {
         self.sort = sort;
     }
 
-    fn last_id(&self) -> TrackId {
-        self.tracks.keys().last().copied().unwrap_or_default()
+    pub const fn current(&self) -> Option<TrackId> {
+        self.current
+    }
+
+    pub fn play(&mut self, id: TrackId) -> color_eyre::Result<()> {
+        let track = self.tracks.get(&id).unwrap();
+        let file = BufReader::new(File::open(track.path())?);
+        let input = rodio::decoder::Decoder::new(file)?;
+
+        self.sink.clear();
+        self.sink.append(input);
+        self.sink.play();
+        self.current = Some(id);
+
+        Ok(())
     }
 }
 

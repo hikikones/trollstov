@@ -3,8 +3,8 @@ use ratatui::prelude::*;
 
 use crate::{
     app::{Action, Colors},
-    audio::{AudioPlayback, AudioRating},
-    database::{Database, TrackId, TrackSort},
+    audio::AudioRating,
+    jukebox::{Jukebox, TrackSort},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,7 +29,6 @@ impl Pages {
 
 pub struct TracksPage {
     index: usize,
-    selected: Option<TrackId>,
     scroll: usize,
 }
 
@@ -37,12 +36,11 @@ impl TracksPage {
     pub fn new() -> Self {
         Self {
             index: 0,
-            selected: None,
             scroll: 0,
         }
     }
 
-    pub fn on_enter(&mut self, db: &Database) {
+    pub fn on_enter(&mut self, jb: &Jukebox) {
         // todo
     }
 
@@ -50,7 +48,7 @@ impl TracksPage {
         &mut self,
         area: Rect,
         buf: &mut Buffer,
-        db: &Database,
+        jb: &Jukebox,
         colors: &Colors,
         menu: &mut Line,
     ) {
@@ -96,7 +94,8 @@ impl TracksPage {
         let mut x = table_area.x;
         let mut y = table_area.y;
 
-        db.iter()
+        let current = jb.current();
+        jb.iter()
             .enumerate()
             .skip(self.scroll)
             .take(height)
@@ -119,8 +118,8 @@ impl TracksPage {
                     if self.index == i {
                         style.fg = Some(colors.accent);
                     }
-                    if let Some(selected) = self.selected
-                        && selected == id
+                    if let Some(current) = current
+                        && current == id
                     {
                         style.add_modifier.insert(Modifier::BOLD);
                     }
@@ -133,17 +132,11 @@ impl TracksPage {
             });
     }
 
-    pub fn on_input(
-        &mut self,
-        key: KeyCode,
-        _modifiers: KeyModifiers,
-        db: &mut Database,
-        audio: &mut AudioPlayback,
-    ) -> Action {
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) -> Action {
         match key {
             KeyCode::Esc => Action::Quit,
             KeyCode::Down => {
-                self.index = usize::min(self.index + 1, db.len().saturating_sub(1));
+                self.index = usize::min(self.index + 1, jb.len().saturating_sub(1));
                 Action::Render
             }
             KeyCode::Up => {
@@ -151,25 +144,24 @@ impl TracksPage {
                 Action::Render
             }
             KeyCode::Enter => {
-                let (id, track) = db.get_key_value_from_index(self.index).unwrap();
-                let _ = audio.play(track.path());
-                self.selected = Some(id);
+                let id = jb.get_key_from_index(self.index).unwrap();
+                let _ = jb.play(id);
                 Action::Render
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
                     let rating: AudioRating = AudioRating::from_char(c).unwrap();
-                    let track = db.values_mut().nth(self.index).unwrap();
+                    let track = jb.values_mut().nth(self.index).unwrap();
                     track.set_rating(rating).unwrap();
                     Action::Render
                 }
                 's' => {
-                    let new_sort = match db.get_sort() {
+                    let new_sort = match jb.get_sort() {
                         TrackSort::Title => TrackSort::Artist,
                         TrackSort::Artist => TrackSort::Album,
                         TrackSort::Album => TrackSort::Title,
                     };
-                    db.sort(new_sort);
+                    jb.sort(new_sort);
                     Action::Render
                 }
                 _ => Action::None,
@@ -190,7 +182,7 @@ impl NowPlayingPage {
         Self {}
     }
 
-    pub fn on_enter(&mut self, db: &Database) {
+    pub fn on_enter(&mut self, jb: &Jukebox) {
         // todo
     }
 

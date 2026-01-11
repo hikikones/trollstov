@@ -5,8 +5,7 @@ use crossterm::event::{Event, KeyCode, KeyEventKind};
 use ratatui::{CompletedFrame, layout::Flex, prelude::*};
 
 use crate::{
-    audio::AudioPlayback,
-    database::Database,
+    jukebox::Jukebox,
     pages::{Pages, Route},
     terminal::Terminal,
 };
@@ -14,8 +13,7 @@ use crate::{
 const RENDER_FREQUENCY: f64 = 1.0;
 
 pub struct App {
-    db: Database,
-    audio: AudioPlayback,
+    jb: Jukebox,
     route: Route,
     pages: Pages,
     colors: Colors,
@@ -38,7 +36,7 @@ pub struct Colors {
 }
 
 impl App {
-    pub fn new(db: Database, audio: AudioPlayback) -> Self {
+    pub fn new(jb: Jukebox) -> Self {
         let colors =
             match terminal_colorsaurus::theme_mode(terminal_colorsaurus::QueryOptions::default())
                 .unwrap_or(terminal_colorsaurus::ThemeMode::Dark)
@@ -58,8 +56,7 @@ impl App {
         let title_line = Line::styled("snowflake", Style::new().fg(colors.neutral)).centered();
 
         Self {
-            db,
-            audio,
+            jb,
             route: Route::Tracks,
             pages: Pages::new(),
             colors,
@@ -71,7 +68,7 @@ impl App {
 
     pub fn run(mut self, mut terminal: Terminal) -> color_eyre::Result<()> {
         // Render initial page
-        self.pages.tracks.on_enter(&self.db);
+        self.pages.tracks.on_enter(&self.jb);
         self.render(&mut terminal)?;
 
         // Setup render timers
@@ -105,12 +102,11 @@ impl App {
                             Route::NowPlaying => Action::Route(Route::Tracks),
                         },
                         _ => match self.route {
-                            Route::Tracks => self.pages.tracks.on_input(
-                                key.code,
-                                key.modifiers,
-                                &mut self.db,
-                                &mut self.audio,
-                            ),
+                            Route::Tracks => {
+                                self.pages
+                                    .tracks
+                                    .on_input(key.code, key.modifiers, &mut self.jb)
+                            }
                             Route::NowPlaying => {
                                 self.pages.now_playing.on_input(key.code, key.modifiers)
                             }
@@ -135,8 +131,8 @@ impl App {
                         self.route = route;
 
                         match route {
-                            Route::Tracks => self.pages.tracks.on_enter(&self.db),
-                            Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.db),
+                            Route::Tracks => self.pages.tracks.on_enter(&self.jb),
+                            Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jb),
                         }
 
                         self.render(&mut terminal)?;
@@ -195,7 +191,7 @@ impl App {
                     self.pages.tracks.on_render(
                         body,
                         buf,
-                        &self.db,
+                        &self.jb,
                         &self.colors,
                         &mut self.menu_line,
                     );

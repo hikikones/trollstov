@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fs::File, io::BufReader, path::Path, time::Duration};
+use std::{borrow::Cow, time::Duration};
 
 use lofty::{
     file::AudioFile,
@@ -8,24 +8,6 @@ use lofty::{
     ogg::{OpusFile, VorbisComments},
     tag::Accessor,
 };
-
-pub struct AudioPlayback {
-    stream: rodio::OutputStream,
-    sink: Option<rodio::Sink>,
-}
-
-impl AudioPlayback {
-    pub fn new() -> Result<Self, rodio::StreamError> {
-        let stream = rodio::OutputStreamBuilder::open_default_stream()?;
-        Ok(Self { stream, sink: None })
-    }
-
-    pub fn play(&mut self, path: impl AsRef<Path>) -> color_eyre::Result<()> {
-        let file = BufReader::new(File::open(path)?);
-        self.sink = Some(rodio::play(&self.stream.mixer(), file)?);
-        Ok(())
-    }
-}
 
 #[derive(Debug)]
 pub struct AudioMetadata {
