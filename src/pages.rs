@@ -4,7 +4,7 @@ use ratatui::prelude::*;
 use crate::{
     app::{Action, Colors},
     audio::{AudioPlayback, AudioRating},
-    database::Database,
+    database::{Database, TrackId, TrackSort},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,15 +28,15 @@ impl Pages {
 }
 
 pub struct TracksPage {
-    current: usize,
-    selected: Option<usize>,
+    index: usize,
+    selected: Option<TrackId>,
     scroll: usize,
 }
 
 impl TracksPage {
     pub fn new() -> Self {
         Self {
-            current: 0,
+            index: 0,
             selected: None,
             scroll: 0,
         }
@@ -82,25 +82,25 @@ impl TracksPage {
         }
 
         let height = table_area.height as usize;
-        if self.current > self.scroll {
-            let height_diff = self.current - self.scroll;
+        if self.index > self.scroll {
+            let height_diff = self.index - self.scroll;
             let height = height.saturating_sub(1);
             if height_diff > height {
                 self.scroll += height_diff - height;
             }
-        } else if self.scroll > self.current {
-            let height_diff = self.scroll - self.current;
+        } else if self.scroll > self.index {
+            let height_diff = self.scroll - self.index;
             self.scroll -= height_diff;
         }
 
         let mut x = table_area.x;
         let mut y = table_area.y;
 
-        db.values()
+        db.iter()
             .enumerate()
             .skip(self.scroll)
             .take(height)
-            .for_each(|(i, track)| {
+            .for_each(|(i, (id, track))| {
                 for (text, width, spacing) in [
                     (track.title(), info_width, spacing),
                     (track.artist(), info_width, spacing),
@@ -116,11 +116,11 @@ impl TracksPage {
                     };
 
                     let mut style = Style::new();
-                    if self.current == i {
+                    if self.index == i {
                         style.fg = Some(colors.accent);
                     }
                     if let Some(selected) = self.selected
-                        && selected == i
+                        && selected == id
                     {
                         style.add_modifier.insert(Modifier::BOLD);
                     }
@@ -143,24 +143,33 @@ impl TracksPage {
         match key {
             KeyCode::Esc => Action::Quit,
             KeyCode::Down => {
-                self.current = usize::min(self.current + 1, db.len().saturating_sub(1));
+                self.index = usize::min(self.index + 1, db.len().saturating_sub(1));
                 Action::Render
             }
             KeyCode::Up => {
-                self.current = self.current.saturating_sub(1);
+                self.index = self.index.saturating_sub(1);
                 Action::Render
             }
             KeyCode::Enter => {
-                self.selected = Some(self.current);
-                let track = db.values().nth(self.current).unwrap();
+                let (id, track) = db.get_key_value_from_index(self.index).unwrap();
                 let _ = audio.play(track.path());
+                self.selected = Some(id);
                 Action::Render
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
                     let rating: AudioRating = AudioRating::from_char(c).unwrap();
-                    let track = db.values_mut().nth(self.current).unwrap();
+                    let track = db.values_mut().nth(self.index).unwrap();
                     track.set_rating(rating).unwrap();
+                    Action::Render
+                }
+                's' => {
+                    let new_sort = match db.get_sort() {
+                        TrackSort::Title => TrackSort::Artist,
+                        TrackSort::Artist => TrackSort::Album,
+                        TrackSort::Album => TrackSort::Title,
+                    };
+                    db.sort(new_sort);
                     Action::Render
                 }
                 _ => Action::None,

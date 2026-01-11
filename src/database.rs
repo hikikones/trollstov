@@ -61,7 +61,7 @@ impl Database {
                 tracks.insert(TrackId(i as u64), track);
             });
 
-        let sort = TrackSort::Album;
+        let sort = TrackSort::default();
         let mut database = Self { tracks, sort };
         database.sort(sort);
         database
@@ -89,8 +89,27 @@ impl Database {
         }
     }
 
+    pub fn get_key_from_index(&self, i: usize) -> Option<TrackId> {
+        self.tracks.keys().copied().nth(i)
+    }
+
+    pub fn get_key_value_from_index(&self, i: usize) -> Option<(TrackId, &Track)> {
+        self.tracks.iter().nth(i).map(|(id, track)| (*id, track))
+    }
+
+    pub fn get_index_from_key(&self, id: TrackId) -> Option<usize> {
+        self.keys()
+            .enumerate()
+            .find(|(_, tid)| *tid == id)
+            .map(|(i, _)| i)
+    }
+
     pub fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, &Track)> + DoubleEndedIterator {
         self.tracks.iter().map(|(id, track)| (*id, track))
+    }
+
+    pub fn keys(&self) -> std::iter::Copied<indexmap::map::Keys<'_, TrackId, Track>> {
+        self.tracks.keys().copied()
     }
 
     pub fn values(&self) -> indexmap::map::Values<'_, TrackId, Track> {
@@ -101,6 +120,10 @@ impl Database {
         self.tracks.values_mut()
     }
 
+    pub const fn get_sort(&self) -> TrackSort {
+        self.sort
+    }
+
     pub fn sort(&mut self, sort: TrackSort) {
         self.tracks
             .sort_unstable_by(|_, track1, _, track2| match sort {
@@ -108,6 +131,7 @@ impl Database {
                 TrackSort::Artist => track1.artist().cmp(track2.artist()),
                 TrackSort::Album => track1.album().cmp(track2.album()),
             });
+        self.sort = sort;
     }
 
     fn last_id(&self) -> TrackId {
@@ -230,10 +254,11 @@ impl Track {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum TrackSort {
     Title,
     Artist,
+    #[default]
     Album,
 }
 
