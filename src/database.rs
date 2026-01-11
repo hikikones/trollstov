@@ -18,6 +18,7 @@ use crate::audio::*;
 #[derive(Debug)]
 pub struct Database {
     tracks: IndexMap<TrackId, Track>,
+    sort: TrackSort,
 }
 
 impl Database {
@@ -60,7 +61,10 @@ impl Database {
                 tracks.insert(TrackId(i as u64), track);
             });
 
-        Self { tracks }
+        let sort = TrackSort::Album;
+        let mut database = Self { tracks, sort };
+        database.sort(sort);
+        database
     }
 
     pub fn is_empty(&self) -> bool {
@@ -89,14 +93,21 @@ impl Database {
         self.tracks.iter().map(|(id, track)| (*id, track))
     }
 
-    pub fn values(&self) -> impl ExactSizeIterator<Item = &Track> + DoubleEndedIterator {
+    pub fn values(&self) -> indexmap::map::Values<'_, TrackId, Track> {
         self.tracks.values()
     }
 
-    pub fn values_mut(
-        &mut self,
-    ) -> impl ExactSizeIterator<Item = &mut Track> + DoubleEndedIterator {
+    pub fn values_mut(&mut self) -> indexmap::map::ValuesMut<'_, TrackId, Track> {
         self.tracks.values_mut()
+    }
+
+    pub fn sort(&mut self, sort: TrackSort) {
+        self.tracks
+            .sort_unstable_by(|_, track1, _, track2| match sort {
+                TrackSort::Title => track1.title().cmp(track2.title()),
+                TrackSort::Artist => track1.artist().cmp(track2.artist()),
+                TrackSort::Album => track1.album().cmp(track2.album()),
+            });
     }
 
     fn last_id(&self) -> TrackId {
@@ -217,6 +228,13 @@ impl Track {
     pub fn path(&self) -> &Path {
         self.path.as_path()
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum TrackSort {
+    Title,
+    Artist,
+    Album,
 }
 
 fn traverse_audio_files(
