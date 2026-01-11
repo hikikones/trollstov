@@ -1,13 +1,6 @@
-use std::{
-    borrow::Cow,
-    fs::File,
-    io::BufReader,
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::{borrow::Cow, fs::File, io::BufReader, path::Path, time::Duration};
 
 use lofty::{
-    config::{ParseOptions, WriteOptions},
     file::AudioFile,
     flac::FlacFile,
     id3::v2::{Frame, FrameId, Id3v2Tag, PopularimeterFrame},
@@ -35,112 +28,6 @@ impl AudioPlayback {
 }
 
 #[derive(Debug)]
-pub struct Track {
-    metadata: AudioMetadata,
-    properties: AudioProperties,
-    path: PathBuf,
-    audio_format: AudioFileFormat,
-}
-
-impl Track {
-    pub const fn new(
-        metadata: AudioMetadata,
-        properties: AudioProperties,
-        path: PathBuf,
-        audio_format: AudioFileFormat,
-    ) -> Self {
-        Self {
-            metadata,
-            properties,
-            path,
-            audio_format,
-        }
-    }
-
-    pub const fn title(&self) -> &str {
-        self.metadata.title.as_str()
-    }
-
-    pub const fn artist(&self) -> &str {
-        self.metadata.artist.as_str()
-    }
-
-    pub const fn album(&self) -> &str {
-        self.metadata.album.as_str()
-    }
-
-    pub const fn rating(&self) -> Option<AudioRating> {
-        self.metadata.rating
-    }
-
-    pub const fn rating_display(&self) -> &str {
-        match self.metadata.rating {
-            Some(rating) => match rating {
-                AudioRating::Awful => "*",
-                AudioRating::Bad => "**",
-                AudioRating::Ok => "***",
-                AudioRating::Good => "****",
-                AudioRating::Amazing => "*****",
-            },
-            None => "",
-        }
-    }
-
-    pub fn set_rating(&mut self, rating: AudioRating) -> color_eyre::Result<()> {
-        let mut file = File::open(&self.path)?;
-
-        let new_rating = match self.audio_format {
-            AudioFileFormat::Mp3 => {
-                let mut mpeg = MpegFile::read_from(&mut file, ParseOptions::new()).unwrap();
-                let id3v2 = mpeg.id3v2_mut().unwrap();
-                let new_rating =
-                    AudioMetadata::set_rating_id3v2(id3v2, self.metadata.rating, rating);
-                mpeg.save_to_path(&self.path, WriteOptions::new())?;
-                new_rating
-            }
-            AudioFileFormat::Flac => {
-                let mut flac = FlacFile::read_from(&mut file, ParseOptions::new()).unwrap();
-                let vorbis_comments = flac.vorbis_comments_mut().unwrap();
-                let new_rating = AudioMetadata::set_rating_vorbis_comments(
-                    vorbis_comments,
-                    self.metadata.rating,
-                    rating,
-                );
-                flac.save_to_path(&self.path, WriteOptions::new())?;
-                new_rating
-            }
-            AudioFileFormat::Opus => {
-                let mut opus = OpusFile::read_from(&mut file, ParseOptions::new()).unwrap();
-                let vorbis_comments = opus.vorbis_comments_mut();
-                let new_rating = AudioMetadata::set_rating_vorbis_comments(
-                    vorbis_comments,
-                    self.metadata.rating,
-                    rating,
-                );
-                opus.save_to_path(&self.path, WriteOptions::new())?;
-                new_rating
-            }
-        };
-
-        self.metadata.rating = new_rating;
-
-        Ok(())
-    }
-
-    pub const fn duration(&self) -> Duration {
-        self.properties.duration
-    }
-
-    pub const fn duration_display(&self) -> &str {
-        self.properties.duration_display.as_str()
-    }
-
-    pub fn path(&self) -> &Path {
-        self.path.as_path()
-    }
-}
-
-#[derive(Debug)]
 pub struct AudioMetadata {
     title: String,
     artist: String,
@@ -150,6 +37,26 @@ pub struct AudioMetadata {
 }
 
 impl AudioMetadata {
+    pub const fn title(&self) -> &str {
+        self.title.as_str()
+    }
+
+    pub const fn artist(&self) -> &str {
+        self.artist.as_str()
+    }
+
+    pub const fn album(&self) -> &str {
+        self.album.as_str()
+    }
+
+    pub const fn rating(&self) -> Option<AudioRating> {
+        self.rating
+    }
+
+    pub const fn set_rating(&mut self, rating: Option<AudioRating>) {
+        self.rating = rating;
+    }
+
     pub fn from_id3v2(metadata: &Id3v2Tag) -> Self {
         Self {
             title: metadata
@@ -192,7 +99,7 @@ impl AudioMetadata {
         }
     }
 
-    fn set_rating_id3v2(
+    pub fn set_rating_id3v2(
         id3v2: &mut Id3v2Tag,
         current_rating: Option<AudioRating>,
         new_rating: AudioRating,
@@ -225,7 +132,7 @@ impl AudioMetadata {
         }
     }
 
-    fn set_rating_vorbis_comments(
+    pub fn set_rating_vorbis_comments(
         vorbis_comments: &mut VorbisComments,
         current_rating: Option<AudioRating>,
         new_rating: AudioRating,
@@ -260,15 +167,17 @@ impl AudioMetadata {
 #[derive(Debug)]
 pub struct AudioProperties {
     duration: Duration,
-    duration_display: String,
 }
 
 impl AudioProperties {
+    pub const fn duration(&self) -> Duration {
+        self.duration
+    }
+
     pub fn from_mpeg(mpeg_file: &MpegFile) -> Self {
         let properties = mpeg_file.properties();
         Self {
             duration: properties.duration(),
-            duration_display: duration_display(properties.duration()),
         }
     }
 
@@ -276,7 +185,6 @@ impl AudioProperties {
         let properties = flac_file.properties();
         Self {
             duration: properties.duration(),
-            duration_display: duration_display(properties.duration()),
         }
     }
 
@@ -284,14 +192,8 @@ impl AudioProperties {
         let properties = opus_file.properties();
         Self {
             duration: properties.duration(),
-            duration_display: duration_display(properties.duration()),
         }
     }
-}
-
-fn duration_display(duration: Duration) -> String {
-    let seconds = duration.as_secs() % 60;
-    format!("{:02}:{:02}", (duration.as_secs() - seconds) / 60, seconds)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

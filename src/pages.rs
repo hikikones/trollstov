@@ -96,7 +96,7 @@ impl TracksPage {
         let mut x = table_area.x;
         let mut y = table_area.y;
 
-        db.iter()
+        db.values()
             .enumerate()
             .skip(self.scroll)
             .take(height)
@@ -152,14 +152,14 @@ impl TracksPage {
             }
             KeyCode::Enter => {
                 self.selected = Some(self.current);
-                let track = db.iter().nth(self.current).unwrap();
+                let track = db.values().nth(self.current).unwrap();
                 let _ = audio.play(track.path());
                 Action::Render
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
-                    let rating = AudioRating::from_char(c).unwrap();
-                    let track = db.iter_mut().nth(self.current).unwrap();
+                    let rating: AudioRating = AudioRating::from_char(c).unwrap();
+                    let track = db.values_mut().nth(self.current).unwrap();
                     track.set_rating(rating).unwrap();
                     Action::Render
                 }
