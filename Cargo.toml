@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 color-eyre = { version = "0.6", default-features = false }
 crossterm = "0.29"
+indexmap = "2.13.0"
 lofty = "0.22"
 ratatui = "0.30"
 rodio = "0.21"

@@ -1,10 +1,10 @@
 use std::{
-    collections::BTreeMap,
     fs::File,
     path::{Path, PathBuf},
     time::Duration,
 };
 
+use indexmap::IndexMap;
 use lofty::{
     config::{ParseOptions, WriteOptions},
     file::AudioFile,
@@ -17,12 +17,12 @@ use crate::audio::*;
 
 #[derive(Debug)]
 pub struct Database {
-    tracks: BTreeMap<TrackId, Track>,
+    tracks: IndexMap<TrackId, Track>,
 }
 
 impl Database {
     pub fn new(dir: impl AsRef<Path>) -> Self {
-        let mut tracks = BTreeMap::new();
+        let mut tracks = IndexMap::new();
 
         traverse_audio_files(dir)
             .take(60) // todo: process in another thread
@@ -104,7 +104,7 @@ impl Database {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TrackId(u64);
 
 #[derive(Debug)]
