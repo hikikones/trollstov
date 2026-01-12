@@ -1,32 +1,22 @@
-use std::time::{Duration, Instant};
-
-use color_eyre::eyre::WrapErr;
-use crossterm::event::{Event, KeyCode, KeyEventKind};
+use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{CompletedFrame, layout::Flex, prelude::*};
 
 use crate::{
+    events::{AppEvent, Event},
     jukebox::Jukebox,
     pages::{Pages, Route},
     terminal::Terminal,
 };
 
-const RENDER_FREQUENCY: f64 = 1.0;
-
 pub struct App {
     jb: Jukebox,
+    events: crate::events::EventHandler,
     route: Route,
     pages: Pages,
     colors: Colors,
     title_line: Line<'static>,
     nav_line: Line<'static>,
     menu_line: Line<'static>,
-}
-
-pub enum Action {
-    None,
-    Render,
-    Route(Route),
-    Quit,
 }
 
 pub struct Colors {
@@ -57,6 +47,7 @@ impl App {
 
         Self {
             jb,
+            events: crate::events::EventHandler::new(),
             route: Route::Tracks,
             pages: Pages::new(),
             colors,
@@ -71,58 +62,22 @@ impl App {
         self.pages.tracks.on_enter(&self.jb);
         self.render(&mut terminal)?;
 
-        // Setup render timers
-        let render_interval = Duration::from_secs_f64(1.0 / RENDER_FREQUENCY);
-        let mut last_render = Instant::now();
-
+        // Run event loop
         loop {
-            // Render at a fixed rate
-            let render_timeout = render_interval.saturating_sub(last_render.elapsed());
-            if render_timeout == Duration::ZERO {
-                last_render = Instant::now();
-                self.render(&mut terminal)?;
-            }
-
-            // Poll for crossterm event in a non-blocking manner
-            if crossterm::event::poll(render_timeout)
-                .wrap_err("failed to poll for crossterm events")?
-            {
-                let event = crossterm::event::read().wrap_err("failed to read crossterm event")?;
-
-                // Retrieve action from event
-                let action = match event {
-                    Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
-                        KeyCode::Esc => Action::Quit,
-                        KeyCode::Tab => match self.route {
-                            Route::Tracks => Action::Route(Route::NowPlaying),
-                            Route::NowPlaying => Action::Route(Route::Tracks),
-                        },
-                        KeyCode::BackTab => match self.route {
-                            Route::Tracks => Action::Route(Route::NowPlaying),
-                            Route::NowPlaying => Action::Route(Route::Tracks),
-                        },
-                        _ => match self.route {
-                            Route::Tracks => {
-                                self.pages
-                                    .tracks
-                                    .on_input(key.code, key.modifiers, &mut self.jb)
-                            }
-                            Route::NowPlaying => {
-                                self.pages.now_playing.on_input(key.code, key.modifiers)
-                            }
-                        },
-                    },
-                    Event::Resize(_, _) => Action::Render,
-                    _ => Action::None,
-                };
-
-                // Apply action
-                match action {
-                    Action::None => {}
-                    Action::Render => {
+            match self.events.next()? {
+                Event::Terminal(event) => {
+                    match event {
+                        CrosstermEvent::Key(key) if key.kind == KeyEventKind::Press => {
+                            self.handle_key_press(key);
+                        }
+                        _ => {}
+                    };
+                }
+                Event::App(event) => match event {
+                    AppEvent::Render => {
                         self.render(&mut terminal)?;
                     }
-                    Action::Route(route) => {
+                    AppEvent::Route(route) => {
                         match self.route {
                             Route::Tracks => self.pages.tracks.on_exit(),
                             Route::NowPlaying => self.pages.now_playing.on_exit(),
@@ -137,12 +92,38 @@ impl App {
 
                         self.render(&mut terminal)?;
                     }
-                    Action::Quit => break,
-                }
+                    AppEvent::Quit => break,
+                },
             }
         }
 
         Ok(())
+    }
+
+    fn handle_key_press(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc => self.events.send(AppEvent::Quit),
+            KeyCode::Tab => match self.route {
+                Route::Tracks => self.events.send(AppEvent::Route(Route::NowPlaying)),
+                Route::NowPlaying => self.events.send(AppEvent::Route(Route::Tracks)),
+            },
+            KeyCode::BackTab => match self.route {
+                Route::Tracks => self.events.send(AppEvent::Route(Route::NowPlaying)),
+                Route::NowPlaying => self.events.send(AppEvent::Route(Route::Tracks)),
+            },
+            _ => match self.route {
+                Route::Tracks => {
+                    self.pages
+                        .tracks
+                        .on_input(key.code, key.modifiers, &self.events, &mut self.jb)
+                }
+                Route::NowPlaying => {
+                    self.pages
+                        .now_playing
+                        .on_input(key.code, key.modifiers, &self.events)
+                }
+            },
+        }
     }
 
     fn render<'a>(&'a mut self, terminal: &'a mut Terminal) -> std::io::Result<CompletedFrame<'a>> {

@@ -3,8 +3,9 @@ use ratatui::prelude::*;
 use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
-    app::{Action, Colors},
+    app::Colors,
     audio::{AudioPicture, AudioRating},
+    events::{AppEvent, EventHandler},
     jukebox::{Jukebox, TrackId},
 };
 
@@ -133,36 +134,41 @@ impl TracksPage {
             });
     }
 
-    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) -> Action {
+    pub fn on_input(
+        &mut self,
+        key: KeyCode,
+        _modifiers: KeyModifiers,
+        events: &EventHandler,
+        jb: &mut Jukebox,
+    ) {
         match key {
-            KeyCode::Esc => Action::Quit,
             KeyCode::Down => {
                 self.index = usize::min(self.index + 1, jb.len().saturating_sub(1));
-                Action::Render
+                events.send(AppEvent::Render);
             }
             KeyCode::Up => {
                 self.index = self.index.saturating_sub(1);
-                Action::Render
+                events.send(AppEvent::Render);
             }
             KeyCode::Enter => {
                 let id = jb.get_key_from_index(self.index).unwrap();
                 let _ = jb.play(id);
-                Action::Render
+                events.send(AppEvent::Render);
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
                     let rating: AudioRating = AudioRating::from_char(c).unwrap();
                     let track = jb.values_mut().nth(self.index).unwrap();
                     track.set_rating(rating).unwrap();
-                    Action::Render
+                    events.send(AppEvent::Render);
                 }
                 's' => {
                     jb.sort(jb.get_sort().next());
-                    Action::Render
+                    events.send(AppEvent::Render);
                 }
-                _ => Action::None,
+                _ => {}
             },
-            _ => Action::None,
+            _ => {}
         }
     }
 
@@ -235,9 +241,8 @@ impl NowPlayingPage {
         }
     }
 
-    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers) -> Action {
+    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, events: &EventHandler) {
         // todo
-        Action::None
     }
 
     pub fn on_exit(&mut self) {

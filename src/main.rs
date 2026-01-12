@@ -1,5 +1,6 @@
 mod app;
 mod audio;
+mod events;
 mod jukebox;
 mod pages;
 mod terminal;
