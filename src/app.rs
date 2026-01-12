@@ -197,7 +197,7 @@ impl App {
                     );
                 }
                 Route::NowPlaying => {
-                    self.pages.now_playing.on_render(body, buf);
+                    self.pages.now_playing.on_render(body, buf, &self.jb);
                 }
             }
 

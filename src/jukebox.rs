@@ -311,28 +311,3 @@ impl TrackSort {
         }
     }
 }
-
-fn traverse_audio_files(
-    root: impl AsRef<Path>,
-) -> impl Iterator<Item = (PathBuf, AudioFileFormat)> {
-    walkdir::WalkDir::new(root)
-        .follow_links(true)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|entry| entry.file_type().is_file())
-        .map(|file| file.into_path())
-        .filter_map(move |path| match path.extension() {
-            Some(file_ext) => {
-                if file_ext.eq_ignore_ascii_case("flac") {
-                    Some((path, AudioFileFormat::Flac))
-                } else if file_ext.eq_ignore_ascii_case("opus") {
-                    Some((path, AudioFileFormat::Opus))
-                } else if file_ext.eq_ignore_ascii_case("mp3") {
-                    Some((path, AudioFileFormat::Mp3))
-                } else {
-                    None
-                }
-            }
-            None => None,
-        })
-}

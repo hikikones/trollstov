@@ -1,11 +1,17 @@
-use std::{borrow::Cow, time::Duration};
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
+use color_eyre::eyre::Ok;
 use lofty::{
-    file::AudioFile,
+    file::{AudioFile, TaggedFile, TaggedFileExt},
     flac::FlacFile,
     id3::v2::{Frame, FrameId, Id3v2Tag, PopularimeterFrame},
     mpeg::MpegFile,
     ogg::{OpusFile, VorbisComments},
+    picture::PictureType,
     tag::Accessor,
 };
 
@@ -146,38 +152,6 @@ impl AudioMetadata {
     }
 }
 
-#[derive(Debug)]
-pub struct AudioProperties {
-    duration: Duration,
-}
-
-impl AudioProperties {
-    pub const fn duration(&self) -> Duration {
-        self.duration
-    }
-
-    pub fn from_mpeg(mpeg_file: &MpegFile) -> Self {
-        let properties = mpeg_file.properties();
-        Self {
-            duration: properties.duration(),
-        }
-    }
-
-    pub fn from_flac(flac_file: &FlacFile) -> Self {
-        let properties = flac_file.properties();
-        Self {
-            duration: properties.duration(),
-        }
-    }
-
-    pub fn from_opus(opus_file: &OpusFile) -> Self {
-        let properties = opus_file.properties();
-        Self {
-            duration: properties.duration(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AudioRating {
     Awful,
@@ -241,8 +215,82 @@ impl AudioRating {
 }
 
 #[derive(Debug)]
+pub struct AudioProperties {
+    duration: Duration,
+}
+
+impl AudioProperties {
+    pub const fn duration(&self) -> Duration {
+        self.duration
+    }
+
+    pub fn from_mpeg(mpeg_file: &MpegFile) -> Self {
+        let properties = mpeg_file.properties();
+        Self {
+            duration: properties.duration(),
+        }
+    }
+
+    pub fn from_flac(flac_file: &FlacFile) -> Self {
+        let properties = flac_file.properties();
+        Self {
+            duration: properties.duration(),
+        }
+    }
+
+    pub fn from_opus(opus_file: &OpusFile) -> Self {
+        let properties = opus_file.properties();
+        Self {
+            duration: properties.duration(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum AudioFileFormat {
     Flac,
     Mp3,
     Opus,
+}
+
+pub struct AudioPicture(TaggedFile);
+
+impl AudioPicture {
+    pub fn read(audio_file: impl AsRef<Path>) -> color_eyre::Result<Self> {
+        let tagged_file = lofty::read_from_path(audio_file)?;
+        Ok(Self(tagged_file))
+    }
+
+    pub fn bytes(&self) -> Option<&[u8]> {
+        self.0
+            .primary_tag()
+            .or_else(|| self.0.first_tag())
+            .and_then(|tag| tag.get_picture_type(PictureType::CoverFront))
+            .map(|pic| pic.data())
+    }
+}
+
+pub fn traverse_audio_files(
+    root: impl AsRef<Path>,
+) -> impl Iterator<Item = (PathBuf, AudioFileFormat)> {
+    walkdir::WalkDir::new(root)
+        .follow_links(true)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|entry| entry.file_type().is_file())
+        .map(|file| file.into_path())
+        .filter_map(move |path| match path.extension() {
+            Some(file_ext) => {
+                if file_ext.eq_ignore_ascii_case("flac") {
+                    Some((path, AudioFileFormat::Flac))
+                } else if file_ext.eq_ignore_ascii_case("opus") {
+                    Some((path, AudioFileFormat::Opus))
+                } else if file_ext.eq_ignore_ascii_case("mp3") {
+                    Some((path, AudioFileFormat::Mp3))
+                } else {
+                    None
+                }
+            }
+            None => None,
+        })
 }

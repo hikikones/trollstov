@@ -1,10 +1,11 @@
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::prelude::*;
+use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
     app::{Action, Colors},
-    audio::AudioRating,
-    jukebox::Jukebox,
+    audio::{AudioPicture, AudioRating},
+    jukebox::{Jukebox, TrackId},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -170,19 +171,68 @@ impl TracksPage {
     }
 }
 
-pub struct NowPlayingPage {}
+pub struct NowPlayingPage {
+    current: Option<TrackId>,
+    image_protocol: Option<StatefulProtocol>,
+}
 
 impl NowPlayingPage {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            current: None,
+            image_protocol: None,
+        }
     }
 
     pub fn on_enter(&mut self, jb: &Jukebox) {
         // todo
     }
 
-    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer) {
-        Line::raw("TODO").centered().render(area, buf);
+    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox) {
+        if self.current != jb.current() {
+            self.current = jb.current();
+
+            // song change, update image
+            match jb.current() {
+                Some(tid) => {
+                    // load new image
+                    let track = jb.get(tid).unwrap();
+                    let picture = AudioPicture::read(track.path()).unwrap();
+                    match picture.bytes() {
+                        Some(bytes) => {
+                            let picker = Picker::from_query_stdio().unwrap();
+                            let dyn_img = image::load_from_memory(bytes).unwrap();
+                            let image = picker.new_resize_protocol(dyn_img);
+                            self.image_protocol = Some(image);
+                        }
+                        None => {
+                            self.image_protocol = None;
+                        }
+                    }
+                }
+                None => {
+                    // remove image
+                    self.image_protocol = None;
+                }
+            }
+        }
+
+        // Show currently playing, image or not
+        match self.current {
+            Some(_) => match &mut self.image_protocol {
+                Some(image) => {
+                    StatefulImage::default().render(area, buf, image);
+                }
+                None => {
+                    Line::raw("NO IMAGE").centered().render(area, buf);
+                }
+            },
+            None => {
+                Line::raw("NO TRACK CURRENTLY PLAYING")
+                    .centered()
+                    .render(area, buf);
+            }
+        }
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers) -> Action {
