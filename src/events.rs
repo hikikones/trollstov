@@ -9,7 +9,8 @@ use ratatui::crossterm::event::{self, Event as CrosstermEvent};
 
 use crate::pages::Route;
 
-const RENDER_FREQUENCY: f64 = 1.0;
+const UPDATE_FREQUENCY: f64 = 1.0 / 8.0;
+const RENDER_FREQUENCY: f64 = 1.0 / 1.0;
 
 pub enum Event {
     Terminal(CrosstermEvent),
@@ -17,6 +18,7 @@ pub enum Event {
 }
 
 pub enum AppEvent {
+    Update,
     Render,
     Route(Route),
     Quit,
@@ -58,18 +60,29 @@ impl EventThread {
     }
 
     fn run(self) -> color_eyre::Result<()> {
-        // Setup render timers
-        let render_interval = Duration::from_secs_f64(1.0 / RENDER_FREQUENCY);
+        // Setup timers
+        let update_interval = Duration::from_secs_f64(UPDATE_FREQUENCY);
+        let mut last_update = Instant::now();
+        let render_interval = Duration::from_secs_f64(RENDER_FREQUENCY);
         let mut last_render = Instant::now();
+
         loop {
+            // Update at a fixed rate
+            let update_timeout = update_interval.saturating_sub(last_update.elapsed());
+            if update_timeout == Duration::ZERO {
+                last_update = Instant::now();
+                self.send(Event::App(AppEvent::Update));
+            }
+
             // Render at a fixed rate
             let render_timeout = render_interval.saturating_sub(last_render.elapsed());
             if render_timeout == Duration::ZERO {
                 last_render = Instant::now();
                 self.send(Event::App(AppEvent::Render));
             }
-            // poll for crossterm events, ensuring that we don't block the tick interval
-            if event::poll(render_timeout).wrap_err("failed to poll for crossterm events")? {
+
+            // Poll for crossterm events in a non-blocking manner
+            if event::poll(update_timeout).wrap_err("failed to poll for crossterm events")? {
                 let event = event::read().wrap_err("failed to read crossterm event")?;
                 self.send(Event::Terminal(event));
             }

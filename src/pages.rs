@@ -195,6 +195,10 @@ impl NowPlayingPage {
         // todo
     }
 
+    pub fn on_update(&mut self) {
+        // todo
+    }
+
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox) {
         if self.current != jb.current() {
             self.current = jb.current();
