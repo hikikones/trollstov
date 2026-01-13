@@ -9,8 +9,9 @@ use crate::{
     jukebox::{Jukebox, TrackId},
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Route {
+    #[default]
     Tracks,
     NowPlaying,
 }

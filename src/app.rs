@@ -2,7 +2,7 @@ use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind}
 use ratatui::{CompletedFrame, layout::Flex, prelude::*};
 
 use crate::{
-    events::{AppEvent, Event},
+    events::{AppEvent, Event, EventHandler},
     jukebox::Jukebox,
     pages::{Pages, Route},
     terminal::Terminal,
@@ -10,7 +10,8 @@ use crate::{
 
 pub struct App {
     jb: Jukebox,
-    events: crate::events::EventHandler,
+    running: bool,
+    events: EventHandler,
     route: Route,
     pages: Pages,
     colors: Colors,
@@ -25,30 +26,35 @@ pub struct Colors {
     pub neutral: Color,
 }
 
+impl Colors {
+    pub fn new() -> Self {
+        match terminal_colorsaurus::theme_mode(terminal_colorsaurus::QueryOptions::default())
+            .unwrap_or(terminal_colorsaurus::ThemeMode::Dark)
+        {
+            terminal_colorsaurus::ThemeMode::Dark => Self {
+                accent: Color::Yellow,
+                on_accent: Color::Black,
+                neutral: Color::DarkGray,
+            },
+            terminal_colorsaurus::ThemeMode::Light => Self {
+                accent: Color::LightBlue,
+                on_accent: Color::Black,
+                neutral: Color::DarkGray,
+            },
+        }
+    }
+}
+
 impl App {
     pub fn new(jb: Jukebox) -> Self {
-        let colors =
-            match terminal_colorsaurus::theme_mode(terminal_colorsaurus::QueryOptions::default())
-                .unwrap_or(terminal_colorsaurus::ThemeMode::Dark)
-            {
-                terminal_colorsaurus::ThemeMode::Dark => Colors {
-                    accent: Color::Yellow,
-                    on_accent: Color::Black,
-                    neutral: Color::DarkGray,
-                },
-                terminal_colorsaurus::ThemeMode::Light => Colors {
-                    accent: Color::LightBlue,
-                    on_accent: Color::Black,
-                    neutral: Color::DarkGray,
-                },
-            };
-
+        let colors = Colors::new();
         let title_line = Line::styled("snowflake", Style::new().fg(colors.neutral)).centered();
 
         Self {
             jb,
-            events: crate::events::EventHandler::new(),
-            route: Route::Tracks,
+            running: true,
+            events: EventHandler::new(),
+            route: Route::default(),
             pages: Pages::new(),
             colors,
             title_line,
@@ -59,41 +65,24 @@ impl App {
 
     pub fn run(mut self, mut terminal: Terminal) -> color_eyre::Result<()> {
         // Render initial page
-        self.pages.tracks.on_enter(&self.jb);
+        match self.route {
+            Route::Tracks => self.pages.tracks.on_enter(&self.jb),
+            Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jb),
+        }
         self.render(&mut terminal)?;
 
         // Run event loop
-        loop {
+        while self.running {
             match self.events.next()? {
-                Event::Terminal(event) => {
-                    match event {
-                        CrosstermEvent::Key(key) if key.kind == KeyEventKind::Press => {
-                            self.handle_key_press(key);
-                        }
-                        _ => {}
-                    };
-                }
-                Event::App(event) => match event {
-                    AppEvent::Render => {
-                        self.render(&mut terminal)?;
+                Event::Terminal(event) => match event {
+                    CrosstermEvent::Key(key) if key.kind == KeyEventKind::Press => {
+                        self.handle_key_press(key);
                     }
-                    AppEvent::Route(route) => {
-                        match self.route {
-                            Route::Tracks => self.pages.tracks.on_exit(),
-                            Route::NowPlaying => self.pages.now_playing.on_exit(),
-                        }
-
-                        self.route = route;
-
-                        match route {
-                            Route::Tracks => self.pages.tracks.on_enter(&self.jb),
-                            Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jb),
-                        }
-
-                        self.render(&mut terminal)?;
-                    }
-                    AppEvent::Quit => break,
+                    _ => {}
                 },
+                Event::App(event) => {
+                    self.handle_app_event(event, &mut terminal)?;
+                }
             }
         }
 
@@ -124,6 +113,38 @@ impl App {
                 }
             },
         }
+    }
+
+    fn handle_app_event(
+        &mut self,
+        event: AppEvent,
+        terminal: &mut Terminal,
+    ) -> color_eyre::Result<()> {
+        match event {
+            AppEvent::Render => {
+                self.render(terminal)?;
+            }
+            AppEvent::Route(route) => {
+                match self.route {
+                    Route::Tracks => self.pages.tracks.on_exit(),
+                    Route::NowPlaying => self.pages.now_playing.on_exit(),
+                }
+
+                self.route = route;
+
+                match route {
+                    Route::Tracks => self.pages.tracks.on_enter(&self.jb),
+                    Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jb),
+                }
+
+                self.render(terminal)?;
+            }
+            AppEvent::Quit => {
+                self.running = false;
+            }
+        }
+
+        Ok(())
     }
 
     fn render<'a>(&'a mut self, terminal: &'a mut Terminal) -> std::io::Result<CompletedFrame<'a>> {
