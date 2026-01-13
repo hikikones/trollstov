@@ -1,12 +1,14 @@
 use std::{
     borrow::Cow,
+    fs::File,
+    io::BufReader,
     path::{Path, PathBuf},
     time::Duration,
 };
 
-use color_eyre::eyre::Ok;
 use lofty::{
-    file::{AudioFile, TaggedFile, TaggedFileExt},
+    config::{ParseOptions, WriteOptions},
+    file::{AudioFile as LoftyAudioFile, TaggedFile, TaggedFileExt},
     flac::FlacFile,
     id3::v2::{Frame, FrameId, Id3v2Tag, PopularimeterFrame},
     mpeg::MpegFile,
@@ -14,6 +16,118 @@ use lofty::{
     picture::PictureType,
     tag::Accessor,
 };
+
+pub struct AudioFile {
+    format: AudioFileFormat,
+    path: PathBuf,
+}
+
+enum AudioFileFormat {
+    Flac(FlacFile),
+    Mpeg(MpegFile),
+    Opus(OpusFile),
+}
+
+impl AudioFile {
+    pub fn read_from_path_and_extension(
+        path: impl AsRef<Path>,
+        extension: AudioFileExtension,
+    ) -> lofty::error::Result<Self> {
+        let mut buffer = BufReader::new(File::open(&path).unwrap());
+        let audio_format = match extension {
+            AudioFileExtension::Mp3 => {
+                let mpeg = MpegFile::read_from(&mut buffer, ParseOptions::new())?;
+                AudioFileFormat::Mpeg(mpeg)
+            }
+            AudioFileExtension::Flac => {
+                let flac = FlacFile::read_from(&mut buffer, ParseOptions::new())?;
+                AudioFileFormat::Flac(flac)
+            }
+            AudioFileExtension::Opus => {
+                let opus = OpusFile::read_from(&mut buffer, ParseOptions::new())?;
+                AudioFileFormat::Opus(opus)
+            }
+        };
+
+        Ok(Self {
+            format: audio_format,
+            path: path.as_ref().to_path_buf(),
+        })
+    }
+
+    pub fn metadata(&self) -> AudioMetadata {
+        match &self.format {
+            AudioFileFormat::Flac(flac) => {
+                AudioMetadata::from_vorbis_comments(flac.vorbis_comments().unwrap())
+            }
+            AudioFileFormat::Mpeg(mpeg) => AudioMetadata::from_id3v2(mpeg.id3v2().unwrap()),
+            AudioFileFormat::Opus(opus) => {
+                AudioMetadata::from_vorbis_comments(opus.vorbis_comments())
+            }
+        }
+    }
+
+    pub fn properties(&self) -> AudioProperties {
+        match &self.format {
+            AudioFileFormat::Flac(flac) => AudioProperties::from_flac(flac),
+            AudioFileFormat::Mpeg(mpeg) => AudioProperties::from_mpeg(mpeg),
+            AudioFileFormat::Opus(opus) => AudioProperties::from_opus(opus),
+        }
+    }
+
+    pub fn write_rating(&mut self, rating: Option<AudioRating>) -> color_eyre::Result<()> {
+        match &mut self.format {
+            AudioFileFormat::Mpeg(mpeg) => {
+                let id3v2 = mpeg.id3v2_mut().unwrap();
+                match rating {
+                    Some(rating) => {
+                        id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
+                            String::new(),
+                            rating.into_id3v2(),
+                            0,
+                        )));
+                    }
+                    None => {
+                        let _ = id3v2.remove(&FrameId::Valid(Cow::Borrowed("POPM")));
+                    }
+                }
+                mpeg.save_to_path(&self.path, WriteOptions::new())?;
+            }
+            AudioFileFormat::Flac(flac) => {
+                let vorbis_comments = flac.vorbis_comments_mut().unwrap();
+                match rating {
+                    Some(rating) => {
+                        vorbis_comments.insert(
+                            "RATING".to_string(),
+                            rating.into_vorbis_comments().to_string(),
+                        );
+                    }
+                    None => {
+                        let _ = vorbis_comments.remove("RATING");
+                    }
+                }
+                flac.save_to_path(&self.path, WriteOptions::new())?;
+            }
+            AudioFileFormat::Opus(opus) => {
+                let vorbis_comments = opus.vorbis_comments_mut();
+                match rating {
+                    Some(rating) => {
+                        vorbis_comments.insert(
+                            "RATING".to_string(),
+                            rating.into_vorbis_comments().to_string(),
+                        );
+                    }
+                    None => {
+                        let _ = vorbis_comments.remove("RATING");
+                    }
+                }
+                opus.save_to_path(&self.path, WriteOptions::new())?;
+            }
+        }
+
+        Ok(())
+    }
+}
 
 #[derive(Debug)]
 pub struct AudioMetadata {
@@ -45,7 +159,7 @@ impl AudioMetadata {
         self.rating = rating;
     }
 
-    pub fn from_id3v2(metadata: &Id3v2Tag) -> Self {
+    fn from_id3v2(metadata: &Id3v2Tag) -> Self {
         Self {
             title: metadata
                 .title()
@@ -73,7 +187,7 @@ impl AudioMetadata {
         }
     }
 
-    pub fn from_vorbis_comments(metadata: &VorbisComments) -> Self {
+    fn from_vorbis_comments(metadata: &VorbisComments) -> Self {
         Self {
             title: metadata.get("TITLE").map(str::to_owned).unwrap_or_default(),
             artist: metadata
@@ -84,70 +198,6 @@ impl AudioMetadata {
             rating: metadata
                 .get("RATING")
                 .and_then(|s| AudioRating::from_vorbis_comments(s)),
-        }
-    }
-
-    pub fn set_rating_id3v2(
-        id3v2: &mut Id3v2Tag,
-        current_rating: Option<AudioRating>,
-        new_rating: AudioRating,
-    ) -> Option<AudioRating> {
-        match current_rating {
-            Some(current_rating) => {
-                if current_rating != new_rating {
-                    // Replace rating when they differ
-                    id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
-                        String::new(),
-                        new_rating.into_id3v2(),
-                        0,
-                    )));
-                    Some(new_rating)
-                } else {
-                    // Remove rating when they are the same
-                    let _ = id3v2.remove(&FrameId::Valid(Cow::Borrowed("POPM")));
-                    None
-                }
-            }
-            None => {
-                // Insert new rating
-                id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
-                    String::new(),
-                    new_rating.into_id3v2(),
-                    0,
-                )));
-                Some(new_rating)
-            }
-        }
-    }
-
-    pub fn set_rating_vorbis_comments(
-        vorbis_comments: &mut VorbisComments,
-        current_rating: Option<AudioRating>,
-        new_rating: AudioRating,
-    ) -> Option<AudioRating> {
-        match current_rating {
-            Some(current_rating) => {
-                if current_rating != new_rating {
-                    // Replace rating when they differ
-                    vorbis_comments.insert(
-                        "RATING".to_string(),
-                        new_rating.into_vorbis_comments().to_string(),
-                    );
-                    Some(new_rating)
-                } else {
-                    // Remove rating when they are the same
-                    let _ = vorbis_comments.remove("RATING");
-                    None
-                }
-            }
-            None => {
-                // Insert new rating
-                vorbis_comments.insert(
-                    "RATING".to_string(),
-                    new_rating.into_vorbis_comments().to_string(),
-                );
-                Some(new_rating)
-            }
         }
     }
 }
@@ -224,21 +274,21 @@ impl AudioProperties {
         self.duration
     }
 
-    pub fn from_mpeg(mpeg_file: &MpegFile) -> Self {
+    fn from_mpeg(mpeg_file: &MpegFile) -> Self {
         let properties = mpeg_file.properties();
         Self {
             duration: properties.duration(),
         }
     }
 
-    pub fn from_flac(flac_file: &FlacFile) -> Self {
+    fn from_flac(flac_file: &FlacFile) -> Self {
         let properties = flac_file.properties();
         Self {
             duration: properties.duration(),
         }
     }
 
-    pub fn from_opus(opus_file: &OpusFile) -> Self {
+    fn from_opus(opus_file: &OpusFile) -> Self {
         let properties = opus_file.properties();
         Self {
             duration: properties.duration(),
@@ -246,8 +296,8 @@ impl AudioProperties {
     }
 }
 
-#[derive(Debug)]
-pub enum AudioFileFormat {
+#[derive(Debug, Clone, Copy)]
+pub enum AudioFileExtension {
     Flac,
     Mp3,
     Opus,
@@ -272,7 +322,7 @@ impl AudioPicture {
 
 pub fn traverse_audio_files(
     root: impl AsRef<Path>,
-) -> impl Iterator<Item = (PathBuf, AudioFileFormat)> {
+) -> impl Iterator<Item = (PathBuf, AudioFileExtension)> {
     walkdir::WalkDir::new(root)
         .follow_links(true)
         .into_iter()
@@ -282,11 +332,11 @@ pub fn traverse_audio_files(
         .filter_map(move |path| match path.extension() {
             Some(file_ext) => {
                 if file_ext.eq_ignore_ascii_case("flac") {
-                    Some((path, AudioFileFormat::Flac))
+                    Some((path, AudioFileExtension::Flac))
                 } else if file_ext.eq_ignore_ascii_case("opus") {
-                    Some((path, AudioFileFormat::Opus))
+                    Some((path, AudioFileExtension::Opus))
                 } else if file_ext.eq_ignore_ascii_case("mp3") {
-                    Some((path, AudioFileFormat::Mp3))
+                    Some((path, AudioFileExtension::Mp3))
                 } else {
                     None
                 }

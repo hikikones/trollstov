@@ -6,13 +6,6 @@ use std::{
 };
 
 use indexmap::IndexMap;
-use lofty::{
-    config::{ParseOptions, WriteOptions},
-    file::AudioFile,
-    flac::FlacFile,
-    mpeg::MpegFile,
-    ogg::OpusFile,
-};
 
 use crate::audio::*;
 
@@ -29,42 +22,26 @@ impl Jukebox {
         let stream = rodio::OutputStreamBuilder::open_default_stream()?;
         let sink = rodio::Sink::connect_new(stream.mixer());
 
-        let mut tracks = IndexMap::new();
-        traverse_audio_files(dir)
-            .take(60) // todo: process in another thread
-            .map(|(path, audio_format)| {
-                let mut file = File::open(&path).unwrap();
-
-                let (metadata, properties) = match audio_format {
-                    AudioFileFormat::Mp3 => {
-                        let mpeg = MpegFile::read_from(&mut file, ParseOptions::new()).unwrap();
-                        (
-                            AudioMetadata::from_id3v2(mpeg.id3v2().unwrap()),
-                            AudioProperties::from_mpeg(&mpeg),
-                        )
+        // TODO: process in another thread
+        let tracks = IndexMap::from_iter(
+            traverse_audio_files(dir)
+                .take(60)
+                .filter_map(|(path, extension)| {
+                    match AudioFile::read_from_path_and_extension(&path, extension) {
+                        Ok(audio) => {
+                            let track =
+                                Track::new(audio.metadata(), audio.properties(), path, extension);
+                            Some(track)
+                        }
+                        Err(_) => {
+                            //todo
+                            None
+                        }
                     }
-                    AudioFileFormat::Flac => {
-                        let flac = FlacFile::read_from(&mut file, ParseOptions::new()).unwrap();
-                        (
-                            AudioMetadata::from_vorbis_comments(flac.vorbis_comments().unwrap()),
-                            AudioProperties::from_flac(&flac),
-                        )
-                    }
-                    AudioFileFormat::Opus => {
-                        let opus = OpusFile::read_from(&mut file, ParseOptions::new()).unwrap();
-                        (
-                            AudioMetadata::from_vorbis_comments(opus.vorbis_comments()),
-                            AudioProperties::from_opus(&opus),
-                        )
-                    }
-                };
-
-                Track::new(metadata, properties, path, audio_format)
-            })
-            .enumerate()
-            .for_each(|(i, track)| {
-                tracks.insert(TrackId(i as u64), track);
-            });
+                })
+                .enumerate()
+                .map(|(i, track)| (TrackId(i as u64), track)),
+        );
 
         let sort = TrackSort::default();
         let mut jukebox = Self {
@@ -176,7 +153,7 @@ pub struct Track {
     metadata: AudioMetadata,
     properties: AudioProperties,
     path: PathBuf,
-    audio_format: AudioFileFormat,
+    extension: AudioFileExtension,
     duration_display: String,
 }
 
@@ -185,7 +162,7 @@ impl Track {
         metadata: AudioMetadata,
         properties: AudioProperties,
         path: PathBuf,
-        audio_format: AudioFileFormat,
+        extension: AudioFileExtension,
     ) -> Self {
         let duration = properties.duration();
         let seconds = duration.as_secs() % 60;
@@ -195,7 +172,7 @@ impl Track {
             metadata,
             properties,
             path,
-            audio_format,
+            extension,
             duration_display,
         }
     }
@@ -230,41 +207,23 @@ impl Track {
     }
 
     pub fn set_rating(&mut self, rating: AudioRating) -> color_eyre::Result<()> {
-        let mut file = File::open(&self.path)?;
-
-        let new_rating = match self.audio_format {
-            AudioFileFormat::Mp3 => {
-                let mut mpeg = MpegFile::read_from(&mut file, ParseOptions::new()).unwrap();
-                let id3v2 = mpeg.id3v2_mut().unwrap();
-                let new_rating =
-                    AudioMetadata::set_rating_id3v2(id3v2, self.metadata.rating(), rating);
-                mpeg.save_to_path(&self.path, WriteOptions::new())?;
-                new_rating
+        let mut audio_file = AudioFile::read_from_path_and_extension(&self.path, self.extension)?;
+        let new_rating = match self.metadata.rating() {
+            Some(current_rating) => {
+                if current_rating != rating {
+                    // Replace rating when they differ
+                    Some(rating)
+                } else {
+                    // Remove rating when they are the same
+                    None
+                }
             }
-            AudioFileFormat::Flac => {
-                let mut flac = FlacFile::read_from(&mut file, ParseOptions::new()).unwrap();
-                let vorbis_comments = flac.vorbis_comments_mut().unwrap();
-                let new_rating = AudioMetadata::set_rating_vorbis_comments(
-                    vorbis_comments,
-                    self.metadata.rating(),
-                    rating,
-                );
-                flac.save_to_path(&self.path, WriteOptions::new())?;
-                new_rating
-            }
-            AudioFileFormat::Opus => {
-                let mut opus = OpusFile::read_from(&mut file, ParseOptions::new()).unwrap();
-                let vorbis_comments = opus.vorbis_comments_mut();
-                let new_rating = AudioMetadata::set_rating_vorbis_comments(
-                    vorbis_comments,
-                    self.metadata.rating(),
-                    rating,
-                );
-                opus.save_to_path(&self.path, WriteOptions::new())?;
-                new_rating
+            None => {
+                // Insert new rating
+                Some(rating)
             }
         };
-
+        audio_file.write_rating(new_rating)?;
         self.metadata.set_rating(new_rating);
 
         Ok(())
