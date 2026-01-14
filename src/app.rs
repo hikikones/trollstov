@@ -121,14 +121,9 @@ impl App {
         terminal: &mut Terminal,
     ) -> color_eyre::Result<()> {
         match event {
-            AppEvent::Update => match self.route {
-                Route::Tracks => {
-                    //todo?
-                }
-                Route::NowPlaying => {
-                    self.pages.now_playing.on_update();
-                }
-            },
+            AppEvent::Update => {
+                self.pages.now_playing.on_update(&self.jb);
+            }
             AppEvent::Render => {
                 self.render(terminal)?;
             }

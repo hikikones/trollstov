@@ -1,3 +1,5 @@
+use std::thread::JoinHandle;
+
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::prelude::*;
 use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
@@ -180,62 +182,76 @@ impl TracksPage {
 
 pub struct NowPlayingPage {
     current: Option<TrackId>,
-    image_protocol: Option<StatefulProtocol>,
+    picker: Picker,
+    image: FrontCover,
+    image_handle: Option<JoinHandle<FrontCover>>,
 }
 
 impl NowPlayingPage {
     pub fn new() -> Self {
         Self {
             current: None,
-            image_protocol: None,
+            picker: Picker::from_query_stdio().unwrap(),
+            image: FrontCover::None,
+            image_handle: None,
         }
     }
 
     pub fn on_enter(&mut self, jb: &Jukebox) {
-        // todo
+        // todo?
     }
 
-    pub fn on_update(&mut self) {
-        // todo
-    }
-
-    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox) {
+    pub fn on_update(&mut self, jb: &Jukebox) {
         if self.current != jb.current() {
             self.current = jb.current();
 
-            // song change, update image
+            // Track has changed, time to update image
             match jb.current() {
                 Some(tid) => {
-                    // load new image
-                    let track = jb.get(tid).unwrap();
-                    let picture = AudioPicture::read(track.path()).unwrap();
-                    match picture.bytes() {
-                        Some(bytes) => {
-                            let picker = Picker::from_query_stdio().unwrap();
-                            let dyn_img = image::load_from_memory(bytes).unwrap();
-                            let image = picker.new_resize_protocol(dyn_img);
-                            self.image_protocol = Some(image);
+                    // Load image in thread and store handle
+                    self.image = FrontCover::Loading;
+                    let path = jb.get(tid).unwrap().path().to_path_buf();
+                    let picker = self.picker.clone();
+                    let handle = std::thread::spawn(move || {
+                        let picture = AudioPicture::read(path).unwrap();
+                        match picture.bytes() {
+                            Some(bytes) => {
+                                let dyn_img = image::load_from_memory(bytes).unwrap();
+                                let img = picker.new_resize_protocol(dyn_img);
+                                FrontCover::Ready(img)
+                            }
+                            None => FrontCover::None,
                         }
-                        None => {
-                            self.image_protocol = None;
-                        }
-                    }
+                    });
+                    self.image_handle = Some(handle);
                 }
                 None => {
-                    // remove image
-                    self.image_protocol = None;
+                    // No track currently playing, remove image
+                    self.image = FrontCover::None;
                 }
             }
+        } else if let Some(handle) = self.image_handle.take() {
+            // Poll thread for finished
+            if handle.is_finished() {
+                self.image = handle.join().unwrap();
+            } else {
+                self.image_handle = Some(handle);
+            }
         }
+    }
 
+    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox) {
         // Show currently playing, image or not
         match self.current {
-            Some(_) => match &mut self.image_protocol {
-                Some(image) => {
-                    StatefulImage::default().render(area, buf, image);
-                }
-                None => {
+            Some(_) => match &mut self.image {
+                FrontCover::None => {
                     Line::raw("NO IMAGE").centered().render(area, buf);
+                }
+                FrontCover::Loading => {
+                    Line::raw("LOADING IMAGE").centered().render(area, buf);
+                }
+                FrontCover::Ready(image) => {
+                    StatefulImage::default().render(area, buf, image);
                 }
             },
             None => {
@@ -253,4 +269,10 @@ impl NowPlayingPage {
     pub fn on_exit(&mut self) {
         // todo
     }
+}
+
+enum FrontCover {
+    None,
+    Loading,
+    Ready(StatefulProtocol),
 }

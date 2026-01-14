@@ -44,10 +44,6 @@ impl EventHandler {
     pub fn send(&self, app_event: AppEvent) {
         let _ = self.sender.send(Event::App(app_event));
     }
-
-    pub fn clone_sender(&self) -> mpsc::Sender<Event> {
-        self.sender.clone()
-    }
 }
 
 struct EventThread {

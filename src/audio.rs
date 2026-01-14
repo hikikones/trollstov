@@ -8,6 +8,7 @@ use std::{
 
 use lofty::{
     config::{ParseOptions, WriteOptions},
+    error::LoftyError,
     file::{AudioFile as LoftyAudioFile, TaggedFile, TaggedFileExt},
     flac::FlacFile,
     id3::v2::{Frame, FrameId, Id3v2Tag, PopularimeterFrame},
@@ -306,7 +307,7 @@ pub enum AudioFileExtension {
 pub struct AudioPicture(TaggedFile);
 
 impl AudioPicture {
-    pub fn read(audio_file: impl AsRef<Path>) -> color_eyre::Result<Self> {
+    pub fn read(audio_file: impl AsRef<Path>) -> Result<Self, LoftyError> {
         let tagged_file = lofty::read_from_path(audio_file)?;
         Ok(Self(tagged_file))
     }
