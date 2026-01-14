@@ -1114,6 +1114,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "jukebox"
+version = "0.1.0"
+dependencies = [
+ "color-eyre",
+ "crossterm",
+ "image",
+ "indexmap",
+ "lofty",
+ "ratatui",
+ "ratatui-image",
+ "rodio",
+ "terminal-colorsaurus",
+ "walkdir",
+]
+
+[[package]]
 name = "kasuari"
 version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1336,22 +1352,6 @@ checksum = "ac9557c559cd6fc9867e122e20d2cbefc9ca29d80d027a8e39310920ed2f0a97"
 dependencies = [
  "num-traits",
  "pxfm",
-]
-
-[[package]]
-name = "music_db"
-version = "0.1.0"
-dependencies = [
- "color-eyre",
- "crossterm",
- "image",
- "indexmap",
- "lofty",
- "ratatui",
- "ratatui-image",
- "rodio",
- "terminal-colorsaurus",
- "walkdir",
 ]
 
 [[package]]
