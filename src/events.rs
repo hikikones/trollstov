@@ -58,28 +58,22 @@ impl EventThread {
 
     fn run(self) -> color_eyre::Result<()> {
         // Setup timers
-        let update_interval = Duration::from_secs_f64(UPDATE_FREQUENCY);
-        let mut last_update = Instant::now();
-        let render_interval = Duration::from_secs_f64(RENDER_FREQUENCY);
-        let mut last_render = Instant::now();
+        let mut update = Timer::new(Duration::from_secs_f64(UPDATE_FREQUENCY));
+        let mut render = Timer::new(Duration::from_secs_f64(RENDER_FREQUENCY));
 
         loop {
             // Update at a fixed rate
-            let update_timeout = update_interval.saturating_sub(last_update.elapsed());
-            if update_timeout == Duration::ZERO {
-                last_update = Instant::now();
+            if update.tick() {
                 self.send(Event::App(AppEvent::Update));
             }
 
             // Render at a fixed rate
-            let render_timeout = render_interval.saturating_sub(last_render.elapsed());
-            if render_timeout == Duration::ZERO {
-                last_render = Instant::now();
+            if render.tick() {
                 self.send(Event::App(AppEvent::Render));
             }
 
             // Poll for crossterm events in a non-blocking manner
-            if event::poll(update_timeout).wrap_err("failed to poll for crossterm events")? {
+            if event::poll(update.timeout()).wrap_err("failed to poll for crossterm events")? {
                 let event = event::read().wrap_err("failed to read crossterm event")?;
                 self.send(Event::Terminal(event));
             }
@@ -88,5 +82,35 @@ impl EventThread {
 
     fn send(&self, event: Event) {
         let _ = self.sender.send(event);
+    }
+}
+
+struct Timer {
+    interval: Duration,
+    last_tick: Instant,
+    timeout: Duration,
+}
+
+impl Timer {
+    fn new(interval: Duration) -> Self {
+        Self {
+            interval,
+            last_tick: Instant::now(),
+            timeout: Duration::ZERO,
+        }
+    }
+
+    fn tick(&mut self) -> bool {
+        self.timeout = self.interval.saturating_sub(self.last_tick.elapsed());
+        if self.timeout == Duration::ZERO {
+            self.last_tick = Instant::now();
+            true
+        } else {
+            false
+        }
+    }
+
+    const fn timeout(&self) -> Duration {
+        self.timeout
     }
 }

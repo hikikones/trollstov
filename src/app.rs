@@ -191,14 +191,15 @@ impl App {
         terminal: &mut Terminal,
     ) -> color_eyre::Result<()> {
         match event {
-            AppEvent::Update | AppEvent::Render | AppEvent::UpdateAndRender => {
-                if matches!(event, AppEvent::Update | AppEvent::UpdateAndRender) {
-                    self.pages.now_playing.on_update(&self.jb);
-                }
-
-                if matches!(event, AppEvent::Render | AppEvent::UpdateAndRender) {
-                    self.render(terminal)?;
-                }
+            AppEvent::Update => {
+                self.update();
+            }
+            AppEvent::Render => {
+                self.render(terminal)?;
+            }
+            AppEvent::UpdateAndRender => {
+                self.update();
+                self.render(terminal)?;
             }
             AppEvent::Route(route) => {
                 match self.route {
@@ -221,6 +222,10 @@ impl App {
         }
 
         Ok(())
+    }
+
+    fn update(&mut self) {
+        self.pages.now_playing.on_update(&self.jb);
     }
 
     fn render<'a>(&'a mut self, terminal: &'a mut Terminal) -> std::io::Result<CompletedFrame<'a>> {
