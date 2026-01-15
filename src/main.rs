@@ -4,6 +4,7 @@ mod events;
 mod jukebox;
 mod pages;
 mod terminal;
+mod utils;
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;

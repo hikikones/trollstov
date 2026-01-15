@@ -1,7 +1,8 @@
 use std::thread::JoinHandle;
 
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::prelude::*;
+use image::GenericImageView;
+use ratatui::{prelude::*, widgets::Block};
 use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
@@ -9,6 +10,7 @@ use crate::{
     audio::{AudioPicture, AudioRating},
     events::{AppEvent, EventHandler},
     jukebox::{Jukebox, TrackId},
+    utils,
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -216,9 +218,13 @@ impl NowPlayingPage {
                         let picture = AudioPicture::read(path).unwrap();
                         match picture.bytes() {
                             Some(bytes) => {
-                                let dyn_img = image::load_from_memory(bytes).unwrap();
-                                let img = picker.new_resize_protocol(dyn_img);
-                                FrontCover::Ready(img)
+                                const MAX: u32 = 720;
+                                let mut dyn_img = image::load_from_memory(bytes).unwrap();
+                                let (w, h) = dyn_img.dimensions();
+                                if w > MAX || h > MAX {
+                                    dyn_img = dyn_img.thumbnail(MAX, MAX);
+                                }
+                                FrontCover::Ready(picker.new_resize_protocol(dyn_img))
                             }
                             None => FrontCover::None,
                         }
@@ -228,6 +234,7 @@ impl NowPlayingPage {
                 None => {
                     // No track currently playing, remove image
                     self.image = FrontCover::None;
+                    self.image_handle = None;
                 }
             }
         } else if let Some(handle) = self.image_handle.take() {
@@ -240,22 +247,83 @@ impl NowPlayingPage {
         }
     }
 
-    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox) {
+    pub fn on_render(&mut self, mut area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+        let neutral_style = Style::new().fg(colors.neutral);
+
         // Show currently playing, image or not
         match self.current {
-            Some(_) => match &mut self.image {
-                FrontCover::None => {
-                    Line::raw("NO IMAGE").centered().render(area, buf);
+            Some(id) => {
+                const IMAGE_SIZE: u16 = 15;
+                let image_area = utils::center_horizontally(
+                    Rect {
+                        width: IMAGE_SIZE * 2,
+                        height: IMAGE_SIZE,
+                        ..area
+                    },
+                    area,
+                );
+
+                match &mut self.image {
+                    FrontCover::None => {
+                        Block::bordered()
+                            .style(neutral_style)
+                            .render(image_area, buf);
+                        Line::styled("NO IMAGE", neutral_style).centered().render(
+                            Rect {
+                                y: image_area.y + (image_area.height / 2).saturating_sub(1),
+                                height: 1,
+                                ..area
+                            },
+                            buf,
+                        );
+                        area.y += IMAGE_SIZE + 1;
+                    }
+                    FrontCover::Loading => {
+                        Block::bordered()
+                            .style(neutral_style)
+                            .render(image_area, buf);
+                        Line::styled("LOADING", neutral_style).centered().render(
+                            Rect {
+                                y: image_area.y + (image_area.height / 2).saturating_sub(1),
+                                height: 1,
+                                ..area
+                            },
+                            buf,
+                        );
+                        area.y += IMAGE_SIZE + 1;
+                    }
+                    FrontCover::Ready(image) => {
+                        StatefulImage::default().render(image_area, buf, image);
+                        area.y += image_area.height + 1;
+                    }
                 }
-                FrontCover::Loading => {
-                    Line::raw("LOADING IMAGE").centered().render(area, buf);
-                }
-                FrontCover::Ready(image) => {
-                    StatefulImage::default().render(area, buf, image);
-                }
-            },
+
+                let track = jb.get(id).unwrap();
+
+                Line::styled("ALBUM", neutral_style)
+                    .centered()
+                    .render(area, buf);
+                area.y += 1;
+                Line::raw(track.album()).centered().render(area, buf);
+
+                area.y += 2;
+
+                Line::styled("TITLE", neutral_style)
+                    .centered()
+                    .render(area, buf);
+                area.y += 1;
+                Line::raw(track.title()).centered().render(area, buf);
+
+                area.y += 2;
+
+                Line::styled("ARTIST", neutral_style)
+                    .centered()
+                    .render(area, buf);
+                area.y += 1;
+                Line::raw(track.artist()).centered().render(area, buf);
+            }
             None => {
-                Line::raw("NO TRACK CURRENTLY PLAYING")
+                Line::styled("No track currently playing", neutral_style)
                     .centered()
                     .render(area, buf);
             }

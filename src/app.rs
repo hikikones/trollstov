@@ -1,5 +1,5 @@
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind};
-use ratatui::{CompletedFrame, layout::Flex, prelude::*};
+use ratatui::{CompletedFrame, prelude::*};
 
 use crate::{
     events::{AppEvent, Event, EventHandler},
@@ -48,7 +48,7 @@ impl Colors {
 impl App {
     pub fn new(jb: Jukebox) -> Self {
         let colors = Colors::new();
-        let title_line = Line::styled("snowflake", Style::new().fg(colors.neutral)).centered();
+        let title_line = Line::styled("jukebox", Style::new().fg(colors.neutral)).centered();
 
         Self {
             jb,
@@ -189,7 +189,8 @@ impl App {
             // Body
             const MAX_WIDTH: u16 = 128;
             const MARGIN: u16 = 2;
-            let body = center_horizontal(body_area, Constraint::Length(MAX_WIDTH + MARGIN))
+            let body = body_area
+                .centered_horizontally(Constraint::Length(MAX_WIDTH + MARGIN))
                 .inner(Margin::new(MARGIN, MARGIN));
             match self.route {
                 Route::Tracks => {
@@ -202,7 +203,9 @@ impl App {
                     );
                 }
                 Route::NowPlaying => {
-                    self.pages.now_playing.on_render(body, buf, &self.jb);
+                    self.pages
+                        .now_playing
+                        .on_render(body, buf, &self.jb, &self.colors);
                 }
             }
 
@@ -211,11 +214,4 @@ impl App {
             self.menu_line.spans.clear();
         })
     }
-}
-
-fn center_horizontal(area: Rect, constraint: Constraint) -> Rect {
-    let [area] = Layout::horizontal([constraint])
-        .flex(Flex::Center)
-        .areas(area);
-    area
 }
