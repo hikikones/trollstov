@@ -120,7 +120,7 @@ impl App {
             KeyCode::Up => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     self.jb.pause_or_play();
-                    self.events.send(AppEvent::Render);
+                    self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
                     Some(key)
@@ -129,7 +129,7 @@ impl App {
             KeyCode::Down => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     self.jb.stop();
-                    self.events.send(AppEvent::Render);
+                    self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
                     Some(key)
@@ -138,7 +138,7 @@ impl App {
             KeyCode::Right => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     self.jb.play_next();
-                    self.events.send(AppEvent::Render);
+                    self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
                     Some(key)
@@ -147,7 +147,7 @@ impl App {
             KeyCode::Left => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     self.jb.play_previous();
-                    self.events.send(AppEvent::Render);
+                    self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
                     Some(key)
@@ -158,7 +158,7 @@ impl App {
                 MediaKeyCode::Pause => todo!(),
                 MediaKeyCode::PlayPause => {
                     self.jb.pause_or_play();
-                    self.events.send(AppEvent::Render);
+                    self.events.send(AppEvent::UpdateAndRender);
                     None
                 }
                 MediaKeyCode::Stop => todo!(),
@@ -191,11 +191,14 @@ impl App {
         terminal: &mut Terminal,
     ) -> color_eyre::Result<()> {
         match event {
-            AppEvent::Update => {
-                self.pages.now_playing.on_update(&self.jb);
-            }
-            AppEvent::Render => {
-                self.render(terminal)?;
+            AppEvent::Update | AppEvent::Render | AppEvent::UpdateAndRender => {
+                if matches!(event, AppEvent::Update | AppEvent::UpdateAndRender) {
+                    self.pages.now_playing.on_update(&self.jb);
+                }
+
+                if matches!(event, AppEvent::Render | AppEvent::UpdateAndRender) {
+                    self.render(terminal)?;
+                }
             }
             AppEvent::Route(route) => {
                 match self.route {
