@@ -1,31 +1,58 @@
 use ratatui::layout::Rect;
 
-/// Centers the inner [Rect] both horizontally and vertically inside outer [Rect].
-pub fn center(inner: Rect, outer: Rect) -> Rect {
-    Rect {
-        x: outer.x + (outer.width.saturating_sub(inner.width)) / 2,
-        y: outer.y + (outer.height.saturating_sub(inner.height)) / 2,
-        width: inner.width,
-        height: inner.height,
+/// Aligns the inner [Rect] inside the outer [Rect].
+/// Assumes the inner rect fits inside outer rect.
+pub fn align(inner: Rect, outer: Rect, alignment: Alignment) -> Rect {
+    match alignment {
+        Alignment::TopLeft => todo!(),
+        Alignment::Top => todo!(),
+        Alignment::TopCenter => todo!(),
+        Alignment::TopRight => todo!(),
+        Alignment::Right => Rect {
+            x: outer.x + outer.width.saturating_sub(inner.width),
+            ..inner
+        },
+        Alignment::RightCenter => Rect {
+            x: outer.x + outer.width.saturating_sub(inner.width),
+            y: outer.y + (outer.height.saturating_sub(inner.height)) / 2,
+            ..inner
+        },
+        Alignment::BottomRight => todo!(),
+        Alignment::Bottom => todo!(),
+        Alignment::BottomCenter => todo!(),
+        Alignment::BottomLeft => todo!(),
+        Alignment::Left => todo!(),
+        Alignment::LeftCenter => todo!(),
+        Alignment::Center => Rect {
+            x: outer.x + (outer.width.saturating_sub(inner.width)) / 2,
+            y: outer.y + (outer.height.saturating_sub(inner.height)) / 2,
+            ..inner
+        },
+        Alignment::CenterHorizontal => Rect {
+            x: outer.x + (outer.width.saturating_sub(inner.width)) / 2,
+            ..inner
+        },
+        Alignment::CenterVertical => Rect {
+            y: outer.y + (outer.height.saturating_sub(inner.height)) / 2,
+            ..inner
+        },
     }
 }
 
-/// Centers the inner [Rect] horizontally inside outer [Rect].
-pub fn center_horizontally(inner: Rect, outer: Rect) -> Rect {
-    Rect {
-        x: outer.x + (outer.width.saturating_sub(inner.width)) / 2,
-        y: outer.y,
-        width: inner.width,
-        height: inner.height,
-    }
-}
-
-/// Centers the inner [Rect] vertically inside outer [Rect].
-pub fn center_vertically(inner: Rect, outer: Rect) -> Rect {
-    Rect {
-        x: outer.x,
-        y: outer.y + (outer.height.saturating_sub(inner.height)) / 2,
-        width: inner.width,
-        height: inner.height,
-    }
+pub enum Alignment {
+    TopLeft,
+    Top,
+    TopCenter,
+    TopRight,
+    Right,
+    RightCenter,
+    BottomRight,
+    Bottom,
+    BottomCenter,
+    BottomLeft,
+    Left,
+    LeftCenter,
+    Center,
+    CenterHorizontal,
+    CenterVertical,
 }

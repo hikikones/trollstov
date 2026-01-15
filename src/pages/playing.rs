@@ -10,6 +10,7 @@ use crate::{
     audio::AudioPicture,
     events::EventHandler,
     jukebox::{Jukebox, TrackId},
+    utils,
 };
 
 pub struct NowPlayingPage {
@@ -48,11 +49,11 @@ impl NowPlayingPage {
                         let picture = AudioPicture::read(path).unwrap();
                         match picture.bytes() {
                             Some(bytes) => {
-                                const MAX: u32 = 720;
+                                const MAX_RES: u32 = 720;
                                 let mut dyn_img = image::load_from_memory(bytes).unwrap();
                                 let (w, h) = dyn_img.dimensions();
-                                if w > MAX || h > MAX {
-                                    dyn_img = dyn_img.thumbnail(MAX, MAX);
+                                if w > MAX_RES || h > MAX_RES {
+                                    dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
                                 }
                                 FrontCover::Ready(picker.new_resize_protocol(dyn_img))
                             }
@@ -83,7 +84,6 @@ impl NowPlayingPage {
         // Show currently playing, image or not
         match self.current {
             Some(id) => {
-                const MAX_IMAGE_SIZE: u16 = 15;
                 let [left_area, _, right_area] = Layout::horizontal([
                     Constraint::Percentage(40),
                     Constraint::Length(3),
@@ -91,82 +91,95 @@ impl NowPlayingPage {
                 ])
                 .areas(area);
 
+                const MAX_COVER_SIZE: u16 = 15;
                 let mut img_area = {
-                    let img_w = left_area.width.min(MAX_IMAGE_SIZE * 2);
-                    let img_h = left_area.height.min(MAX_IMAGE_SIZE);
-                    Rect {
+                    let img_w = left_area.width.min(MAX_COVER_SIZE * 2);
+                    let img_h = left_area.height.min(MAX_COVER_SIZE);
+                    let img_r = Rect {
                         width: img_w,
                         height: img_h,
-                        x: left_area.x + left_area.width.saturating_sub(img_w),
                         ..left_area
-                    }
+                    };
+                    utils::align(img_r, left_area, utils::Alignment::Right)
                 };
 
                 match &mut self.image {
                     FrontCover::None => {
+                        const NO_IMAGE: &str = "NO IMAGE";
                         Block::bordered().style(neutral_style).render(img_area, buf);
-                        Line::styled("NO IMAGE", neutral_style).centered().render(
-                            img_area.centered(Constraint::Length(8), Constraint::Length(1)),
+                        Span::styled(NO_IMAGE, neutral_style).render(
+                            utils::align(
+                                Rect {
+                                    width: NO_IMAGE.len() as u16,
+                                    height: 1,
+                                    ..img_area
+                                },
+                                img_area,
+                                utils::Alignment::Center,
+                            ),
                             buf,
                         );
                     }
                     FrontCover::Loading => {
+                        const LOADING: &str = "LOADING";
                         Block::bordered().style(neutral_style).render(img_area, buf);
-                        Line::styled("LOADING", neutral_style).centered().render(
-                            img_area.centered(Constraint::Length(7), Constraint::Length(1)),
+                        Span::styled(LOADING, neutral_style).render(
+                            utils::align(
+                                Rect {
+                                    width: LOADING.len() as u16,
+                                    height: 1,
+                                    ..img_area
+                                },
+                                img_area,
+                                utils::Alignment::Center,
+                            ),
                             buf,
                         );
                     }
                     FrontCover::Ready(image) => {
-                        let new_img_area =
+                        let resized_img_area =
                             image.size_for(ratatui_image::Resize::default(), img_area);
-                        img_area = Rect {
-                            x: left_area.x + left_area.width.saturating_sub(new_img_area.width),
-                            y: left_area.y,
-                            width: new_img_area.width,
-                            height: new_img_area.height,
-                        };
+                        img_area = utils::align(
+                            Rect {
+                                width: resized_img_area.width,
+                                height: resized_img_area.height,
+                                ..left_area
+                            },
+                            left_area,
+                            utils::Alignment::Right,
+                        );
                         StatefulImage::default().render(img_area, buf, image);
                     }
                 }
 
-                let info_area = Rect {
-                    height: img_area.height,
-                    ..right_area
-                }
-                .centered_vertically(Constraint::Length(8));
-
-                let [
-                    album_label,
-                    album_info,
-                    _,
-                    title_label,
-                    title_info,
-                    _,
-                    artist_label,
-                    artist_info,
-                ] = Layout::vertical([
-                    Constraint::Length(1),
-                    Constraint::Length(1),
-                    Constraint::Length(1),
-                    Constraint::Length(1),
-                    Constraint::Length(1),
-                    Constraint::Length(1),
-                    Constraint::Length(1),
-                    Constraint::Length(1),
-                ])
-                .areas(info_area);
+                let mut info_area = utils::align(
+                    Rect {
+                        height: 8,
+                        ..right_area
+                    },
+                    img_area,
+                    utils::Alignment::CenterVertical,
+                );
 
                 let track = jb.get(id).unwrap();
 
-                Line::styled("ALBUM", neutral_style).render(album_label, buf);
-                Line::raw(track.album()).render(album_info, buf);
+                info_area.height = 1;
 
-                Line::styled("TITLE", neutral_style).render(title_label, buf);
-                Line::raw(track.title()).render(title_info, buf);
+                Span::styled("ALBUM", neutral_style).render(info_area, buf);
+                info_area.y += 1;
+                Span::raw(track.album()).render(info_area, buf);
 
-                Line::styled("ARTIST", neutral_style).render(artist_label, buf);
-                Line::raw(track.artist()).render(artist_info, buf);
+                info_area.y += 2;
+
+                Span::styled("TITLE", neutral_style).render(info_area, buf);
+                info_area.y += 1;
+                Span::raw(track.title()).render(info_area, buf);
+
+                info_area.y += 2;
+
+                Span::styled("ARTIST", neutral_style).render(info_area, buf);
+                info_area.y += 1;
+                Span::raw(track.artist()).render(info_area, buf);
             }
             None => {
                 Line::styled("No track currently playing", neutral_style)
