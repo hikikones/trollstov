@@ -1,4 +1,6 @@
-use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{
+    Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MediaKeyCode,
+};
 use ratatui::{CompletedFrame, prelude::*};
 
 use crate::{
@@ -90,17 +92,85 @@ impl App {
     }
 
     fn handle_key_press(&mut self, key: KeyEvent) {
-        match key.code {
-            KeyCode::Esc => self.events.send(AppEvent::Quit),
+        let pass_on_key_event = match key.code {
+            KeyCode::Esc => {
+                self.events.send(AppEvent::Quit);
+                None
+            }
             KeyCode::Tab => match self.route {
-                Route::Tracks => self.events.send(AppEvent::Route(Route::NowPlaying)),
-                Route::NowPlaying => self.events.send(AppEvent::Route(Route::Tracks)),
+                Route::Tracks => {
+                    self.events.send(AppEvent::Route(Route::NowPlaying));
+                    None
+                }
+                Route::NowPlaying => {
+                    self.events.send(AppEvent::Route(Route::Tracks));
+                    None
+                }
             },
             KeyCode::BackTab => match self.route {
-                Route::Tracks => self.events.send(AppEvent::Route(Route::NowPlaying)),
-                Route::NowPlaying => self.events.send(AppEvent::Route(Route::Tracks)),
+                Route::Tracks => {
+                    self.events.send(AppEvent::Route(Route::NowPlaying));
+                    None
+                }
+                Route::NowPlaying => {
+                    self.events.send(AppEvent::Route(Route::Tracks));
+                    None
+                }
             },
-            _ => match self.route {
+            KeyCode::Up => {
+                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    self.jb.pause_or_play();
+                    self.events.send(AppEvent::Render);
+                    None
+                } else {
+                    Some(key)
+                }
+            }
+            KeyCode::Down => {
+                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    self.jb.stop();
+                    self.events.send(AppEvent::Render);
+                    None
+                } else {
+                    Some(key)
+                }
+            }
+            KeyCode::Right => {
+                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    self.jb.play_next();
+                    self.events.send(AppEvent::Render);
+                    None
+                } else {
+                    Some(key)
+                }
+            }
+            KeyCode::Left => {
+                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    self.jb.play_previous();
+                    self.events.send(AppEvent::Render);
+                    None
+                } else {
+                    Some(key)
+                }
+            }
+            KeyCode::Media(media) => match media {
+                MediaKeyCode::Play => todo!(),
+                MediaKeyCode::Pause => todo!(),
+                MediaKeyCode::PlayPause => {
+                    self.jb.pause_or_play();
+                    self.events.send(AppEvent::Render);
+                    None
+                }
+                MediaKeyCode::Stop => todo!(),
+                MediaKeyCode::TrackNext => todo!(),
+                MediaKeyCode::TrackPrevious => todo!(),
+                _ => None,
+            },
+            _ => Some(key),
+        };
+
+        if let Some(key) = pass_on_key_event {
+            match self.route {
                 Route::Tracks => {
                     self.pages
                         .tracks
@@ -111,7 +181,7 @@ impl App {
                         .now_playing
                         .on_input(key.code, key.modifiers, &self.events)
                 }
-            },
+            }
         }
     }
 

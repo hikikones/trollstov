@@ -143,6 +143,27 @@ impl Jukebox {
 
         Ok(())
     }
+
+    pub fn pause_or_play(&mut self) {
+        if self.sink.is_paused() {
+            self.sink.play();
+        } else {
+            self.sink.pause();
+        }
+    }
+
+    pub fn stop(&mut self) {
+        self.sink.stop();
+        self.current = None;
+    }
+
+    pub fn play_next(&mut self) {
+        todo!()
+    }
+
+    pub fn play_previous(&mut self) {
+        todo!()
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
