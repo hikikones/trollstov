@@ -229,6 +229,7 @@ impl App {
     }
 
     fn update(&mut self) {
+        self.jb.update();
         self.pages.now_playing.on_update(&self.jb);
     }
 

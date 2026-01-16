@@ -13,6 +13,7 @@ pub struct Jukebox {
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
     current: Option<TrackId>,
+    stopped: Option<TrackId>,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
 }
@@ -21,6 +22,7 @@ impl Jukebox {
     pub fn new(dir: impl AsRef<Path>) -> color_eyre::Result<Self> {
         let stream = rodio::OutputStreamBuilder::open_default_stream()?;
         let sink = rodio::Sink::connect_new(stream.mixer());
+        sink.pause();
 
         // TODO: process in another thread
         let tracks = IndexMap::from_iter(
@@ -48,6 +50,7 @@ impl Jukebox {
             tracks,
             sort,
             current: None,
+            stopped: None,
             sink,
             _stream: stream,
         };
@@ -57,10 +60,6 @@ impl Jukebox {
 
     pub fn is_empty(&self) -> bool {
         self.tracks.is_empty()
-    }
-
-    pub fn is_playing(&self) -> bool {
-        self.sink.empty()
     }
 
     pub fn len(&self) -> usize {
@@ -73,12 +72,6 @@ impl Jukebox {
 
     pub fn get_mut(&mut self, id: TrackId) -> Option<&mut Track> {
         self.tracks.get_mut(&id)
-    }
-
-    pub fn update(&mut self, id: TrackId, func: impl FnOnce(&mut Track)) {
-        if let Some(track) = self.tracks.get_mut(&id) {
-            func(track);
-        }
     }
 
     pub fn get_key_from_index(&self, i: usize) -> Option<TrackId> {
@@ -131,6 +124,12 @@ impl Jukebox {
         self.current
     }
 
+    pub fn update(&mut self) {
+        if self.sink.empty() && !self.sink.is_paused() {
+            let _ = self.play_random();
+        }
+    }
+
     pub fn play(&mut self, id: TrackId) -> color_eyre::Result<()> {
         let track = self.tracks.get(&id).unwrap();
         let file = BufReader::new(File::open(track.path())?);
@@ -140,13 +139,21 @@ impl Jukebox {
         self.sink.append(input);
         self.sink.play();
         self.current = Some(id);
+        self.stopped = None;
 
         Ok(())
     }
 
     pub fn pause_or_play(&mut self) {
         if self.sink.is_paused() {
-            self.sink.play();
+            match self.stopped.take() {
+                Some(id) => {
+                    let _ = self.play(id);
+                }
+                None => {
+                    self.sink.play();
+                }
+            }
         } else {
             self.sink.pause();
         }
@@ -154,7 +161,8 @@ impl Jukebox {
 
     pub fn stop(&mut self) {
         self.sink.stop();
-        self.current = None;
+        self.sink.pause();
+        self.stopped = self.current.take();
     }
 
     pub fn play_random(&mut self) -> color_eyre::Result<()> {
