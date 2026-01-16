@@ -1,7 +1,10 @@
 use std::{
+    cmp::Ordering,
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
+    sync::mpsc,
+    thread,
     time::Duration,
 };
 
@@ -14,6 +17,7 @@ pub struct Jukebox {
     sort: TrackSort,
     current: Option<TrackId>,
     stopped: Option<TrackId>,
+    receiver: Option<mpsc::Receiver<Track>>,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
 }
@@ -24,8 +28,10 @@ impl Jukebox {
         let sink = rodio::Sink::connect_new(stream.mixer());
         sink.pause();
 
-        // TODO: process in another thread
-        let tracks = IndexMap::from_iter(
+        let (sender, receiver) = mpsc::channel();
+
+        let dir = dir.as_ref().to_path_buf();
+        thread::spawn(move || {
             traverse_audio_files(dir)
                 .take(60)
                 .filter_map(|(path, extension)| {
@@ -41,21 +47,20 @@ impl Jukebox {
                         }
                     }
                 })
-                .enumerate()
-                .map(|(i, track)| (TrackId(i as u64), track)),
-        );
+                .for_each(|track| {
+                    let _ = sender.send(track);
+                });
+        });
 
-        let sort = TrackSort::default();
-        let mut jukebox = Self {
-            tracks,
-            sort,
+        Ok(Self {
+            tracks: IndexMap::new(),
+            sort: TrackSort::default(),
             current: None,
             stopped: None,
+            receiver: Some(receiver),
             sink,
             _stream: stream,
-        };
-        jukebox.sort(sort);
-        Ok(jukebox)
+        })
     }
 
     pub fn is_empty(&self) -> bool {
@@ -111,12 +116,7 @@ impl Jukebox {
 
     pub fn sort(&mut self, sort: TrackSort) {
         self.tracks
-            .sort_unstable_by(|_, track1, _, track2| match sort {
-                TrackSort::Title => track1.title().cmp(track2.title()),
-                TrackSort::Artist => track1.artist().cmp(track2.artist()),
-                TrackSort::Album => track1.album().cmp(track2.album()),
-                TrackSort::Time => track1.duration_display().cmp(track2.duration_display()),
-            });
+            .sort_unstable_by(|_, track1, _, track2| sort.cmp(track1, track2));
         self.sort = sort;
     }
 
@@ -125,6 +125,30 @@ impl Jukebox {
     }
 
     pub fn update(&mut self) {
+        if let Some(receiver) = self.receiver.as_ref() {
+            loop {
+                match receiver.try_recv() {
+                    Ok(track) => {
+                        let last_id = self.tracks.len() as u64;
+                        self.tracks.insert_sorted_by(
+                            TrackId(last_id),
+                            track,
+                            |_, track1, _, track2| self.sort.cmp(track1, track2),
+                        );
+                    }
+                    Err(err) => match err {
+                        mpsc::TryRecvError::Empty => {
+                            break;
+                        }
+                        mpsc::TryRecvError::Disconnected => {
+                            self.receiver = None;
+                            break;
+                        }
+                    },
+                }
+            }
+        }
+
         if self.sink.empty() && !self.sink.is_paused() {
             let _ = self.play_random();
         }
@@ -297,6 +321,15 @@ impl TrackSort {
             Self::Artist => Self::Title,
             Self::Album => Self::Artist,
             Self::Time => Self::Album,
+        }
+    }
+
+    fn cmp(self, track1: &Track, track2: &Track) -> Ordering {
+        match self {
+            TrackSort::Title => track1.title().cmp(track2.title()),
+            TrackSort::Artist => track1.artist().cmp(track2.artist()),
+            TrackSort::Album => track1.album().cmp(track2.album()),
+            TrackSort::Time => track1.duration_display().cmp(track2.duration_display()),
         }
     }
 }
