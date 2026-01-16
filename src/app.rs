@@ -137,7 +137,7 @@ impl App {
             }
             KeyCode::Right => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.jb.play_next();
+                    let _ = self.jb.play_random();
                     self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
@@ -162,7 +162,11 @@ impl App {
                     None
                 }
                 MediaKeyCode::Stop => todo!(),
-                MediaKeyCode::TrackNext => todo!(),
+                MediaKeyCode::TrackNext => {
+                    let _ = self.jb.play_random();
+                    self.events.send(AppEvent::UpdateAndRender);
+                    None
+                }
                 MediaKeyCode::TrackPrevious => todo!(),
                 _ => None,
             },

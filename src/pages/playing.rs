@@ -165,21 +165,16 @@ impl NowPlayingPage {
 
                 info_area.height = 1;
 
-                Span::styled("ALBUM", neutral_style).render(info_area, buf);
-                info_area.y += 1;
-                Span::raw(track.album()).render(info_area, buf);
-
-                info_area.y += 2;
-
-                Span::styled("TITLE", neutral_style).render(info_area, buf);
-                info_area.y += 1;
-                Span::raw(track.title()).render(info_area, buf);
-
-                info_area.y += 2;
-
-                Span::styled("ARTIST", neutral_style).render(info_area, buf);
-                info_area.y += 1;
-                Span::raw(track.artist()).render(info_area, buf);
+                for (label, info) in [
+                    ("ALBUM", track.album()),
+                    ("TITLE", track.title()),
+                    ("ARTIST", track.artist()),
+                ] {
+                    Span::styled(label, neutral_style).render(info_area, buf);
+                    info_area.y += 1;
+                    Span::raw(info).render(info_area, buf);
+                    info_area.y += 2;
+                }
             }
             None => {
                 Line::styled("No track currently playing", neutral_style)

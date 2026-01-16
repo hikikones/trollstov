@@ -157,8 +157,9 @@ impl Jukebox {
         self.current = None;
     }
 
-    pub fn play_next(&mut self) {
-        todo!()
+    pub fn play_random(&mut self) -> color_eyre::Result<()> {
+        let next_id = fastrand::u64(0..self.tracks.len() as u64);
+        self.play(TrackId(next_id))
     }
 
     pub fn play_previous(&mut self) {
