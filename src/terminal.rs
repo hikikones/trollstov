@@ -1,11 +1,16 @@
 use std::io::stdout;
 
-use crossterm::{
-    event::{KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags},
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+use ratatui::{
+    CompletedFrame, DefaultTerminal, Frame,
+    crossterm::{
+        event::{
+            KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+        },
+        execute,
+        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    },
+    prelude::CrosstermBackend,
 };
-use ratatui::{CompletedFrame, DefaultTerminal, Frame, prelude::CrosstermBackend};
 
 pub struct Terminal {
     terminal: DefaultTerminal,

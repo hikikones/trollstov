@@ -1,8 +1,11 @@
 use std::thread::JoinHandle;
 
-use crossterm::event::{KeyCode, KeyModifiers};
 use image::GenericImageView;
-use ratatui::{prelude::*, widgets::Block};
+use ratatui::{
+    crossterm::event::{KeyCode, KeyModifiers},
+    prelude::*,
+    widgets::Block,
+};
 use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 
 use crate::{

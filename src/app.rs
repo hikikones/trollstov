@@ -1,7 +1,10 @@
-use crossterm::event::{
-    Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MediaKeyCode,
+use ratatui::{
+    CompletedFrame,
+    crossterm::event::{
+        Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MediaKeyCode,
+    },
+    prelude::*,
 };
-use ratatui::{CompletedFrame, prelude::*};
 
 use crate::{
     events::{AppEvent, Event, EventHandler},
