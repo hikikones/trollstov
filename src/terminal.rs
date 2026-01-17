@@ -1,7 +1,6 @@
-use std::io::stdout;
-
 use ratatui::{
     CompletedFrame, DefaultTerminal, Frame,
+    backend::CrosstermBackend,
     crossterm::{
         event::{
             KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
@@ -9,20 +8,16 @@ use ratatui::{
         execute,
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
-    prelude::CrosstermBackend,
 };
 
-pub struct Terminal {
-    terminal: DefaultTerminal,
-    clear: bool,
-}
+pub struct Terminal(DefaultTerminal);
 
 impl Terminal {
     pub fn init() -> std::io::Result<Self> {
         set_panic_hook();
         enable_raw_mode()?;
 
-        let mut stdout = stdout();
+        let mut stdout = std::io::stdout();
 
         execute!(
             stdout,
@@ -32,16 +27,17 @@ impl Terminal {
 
         let backend = CrosstermBackend::new(stdout);
 
-        Ok(Self {
-            terminal: DefaultTerminal::new(backend)?,
-            clear: false,
-        })
+        Ok(Self(DefaultTerminal::new(backend)?))
     }
 
     pub fn restore() -> std::io::Result<()> {
         disable_raw_mode()?;
 
-        execute!(stdout(), PopKeyboardEnhancementFlags, LeaveAlternateScreen)?;
+        execute!(
+            std::io::stdout(),
+            PopKeyboardEnhancementFlags,
+            LeaveAlternateScreen
+        )?;
 
         Ok(())
     }
@@ -50,38 +46,19 @@ impl Terminal {
     where
         F: FnOnce(&mut Frame),
     {
-        if self.clear {
-            self.terminal.clear()?;
-            self.clear = false;
-        }
-
-        self.terminal.try_draw(|frame| {
+        self.0.try_draw(|frame| {
             render_callback(frame);
             std::io::Result::Ok(())
         })
-    }
-
-    pub fn _temp_leave<T>(&mut self, f: impl FnOnce() -> std::io::Result<T>) -> std::io::Result<T> {
-        let mut stdout = std::io::stdout();
-
-        execute!(stdout, LeaveAlternateScreen)?;
-        disable_raw_mode()?;
-
-        let t = f();
-
-        execute!(stdout, EnterAlternateScreen)?;
-        enable_raw_mode()?;
-
-        self.clear = true;
-
-        t
     }
 }
 
 fn set_panic_hook() {
     let hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        ratatui::restore();
+        if let Err(err) = Terminal::restore() {
+            std::eprintln!("Failed to restore terminal: {err}");
+        }
         hook(info);
     }));
 }

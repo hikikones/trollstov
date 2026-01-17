@@ -24,10 +24,10 @@ pub struct NowPlayingPage {
 }
 
 impl NowPlayingPage {
-    pub fn new() -> Self {
+    pub const fn new(picker: Picker) -> Self {
         Self {
             current: None,
-            picker: Picker::from_query_stdio().unwrap(),
+            picker,
             image: FrontCover::None,
             image_handle: None,
         }

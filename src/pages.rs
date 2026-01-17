@@ -17,10 +17,10 @@ pub struct Pages {
 }
 
 impl Pages {
-    pub fn new() -> Self {
+    pub fn new(picker: ratatui_image::picker::Picker) -> Self {
         Self {
             tracks: TracksPage::new(),
-            now_playing: NowPlayingPage::new(),
+            now_playing: NowPlayingPage::new(picker),
         }
     }
 }

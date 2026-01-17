@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use ratatui::{
     CompletedFrame,
     crossterm::event::{
@@ -9,17 +11,17 @@ use ratatui::{
 use crate::{
     events::{AppEvent, Event, EventHandler},
     jukebox::Jukebox,
-    pages::{Pages, Route},
+    pages::{NowPlayingPage, Pages, Route, TracksPage},
     terminal::Terminal,
 };
 
 pub struct App {
-    jb: Jukebox,
     running: bool,
-    events: EventHandler,
-    route: Route,
     pages: Pages,
+    route: Route,
     colors: Colors,
+    events: EventHandler,
+    jukebox: Jukebox,
     title_line: Line<'static>,
     nav_line: Line<'static>,
     menu_line: Line<'static>,
@@ -51,17 +53,23 @@ impl Colors {
 }
 
 impl App {
-    pub fn new(jb: Jukebox) -> Self {
+    pub fn new(music_dir: impl AsRef<Path>) -> Self {
+        // Create picker after entering alternate screen, but before reading terminal events
+        let picker = ratatui_image::picker::Picker::from_query_stdio().unwrap();
+
+        let pages = Pages::new(picker);
         let colors = Colors::new();
+        let events = EventHandler::new();
+        let jukebox = Jukebox::new(music_dir).unwrap();
         let title_line = Line::styled("jukebox", Style::new().fg(colors.neutral)).centered();
 
         Self {
-            jb,
             running: true,
-            events: EventHandler::new(),
+            pages,
             route: Route::default(),
-            pages: Pages::new(),
             colors,
+            events,
+            jukebox,
             title_line,
             nav_line: Line::default().centered(),
             menu_line: Line::default().centered(),
@@ -71,8 +79,8 @@ impl App {
     pub fn run(mut self, mut terminal: Terminal) -> color_eyre::Result<()> {
         // Render initial page
         match self.route {
-            Route::Tracks => self.pages.tracks.on_enter(&self.jb),
-            Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jb),
+            Route::Tracks => self.pages.tracks.on_enter(&self.jukebox),
+            Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jukebox),
         }
         self.render(&mut terminal)?;
 
@@ -122,7 +130,7 @@ impl App {
             },
             KeyCode::Up => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.jb.pause_or_play();
+                    self.jukebox.pause_or_play();
                     self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
@@ -131,7 +139,7 @@ impl App {
             }
             KeyCode::Down => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.jb.stop();
+                    self.jukebox.stop();
                     self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
@@ -140,7 +148,7 @@ impl App {
             }
             KeyCode::Right => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
-                    let _ = self.jb.play_random();
+                    let _ = self.jukebox.play_random();
                     self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
@@ -149,7 +157,7 @@ impl App {
             }
             KeyCode::Left => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.jb.play_previous();
+                    self.jukebox.play_previous();
                     self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
@@ -160,13 +168,13 @@ impl App {
                 MediaKeyCode::Play => todo!(),
                 MediaKeyCode::Pause => todo!(),
                 MediaKeyCode::PlayPause => {
-                    self.jb.pause_or_play();
+                    self.jukebox.pause_or_play();
                     self.events.send(AppEvent::UpdateAndRender);
                     None
                 }
                 MediaKeyCode::Stop => todo!(),
                 MediaKeyCode::TrackNext => {
-                    let _ = self.jb.play_random();
+                    let _ = self.jukebox.play_random();
                     self.events.send(AppEvent::UpdateAndRender);
                     None
                 }
@@ -178,11 +186,12 @@ impl App {
 
         if let Some(key) = pass_on_key_event {
             match self.route {
-                Route::Tracks => {
-                    self.pages
-                        .tracks
-                        .on_input(key.code, key.modifiers, &self.events, &mut self.jb)
-                }
+                Route::Tracks => self.pages.tracks.on_input(
+                    key.code,
+                    key.modifiers,
+                    &self.events,
+                    &mut self.jukebox,
+                ),
                 Route::NowPlaying => {
                     self.pages
                         .now_playing
@@ -217,8 +226,8 @@ impl App {
                 self.route = route;
 
                 match route {
-                    Route::Tracks => self.pages.tracks.on_enter(&self.jb),
-                    Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jb),
+                    Route::Tracks => self.pages.tracks.on_enter(&self.jukebox),
+                    Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jukebox),
                 }
 
                 self.render(terminal)?;
@@ -232,8 +241,8 @@ impl App {
     }
 
     fn update(&mut self) {
-        self.jb.update();
-        self.pages.now_playing.on_update(&self.jb);
+        self.jukebox.update();
+        self.pages.now_playing.on_update(&self.jukebox);
     }
 
     fn render<'a>(&'a mut self, terminal: &'a mut Terminal) -> std::io::Result<CompletedFrame<'a>> {
@@ -283,7 +292,7 @@ impl App {
                     self.pages.tracks.on_render(
                         body,
                         buf,
-                        &self.jb,
+                        &self.jukebox,
                         &self.colors,
                         &mut self.menu_line,
                     );
@@ -291,7 +300,7 @@ impl App {
                 Route::NowPlaying => {
                     self.pages
                         .now_playing
-                        .on_render(body, buf, &self.jb, &self.colors);
+                        .on_render(body, buf, &self.jukebox, &self.colors);
                 }
             }
 
