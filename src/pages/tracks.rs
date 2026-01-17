@@ -15,6 +15,7 @@ use crate::{
 pub struct TracksPage {
     index: usize,
     scroll: usize,
+    line_buffer: String,
 }
 
 impl TracksPage {
@@ -22,6 +23,7 @@ impl TracksPage {
         Self {
             index: 0,
             scroll: 0,
+            line_buffer: String::new(),
         }
     }
 
@@ -46,6 +48,7 @@ impl TracksPage {
         let [header_area, table_area] =
             Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(area);
 
+        // Render the header for the table
         let mut x = header_area.x;
         for (label, width, spacing) in [
             ("Title", info_width, spacing),
@@ -64,6 +67,7 @@ impl TracksPage {
             x += width;
         }
 
+        // Render the body for the table
         let height = table_area.height as usize;
         if self.index > self.scroll {
             let height_diff = self.index - self.scroll;
@@ -76,17 +80,18 @@ impl TracksPage {
             self.scroll -= height_diff;
         }
 
-        // let mut x = table_area.x;
-        let mut y = table_area.y;
-
+        let mut row_area = Rect {
+            height: 1,
+            ..table_area
+        };
         let current = jb.current();
+        self.line_buffer.reserve(table_area.width as usize);
+
         jb.iter()
             .enumerate()
             .skip(self.scroll)
             .take(height)
             .for_each(|(i, (id, track))| {
-                let mut line = String::new();
-
                 for (text, width, spacing) in [
                     (track.title(), info_width, spacing),
                     (track.artist(), info_width, spacing),
@@ -94,71 +99,34 @@ impl TracksPage {
                     (track.duration_display(), time_width, spacing),
                     (track.rating_display(), rating_width, 0),
                 ] {
+                    // Determine how much text we can fill for each column
                     let max_text_width = width.saturating_sub(spacing);
                     let text_width = text.width() as u16;
                     if text_width <= max_text_width {
-                        // Push text and fill in remaining spaces
-                        line.push_str(text);
+                        // Text fits, fill in remaining with spaces
+                        self.line_buffer.push_str(text);
                         for _ in 0..max_text_width.saturating_sub(text_width) + spacing {
-                            line.push(' ');
+                            self.line_buffer.push(' ');
                         }
                     } else {
-                        let mut w = 0;
-                        for g in text.graphemes(true) {
-                            let gw = g.width() as u16;
-                            if w + gw <= max_text_width {
-                                //push
-                                line.push_str(g);
-                                w += gw;
+                        // No fit, fill in what we can
+                        let mut curr_width = 0;
+                        for grapheme in text.graphemes(true) {
+                            let grapheme_width = grapheme.width() as u16;
+                            if curr_width + grapheme_width <= max_text_width {
+                                // Keep pushing
+                                self.line_buffer.push_str(grapheme);
+                                curr_width += grapheme_width;
                             } else {
-                                //done, fill in remaining
-                                for _ in 0..max_text_width.saturating_sub(w) + spacing {
-                                    line.push(' ');
+                                // Done, fill in remaining with spaces
+                                for _ in 0..max_text_width.saturating_sub(curr_width) + spacing {
+                                    self.line_buffer.push(' ');
                                 }
                                 break;
                             }
                         }
                     }
-
-                    // let col = Rect {
-                    //     width: width.saturating_sub(spacing),
-                    //     height: 1,
-                    //     x,
-                    //     y,
-                    // };
-
-                    // let mut style = Style::new();
-                    // if self.index == i {
-                    //     style.fg = Some(colors.accent);
-                    // }
-                    // if let Some(current) = current
-                    //     && current == id
-                    // {
-                    //     style.add_modifier.insert(Modifier::BOLD);
-                    // }
-
-                    // Span::styled(text, style).render(col, buf);
-                    // x += width;
                 }
-                // x = table_area.x;
-                // y += 1;
-
-                // let mut style = Style::new();
-                // if self.index == i {
-                //     style.fg = Some(colors.accent);
-                // }
-                // if let Some(current) = current
-                //     && current == id
-                // {
-                //     style.add_modifier.insert(Modifier::BOLD);
-                // }
-
-                let r = Rect {
-                    height: 1,
-                    // y: table_area.y + i as u16,
-                    y,
-                    ..table_area
-                };
 
                 let mut style = Style::new();
                 if self.index == i {
@@ -171,10 +139,10 @@ impl TracksPage {
                     style.add_modifier.insert(Modifier::BOLD);
                 }
 
-                Span::styled(&line, style).render(r, buf);
-                line.clear();
+                Span::styled(&self.line_buffer, style).render(row_area, buf);
+                self.line_buffer.clear();
 
-                y += 1;
+                row_area.y += 1;
             });
     }
 
