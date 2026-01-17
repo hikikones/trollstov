@@ -1132,6 +1132,8 @@ dependencies = [
  "ratatui-image",
  "rodio",
  "terminal-colorsaurus",
+ "unicode-segmentation",
+ "unicode-width",
  "walkdir",
 ]
 

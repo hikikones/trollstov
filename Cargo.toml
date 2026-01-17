@@ -15,4 +15,6 @@ ratatui-image = { version = "10.0", default-features = false, features = [
 ] }
 rodio = "0.21"
 terminal-colorsaurus = "1.0"
+unicode-segmentation = "1.12"
+unicode-width = "0.2"
 walkdir = "2.5"

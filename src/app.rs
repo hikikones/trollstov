@@ -11,7 +11,7 @@ use ratatui::{
 use crate::{
     events::{AppEvent, Event, EventHandler},
     jukebox::Jukebox,
-    pages::{NowPlayingPage, Pages, Route, TracksPage},
+    pages::{Pages, Route},
     terminal::Terminal,
 };
 
