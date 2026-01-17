@@ -2,6 +2,8 @@ use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
 };
+use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 use crate::{
     app::Colors,
@@ -45,7 +47,7 @@ impl TracksPage {
             Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(area);
 
         let mut x = header_area.x;
-        for (header, width, spacing) in [
+        for (label, width, spacing) in [
             ("Title", info_width, spacing),
             ("Artist", info_width, spacing),
             ("Album", info_width, spacing),
@@ -58,7 +60,7 @@ impl TracksPage {
                 x,
                 y: header_area.y,
             };
-            Span::raw(header).render(col, buf);
+            Span::raw(label).render(col, buf);
             x += width;
         }
 
@@ -74,7 +76,7 @@ impl TracksPage {
             self.scroll -= height_diff;
         }
 
-        let mut x = table_area.x;
+        // let mut x = table_area.x;
         let mut y = table_area.y;
 
         let current = jb.current();
@@ -83,6 +85,8 @@ impl TracksPage {
             .skip(self.scroll)
             .take(height)
             .for_each(|(i, (id, track))| {
+                let mut line = String::new();
+
                 for (text, width, spacing) in [
                     (track.title(), info_width, spacing),
                     (track.artist(), info_width, spacing),
@@ -90,27 +94,86 @@ impl TracksPage {
                     (track.duration_display(), time_width, spacing),
                     (track.rating_display(), rating_width, 0),
                 ] {
-                    let col = Rect {
-                        width: width.saturating_sub(spacing),
-                        height: 1,
-                        x,
-                        y,
-                    };
-
-                    let mut style = Style::new();
-                    if self.index == i {
-                        style.fg = Some(colors.accent);
+                    let max_text_width = width.saturating_sub(spacing);
+                    let text_width = text.width() as u16;
+                    if text_width <= max_text_width {
+                        // Push text and fill in remaining spaces
+                        line.push_str(text);
+                        for _ in 0..max_text_width.saturating_sub(text_width) + spacing {
+                            line.push(' ');
+                        }
+                    } else {
+                        let mut w = 0;
+                        for g in text.graphemes(true) {
+                            let gw = g.width() as u16;
+                            if w + gw <= max_text_width {
+                                //push
+                                line.push_str(g);
+                                w += gw;
+                            } else {
+                                //done, fill in remaining
+                                for _ in 0..max_text_width.saturating_sub(w) + spacing {
+                                    line.push(' ');
+                                }
+                                break;
+                            }
+                        }
                     }
-                    if let Some(current) = current
-                        && current == id
-                    {
-                        style.add_modifier.insert(Modifier::BOLD);
-                    }
 
-                    Span::styled(text, style).render(col, buf);
-                    x += width;
+                    // let col = Rect {
+                    //     width: width.saturating_sub(spacing),
+                    //     height: 1,
+                    //     x,
+                    //     y,
+                    // };
+
+                    // let mut style = Style::new();
+                    // if self.index == i {
+                    //     style.fg = Some(colors.accent);
+                    // }
+                    // if let Some(current) = current
+                    //     && current == id
+                    // {
+                    //     style.add_modifier.insert(Modifier::BOLD);
+                    // }
+
+                    // Span::styled(text, style).render(col, buf);
+                    // x += width;
                 }
-                x = table_area.x;
+                // x = table_area.x;
+                // y += 1;
+
+                // let mut style = Style::new();
+                // if self.index == i {
+                //     style.fg = Some(colors.accent);
+                // }
+                // if let Some(current) = current
+                //     && current == id
+                // {
+                //     style.add_modifier.insert(Modifier::BOLD);
+                // }
+
+                let r = Rect {
+                    height: 1,
+                    // y: table_area.y + i as u16,
+                    y,
+                    ..table_area
+                };
+
+                let mut style = Style::new();
+                if self.index == i {
+                    style.bg = Some(colors.accent);
+                    style.fg = Some(colors.on_accent);
+                }
+                if let Some(current) = current
+                    && current == id
+                {
+                    style.add_modifier.insert(Modifier::BOLD);
+                }
+
+                Span::styled(&line, style).render(r, buf);
+                line.clear();
+
                 y += 1;
             });
     }
