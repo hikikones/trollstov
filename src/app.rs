@@ -373,14 +373,14 @@ impl App {
                     let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
                     let max_highlight_bound = (status_area.width as f32 * progress) as u16;
                     for i in 0..status_area.width {
-                        let style = if i < max_highlight_bound {
-                            Style::new().blue()
+                        let (c, style) = if i < max_highlight_bound {
+                            ("━", Style::new().fg(self.colors.accent))
                         } else if i == max_highlight_bound {
-                            Style::new().red()
+                            ("━", Style::new().fg(self.colors.accent))
                         } else {
-                            Style::new()
+                            ("─", Style::new().fg(self.colors.neutral))
                         };
-                        self.play_status_line.spans.push(Span::styled("-", style));
+                        self.play_status_line.spans.push(Span::styled(c, style));
                     }
                 }
                 None => {
@@ -389,7 +389,7 @@ impl App {
                     for _ in 0..status_area.width {
                         self.play_status_line
                             .spans
-                            .push(Span::styled("-", Style::new()));
+                            .push(Span::styled("─", Style::new().fg(self.colors.neutral)));
                     }
                 }
             }
@@ -406,7 +406,7 @@ impl App {
                 buf,
             );
 
-            Span::styled(&self.current_duration, Style::new()).render(
+            Span::styled(&self.current_duration, Style::new().fg(self.colors.neutral)).render(
                 utils::align(
                     Rect {
                         width: 6,
@@ -418,7 +418,7 @@ impl App {
                 buf,
             );
             (&self.play_status_line).render(status_area, buf);
-            Span::styled(&self.total_duration, Style::new()).render(
+            Span::styled(&self.total_duration, Style::new().fg(self.colors.neutral)).render(
                 Rect {
                     x: right_time_area.x + 1,
                     width: 5,
