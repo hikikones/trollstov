@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use ratatui::layout::Rect;
 
 /// Aligns the inner [Rect] inside the outer [Rect].
@@ -55,4 +57,28 @@ pub enum Alignment {
     Center,
     CenterHorizontal,
     CenterVertical,
+}
+
+/// Formats the duration as `mm:ss` and appends it to the mutable String.
+pub fn format_duration(duration: Duration, s: &mut String) {
+    let seconds = duration.as_secs() % 60;
+    let minutes = (duration.as_secs() - seconds) / 60;
+
+    let mut buffer = itoa::Buffer::new();
+
+    if minutes < 10 {
+        s.push('0');
+        s.push_str(buffer.format(minutes));
+    } else {
+        s.push_str(buffer.format(minutes));
+    }
+
+    s.push(':');
+
+    if seconds < 10 {
+        s.push('0');
+        s.push_str(buffer.format(seconds));
+    } else {
+        s.push_str(buffer.format(seconds));
+    }
 }

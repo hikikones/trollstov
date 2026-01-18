@@ -46,7 +46,7 @@ impl TracksPage {
         let info_width = remaining_width / 3;
 
         let [header_area, table_area] =
-            Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(area);
+            Layout::vertical([Constraint::Length(1), Constraint::Fill(0)]).areas(area);
 
         // Render the header for the table
         let mut x = header_area.x;

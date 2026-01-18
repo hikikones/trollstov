@@ -1127,6 +1127,7 @@ dependencies = [
  "fastrand",
  "image",
  "indexmap",
+ "itoa",
  "lofty",
  "ratatui",
  "ratatui-image",

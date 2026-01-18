@@ -7,12 +7,14 @@ use ratatui::{
     },
     prelude::*,
 };
+use unicode_width::UnicodeWidthStr;
 
 use crate::{
     events::{AppEvent, Event, EventHandler},
-    jukebox::Jukebox,
+    jukebox::{Jukebox, TrackId},
     pages::{Pages, Route},
     terminal::Terminal,
+    utils,
 };
 
 pub struct App {
@@ -22,9 +24,14 @@ pub struct App {
     colors: Colors,
     events: EventHandler,
     jukebox: Jukebox,
+    current: Option<TrackId>,
     title_line: Line<'static>,
     nav_line: Line<'static>,
     menu_line: Line<'static>,
+    playing_title: String,
+    playing_status_line: Line<'static>,
+    playing_current_duration: String,
+    playing_total_duration: String,
 }
 
 pub struct Colors {
@@ -70,9 +77,14 @@ impl App {
             colors,
             events,
             jukebox,
+            current: None,
             title_line,
             nav_line: Line::default().centered(),
             menu_line: Line::default().centered(),
+            playing_title: String::new(),
+            playing_status_line: Line::default().centered(),
+            playing_current_duration: String::with_capacity(5),
+            playing_total_duration: String::from("00:00"),
         }
     }
 
@@ -250,12 +262,21 @@ impl App {
             let area = frame.area();
             let buf = frame.buffer_mut();
 
-            let [title_area, _, nav_area, menu_area, body_area, _] = Layout::vertical([
+            let [
+                title_area,
+                _,
+                nav_area,
+                menu_area,
+                body_area,
+                playing_title_area,
+                playing_status_area,
+            ] = Layout::vertical([
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
-                Constraint::Min(0),
+                Constraint::Fill(0),
+                Constraint::Length(1),
                 Constraint::Length(1),
             ])
             .areas(area);
@@ -307,6 +328,111 @@ impl App {
             // Menu
             (&self.menu_line).render(menu_area, buf);
             self.menu_line.spans.clear();
+
+            // Playing
+            if self.current != self.jukebox.current() {
+                // Update currently playing
+                self.current = self.jukebox.current();
+                self.playing_title.clear();
+                self.playing_total_duration.clear();
+
+                match self.jukebox.current() {
+                    Some(id) => {
+                        let track = self.jukebox.get(id).unwrap();
+                        self.playing_title.push_str(track.artist());
+                        if !(track.artist().is_empty() || track.title().is_empty()) {
+                            self.playing_title.push_str(" - ");
+                        }
+                        self.playing_title.push_str(track.title());
+                        self.playing_total_duration
+                            .push_str(track.duration_display());
+                    }
+                    None => {
+                        self.playing_total_duration.push_str("00:00");
+                    }
+                }
+            }
+
+            let [left_time_area, status_area, right_time_area] = Layout::horizontal([
+                Constraint::Fill(0),
+                Constraint::Percentage(30),
+                Constraint::Fill(0),
+            ])
+            .areas(playing_status_area);
+
+            self.playing_status_line.spans.clear();
+
+            match self.jukebox.current() {
+                Some(id) => {
+                    let track = self.jukebox.get(id).unwrap();
+                    let current_duration = self.jukebox.pos();
+                    let total_duration = track.duration();
+
+                    self.playing_current_duration.clear();
+                    utils::format_duration(current_duration, &mut self.playing_current_duration);
+
+                    let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
+                    let max_highlight_bound = (status_area.width as f32 * progress) as u16;
+                    for i in 0..status_area.width {
+                        let (c, style) = if i <= max_highlight_bound {
+                            ("━", Style::new().fg(self.colors.accent))
+                        } else {
+                            ("─", Style::new().fg(self.colors.neutral))
+                        };
+                        self.playing_status_line.spans.push(Span::styled(c, style));
+                    }
+                }
+                None => {
+                    self.playing_current_duration.clear();
+                    self.playing_current_duration.push_str("00:00");
+                    for _ in 0..status_area.width {
+                        self.playing_status_line
+                            .spans
+                            .push(Span::styled("─", Style::new().fg(self.colors.neutral)));
+                    }
+                }
+            }
+
+            Span::styled(&self.playing_title, Style::new().fg(self.colors.neutral)).render(
+                utils::align(
+                    Rect {
+                        width: self.playing_title.width() as u16,
+                        ..playing_title_area
+                    },
+                    playing_title_area,
+                    utils::Alignment::CenterHorizontal,
+                ),
+                buf,
+            );
+
+            Span::styled(
+                &self.playing_current_duration,
+                Style::new().fg(self.colors.neutral),
+            )
+            .render(
+                utils::align(
+                    Rect {
+                        width: 6,
+                        ..left_time_area
+                    },
+                    left_time_area,
+                    utils::Alignment::Right,
+                ),
+                buf,
+            );
+            (&self.playing_status_line).render(status_area, buf);
+            Span::styled(
+                &self.playing_total_duration,
+                Style::new().fg(self.colors.neutral),
+            )
+            .render(
+                Rect {
+                    x: right_time_area.x + 1,
+                    width: 5,
+                    ..right_time_area
+                },
+                buf,
+            );
         })
     }
 }

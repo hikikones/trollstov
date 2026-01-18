@@ -10,7 +10,7 @@ use std::{
 
 use indexmap::IndexMap;
 
-use crate::audio::*;
+use crate::{audio::*, utils};
 
 pub struct Jukebox {
     tracks: IndexMap<TrackId, Track>,
@@ -124,6 +124,10 @@ impl Jukebox {
         self.current
     }
 
+    pub fn pos(&self) -> Duration {
+        self.sink.get_pos()
+    }
+
     pub fn update(&mut self) {
         if let Some(receiver) = self.receiver.as_ref() {
             loop {
@@ -184,8 +188,7 @@ impl Jukebox {
     }
 
     pub fn stop(&mut self) {
-        self.sink.stop();
-        self.sink.pause();
+        self.sink.clear();
         self.stopped = self.current.take();
     }
 
@@ -218,9 +221,8 @@ impl Track {
         path: PathBuf,
         extension: AudioFileExtension,
     ) -> Self {
-        let duration = properties.duration();
-        let seconds = duration.as_secs() % 60;
-        let duration_display = format!("{:02}:{:02}", (duration.as_secs() - seconds) / 60, seconds);
+        let mut duration_display = String::with_capacity(5);
+        utils::format_duration(properties.duration(), &mut duration_display);
 
         Self {
             metadata,

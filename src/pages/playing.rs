@@ -90,7 +90,7 @@ impl NowPlayingPage {
                 let [left_area, _, right_area] = Layout::horizontal([
                     Constraint::Percentage(40),
                     Constraint::Length(3),
-                    Constraint::Fill(1),
+                    Constraint::Fill(0),
                 ])
                 .areas(area);
 
