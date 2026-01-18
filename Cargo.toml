@@ -8,6 +8,7 @@ color-eyre = { version = "0.6", default-features = false }
 fastrand = "2.3"
 image = "0.25.9"
 indexmap = "2.13.0"
+itoa = "1.0"
 lofty = "0.22"
 ratatui = "0.30"
 ratatui-image = { version = "10.0", default-features = false, features = [
