@@ -10,7 +10,7 @@ use ratatui::{
 
 use crate::{
     events::{AppEvent, Event, EventHandler},
-    jukebox::Jukebox,
+    jukebox::{Jukebox, TrackId},
     pages::{Pages, Route},
     terminal::Terminal,
 };
@@ -22,9 +22,12 @@ pub struct App {
     colors: Colors,
     events: EventHandler,
     jukebox: Jukebox,
+    current: Option<TrackId>,
     title_line: Line<'static>,
     nav_line: Line<'static>,
     menu_line: Line<'static>,
+    play_title_line: Line<'static>,
+    play_status_line: Line<'static>,
 }
 
 pub struct Colors {
@@ -70,9 +73,12 @@ impl App {
             colors,
             events,
             jukebox,
+            current: None,
             title_line,
             nav_line: Line::default().centered(),
             menu_line: Line::default().centered(),
+            play_title_line: Line::default().centered(),
+            play_status_line: Line::default().centered(),
         }
     }
 
@@ -250,12 +256,21 @@ impl App {
             let area = frame.area();
             let buf = frame.buffer_mut();
 
-            let [title_area, _, nav_area, menu_area, body_area, _] = Layout::vertical([
+            let [
+                title_area,
+                _,
+                nav_area,
+                menu_area,
+                body_area,
+                playing_title_area,
+                playing_status_area,
+            ] = Layout::vertical([
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
-                Constraint::Min(0),
+                Constraint::Fill(0),
+                Constraint::Length(1),
                 Constraint::Length(1),
             ])
             .areas(area);
@@ -307,6 +322,91 @@ impl App {
             // Menu
             (&self.menu_line).render(menu_area, buf);
             self.menu_line.spans.clear();
+
+            // Playing
+            if self.current != self.jukebox.current() {
+                // Update currently playing
+                self.current = self.jukebox.current();
+                self.play_title_line.spans.clear();
+                // self.play_status_line.spans.clear();
+
+                if let Some(id) = self.jukebox.current() {
+                    let track = self.jukebox.get(id).unwrap();
+                    let style = Style::new().fg(self.colors.neutral);
+                    self.play_title_line.spans.extend([
+                        Span::styled(track.artist().to_string(), style),
+                        Span::styled(" - ", style),
+                        Span::styled(track.title().to_string(), style),
+                    ]);
+                }
+
+                // match self.jukebox.current() {
+                //     Some(id) => {}
+                //     None => {
+                //         //todo
+                //     }
+                // }
+            }
+
+            match self.jukebox.current() {
+                Some(id) => {
+                    //todo
+                    self.play_status_line.spans.clear();
+                    let track = self.jukebox.get(id).unwrap();
+                    let curr_dur = self.jukebox.pos();
+                    let curr_dur_display = {
+                        let seconds = curr_dur.as_secs() % 60;
+                        format!("{:02}:{:02}", (curr_dur.as_secs() - seconds) / 60, seconds)
+                    };
+
+                    let total_dur = track.duration();
+                    let total_dur_display = track.duration_display().to_string();
+                    let perc = curr_dur.as_secs_f32() / total_dur.as_secs_f32();
+                    let style = Style::new();
+                    let dur = "00:00";
+                    self.play_status_line.spans.extend([
+                        Span::styled(curr_dur_display, style),
+                        Span::styled(" ", style),
+                    ]);
+                    let a = playing_status_area.width / 3;
+                    let perc_a = (a as f32 * perc) as u16;
+                    for i in 0..a {
+                        let style = if i < perc_a {
+                            Style::new().blue()
+                        } else if i == perc_a {
+                            Style::new().red()
+                        } else {
+                            Style::new()
+                        };
+                        self.play_status_line.spans.push(Span::styled("-", style));
+                    }
+                    self.play_status_line.spans.extend([
+                        Span::styled(" ", style),
+                        Span::styled(total_dur_display, style),
+                    ]);
+                }
+                None => {
+                    //todo
+                    self.play_status_line.spans.clear();
+                    let style = Style::new();
+                    let dur = "00:00";
+                    self.play_status_line
+                        .spans
+                        .extend([Span::styled(dur, style), Span::styled(" ", style)]);
+                    let a = playing_status_area.width / 3;
+                    for _ in 0..a {
+                        self.play_status_line.spans.push(Span::styled("-", style));
+                    }
+                    self.play_status_line
+                        .spans
+                        .extend([Span::styled(" ", style), Span::styled(dur, style)]);
+                }
+            }
+
+            (&self.play_title_line).render(playing_title_area, buf);
+            (&self.play_status_line).render(playing_status_area, buf);
+            // self.play_title_line.spans.clear();
+            // self.play_status_line.spans.clear();
         })
     }
 }

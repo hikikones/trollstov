@@ -124,6 +124,10 @@ impl Jukebox {
         self.current
     }
 
+    pub fn pos(&self) -> Duration {
+        self.sink.get_pos()
+    }
+
     pub fn update(&mut self) {
         if let Some(receiver) = self.receiver.as_ref() {
             loop {
@@ -184,8 +188,7 @@ impl Jukebox {
     }
 
     pub fn stop(&mut self) {
-        self.sink.stop();
-        self.sink.pause();
+        self.sink.clear();
         self.stopped = self.current.take();
     }
 
