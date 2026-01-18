@@ -23,7 +23,7 @@ pub struct Jukebox {
 }
 
 impl Jukebox {
-    pub fn new(dir: impl AsRef<Path>) -> color_eyre::Result<Self> {
+    pub fn new(dir: impl AsRef<Path>) -> Result<Self, rodio::StreamError> {
         let stream = rodio::OutputStreamBuilder::open_default_stream()?;
         let sink = rodio::Sink::connect_new(stream.mixer());
         sink.pause();
@@ -158,7 +158,7 @@ impl Jukebox {
         }
     }
 
-    pub fn play(&mut self, id: TrackId) -> color_eyre::Result<()> {
+    pub fn play(&mut self, id: TrackId) -> Result<(), Box<dyn std::error::Error>> {
         let track = self.tracks.get(&id).unwrap();
         let file = BufReader::new(File::open(track.path())?);
         let input = rodio::decoder::Decoder::new(file)?;
@@ -192,7 +192,7 @@ impl Jukebox {
         self.stopped = self.current.take();
     }
 
-    pub fn play_random(&mut self) -> color_eyre::Result<()> {
+    pub fn play_random(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let next_id = fastrand::u64(0..self.tracks.len() as u64);
         self.play(TrackId(next_id))
     }
@@ -262,7 +262,7 @@ impl Track {
         }
     }
 
-    pub fn set_rating(&mut self, rating: AudioRating) -> color_eyre::Result<()> {
+    pub fn set_rating(&mut self, rating: AudioRating) -> Result<(), Box<dyn std::error::Error>> {
         let mut audio_file = AudioFile::read_from_path_and_extension(&self.path, self.extension)?;
         let new_rating = match self.metadata.rating() {
             Some(current_rating) => {

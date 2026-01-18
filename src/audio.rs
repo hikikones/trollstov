@@ -76,7 +76,10 @@ impl AudioFile {
         }
     }
 
-    pub fn write_rating(&mut self, rating: Option<AudioRating>) -> color_eyre::Result<()> {
+    pub fn write_rating(
+        &mut self,
+        rating: Option<AudioRating>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         match &mut self.format {
             AudioFileFormat::Mpeg(mpeg) => {
                 let id3v2 = mpeg.id3v2_mut().unwrap();

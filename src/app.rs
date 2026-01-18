@@ -88,7 +88,7 @@ impl App {
         }
     }
 
-    pub fn run(mut self, mut terminal: Terminal) -> color_eyre::Result<()> {
+    pub fn run(mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Render initial page
         match self.route {
             Route::Tracks => self.pages.tracks.on_enter(&self.jukebox),
@@ -217,7 +217,7 @@ impl App {
         &mut self,
         event: AppEvent,
         terminal: &mut Terminal,
-    ) -> color_eyre::Result<()> {
+    ) -> Result<(), Box<dyn std::error::Error>> {
         match event {
             AppEvent::Update => {
                 self.update();

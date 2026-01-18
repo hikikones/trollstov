@@ -4,7 +4,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use color_eyre::eyre::WrapErr;
 use ratatui::crossterm::event::{self, Event as CrosstermEvent};
 
 use crate::pages::Route;
@@ -38,7 +37,7 @@ impl EventHandler {
         Self { sender, receiver }
     }
 
-    pub fn next(&self) -> color_eyre::Result<Event> {
+    pub fn next(&self) -> Result<Event, mpsc::RecvError> {
         Ok(self.receiver.recv()?)
     }
 
@@ -56,7 +55,7 @@ impl EventThread {
         Self { sender }
     }
 
-    fn run(self) -> color_eyre::Result<()> {
+    fn run(self) -> Result<(), std::io::Error> {
         // Setup timers
         let mut update = Timer::new(Duration::from_secs_f64(UPDATE_FREQUENCY));
         let mut render = Timer::new(Duration::from_secs_f64(RENDER_FREQUENCY));
@@ -73,8 +72,8 @@ impl EventThread {
             }
 
             // Poll for crossterm events in a non-blocking manner
-            if event::poll(update.timeout()).wrap_err("failed to poll for crossterm events")? {
-                let event = event::read().wrap_err("failed to read crossterm event")?;
+            if event::poll(update.timeout())? {
+                let event = event::read()?;
                 self.send(Event::Terminal(event));
             }
         }
