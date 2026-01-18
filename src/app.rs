@@ -374,9 +374,7 @@ impl App {
                     let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
                     let max_highlight_bound = (status_area.width as f32 * progress) as u16;
                     for i in 0..status_area.width {
-                        let (c, style) = if i < max_highlight_bound {
-                            ("━", Style::new().fg(self.colors.accent))
-                        } else if i == max_highlight_bound {
+                        let (c, style) = if i <= max_highlight_bound {
                             ("━", Style::new().fg(self.colors.accent))
                         } else {
                             ("─", Style::new().fg(self.colors.neutral))
