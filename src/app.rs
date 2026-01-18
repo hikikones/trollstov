@@ -28,10 +28,10 @@ pub struct App {
     title_line: Line<'static>,
     nav_line: Line<'static>,
     menu_line: Line<'static>,
-    play_title: String,
-    play_status_line: Line<'static>,
-    current_duration: String,
-    total_duration: String,
+    playing_title: String,
+    playing_status_line: Line<'static>,
+    playing_current_duration: String,
+    playing_total_duration: String,
 }
 
 pub struct Colors {
@@ -81,10 +81,10 @@ impl App {
             title_line,
             nav_line: Line::default().centered(),
             menu_line: Line::default().centered(),
-            play_title: String::new(),
-            play_status_line: Line::default().centered(),
-            current_duration: String::with_capacity(5),
-            total_duration: String::from("00:00"),
+            playing_title: String::new(),
+            playing_status_line: Line::default().centered(),
+            playing_current_duration: String::with_capacity(5),
+            playing_total_duration: String::from("00:00"),
         }
     }
 
@@ -333,21 +333,22 @@ impl App {
             if self.current != self.jukebox.current() {
                 // Update currently playing
                 self.current = self.jukebox.current();
-                self.play_title.clear();
-                self.total_duration.clear();
+                self.playing_title.clear();
+                self.playing_total_duration.clear();
 
                 match self.jukebox.current() {
                     Some(id) => {
                         let track = self.jukebox.get(id).unwrap();
-                        self.play_title.push_str(track.artist());
+                        self.playing_title.push_str(track.artist());
                         if !(track.artist().is_empty() || track.title().is_empty()) {
-                            self.play_title.push_str(" - ");
+                            self.playing_title.push_str(" - ");
                         }
-                        self.play_title.push_str(track.title());
-                        self.total_duration.push_str(track.duration_display());
+                        self.playing_title.push_str(track.title());
+                        self.playing_total_duration
+                            .push_str(track.duration_display());
                     }
                     None => {
-                        self.total_duration.push_str("00:00");
+                        self.playing_total_duration.push_str("00:00");
                     }
                 }
             }
@@ -359,7 +360,7 @@ impl App {
             ])
             .areas(playing_status_area);
 
-            self.play_status_line.spans.clear();
+            self.playing_status_line.spans.clear();
 
             match self.jukebox.current() {
                 Some(id) => {
@@ -367,8 +368,8 @@ impl App {
                     let current_duration = self.jukebox.pos();
                     let total_duration = track.duration();
 
-                    self.current_duration.clear();
-                    utils::format_duration(current_duration, &mut self.current_duration);
+                    self.playing_current_duration.clear();
+                    utils::format_duration(current_duration, &mut self.playing_current_duration);
 
                     let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
                     let max_highlight_bound = (status_area.width as f32 * progress) as u16;
@@ -380,24 +381,24 @@ impl App {
                         } else {
                             ("─", Style::new().fg(self.colors.neutral))
                         };
-                        self.play_status_line.spans.push(Span::styled(c, style));
+                        self.playing_status_line.spans.push(Span::styled(c, style));
                     }
                 }
                 None => {
-                    self.current_duration.clear();
-                    self.current_duration.push_str("00:00");
+                    self.playing_current_duration.clear();
+                    self.playing_current_duration.push_str("00:00");
                     for _ in 0..status_area.width {
-                        self.play_status_line
+                        self.playing_status_line
                             .spans
                             .push(Span::styled("─", Style::new().fg(self.colors.neutral)));
                     }
                 }
             }
 
-            Span::styled(&self.play_title, Style::new().fg(self.colors.neutral)).render(
+            Span::styled(&self.playing_title, Style::new().fg(self.colors.neutral)).render(
                 utils::align(
                     Rect {
-                        width: self.play_title.width() as u16,
+                        width: self.playing_title.width() as u16,
                         ..playing_title_area
                     },
                     playing_title_area,
@@ -406,7 +407,11 @@ impl App {
                 buf,
             );
 
-            Span::styled(&self.current_duration, Style::new().fg(self.colors.neutral)).render(
+            Span::styled(
+                &self.playing_current_duration,
+                Style::new().fg(self.colors.neutral),
+            )
+            .render(
                 utils::align(
                     Rect {
                         width: 6,
@@ -417,8 +422,12 @@ impl App {
                 ),
                 buf,
             );
-            (&self.play_status_line).render(status_area, buf);
-            Span::styled(&self.total_duration, Style::new().fg(self.colors.neutral)).render(
+            (&self.playing_status_line).render(status_area, buf);
+            Span::styled(
+                &self.playing_total_duration,
+                Style::new().fg(self.colors.neutral),
+            )
+            .render(
                 Rect {
                     x: right_time_area.x + 1,
                     width: 5,
