@@ -198,7 +198,10 @@ impl App {
                         .now_playing
                         .on_input(key.code, key.modifiers, &self.events)
                 }
-                Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
+                Route::Logs => self
+                    .pages
+                    .logs
+                    .on_input(key.code, key.modifiers, &self.events),
             }
         }
     }
