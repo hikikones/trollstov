@@ -6,7 +6,7 @@ use std::{
 
 use ratatui::crossterm::event::{self, Event as CrosstermEvent};
 
-use crate::pages::Route;
+use crate::pages::{Log, Route};
 
 const UPDATE_FREQUENCY: f64 = 1.0 / 8.0;
 const RENDER_FREQUENCY: f64 = 1.0 / 1.0;
@@ -21,6 +21,7 @@ pub enum AppEvent {
     Render,
     UpdateAndRender,
     Route(Route),
+    Log(Log),
     Quit,
 }
 

@@ -58,9 +58,24 @@ impl AudioFile {
 
     pub fn metadata(&self) -> Result<AudioMetadata, AudioFileError> {
         match &self.format {
-            AudioFileFormat::Flac(flac) => AudioMetadata::from_flac(flac),
-            AudioFileFormat::Mpeg(mpeg) => AudioMetadata::from_mpeg(mpeg),
-            AudioFileFormat::Opus(opus) => Ok(AudioMetadata::from_opus(opus)),
+            AudioFileFormat::Flac(flac) => match flac.vorbis_comments() {
+                Some(vorbis_comments) => Ok(AudioMetadata::from_vorbis_comments(vorbis_comments)),
+                None => Err(AudioFileError::Metadata(format!(
+                    "No Vorbis tag found in {}.",
+                    self.path.to_string_lossy()
+                ))),
+            },
+            AudioFileFormat::Mpeg(mpeg) => match mpeg.id3v2() {
+                Some(id3v2) => Ok(AudioMetadata::from_id3v2(id3v2)),
+                None => Err(AudioFileError::Metadata(format!(
+                    "No ID3v2 tag found in {}.",
+                    self.path.to_string_lossy()
+                ))),
+            },
+            AudioFileFormat::Opus(opus) => {
+                let vorbis_comments = opus.vorbis_comments();
+                Ok(AudioMetadata::from_vorbis_comments(vorbis_comments))
+            }
         }
     }
 
@@ -133,7 +148,8 @@ impl AudioFile {
 pub enum AudioFileError {
     Io(std::io::Error),
     Lofty(LoftyError),
-    Metadata,
+    Metadata(String),
+    Unsupported(String),
 }
 
 impl std::fmt::Display for AudioFileError {
@@ -141,7 +157,8 @@ impl std::fmt::Display for AudioFileError {
         match self {
             AudioFileError::Io(error) => error.fmt(f),
             AudioFileError::Lofty(error) => error.fmt(f),
-            AudioFileError::Metadata => todo!(),
+            AudioFileError::Metadata(msg) => f.write_str(msg),
+            AudioFileError::Unsupported(msg) => f.write_str(msg),
         }
     }
 }
@@ -188,24 +205,6 @@ impl AudioMetadata {
 
     pub const fn set_rating(&mut self, rating: Option<AudioRating>) {
         self.rating = rating;
-    }
-
-    fn from_mpeg(mpeg: &MpegFile) -> Result<Self, AudioFileError> {
-        match mpeg.id3v2() {
-            Some(id3v2) => Ok(Self::from_id3v2(id3v2)),
-            None => Err(AudioFileError::Metadata),
-        }
-    }
-
-    fn from_flac(flac: &FlacFile) -> Result<Self, AudioFileError> {
-        match flac.vorbis_comments() {
-            Some(vorbis_comments) => Ok(Self::from_vorbis_comments(vorbis_comments)),
-            None => Err(AudioFileError::Metadata),
-        }
-    }
-
-    fn from_opus(opus: &OpusFile) -> Self {
-        Self::from_vorbis_comments(opus.vorbis_comments())
     }
 
     fn from_id3v2(id3v2: &Id3v2Tag) -> Self {

@@ -236,6 +236,9 @@ impl App {
 
                 self.render(terminal)?;
             }
+            AppEvent::Log(log) => {
+                self.pages.logs.enqueue(log);
+            }
             AppEvent::Quit => {
                 self.running = false;
             }
@@ -245,7 +248,7 @@ impl App {
     }
 
     fn update(&mut self) {
-        self.jukebox.update();
+        self.jukebox.update(&self.events);
         self.pages.now_playing.on_update(&self.jukebox);
     }
 

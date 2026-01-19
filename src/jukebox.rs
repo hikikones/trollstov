@@ -10,7 +10,12 @@ use std::{
 
 use indexmap::IndexMap;
 
-use crate::{audio::*, utils};
+use crate::{
+    audio::*,
+    events::{AppEvent, EventHandler},
+    pages::{Log, LogLevel},
+    utils,
+};
 
 pub struct Jukebox {
     tracks: IndexMap<TrackId, Track>,
@@ -32,17 +37,23 @@ impl Jukebox {
         let dir = dir.as_ref().to_path_buf();
         thread::spawn(move || {
             traverse_audio_files(dir)
-                .map(|(path, extension)| {
-                    AudioFile::read_from_path_and_extension(&path, extension).and_then(
-                        |audio_file| {
-                            Ok(Track::new(
-                                audio_file.metadata()?,
-                                audio_file.properties(),
-                                path,
-                                extension,
-                            ))
-                        },
-                    )
+                .map(|(path, extension)| match extension {
+                    AudioFileExtension::Flac | AudioFileExtension::Mp3 => {
+                        AudioFile::read_from_path_and_extension(&path, extension).and_then(
+                            |audio_file| {
+                                Ok(Track::new(
+                                    audio_file.metadata()?,
+                                    audio_file.properties(),
+                                    path,
+                                    extension,
+                                ))
+                            },
+                        )
+                    }
+                    AudioFileExtension::Opus => Err(AudioFileError::Unsupported(format!(
+                        "Unsupported file {}.",
+                        path.to_string_lossy()
+                    ))),
                 })
                 .for_each(|track| {
                     let _ = sender.send(track);
@@ -125,7 +136,7 @@ impl Jukebox {
         self.sink.get_pos()
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, events: &EventHandler) {
         if let Some(receiver) = self.receiver.as_ref() {
             loop {
                 match receiver.try_recv() {
@@ -139,7 +150,19 @@ impl Jukebox {
                             );
                         }
                         Err(err) => {
-                            todo!("send error to logs")
+                            let log = match err {
+                                AudioFileError::Io(error) => {
+                                    Log::new(error.to_string(), LogLevel::Error)
+                                }
+                                AudioFileError::Lofty(error) => {
+                                    Log::new(error.to_string(), LogLevel::Error)
+                                }
+                                AudioFileError::Metadata(msg) => Log::new(msg, LogLevel::Error),
+                                AudioFileError::Unsupported(msg) => {
+                                    Log::new(msg, LogLevel::Warning)
+                                }
+                            };
+                            events.send(AppEvent::Log(log));
                         }
                     },
                     Err(err) => match err {
