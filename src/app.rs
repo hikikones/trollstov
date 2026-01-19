@@ -88,11 +88,12 @@ impl App {
         }
     }
 
-    pub fn run(mut self, mut terminal: Terminal) -> color_eyre::Result<()> {
+    pub fn run(mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Render initial page
         match self.route {
             Route::Tracks => self.pages.tracks.on_enter(&self.jukebox),
             Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jukebox),
+            Route::Logs => self.pages.logs.on_enter(),
         }
         self.render(&mut terminal)?;
 
@@ -120,26 +121,14 @@ impl App {
                 self.events.send(AppEvent::Quit);
                 None
             }
-            KeyCode::Tab => match self.route {
-                Route::Tracks => {
-                    self.events.send(AppEvent::Route(Route::NowPlaying));
-                    None
-                }
-                Route::NowPlaying => {
-                    self.events.send(AppEvent::Route(Route::Tracks));
-                    None
-                }
-            },
-            KeyCode::BackTab => match self.route {
-                Route::Tracks => {
-                    self.events.send(AppEvent::Route(Route::NowPlaying));
-                    None
-                }
-                Route::NowPlaying => {
-                    self.events.send(AppEvent::Route(Route::Tracks));
-                    None
-                }
-            },
+            KeyCode::Tab => {
+                self.events.send(AppEvent::Route(self.route.next()));
+                None
+            }
+            KeyCode::BackTab => {
+                self.events.send(AppEvent::Route(self.route.prev()));
+                None
+            }
             KeyCode::Up => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     self.jukebox.pause_or_play();
@@ -209,6 +198,10 @@ impl App {
                         .now_playing
                         .on_input(key.code, key.modifiers, &self.events)
                 }
+                Route::Logs => self
+                    .pages
+                    .logs
+                    .on_input(key.code, key.modifiers, &self.events),
             }
         }
     }
@@ -217,7 +210,7 @@ impl App {
         &mut self,
         event: AppEvent,
         terminal: &mut Terminal,
-    ) -> color_eyre::Result<()> {
+    ) -> Result<(), Box<dyn std::error::Error>> {
         match event {
             AppEvent::Update => {
                 self.update();
@@ -233,6 +226,7 @@ impl App {
                 match self.route {
                     Route::Tracks => self.pages.tracks.on_exit(),
                     Route::NowPlaying => self.pages.now_playing.on_exit(),
+                    Route::Logs => self.pages.logs.on_exit(),
                 }
 
                 self.route = route;
@@ -240,9 +234,13 @@ impl App {
                 match route {
                     Route::Tracks => self.pages.tracks.on_enter(&self.jukebox),
                     Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jukebox),
+                    Route::Logs => self.pages.logs.on_enter(),
                 }
 
                 self.render(terminal)?;
+            }
+            AppEvent::Log(log) => {
+                self.pages.logs.enqueue(log);
             }
             AppEvent::Quit => {
                 self.running = false;
@@ -253,7 +251,7 @@ impl App {
     }
 
     fn update(&mut self) {
-        self.jukebox.update();
+        self.jukebox.update(&self.events);
         self.pages.now_playing.on_update(&self.jukebox);
     }
 
@@ -285,10 +283,11 @@ impl App {
             (&self.title_line).render(title_area, buf);
 
             // Navigation
-            for route in [Route::Tracks, Route::NowPlaying] {
+            for route in [Route::Tracks, Route::NowPlaying, Route::Logs] {
                 let (name, is_current) = match route {
                     Route::Tracks => ("Tracks", matches!(self.route, Route::Tracks)),
                     Route::NowPlaying => ("Now Playing", matches!(self.route, Route::NowPlaying)),
+                    Route::Logs => ("Logs", matches!(self.route, Route::Logs)),
                 };
                 let style = if is_current {
                     Style::new().bold().fg(self.colors.accent)
@@ -322,6 +321,9 @@ impl App {
                     self.pages
                         .now_playing
                         .on_render(body, buf, &self.jukebox, &self.colors);
+                }
+                Route::Logs => {
+                    self.pages.logs.on_render(body, buf, &self.colors);
                 }
             }
 

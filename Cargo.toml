@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-color-eyre = { version = "0.6", default-features = false }
 fastrand = "2.3"
 image = "0.25.9"
 indexmap = "2.13.0"

@@ -6,9 +6,7 @@ mod pages;
 mod terminal;
 mod utils;
 
-fn main() -> color_eyre::Result<()> {
-    color_eyre::install()?;
-
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let music_dir = std::env::args().last().expect("expected dir path");
 
     let terminal = terminal::Terminal::init()?;

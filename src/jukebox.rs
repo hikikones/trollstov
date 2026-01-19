@@ -10,42 +10,50 @@ use std::{
 
 use indexmap::IndexMap;
 
-use crate::{audio::*, utils};
+use crate::{
+    audio::*,
+    events::{AppEvent, EventHandler},
+    pages::{Log, LogLevel},
+    utils,
+};
 
 pub struct Jukebox {
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
     current: Option<TrackId>,
     stopped: Option<TrackId>,
-    receiver: Option<mpsc::Receiver<Track>>,
+    receiver: Option<mpsc::Receiver<Result<Track, AudioFileError>>>,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
 }
 
 impl Jukebox {
-    pub fn new(dir: impl AsRef<Path>) -> color_eyre::Result<Self> {
+    pub fn new(dir: impl AsRef<Path>) -> Result<Self, rodio::StreamError> {
         let stream = rodio::OutputStreamBuilder::open_default_stream()?;
         let sink = rodio::Sink::connect_new(stream.mixer());
         sink.pause();
 
         let (sender, receiver) = mpsc::channel();
-
         let dir = dir.as_ref().to_path_buf();
         thread::spawn(move || {
             traverse_audio_files(dir)
-                .take(60)
-                .filter_map(|(path, extension)| {
-                    match AudioFile::read_from_path_and_extension(&path, extension) {
-                        Ok(audio) => {
-                            let track =
-                                Track::new(audio.metadata(), audio.properties(), path, extension);
-                            Some(track)
-                        }
-                        Err(_) => {
-                            //todo
-                            None
-                        }
+                .map(|(path, extension)| match extension {
+                    AudioFileExtension::Flac | AudioFileExtension::Mp3 => {
+                        AudioFile::read_from_path_and_extension(&path, extension).and_then(
+                            |audio_file| {
+                                Ok(Track::new(
+                                    audio_file.metadata()?,
+                                    audio_file.properties(),
+                                    path,
+                                    extension,
+                                ))
+                            },
+                        )
                     }
+                    AudioFileExtension::Opus => Err(AudioFileError::Unsupported(format!(
+                        "Unsupported file {}.",
+                        path.to_string_lossy()
+                    ))),
                 })
                 .for_each(|track| {
                     let _ = sender.send(track);
@@ -128,18 +136,35 @@ impl Jukebox {
         self.sink.get_pos()
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, events: &EventHandler) {
         if let Some(receiver) = self.receiver.as_ref() {
             loop {
                 match receiver.try_recv() {
-                    Ok(track) => {
-                        let last_id = self.tracks.len() as u64;
-                        self.tracks.insert_sorted_by(
-                            TrackId(last_id),
-                            track,
-                            |_, track1, _, track2| self.sort.cmp(track1, track2),
-                        );
-                    }
+                    Ok(track_res) => match track_res {
+                        Ok(track) => {
+                            let last_id = self.tracks.len() as u64;
+                            self.tracks.insert_sorted_by(
+                                TrackId(last_id),
+                                track,
+                                |_, track1, _, track2| self.sort.cmp(track1, track2),
+                            );
+                        }
+                        Err(err) => {
+                            let log = match err {
+                                AudioFileError::Io(error) => {
+                                    Log::new(error.to_string(), LogLevel::Error)
+                                }
+                                AudioFileError::Lofty(error) => {
+                                    Log::new(error.to_string(), LogLevel::Error)
+                                }
+                                AudioFileError::Metadata(msg) => Log::new(msg, LogLevel::Error),
+                                AudioFileError::Unsupported(msg) => {
+                                    Log::new(msg, LogLevel::Warning)
+                                }
+                            };
+                            events.send(AppEvent::Log(log));
+                        }
+                    },
                     Err(err) => match err {
                         mpsc::TryRecvError::Empty => {
                             break;
@@ -158,7 +183,7 @@ impl Jukebox {
         }
     }
 
-    pub fn play(&mut self, id: TrackId) -> color_eyre::Result<()> {
+    pub fn play(&mut self, id: TrackId) -> Result<(), JukeboxError> {
         let track = self.tracks.get(&id).unwrap();
         let file = BufReader::new(File::open(track.path())?);
         let input = rodio::decoder::Decoder::new(file)?;
@@ -192,7 +217,7 @@ impl Jukebox {
         self.stopped = self.current.take();
     }
 
-    pub fn play_random(&mut self) -> color_eyre::Result<()> {
+    pub fn play_random(&mut self) -> Result<(), JukeboxError> {
         let next_id = fastrand::u64(0..self.tracks.len() as u64);
         self.play(TrackId(next_id))
     }
@@ -262,7 +287,7 @@ impl Track {
         }
     }
 
-    pub fn set_rating(&mut self, rating: AudioRating) -> color_eyre::Result<()> {
+    pub fn set_rating(&mut self, rating: AudioRating) -> Result<(), AudioFileError> {
         let mut audio_file = AudioFile::read_from_path_and_extension(&self.path, self.extension)?;
         let new_rating = match self.metadata.rating() {
             Some(current_rating) => {
@@ -333,5 +358,50 @@ impl TrackSort {
             TrackSort::Album => track1.album().cmp(track2.album()),
             TrackSort::Time => track1.duration_display().cmp(track2.duration_display()),
         }
+    }
+}
+
+#[derive(Debug)]
+pub enum JukeboxError {
+    Io(std::io::Error),
+    Stream(rodio::StreamError),
+    Decode(rodio::decoder::DecoderError),
+    Audio(AudioFileError),
+}
+
+impl std::fmt::Display for JukeboxError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JukeboxError::Io(error) => error.fmt(f),
+            JukeboxError::Stream(error) => error.fmt(f),
+            JukeboxError::Decode(error) => error.fmt(f),
+            JukeboxError::Audio(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for JukeboxError {}
+
+impl From<std::io::Error> for JukeboxError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+
+impl From<rodio::StreamError> for JukeboxError {
+    fn from(error: rodio::StreamError) -> Self {
+        Self::Stream(error)
+    }
+}
+
+impl From<rodio::decoder::DecoderError> for JukeboxError {
+    fn from(error: rodio::decoder::DecoderError) -> Self {
+        Self::Decode(error)
+    }
+}
+
+impl From<AudioFileError> for JukeboxError {
+    fn from(error: AudioFileError) -> Self {
+        Self::Audio(error)
     }
 }

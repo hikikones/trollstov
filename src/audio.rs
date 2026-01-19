@@ -33,13 +33,9 @@ impl AudioFile {
     pub fn read_from_path_and_extension(
         path: impl AsRef<Path>,
         extension: AudioFileExtension,
-    ) -> lofty::error::Result<Self> {
-        let mut buffer = BufReader::new(File::open(&path).unwrap());
+    ) -> Result<Self, AudioFileError> {
+        let mut buffer = BufReader::new(File::open(&path)?);
         let audio_format = match extension {
-            AudioFileExtension::Mp3 => {
-                let mpeg = MpegFile::read_from(&mut buffer, ParseOptions::new())?;
-                AudioFileFormat::Mpeg(mpeg)
-            }
             AudioFileExtension::Flac => {
                 let flac = FlacFile::read_from(&mut buffer, ParseOptions::new())?;
                 AudioFileFormat::Flac(flac)
@@ -47,6 +43,10 @@ impl AudioFile {
             AudioFileExtension::Opus => {
                 let opus = OpusFile::read_from(&mut buffer, ParseOptions::new())?;
                 AudioFileFormat::Opus(opus)
+            }
+            AudioFileExtension::Mp3 => {
+                let mpeg = MpegFile::read_from(&mut buffer, ParseOptions::new())?;
+                AudioFileFormat::Mpeg(mpeg)
             }
         };
 
@@ -56,14 +56,25 @@ impl AudioFile {
         })
     }
 
-    pub fn metadata(&self) -> AudioMetadata {
+    pub fn metadata(&self) -> Result<AudioMetadata, AudioFileError> {
         match &self.format {
-            AudioFileFormat::Flac(flac) => {
-                AudioMetadata::from_vorbis_comments(flac.vorbis_comments().unwrap())
-            }
-            AudioFileFormat::Mpeg(mpeg) => AudioMetadata::from_id3v2(mpeg.id3v2().unwrap()),
+            AudioFileFormat::Flac(flac) => match flac.vorbis_comments() {
+                Some(vorbis_comments) => Ok(AudioMetadata::from_vorbis_comments(vorbis_comments)),
+                None => Err(AudioFileError::Metadata(format!(
+                    "No Vorbis tag found in {}.",
+                    self.path.to_string_lossy()
+                ))),
+            },
+            AudioFileFormat::Mpeg(mpeg) => match mpeg.id3v2() {
+                Some(id3v2) => Ok(AudioMetadata::from_id3v2(id3v2)),
+                None => Err(AudioFileError::Metadata(format!(
+                    "No ID3v2 tag found in {}.",
+                    self.path.to_string_lossy()
+                ))),
+            },
             AudioFileFormat::Opus(opus) => {
-                AudioMetadata::from_vorbis_comments(opus.vorbis_comments())
+                let vorbis_comments = opus.vorbis_comments();
+                Ok(AudioMetadata::from_vorbis_comments(vorbis_comments))
             }
         }
     }
@@ -76,39 +87,49 @@ impl AudioFile {
         }
     }
 
-    pub fn write_rating(&mut self, rating: Option<AudioRating>) -> color_eyre::Result<()> {
+    pub fn write_rating(&mut self, rating: Option<AudioRating>) -> Result<(), AudioFileError> {
         match &mut self.format {
-            AudioFileFormat::Mpeg(mpeg) => {
-                let id3v2 = mpeg.id3v2_mut().unwrap();
-                match rating {
-                    Some(rating) => {
-                        id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
-                            String::new(),
-                            rating.into_id3v2(),
-                            0,
-                        )));
+            AudioFileFormat::Mpeg(mpeg) => match mpeg.id3v2_mut() {
+                Some(id3v2) => {
+                    match rating {
+                        Some(rating) => {
+                            id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
+                                String::new(),
+                                rating.into_id3v2(),
+                                0,
+                            )));
+                        }
+                        None => {
+                            let _ = id3v2.remove(&FrameId::Valid(Cow::Borrowed("POPM")));
+                        }
                     }
-                    None => {
-                        let _ = id3v2.remove(&FrameId::Valid(Cow::Borrowed("POPM")));
-                    }
+                    Ok(mpeg.save_to_path(&self.path, WriteOptions::new())?)
                 }
-                mpeg.save_to_path(&self.path, WriteOptions::new())?;
-            }
-            AudioFileFormat::Flac(flac) => {
-                let vorbis_comments = flac.vorbis_comments_mut().unwrap();
-                match rating {
-                    Some(rating) => {
-                        vorbis_comments.insert(
-                            "RATING".to_string(),
-                            rating.into_vorbis_comments().to_string(),
-                        );
+                None => Err(AudioFileError::Metadata(format!(
+                    "Could not write rating to file {} due to missing ID3v2 tag.",
+                    self.path.to_string_lossy()
+                ))),
+            },
+            AudioFileFormat::Flac(flac) => match flac.vorbis_comments_mut() {
+                Some(vorbis_comments) => {
+                    match rating {
+                        Some(rating) => {
+                            vorbis_comments.insert(
+                                "RATING".to_string(),
+                                rating.into_vorbis_comments().to_string(),
+                            );
+                        }
+                        None => {
+                            let _ = vorbis_comments.remove("RATING");
+                        }
                     }
-                    None => {
-                        let _ = vorbis_comments.remove("RATING");
-                    }
+                    Ok(flac.save_to_path(&self.path, WriteOptions::new())?)
                 }
-                flac.save_to_path(&self.path, WriteOptions::new())?;
-            }
+                None => Err(AudioFileError::Metadata(format!(
+                    "Could not write rating to file {} due to missing Vorbis tag.",
+                    self.path.to_string_lossy()
+                ))),
+            },
             AudioFileFormat::Opus(opus) => {
                 let vorbis_comments = opus.vorbis_comments_mut();
                 match rating {
@@ -122,11 +143,42 @@ impl AudioFile {
                         let _ = vorbis_comments.remove("RATING");
                     }
                 }
-                opus.save_to_path(&self.path, WriteOptions::new())?;
+                Ok(opus.save_to_path(&self.path, WriteOptions::new())?)
             }
         }
+    }
+}
 
-        Ok(())
+#[derive(Debug)]
+pub enum AudioFileError {
+    Io(std::io::Error),
+    Lofty(LoftyError),
+    Metadata(String),
+    Unsupported(String),
+}
+
+impl std::fmt::Display for AudioFileError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AudioFileError::Io(error) => error.fmt(f),
+            AudioFileError::Lofty(error) => error.fmt(f),
+            AudioFileError::Metadata(msg) => f.write_str(msg),
+            AudioFileError::Unsupported(msg) => f.write_str(msg),
+        }
+    }
+}
+
+impl std::error::Error for AudioFileError {}
+
+impl From<std::io::Error> for AudioFileError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+
+impl From<LoftyError> for AudioFileError {
+    fn from(error: LoftyError) -> Self {
+        Self::Lofty(error)
     }
 }
 
@@ -160,43 +212,49 @@ impl AudioMetadata {
         self.rating = rating;
     }
 
-    fn from_id3v2(metadata: &Id3v2Tag) -> Self {
+    fn from_id3v2(id3v2: &Id3v2Tag) -> Self {
         Self {
-            title: metadata
+            title: id3v2
                 .title()
                 .as_deref()
                 .map(str::to_owned)
                 .unwrap_or_default(),
-            artist: metadata
+            artist: id3v2
                 .artist()
                 .as_deref()
                 .map(str::to_owned)
                 .unwrap_or_default(),
-            album: metadata
+            album: id3v2
                 .album()
                 .as_deref()
                 .map(str::to_owned)
                 .unwrap_or_default(),
-            rating: metadata
-                .get(&FrameId::Valid(Cow::Borrowed("POPM")))
-                .and_then(|frame| match frame {
+            rating: id3v2.get(&FrameId::Valid(Cow::Borrowed("POPM"))).and_then(
+                |frame| match frame {
                     Frame::Popularimeter(popularimeter_frame) => {
                         Some(AudioRating::from_id3v2(popularimeter_frame.rating))
                     }
                     _ => None,
-                }),
+                },
+            ),
         }
     }
 
-    fn from_vorbis_comments(metadata: &VorbisComments) -> Self {
+    fn from_vorbis_comments(vorbis_comments: &VorbisComments) -> Self {
         Self {
-            title: metadata.get("TITLE").map(str::to_owned).unwrap_or_default(),
-            artist: metadata
+            title: vorbis_comments
+                .get("TITLE")
+                .map(str::to_owned)
+                .unwrap_or_default(),
+            artist: vorbis_comments
                 .get("ARTIST")
                 .map(str::to_owned)
                 .unwrap_or_default(),
-            album: metadata.get("ALBUM").map(str::to_owned).unwrap_or_default(),
-            rating: metadata
+            album: vorbis_comments
+                .get("ALBUM")
+                .map(str::to_owned)
+                .unwrap_or_default(),
+            rating: vorbis_comments
                 .get("RATING")
                 .and_then(|s| AudioRating::from_vorbis_comments(s)),
         }
@@ -297,17 +355,10 @@ impl AudioProperties {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum AudioFileExtension {
-    Flac,
-    Mp3,
-    Opus,
-}
-
 pub struct AudioPicture(TaggedFile);
 
 impl AudioPicture {
-    pub fn read(audio_file: impl AsRef<Path>) -> Result<Self, LoftyError> {
+    pub fn read(audio_file: impl AsRef<Path>) -> Result<Self, AudioFileError> {
         let tagged_file = lofty::read_from_path(audio_file)?;
         Ok(Self(tagged_file))
     }
@@ -319,6 +370,13 @@ impl AudioPicture {
             .and_then(|tag| tag.get_picture_type(PictureType::CoverFront))
             .map(|pic| pic.data())
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum AudioFileExtension {
+    Flac,
+    Opus,
+    Mp3,
 }
 
 pub fn traverse_audio_files(
