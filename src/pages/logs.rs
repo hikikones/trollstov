@@ -42,7 +42,7 @@ impl LogsPage {
         let mut line = Line::default();
 
         for (i, log) in self.logs.iter().enumerate() {
-            let (label, width, label_style) = match log.level {
+            let (label, label_width, label_style) = match log.level {
                 LogLevel::Info => ("Info", 4, Style::new().fg(Color::Green)),
                 LogLevel::Warning => ("Warning", 7, Style::new().fg(Color::Yellow)),
                 LogLevel::Error => ("Error", 5, Style::new().fg(Color::Red)),
@@ -51,7 +51,7 @@ impl LogsPage {
             line.push_span(Span::raw(" "));
 
             let (scroll, style) = if self.index == i {
-                let label_width = width + 1;
+                let label_width = label_width + 1;
                 let log_width_area = line_area.width.saturating_sub(label_width);
                 let max_scroll = log.width.saturating_sub(log_width_area as usize);
                 self.scroll = self.scroll.min(max_scroll);

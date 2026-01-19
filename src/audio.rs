@@ -87,42 +87,49 @@ impl AudioFile {
         }
     }
 
-    pub fn write_rating(
-        &mut self,
-        rating: Option<AudioRating>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn write_rating(&mut self, rating: Option<AudioRating>) -> Result<(), AudioFileError> {
         match &mut self.format {
-            AudioFileFormat::Mpeg(mpeg) => {
-                let id3v2 = mpeg.id3v2_mut().unwrap();
-                match rating {
-                    Some(rating) => {
-                        id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
-                            String::new(),
-                            rating.into_id3v2(),
-                            0,
-                        )));
+            AudioFileFormat::Mpeg(mpeg) => match mpeg.id3v2_mut() {
+                Some(id3v2) => {
+                    match rating {
+                        Some(rating) => {
+                            id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
+                                String::new(),
+                                rating.into_id3v2(),
+                                0,
+                            )));
+                        }
+                        None => {
+                            let _ = id3v2.remove(&FrameId::Valid(Cow::Borrowed("POPM")));
+                        }
                     }
-                    None => {
-                        let _ = id3v2.remove(&FrameId::Valid(Cow::Borrowed("POPM")));
-                    }
+                    Ok(mpeg.save_to_path(&self.path, WriteOptions::new())?)
                 }
-                mpeg.save_to_path(&self.path, WriteOptions::new())?;
-            }
-            AudioFileFormat::Flac(flac) => {
-                let vorbis_comments = flac.vorbis_comments_mut().unwrap();
-                match rating {
-                    Some(rating) => {
-                        vorbis_comments.insert(
-                            "RATING".to_string(),
-                            rating.into_vorbis_comments().to_string(),
-                        );
+                None => Err(AudioFileError::Metadata(format!(
+                    "Could not write rating to file {} due to missing ID3v2 tag.",
+                    self.path.to_string_lossy()
+                ))),
+            },
+            AudioFileFormat::Flac(flac) => match flac.vorbis_comments_mut() {
+                Some(vorbis_comments) => {
+                    match rating {
+                        Some(rating) => {
+                            vorbis_comments.insert(
+                                "RATING".to_string(),
+                                rating.into_vorbis_comments().to_string(),
+                            );
+                        }
+                        None => {
+                            let _ = vorbis_comments.remove("RATING");
+                        }
                     }
-                    None => {
-                        let _ = vorbis_comments.remove("RATING");
-                    }
+                    Ok(flac.save_to_path(&self.path, WriteOptions::new())?)
                 }
-                flac.save_to_path(&self.path, WriteOptions::new())?;
-            }
+                None => Err(AudioFileError::Metadata(format!(
+                    "Could not write rating to file {} due to missing Vorbis tag.",
+                    self.path.to_string_lossy()
+                ))),
+            },
             AudioFileFormat::Opus(opus) => {
                 let vorbis_comments = opus.vorbis_comments_mut();
                 match rating {
@@ -136,11 +143,9 @@ impl AudioFile {
                         let _ = vorbis_comments.remove("RATING");
                     }
                 }
-                opus.save_to_path(&self.path, WriteOptions::new())?;
+                Ok(opus.save_to_path(&self.path, WriteOptions::new())?)
             }
         }
-
-        Ok(())
     }
 }
 

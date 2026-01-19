@@ -287,7 +287,7 @@ impl Track {
         }
     }
 
-    pub fn set_rating(&mut self, rating: AudioRating) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn set_rating(&mut self, rating: AudioRating) -> Result<(), AudioFileError> {
         let mut audio_file = AudioFile::read_from_path_and_extension(&self.path, self.extension)?;
         let new_rating = match self.metadata.rating() {
             Some(current_rating) => {
