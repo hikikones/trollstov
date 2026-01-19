@@ -33,13 +33,9 @@ impl AudioFile {
     pub fn read_from_path_and_extension(
         path: impl AsRef<Path>,
         extension: AudioFileExtension,
-    ) -> lofty::error::Result<Self> {
-        let mut buffer = BufReader::new(File::open(&path).unwrap());
+    ) -> Result<Self, AudioFileError> {
+        let mut buffer = BufReader::new(File::open(&path)?);
         let audio_format = match extension {
-            AudioFileExtension::Mp3 => {
-                let mpeg = MpegFile::read_from(&mut buffer, ParseOptions::new())?;
-                AudioFileFormat::Mpeg(mpeg)
-            }
             AudioFileExtension::Flac => {
                 let flac = FlacFile::read_from(&mut buffer, ParseOptions::new())?;
                 AudioFileFormat::Flac(flac)
@@ -47,6 +43,10 @@ impl AudioFile {
             AudioFileExtension::Opus => {
                 let opus = OpusFile::read_from(&mut buffer, ParseOptions::new())?;
                 AudioFileFormat::Opus(opus)
+            }
+            AudioFileExtension::Mp3 => {
+                let mpeg = MpegFile::read_from(&mut buffer, ParseOptions::new())?;
+                AudioFileFormat::Mpeg(mpeg)
             }
         };
 
@@ -56,15 +56,11 @@ impl AudioFile {
         })
     }
 
-    pub fn metadata(&self) -> AudioMetadata {
+    pub fn metadata(&self) -> Result<AudioMetadata, AudioFileError> {
         match &self.format {
-            AudioFileFormat::Flac(flac) => {
-                AudioMetadata::from_vorbis_comments(flac.vorbis_comments().unwrap())
-            }
-            AudioFileFormat::Mpeg(mpeg) => AudioMetadata::from_id3v2(mpeg.id3v2().unwrap()),
-            AudioFileFormat::Opus(opus) => {
-                AudioMetadata::from_vorbis_comments(opus.vorbis_comments())
-            }
+            AudioFileFormat::Flac(flac) => AudioMetadata::from_flac(flac),
+            AudioFileFormat::Mpeg(mpeg) => AudioMetadata::from_mpeg(mpeg),
+            AudioFileFormat::Opus(opus) => Ok(AudioMetadata::from_opus(opus)),
         }
     }
 
@@ -134,6 +130,37 @@ impl AudioFile {
 }
 
 #[derive(Debug)]
+pub enum AudioFileError {
+    Io(std::io::Error),
+    Lofty(LoftyError),
+    Metadata,
+}
+
+impl std::fmt::Display for AudioFileError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AudioFileError::Io(error) => error.fmt(f),
+            AudioFileError::Lofty(error) => error.fmt(f),
+            AudioFileError::Metadata => todo!(),
+        }
+    }
+}
+
+impl std::error::Error for AudioFileError {}
+
+impl From<std::io::Error> for AudioFileError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+
+impl From<LoftyError> for AudioFileError {
+    fn from(error: LoftyError) -> Self {
+        Self::Lofty(error)
+    }
+}
+
+#[derive(Debug)]
 pub struct AudioMetadata {
     title: String,
     artist: String,
@@ -163,43 +190,67 @@ impl AudioMetadata {
         self.rating = rating;
     }
 
-    fn from_id3v2(metadata: &Id3v2Tag) -> Self {
+    fn from_mpeg(mpeg: &MpegFile) -> Result<Self, AudioFileError> {
+        match mpeg.id3v2() {
+            Some(id3v2) => Ok(Self::from_id3v2(id3v2)),
+            None => Err(AudioFileError::Metadata),
+        }
+    }
+
+    fn from_flac(flac: &FlacFile) -> Result<Self, AudioFileError> {
+        match flac.vorbis_comments() {
+            Some(vorbis_comments) => Ok(Self::from_vorbis_comments(vorbis_comments)),
+            None => Err(AudioFileError::Metadata),
+        }
+    }
+
+    fn from_opus(opus: &OpusFile) -> Self {
+        Self::from_vorbis_comments(opus.vorbis_comments())
+    }
+
+    fn from_id3v2(id3v2: &Id3v2Tag) -> Self {
         Self {
-            title: metadata
+            title: id3v2
                 .title()
                 .as_deref()
                 .map(str::to_owned)
                 .unwrap_or_default(),
-            artist: metadata
+            artist: id3v2
                 .artist()
                 .as_deref()
                 .map(str::to_owned)
                 .unwrap_or_default(),
-            album: metadata
+            album: id3v2
                 .album()
                 .as_deref()
                 .map(str::to_owned)
                 .unwrap_or_default(),
-            rating: metadata
-                .get(&FrameId::Valid(Cow::Borrowed("POPM")))
-                .and_then(|frame| match frame {
+            rating: id3v2.get(&FrameId::Valid(Cow::Borrowed("POPM"))).and_then(
+                |frame| match frame {
                     Frame::Popularimeter(popularimeter_frame) => {
                         Some(AudioRating::from_id3v2(popularimeter_frame.rating))
                     }
                     _ => None,
-                }),
+                },
+            ),
         }
     }
 
-    fn from_vorbis_comments(metadata: &VorbisComments) -> Self {
+    fn from_vorbis_comments(vorbis_comments: &VorbisComments) -> Self {
         Self {
-            title: metadata.get("TITLE").map(str::to_owned).unwrap_or_default(),
-            artist: metadata
+            title: vorbis_comments
+                .get("TITLE")
+                .map(str::to_owned)
+                .unwrap_or_default(),
+            artist: vorbis_comments
                 .get("ARTIST")
                 .map(str::to_owned)
                 .unwrap_or_default(),
-            album: metadata.get("ALBUM").map(str::to_owned).unwrap_or_default(),
-            rating: metadata
+            album: vorbis_comments
+                .get("ALBUM")
+                .map(str::to_owned)
+                .unwrap_or_default(),
+            rating: vorbis_comments
                 .get("RATING")
                 .and_then(|s| AudioRating::from_vorbis_comments(s)),
         }
@@ -300,17 +351,10 @@ impl AudioProperties {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum AudioFileExtension {
-    Flac,
-    Mp3,
-    Opus,
-}
-
 pub struct AudioPicture(TaggedFile);
 
 impl AudioPicture {
-    pub fn read(audio_file: impl AsRef<Path>) -> Result<Self, LoftyError> {
+    pub fn read(audio_file: impl AsRef<Path>) -> Result<Self, AudioFileError> {
         let tagged_file = lofty::read_from_path(audio_file)?;
         Ok(Self(tagged_file))
     }
@@ -322,6 +366,13 @@ impl AudioPicture {
             .and_then(|tag| tag.get_picture_type(PictureType::CoverFront))
             .map(|pic| pic.data())
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum AudioFileExtension {
+    Flac,
+    Opus,
+    Mp3,
 }
 
 pub fn traverse_audio_files(

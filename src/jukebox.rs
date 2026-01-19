@@ -17,7 +17,7 @@ pub struct Jukebox {
     sort: TrackSort,
     current: Option<TrackId>,
     stopped: Option<TrackId>,
-    receiver: Option<mpsc::Receiver<Track>>,
+    receiver: Option<mpsc::Receiver<Result<Track, AudioFileError>>>,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
 }
@@ -29,23 +29,20 @@ impl Jukebox {
         sink.pause();
 
         let (sender, receiver) = mpsc::channel();
-
         let dir = dir.as_ref().to_path_buf();
         thread::spawn(move || {
             traverse_audio_files(dir)
-                .take(60)
-                .filter_map(|(path, extension)| {
-                    match AudioFile::read_from_path_and_extension(&path, extension) {
-                        Ok(audio) => {
-                            let track =
-                                Track::new(audio.metadata(), audio.properties(), path, extension);
-                            Some(track)
-                        }
-                        Err(_) => {
-                            //todo
-                            None
-                        }
-                    }
+                .map(|(path, extension)| {
+                    AudioFile::read_from_path_and_extension(&path, extension).and_then(
+                        |audio_file| {
+                            Ok(Track::new(
+                                audio_file.metadata()?,
+                                audio_file.properties(),
+                                path,
+                                extension,
+                            ))
+                        },
+                    )
                 })
                 .for_each(|track| {
                     let _ = sender.send(track);
@@ -132,14 +129,19 @@ impl Jukebox {
         if let Some(receiver) = self.receiver.as_ref() {
             loop {
                 match receiver.try_recv() {
-                    Ok(track) => {
-                        let last_id = self.tracks.len() as u64;
-                        self.tracks.insert_sorted_by(
-                            TrackId(last_id),
-                            track,
-                            |_, track1, _, track2| self.sort.cmp(track1, track2),
-                        );
-                    }
+                    Ok(track_res) => match track_res {
+                        Ok(track) => {
+                            let last_id = self.tracks.len() as u64;
+                            self.tracks.insert_sorted_by(
+                                TrackId(last_id),
+                                track,
+                                |_, track1, _, track2| self.sort.cmp(track1, track2),
+                            );
+                        }
+                        Err(err) => {
+                            todo!("send error to logs")
+                        }
+                    },
                     Err(err) => match err {
                         mpsc::TryRecvError::Empty => {
                             break;

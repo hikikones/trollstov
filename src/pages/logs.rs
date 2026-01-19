@@ -3,7 +3,7 @@ use ratatui::{
     prelude::*,
 };
 
-use crate::{app::Colors, jukebox::Jukebox};
+use crate::app::Colors;
 
 pub struct LogsPage {
     logs: Vec<Log>,
