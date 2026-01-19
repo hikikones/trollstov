@@ -183,7 +183,7 @@ impl Jukebox {
         }
     }
 
-    pub fn play(&mut self, id: TrackId) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn play(&mut self, id: TrackId) -> Result<(), JukeboxError> {
         let track = self.tracks.get(&id).unwrap();
         let file = BufReader::new(File::open(track.path())?);
         let input = rodio::decoder::Decoder::new(file)?;
@@ -217,7 +217,7 @@ impl Jukebox {
         self.stopped = self.current.take();
     }
 
-    pub fn play_random(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn play_random(&mut self) -> Result<(), JukeboxError> {
         let next_id = fastrand::u64(0..self.tracks.len() as u64);
         self.play(TrackId(next_id))
     }
@@ -358,5 +358,50 @@ impl TrackSort {
             TrackSort::Album => track1.album().cmp(track2.album()),
             TrackSort::Time => track1.duration_display().cmp(track2.duration_display()),
         }
+    }
+}
+
+#[derive(Debug)]
+pub enum JukeboxError {
+    Io(std::io::Error),
+    Stream(rodio::StreamError),
+    Decode(rodio::decoder::DecoderError),
+    Audio(AudioFileError),
+}
+
+impl std::fmt::Display for JukeboxError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JukeboxError::Io(error) => error.fmt(f),
+            JukeboxError::Stream(error) => error.fmt(f),
+            JukeboxError::Decode(error) => error.fmt(f),
+            JukeboxError::Audio(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for JukeboxError {}
+
+impl From<std::io::Error> for JukeboxError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+
+impl From<rodio::StreamError> for JukeboxError {
+    fn from(error: rodio::StreamError) -> Self {
+        Self::Stream(error)
+    }
+}
+
+impl From<rodio::decoder::DecoderError> for JukeboxError {
+    fn from(error: rodio::decoder::DecoderError) -> Self {
+        Self::Decode(error)
+    }
+}
+
+impl From<AudioFileError> for JukeboxError {
+    fn from(error: AudioFileError) -> Self {
+        Self::Audio(error)
     }
 }
