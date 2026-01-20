@@ -273,6 +273,13 @@ impl Jukebox {
     pub fn play_previous(&mut self) {
         todo!()
     }
+
+    pub fn shutdown(mut self) {
+        // Gracefully shutdown by waiting for thread to finish writing tag
+        if let Some(handle) = self.audio_write_handle.take() {
+            let _ = handle.join().unwrap();
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

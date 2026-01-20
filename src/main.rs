@@ -10,8 +10,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let music_dir = std::env::args().last().expect("expected dir path");
 
     let terminal = terminal::Terminal::init()?;
-    let app = app::App::new(music_dir);
+    let mut app = app::App::new(music_dir);
     let res = app.run(terminal);
+    app.quit();
     terminal::Terminal::restore()?;
     res
 }
