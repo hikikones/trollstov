@@ -3,6 +3,7 @@ use std::{
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
+    sync::mpsc,
     time::Duration,
 };
 
@@ -402,4 +403,46 @@ pub fn traverse_audio_files(
             }
             None => None,
         })
+}
+
+pub fn traverse_and_process_audio_files_in_parallel(
+    root: impl AsRef<Path>,
+    follow_links: bool,
+    sender: mpsc::Sender<Result<AudioFile, AudioFileError>>,
+) {
+    ignore::WalkBuilder::new(root)
+        .follow_links(follow_links)
+        .build_parallel()
+        .run(|| {
+            let sender = sender.clone();
+            Box::new(move |result| {
+                if let Ok(dir_entry) = result {
+                    if let Some(file_type) = dir_entry.file_type() {
+                        if file_type.is_file() {
+                            if let Some(file_ext) = dir_entry.path().extension() {
+                                let ext = if file_ext.eq_ignore_ascii_case("flac") {
+                                    Some(AudioFileExtension::Flac)
+                                } else if file_ext.eq_ignore_ascii_case("opus") {
+                                    Some(AudioFileExtension::Opus)
+                                } else if file_ext.eq_ignore_ascii_case("mp3") {
+                                    Some(AudioFileExtension::Mp3)
+                                } else {
+                                    None
+                                };
+
+                                if let Some(ext) = ext {
+                                    let audio_file = AudioFile::read_from_path_and_extension(
+                                        dir_entry.into_path(),
+                                        ext,
+                                    );
+                                    let _ = sender.send(audio_file);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                ignore::WalkState::Continue
+            })
+        });
 }
