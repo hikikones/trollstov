@@ -148,6 +148,10 @@ impl AudioFile {
             }
         }
     }
+
+    pub fn path(&self) -> &Path {
+        self.path.as_path()
+    }
 }
 
 #[derive(Debug)]
@@ -380,6 +384,22 @@ pub enum AudioFileExtension {
     Mp3,
 }
 
+impl AudioFileExtension {
+    pub fn from_path(path: impl AsRef<Path>) -> Option<Self> {
+        path.as_ref().extension().and_then(|ext| {
+            if ext.eq_ignore_ascii_case("flac") {
+                Some(Self::Flac)
+            } else if ext.eq_ignore_ascii_case("opus") {
+                Some(Self::Opus)
+            } else if ext.eq_ignore_ascii_case("mp3") {
+                Some(Self::Mp3)
+            } else {
+                None
+            }
+        })
+    }
+}
+
 pub fn traverse_audio_files(
     root: impl AsRef<Path>,
 ) -> impl Iterator<Item = (PathBuf, AudioFileExtension)> {
@@ -408,7 +428,7 @@ pub fn traverse_audio_files(
 pub fn traverse_and_process_audio_files_in_parallel(
     root: impl AsRef<Path>,
     follow_links: bool,
-    sender: mpsc::Sender<Result<AudioFile, AudioFileError>>,
+    sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileError>>,
 ) {
     ignore::WalkBuilder::new(root)
         .follow_links(follow_links)
@@ -419,24 +439,14 @@ pub fn traverse_and_process_audio_files_in_parallel(
                 if let Ok(dir_entry) = result {
                     if let Some(file_type) = dir_entry.file_type() {
                         if file_type.is_file() {
-                            if let Some(file_ext) = dir_entry.path().extension() {
-                                let ext = if file_ext.eq_ignore_ascii_case("flac") {
-                                    Some(AudioFileExtension::Flac)
-                                } else if file_ext.eq_ignore_ascii_case("opus") {
-                                    Some(AudioFileExtension::Opus)
-                                } else if file_ext.eq_ignore_ascii_case("mp3") {
-                                    Some(AudioFileExtension::Mp3)
-                                } else {
-                                    None
-                                };
-
-                                if let Some(ext) = ext {
-                                    let audio_file = AudioFile::read_from_path_and_extension(
-                                        dir_entry.into_path(),
-                                        ext,
-                                    );
-                                    let _ = sender.send(audio_file);
-                                }
+                            if let Some(extension) = AudioFileExtension::from_path(dir_entry.path())
+                            {
+                                let audio_file = AudioFile::read_from_path_and_extension(
+                                    dir_entry.into_path(),
+                                    extension,
+                                );
+                                let _ = sender
+                                    .send(audio_file.map(|audio_file| (audio_file, extension)));
                             }
                         }
                     }

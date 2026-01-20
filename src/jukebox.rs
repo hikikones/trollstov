@@ -22,7 +22,7 @@ pub struct Jukebox {
     sort: TrackSort,
     current: Option<TrackId>,
     stopped: Option<TrackId>,
-    receiver: Option<mpsc::Receiver<Result<Track, AudioFileError>>>,
+    receiver: Option<mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileError>>>,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
 }
@@ -34,31 +34,32 @@ impl Jukebox {
         sink.pause();
 
         let (sender, receiver) = mpsc::channel();
-        let dir = dir.as_ref().to_path_buf();
-        thread::spawn(move || {
-            traverse_audio_files(dir)
-                .map(|(path, extension)| match extension {
-                    AudioFileExtension::Flac | AudioFileExtension::Mp3 => {
-                        AudioFile::read_from_path_and_extension(&path, extension).and_then(
-                            |audio_file| {
-                                Ok(Track::new(
-                                    audio_file.metadata()?,
-                                    audio_file.properties(),
-                                    path,
-                                    extension,
-                                ))
-                            },
-                        )
-                    }
-                    AudioFileExtension::Opus => Err(AudioFileError::Unsupported(format!(
-                        "Unsupported file {}.",
-                        path.to_string_lossy()
-                    ))),
-                })
-                .for_each(|track| {
-                    let _ = sender.send(track);
-                });
-        });
+        traverse_and_process_audio_files_in_parallel(dir, true, sender);
+        // let dir = dir.as_ref().to_path_buf();
+        // thread::spawn(move || {
+        //     traverse_audio_files(dir)
+        //         .map(|(path, extension)| match extension {
+        //             AudioFileExtension::Flac | AudioFileExtension::Mp3 => {
+        //                 AudioFile::read_from_path_and_extension(&path, extension).and_then(
+        //                     |audio_file| {
+        //                         Ok(Track::new(
+        //                             audio_file.metadata()?,
+        //                             audio_file.properties(),
+        //                             path,
+        //                             extension,
+        //                         ))
+        //                     },
+        //                 )
+        //             }
+        //             AudioFileExtension::Opus => Err(AudioFileError::Unsupported(format!(
+        //                 "Unsupported file {}.",
+        //                 path.to_string_lossy()
+        //             ))),
+        //         })
+        //         .for_each(|track| {
+        //             let _ = sender.send(track);
+        //         });
+        // });
 
         Ok(Self {
             tracks: IndexMap::new(),
@@ -140,31 +141,50 @@ impl Jukebox {
         if let Some(receiver) = self.receiver.as_ref() {
             loop {
                 match receiver.try_recv() {
-                    Ok(track_res) => match track_res {
-                        Ok(track) => {
-                            let last_id = self.tracks.len() as u64;
-                            self.tracks.insert_sorted_by(
-                                TrackId(last_id),
-                                track,
-                                |_, track1, _, track2| self.sort.cmp(track1, track2),
-                            );
+                    Ok(audio_file_res) => {
+                        let track_res =
+                            audio_file_res.and_then(|(audio_file, extension)| match extension {
+                                AudioFileExtension::Flac | AudioFileExtension::Mp3 => {
+                                    Ok(Track::new(
+                                        audio_file.metadata()?,
+                                        audio_file.properties(),
+                                        audio_file.path().to_path_buf(),
+                                        extension,
+                                    ))
+                                }
+                                AudioFileExtension::Opus => {
+                                    Err(AudioFileError::Unsupported(format!(
+                                        "Unsupported file {}.",
+                                        audio_file.path().to_string_lossy()
+                                    )))
+                                }
+                            });
+                        match track_res {
+                            Ok(track) => {
+                                let last_id = self.tracks.len() as u64;
+                                self.tracks.insert_sorted_by(
+                                    TrackId(last_id),
+                                    track,
+                                    |_, track1, _, track2| self.sort.cmp(track1, track2),
+                                );
+                            }
+                            Err(err) => {
+                                let log = match err {
+                                    AudioFileError::Io(error) => {
+                                        Log::new(error.to_string(), LogLevel::Error)
+                                    }
+                                    AudioFileError::Lofty(error) => {
+                                        Log::new(error.to_string(), LogLevel::Error)
+                                    }
+                                    AudioFileError::Metadata(msg) => Log::new(msg, LogLevel::Error),
+                                    AudioFileError::Unsupported(msg) => {
+                                        Log::new(msg, LogLevel::Warning)
+                                    }
+                                };
+                                events.send(AppEvent::Log(log));
+                            }
                         }
-                        Err(err) => {
-                            let log = match err {
-                                AudioFileError::Io(error) => {
-                                    Log::new(error.to_string(), LogLevel::Error)
-                                }
-                                AudioFileError::Lofty(error) => {
-                                    Log::new(error.to_string(), LogLevel::Error)
-                                }
-                                AudioFileError::Metadata(msg) => Log::new(msg, LogLevel::Error),
-                                AudioFileError::Unsupported(msg) => {
-                                    Log::new(msg, LogLevel::Warning)
-                                }
-                            };
-                            events.send(AppEvent::Log(log));
-                        }
-                    },
+                    }
                     Err(err) => match err {
                         mpsc::TryRecvError::Empty => {
                             break;
