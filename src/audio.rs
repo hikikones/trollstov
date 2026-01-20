@@ -430,29 +430,33 @@ pub fn traverse_and_process_audio_files_in_parallel(
     follow_links: bool,
     sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileError>>,
 ) {
-    ignore::WalkBuilder::new(root)
-        .follow_links(follow_links)
-        .build_parallel()
-        .run(|| {
-            let sender = sender.clone();
-            Box::new(move |result| {
-                if let Ok(dir_entry) = result {
-                    if let Some(file_type) = dir_entry.file_type() {
-                        if file_type.is_file() {
-                            if let Some(extension) = AudioFileExtension::from_path(dir_entry.path())
-                            {
-                                let audio_file = AudioFile::read_from_path_and_extension(
-                                    dir_entry.into_path(),
-                                    extension,
-                                );
-                                let _ = sender
-                                    .send(audio_file.map(|audio_file| (audio_file, extension)));
+    let root = root.as_ref().to_path_buf();
+    std::thread::spawn(move || {
+        ignore::WalkBuilder::new(root)
+            .follow_links(follow_links)
+            .build_parallel()
+            .run(|| {
+                let sender = sender.clone();
+                Box::new(move |result| {
+                    if let Ok(dir_entry) = result {
+                        if let Some(file_type) = dir_entry.file_type() {
+                            if file_type.is_file() {
+                                if let Some(extension) =
+                                    AudioFileExtension::from_path(dir_entry.path())
+                                {
+                                    let audio_file = AudioFile::read_from_path_and_extension(
+                                        dir_entry.into_path(),
+                                        extension,
+                                    );
+                                    let _ = sender
+                                        .send(audio_file.map(|audio_file| (audio_file, extension)));
+                                }
                             }
                         }
                     }
-                }
 
-                ignore::WalkState::Continue
-            })
-        });
+                    ignore::WalkState::Continue
+                })
+            });
+    });
 }
