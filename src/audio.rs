@@ -400,32 +400,30 @@ impl AudioFileExtension {
     }
 }
 
-pub fn traverse_audio_files(
+pub fn traverse_and_process_audio_files(
     root: impl AsRef<Path>,
-) -> impl Iterator<Item = (PathBuf, AudioFileExtension)> {
-    walkdir::WalkDir::new(root)
-        .follow_links(true)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|entry| entry.file_type().is_file())
-        .map(|file| file.into_path())
-        .filter_map(move |path| match path.extension() {
-            Some(file_ext) => {
-                if file_ext.eq_ignore_ascii_case("flac") {
-                    Some((path, AudioFileExtension::Flac))
-                } else if file_ext.eq_ignore_ascii_case("opus") {
-                    Some((path, AudioFileExtension::Opus))
-                } else if file_ext.eq_ignore_ascii_case("mp3") {
-                    Some((path, AudioFileExtension::Mp3))
-                } else {
-                    None
-                }
-            }
-            None => None,
-        })
+    follow_links: bool,
+    sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileError>>,
+) {
+    let root = root.as_ref().to_path_buf();
+    std::thread::spawn(move || {
+        walkdir::WalkDir::new(root)
+            .follow_links(follow_links)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|entry| entry.file_type().is_file())
+            .filter_map(|file| {
+                AudioFileExtension::from_path(file.path()).map(|ext| (file.into_path(), ext))
+            })
+            .for_each(|(path, extension)| {
+                let audio_file = AudioFile::read_from_path_and_extension(path, extension)
+                    .map(|audio_file| (audio_file, extension));
+                let _ = sender.send(audio_file);
+            });
+    });
 }
 
-pub fn traverse_and_process_audio_files_in_parallel(
+pub fn _traverse_and_process_audio_files_in_parallel(
     root: impl AsRef<Path>,
     follow_links: bool,
     sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileError>>,
@@ -447,9 +445,9 @@ pub fn traverse_and_process_audio_files_in_parallel(
                                     let audio_file = AudioFile::read_from_path_and_extension(
                                         dir_entry.into_path(),
                                         extension,
-                                    );
-                                    let _ = sender
-                                        .send(audio_file.map(|audio_file| (audio_file, extension)));
+                                    )
+                                    .map(|audio_file| (audio_file, extension));
+                                    let _ = sender.send(audio_file);
                                 }
                             }
                         }

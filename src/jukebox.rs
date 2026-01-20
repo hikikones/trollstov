@@ -4,7 +4,6 @@ use std::{
     io::BufReader,
     path::{Path, PathBuf},
     sync::mpsc,
-    thread,
     time::Duration,
 };
 
@@ -34,32 +33,7 @@ impl Jukebox {
         sink.pause();
 
         let (sender, receiver) = mpsc::channel();
-        traverse_and_process_audio_files_in_parallel(dir, true, sender);
-        // let dir = dir.as_ref().to_path_buf();
-        // thread::spawn(move || {
-        //     traverse_audio_files(dir)
-        //         .map(|(path, extension)| match extension {
-        //             AudioFileExtension::Flac | AudioFileExtension::Mp3 => {
-        //                 AudioFile::read_from_path_and_extension(&path, extension).and_then(
-        //                     |audio_file| {
-        //                         Ok(Track::new(
-        //                             audio_file.metadata()?,
-        //                             audio_file.properties(),
-        //                             path,
-        //                             extension,
-        //                         ))
-        //                     },
-        //                 )
-        //             }
-        //             AudioFileExtension::Opus => Err(AudioFileError::Unsupported(format!(
-        //                 "Unsupported file {}.",
-        //                 path.to_string_lossy()
-        //             ))),
-        //         })
-        //         .for_each(|track| {
-        //             let _ = sender.send(track);
-        //         });
-        // });
+        traverse_and_process_audio_files(dir, true, sender);
 
         Ok(Self {
             tracks: IndexMap::new(),
