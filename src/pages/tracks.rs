@@ -164,8 +164,7 @@ impl TracksPage {
             }
             KeyCode::Enter => {
                 let id = jb.get_key_from_index(self.index).unwrap();
-                let _ = jb.play(id);
-                events.send(AppEvent::Render);
+                jb.play(id);
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {

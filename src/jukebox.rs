@@ -23,6 +23,11 @@ pub struct Jukebox {
     stopped: Option<TrackId>,
     audio_file_receiver:
         Option<mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileError>>>,
+    audio_play_handle: Option<
+        std::thread::JoinHandle<
+            Result<(TrackId, rodio::decoder::Decoder<BufReader<File>>), JukeboxError>,
+        >,
+    >,
     audio_write_handle:
         Option<std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileError>>>,
     sink: rodio::Sink,
@@ -44,6 +49,7 @@ impl Jukebox {
             current: None,
             stopped: None,
             audio_file_receiver: Some(receiver),
+            audio_play_handle: None,
             audio_write_handle: None,
             sink,
             _stream: stream,
@@ -177,6 +183,28 @@ impl Jukebox {
             }
         }
 
+        // Poll thread handle for audio decoding
+        if let Some(handle) = self.audio_play_handle.take() {
+            if handle.is_finished() {
+                match handle.join().unwrap() {
+                    Ok((id, source)) => {
+                        self.sink.clear();
+                        self.sink.append(source);
+                        self.sink.play();
+                        self.current = Some(id);
+                        self.stopped = None;
+                        events.send(AppEvent::Render);
+                    }
+                    Err(err) => {
+                        let log = Log::new(err.to_string(), LogLevel::Error);
+                        events.send(AppEvent::Log(log));
+                    }
+                }
+            } else {
+                self.audio_play_handle = Some(handle);
+            }
+        }
+
         // Poll thread handle for finished tag writing
         if let Some(handle) = self.audio_write_handle.take() {
             if handle.is_finished() {
@@ -200,6 +228,48 @@ impl Jukebox {
         if self.sink.empty() && !self.sink.is_paused() {
             let _ = self.play_random();
         }
+    }
+
+    pub fn play(&mut self, id: TrackId) {
+        let track = self.tracks.get(&id).unwrap();
+        let path = track.path().to_path_buf();
+
+        let handle = std::thread::spawn(move || {
+            let file = File::open(path)?;
+            let buffer = BufReader::new(file);
+            let source = rodio::decoder::Decoder::new(buffer)?;
+            Ok((id, source))
+        });
+        self.audio_play_handle = Some(handle);
+    }
+
+    pub fn pause_or_play(&mut self) {
+        if self.sink.is_paused() {
+            match self.stopped.take() {
+                Some(id) => {
+                    self.play(id);
+                }
+                None => {
+                    self.sink.play();
+                }
+            }
+        } else {
+            self.sink.pause();
+        }
+    }
+
+    pub fn stop(&mut self) {
+        self.sink.clear();
+        self.stopped = self.current.take();
+    }
+
+    pub fn play_random(&mut self) {
+        let next_id = fastrand::u64(0..self.tracks.len() as u64);
+        self.play(TrackId(next_id));
+    }
+
+    pub fn play_previous(&mut self) {
+        todo!()
     }
 
     pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
@@ -229,49 +299,6 @@ impl Jukebox {
             Ok((id, new_rating))
         });
         self.audio_write_handle = Some(handle);
-    }
-
-    pub fn play(&mut self, id: TrackId) -> Result<(), JukeboxError> {
-        let track = self.tracks.get(&id).unwrap();
-        let file = BufReader::new(File::open(track.path())?);
-        let input = rodio::decoder::Decoder::new(file)?;
-
-        self.sink.clear();
-        self.sink.append(input);
-        self.sink.play();
-        self.current = Some(id);
-        self.stopped = None;
-
-        Ok(())
-    }
-
-    pub fn pause_or_play(&mut self) {
-        if self.sink.is_paused() {
-            match self.stopped.take() {
-                Some(id) => {
-                    let _ = self.play(id);
-                }
-                None => {
-                    self.sink.play();
-                }
-            }
-        } else {
-            self.sink.pause();
-        }
-    }
-
-    pub fn stop(&mut self) {
-        self.sink.clear();
-        self.stopped = self.current.take();
-    }
-
-    pub fn play_random(&mut self) -> Result<(), JukeboxError> {
-        let next_id = fastrand::u64(0..self.tracks.len() as u64);
-        self.play(TrackId(next_id))
-    }
-
-    pub fn play_previous(&mut self) {
-        todo!()
     }
 
     pub fn shutdown(mut self) {
