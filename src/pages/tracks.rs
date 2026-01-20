@@ -169,10 +169,9 @@ impl TracksPage {
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
+                    let id = jb.get_key_from_index(self.index).unwrap();
                     let rating = AudioRating::from_char(c).unwrap();
-                    let track = jb.values_mut().nth(self.index).unwrap();
-                    track.set_rating(rating).unwrap();
-                    events.send(AppEvent::Render);
+                    jb.set_rating(id, rating);
                 }
                 's' => {
                     jb.sort(jb.get_sort().next());

@@ -88,7 +88,7 @@ impl App {
         }
     }
 
-    pub fn run(mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Render initial page
         match self.route {
             Route::Tracks => self.pages.tracks.on_enter(&self.jukebox),
@@ -113,6 +113,10 @@ impl App {
         }
 
         Ok(())
+    }
+
+    pub fn quit(self) {
+        self.jukebox.shutdown();
     }
 
     fn handle_key_press(&mut self, key: KeyEvent) {
