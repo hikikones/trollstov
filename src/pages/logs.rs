@@ -12,7 +12,8 @@ pub struct LogsPage {
     logs: Vec<Log>,
     queue: Vec<Log>,
     index: usize,
-    scroll: usize,
+    vertical_scroll: usize,
+    horizontal_scroll: usize,
 }
 
 impl LogsPage {
@@ -21,7 +22,8 @@ impl LogsPage {
             logs: Vec::new(),
             queue: Vec::new(),
             index: 0,
-            scroll: 0,
+            vertical_scroll: 0,
+            horizontal_scroll: 0,
         }
     }
 
@@ -41,34 +43,51 @@ impl LogsPage {
         let mut line_area = Rect { height: 1, ..area };
         let mut line = Line::default();
 
-        for (i, log) in self.logs.iter().enumerate() {
-            let (label, label_width, label_style) = match log.level {
-                LogLevel::Info => ("Info", 4, Style::new().fg(Color::Green)),
-                LogLevel::Warning => ("Warning", 7, Style::new().fg(Color::Yellow)),
-                LogLevel::Error => ("Error", 5, Style::new().fg(Color::Red)),
-            };
-            line.push_span(Span::styled(label, label_style));
-            line.push_span(Span::raw(" "));
-
-            let (scroll, style) = if self.index == i {
-                let label_width = label_width + 1;
-                let log_width_area = line_area.width.saturating_sub(label_width);
-                let max_scroll = log.width.saturating_sub(log_width_area as usize);
-                self.scroll = self.scroll.min(max_scroll);
-                (
-                    self.scroll,
-                    Style::new().bg(colors.accent).fg(colors.on_accent).bold(),
-                )
-            } else {
-                (0, Style::new())
-            };
-
-            line.push_span(Span::styled(&log.message[scroll..], style));
-
-            (&line).render(line_area, buf);
-            line.spans.clear();
-            line_area.y += 1;
+        let height = area.height as usize;
+        if self.index > self.vertical_scroll {
+            let height_diff = self.index - self.vertical_scroll;
+            let height = height.saturating_sub(1);
+            if height_diff > height {
+                self.vertical_scroll += height_diff - height;
+            }
+        } else if self.vertical_scroll > self.index {
+            let height_diff = self.vertical_scroll - self.index;
+            self.vertical_scroll -= height_diff;
         }
+
+        self.logs
+            .iter()
+            .enumerate()
+            .skip(self.vertical_scroll)
+            .take(height)
+            .for_each(|(i, log)| {
+                let (label, label_width, label_style) = match log.level {
+                    LogLevel::Info => ("Info", 4, Style::new().fg(Color::Green)),
+                    LogLevel::Warning => ("Warning", 7, Style::new().fg(Color::Yellow)),
+                    LogLevel::Error => ("Error", 5, Style::new().fg(Color::Red)),
+                };
+                line.push_span(Span::styled(label, label_style));
+                line.push_span(Span::raw(" "));
+
+                let (scroll, style) = if self.index == i {
+                    let label_width = label_width + 1;
+                    let log_width_area = line_area.width.saturating_sub(label_width);
+                    let max_scroll = log.width.saturating_sub(log_width_area as usize);
+                    self.horizontal_scroll = self.horizontal_scroll.min(max_scroll);
+                    (
+                        self.horizontal_scroll,
+                        Style::new().bg(colors.accent).fg(colors.on_accent).bold(),
+                    )
+                } else {
+                    (0, Style::new())
+                };
+
+                line.push_span(Span::styled(&log.message[scroll..], style));
+
+                (&line).render(line_area, buf);
+                line.spans.clear();
+                line_area.y += 1;
+            });
     }
 
     pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, events: &EventHandler) {
@@ -77,7 +96,7 @@ impl LogsPage {
                 let old_index = self.index;
                 self.index = usize::min(self.index + 1, self.logs.len().saturating_sub(1));
                 if self.index != old_index {
-                    self.scroll = 0;
+                    self.horizontal_scroll = 0;
                 }
                 events.send(AppEvent::Render);
             }
@@ -85,16 +104,16 @@ impl LogsPage {
                 let old_index = self.index;
                 self.index = self.index.saturating_sub(1);
                 if self.index != old_index {
-                    self.scroll = 0;
+                    self.horizontal_scroll = 0;
                 }
                 events.send(AppEvent::Render);
             }
             KeyCode::Right => {
-                self.scroll += 1;
+                self.horizontal_scroll += 1;
                 events.send(AppEvent::Render);
             }
             KeyCode::Left => {
-                self.scroll = self.scroll.saturating_sub(1);
+                self.horizontal_scroll = self.horizontal_scroll.saturating_sub(1);
                 events.send(AppEvent::Render);
             }
             _ => {}
