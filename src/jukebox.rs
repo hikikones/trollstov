@@ -21,7 +21,10 @@ pub struct Jukebox {
     sort: TrackSort,
     current: Option<TrackId>,
     stopped: Option<TrackId>,
-    receiver: Option<mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileError>>>,
+    audio_file_receiver:
+        Option<mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileError>>>,
+    audio_write_handle:
+        Option<std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileError>>>,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
 }
@@ -40,7 +43,8 @@ impl Jukebox {
             sort: TrackSort::default(),
             current: None,
             stopped: None,
-            receiver: Some(receiver),
+            audio_file_receiver: Some(receiver),
+            audio_write_handle: None,
             sink,
             _stream: stream,
         })
@@ -63,7 +67,7 @@ impl Jukebox {
     }
 
     pub fn get_key_from_index(&self, i: usize) -> Option<TrackId> {
-        self.tracks.keys().copied().nth(i)
+        self.tracks.keys().nth(i).copied()
     }
 
     pub fn get_key_value_from_index(&self, i: usize) -> Option<(TrackId, &Track)> {
@@ -112,7 +116,8 @@ impl Jukebox {
     }
 
     pub fn update(&mut self, events: &EventHandler) {
-        if let Some(receiver) = self.receiver.as_ref() {
+        // Receive processed audio files and convert to tracks
+        if let Some(receiver) = self.audio_file_receiver.as_ref() {
             loop {
                 match receiver.try_recv() {
                     Ok(audio_file_res) => {
@@ -164,7 +169,7 @@ impl Jukebox {
                             break;
                         }
                         mpsc::TryRecvError::Disconnected => {
-                            self.receiver = None;
+                            self.audio_file_receiver = None;
                             break;
                         }
                     },
@@ -172,9 +177,58 @@ impl Jukebox {
             }
         }
 
+        // Poll thread handle for finished tag writing
+        if let Some(handle) = self.audio_write_handle.take() {
+            if handle.is_finished() {
+                match handle.join().unwrap() {
+                    Ok((id, new_rating)) => {
+                        let track = self.get_mut(id).unwrap();
+                        track.set_rating(new_rating);
+                        events.send(AppEvent::Render);
+                    }
+                    Err(err) => {
+                        let log = Log::new(err.to_string(), LogLevel::Error);
+                        events.send(AppEvent::Log(log));
+                    }
+                }
+            } else {
+                self.audio_write_handle = Some(handle);
+            }
+        }
+
+        // Play next when idle and finished
         if self.sink.empty() && !self.sink.is_paused() {
             let _ = self.play_random();
         }
+    }
+
+    pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
+        let track = self.tracks.get(&id).unwrap();
+        let path = track.path().to_path_buf();
+        let extension = track.extension();
+        let current_rating = track.rating();
+
+        let handle = std::thread::spawn(move || {
+            let mut audio_file = AudioFile::read_from_path_and_extension(path, extension)?;
+            let new_rating = match current_rating {
+                Some(current_rating) => {
+                    if current_rating != rating {
+                        // Replace rating when they differ
+                        Some(rating)
+                    } else {
+                        // Remove rating when they are the same
+                        None
+                    }
+                }
+                None => {
+                    // Insert new rating
+                    Some(rating)
+                }
+            };
+            audio_file.write_rating(new_rating)?;
+            Ok((id, new_rating))
+        });
+        self.audio_write_handle = Some(handle);
     }
 
     pub fn play(&mut self, id: TrackId) -> Result<(), JukeboxError> {
@@ -281,27 +335,8 @@ impl Track {
         }
     }
 
-    pub fn set_rating(&mut self, rating: AudioRating) -> Result<(), AudioFileError> {
-        let mut audio_file = AudioFile::read_from_path_and_extension(&self.path, self.extension)?;
-        let new_rating = match self.metadata.rating() {
-            Some(current_rating) => {
-                if current_rating != rating {
-                    // Replace rating when they differ
-                    Some(rating)
-                } else {
-                    // Remove rating when they are the same
-                    None
-                }
-            }
-            None => {
-                // Insert new rating
-                Some(rating)
-            }
-        };
-        audio_file.write_rating(new_rating)?;
-        self.metadata.set_rating(new_rating);
-
-        Ok(())
+    pub const fn set_rating(&mut self, rating: Option<AudioRating>) {
+        self.metadata.set_rating(rating);
     }
 
     pub const fn duration(&self) -> Duration {
@@ -314,6 +349,10 @@ impl Track {
 
     pub fn path(&self) -> &Path {
         self.path.as_path()
+    }
+
+    pub const fn extension(&self) -> AudioFileExtension {
+        self.extension
     }
 }
 
