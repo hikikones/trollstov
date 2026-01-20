@@ -153,8 +153,7 @@ impl App {
             }
             KeyCode::Right => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
-                    let _ = self.jukebox.play_random();
-                    self.events.send(AppEvent::UpdateAndRender);
+                    self.jukebox.play_random();
                     None
                 } else {
                     Some(key)
@@ -163,7 +162,6 @@ impl App {
             KeyCode::Left => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     self.jukebox.play_previous();
-                    self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
                     Some(key)
@@ -179,8 +177,7 @@ impl App {
                 }
                 MediaKeyCode::Stop => todo!(),
                 MediaKeyCode::TrackNext => {
-                    let _ = self.jukebox.play_random();
-                    self.events.send(AppEvent::UpdateAndRender);
+                    self.jukebox.play_random();
                     None
                 }
                 MediaKeyCode::TrackPrevious => todo!(),

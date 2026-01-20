@@ -8,6 +8,7 @@ use std::{
 };
 
 use indexmap::IndexMap;
+use rodio::decoder::Decoder;
 
 use crate::{
     audio::*,
@@ -23,11 +24,8 @@ pub struct Jukebox {
     stopped: Option<TrackId>,
     audio_file_receiver:
         Option<mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileError>>>,
-    audio_play_handle: Option<
-        std::thread::JoinHandle<
-            Result<(TrackId, rodio::decoder::Decoder<BufReader<File>>), JukeboxError>,
-        >,
-    >,
+    audio_play_handle:
+        Option<std::thread::JoinHandle<Result<(TrackId, Decoder<BufReader<File>>), JukeboxError>>>,
     audio_write_handle:
         Option<std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileError>>>,
     sink: rodio::Sink,
@@ -193,7 +191,7 @@ impl Jukebox {
                         self.sink.play();
                         self.current = Some(id);
                         self.stopped = None;
-                        events.send(AppEvent::Render);
+                        events.send(AppEvent::UpdateAndRender);
                     }
                     Err(err) => {
                         let log = Log::new(err.to_string(), LogLevel::Error);
@@ -226,7 +224,7 @@ impl Jukebox {
 
         // Play next when idle and finished
         if self.sink.empty() && !self.sink.is_paused() {
-            let _ = self.play_random();
+            self.play_random();
         }
     }
 
@@ -237,7 +235,7 @@ impl Jukebox {
         let handle = std::thread::spawn(move || {
             let file = File::open(path)?;
             let buffer = BufReader::new(file);
-            let source = rodio::decoder::Decoder::new(buffer)?;
+            let source = Decoder::new(buffer)?;
             Ok((id, source))
         });
         self.audio_play_handle = Some(handle);
