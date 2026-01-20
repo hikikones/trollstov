@@ -3,6 +3,7 @@ use std::{
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
+    sync::mpsc,
     time::Duration,
 };
 
@@ -146,6 +147,10 @@ impl AudioFile {
                 Ok(opus.save_to_path(&self.path, WriteOptions::new())?)
             }
         }
+    }
+
+    pub fn path(&self) -> &Path {
+        self.path.as_path()
     }
 }
 
@@ -379,27 +384,77 @@ pub enum AudioFileExtension {
     Mp3,
 }
 
-pub fn traverse_audio_files(
-    root: impl AsRef<Path>,
-) -> impl Iterator<Item = (PathBuf, AudioFileExtension)> {
-    walkdir::WalkDir::new(root)
-        .follow_links(true)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|entry| entry.file_type().is_file())
-        .map(|file| file.into_path())
-        .filter_map(move |path| match path.extension() {
-            Some(file_ext) => {
-                if file_ext.eq_ignore_ascii_case("flac") {
-                    Some((path, AudioFileExtension::Flac))
-                } else if file_ext.eq_ignore_ascii_case("opus") {
-                    Some((path, AudioFileExtension::Opus))
-                } else if file_ext.eq_ignore_ascii_case("mp3") {
-                    Some((path, AudioFileExtension::Mp3))
-                } else {
-                    None
-                }
+impl AudioFileExtension {
+    pub fn from_path(path: impl AsRef<Path>) -> Option<Self> {
+        path.as_ref().extension().and_then(|ext| {
+            if ext.eq_ignore_ascii_case("flac") {
+                Some(Self::Flac)
+            } else if ext.eq_ignore_ascii_case("opus") {
+                Some(Self::Opus)
+            } else if ext.eq_ignore_ascii_case("mp3") {
+                Some(Self::Mp3)
+            } else {
+                None
             }
-            None => None,
         })
+    }
+}
+
+pub fn traverse_and_process_audio_files(
+    root: impl AsRef<Path>,
+    follow_links: bool,
+    sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileError>>,
+) {
+    let root = root.as_ref().to_path_buf();
+    std::thread::spawn(move || {
+        walkdir::WalkDir::new(root)
+            .follow_links(follow_links)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|entry| entry.file_type().is_file())
+            .filter_map(|file| {
+                AudioFileExtension::from_path(file.path()).map(|ext| (file.into_path(), ext))
+            })
+            .for_each(|(path, extension)| {
+                let audio_file = AudioFile::read_from_path_and_extension(path, extension)
+                    .map(|audio_file| (audio_file, extension));
+                let _ = sender.send(audio_file);
+            });
+    });
+}
+
+pub fn _traverse_and_process_audio_files_in_parallel(
+    root: impl AsRef<Path>,
+    follow_links: bool,
+    sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileError>>,
+) {
+    let root = root.as_ref().to_path_buf();
+    std::thread::spawn(move || {
+        ignore::WalkBuilder::new(root)
+            .follow_links(follow_links)
+            .build_parallel()
+            .run(|| {
+                let sender = sender.clone();
+                Box::new(move |result| {
+                    if let Ok(dir_entry) = result {
+                        if let Some(file_type) = dir_entry.file_type() {
+                            if file_type.is_file() {
+                                if let Some(extension) =
+                                    AudioFileExtension::from_path(dir_entry.path())
+                                {
+                                    let audio_file = AudioFile::read_from_path_and_extension(
+                                        dir_entry.into_path(),
+                                        extension,
+                                    )
+                                    .map(|audio_file| (audio_file, extension));
+                                    let _ = sender.send(audio_file);
+                                }
+                            }
+                        }
+                    }
+
+                    ignore::WalkState::Continue
+                })
+            });
+    });
 }

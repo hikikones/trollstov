@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 fastrand = "2.3"
+ignore = { version = "0.4", features = ["simd-accel"] }
 image = "0.25.9"
 indexmap = "2.13.0"
 itoa = "1.0"
