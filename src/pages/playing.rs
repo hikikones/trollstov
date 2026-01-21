@@ -180,9 +180,19 @@ impl NowPlayingPage {
                 }
             }
             None => {
-                Line::styled("No track currently playing", neutral_style)
-                    .centered()
-                    .render(area, buf);
+                const NO_TRACK: &str = "No track currently playing";
+                Span::styled(NO_TRACK, neutral_style).render(
+                    utils::align(
+                        Rect {
+                            width: NO_TRACK.len() as u16,
+                            height: 1,
+                            ..area
+                        },
+                        area,
+                        utils::Alignment::CenterHorizontal,
+                    ),
+                    buf,
+                );
             }
         }
     }
