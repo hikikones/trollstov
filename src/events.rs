@@ -6,10 +6,7 @@ use std::{
 
 use ratatui::crossterm::event::{self, Event as CrosstermEvent};
 
-use crate::{
-    jukebox::TrackId,
-    pages::{Log, Route},
-};
+use crate::pages::{Log, Route};
 
 const UPDATE_FREQUENCY: f64 = 1.0 / 8.0;
 const RENDER_FREQUENCY: f64 = 1.0 / 1.0;
@@ -24,17 +21,8 @@ pub enum AppEvent {
     Render,
     UpdateAndRender,
     Route(Route),
-    Jukebox(JukeboxEvent),
     Log(Log),
     Quit,
-}
-
-pub enum JukeboxEvent {
-    Play(TrackId),
-    Stop,
-    PauseOrPlay,
-    Next,
-    Previous,
 }
 
 pub struct EventHandler {
@@ -45,9 +33,12 @@ pub struct EventHandler {
 impl EventHandler {
     pub fn new() -> Self {
         let (sender, receiver) = mpsc::channel();
-        let actor = EventThread(sender.clone());
-        thread::spawn(|| actor.run());
         Self { sender, receiver }
+    }
+
+    pub fn start(&self) {
+        let actor = EventThread(self.sender.clone());
+        thread::spawn(|| actor.run());
     }
 
     pub fn next(&self) -> Result<Event, mpsc::RecvError> {

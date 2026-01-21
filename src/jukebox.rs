@@ -12,12 +12,13 @@ use rodio::decoder::Decoder;
 
 use crate::{
     audio::*,
-    events::{AppEvent, EventHandler, EventSender},
+    events::{AppEvent, EventSender},
     pages::{Log, LogLevel},
     utils,
 };
 
 pub struct Jukebox {
+    music_dir: PathBuf,
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
     current: Option<TrackId>,
@@ -34,26 +35,30 @@ pub struct Jukebox {
 }
 
 impl Jukebox {
-    pub fn new(dir: impl AsRef<Path>, app_events: EventSender) -> Result<Self, rodio::StreamError> {
+    pub fn new(dir: impl AsRef<Path>, events: EventSender) -> Result<Self, rodio::StreamError> {
         let stream = rodio::OutputStreamBuilder::open_default_stream()?;
         let sink = rodio::Sink::connect_new(stream.mixer());
         sink.pause();
 
-        let (sender, receiver) = mpsc::channel();
-        traverse_and_process_audio_files(dir, true, sender);
-
         Ok(Self {
+            music_dir: dir.as_ref().to_path_buf(),
             tracks: IndexMap::new(),
             sort: TrackSort::default(),
             current: None,
             stopped: None,
-            events: app_events,
-            audio_file_receiver: Some(receiver),
+            events,
+            audio_file_receiver: None,
             audio_play_handle: None,
             audio_write_handle: None,
             sink,
             _stream: stream,
         })
+    }
+
+    pub fn load(&mut self) {
+        let (sender, receiver) = mpsc::channel();
+        traverse_and_process_audio_files(self.music_dir.as_path(), true, sender);
+        self.audio_file_receiver = Some(receiver);
     }
 
     pub fn is_empty(&self) -> bool {

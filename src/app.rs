@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use ratatui::{
     CompletedFrame,
     crossterm::event::{
@@ -10,7 +8,7 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::{
-    events::{AppEvent, Event, EventHandler, JukeboxEvent},
+    events::{AppEvent, Event, EventHandler},
     jukebox::{Jukebox, TrackId},
     pages::{Pages, Route},
     terminal::Terminal,
@@ -60,12 +58,11 @@ impl Colors {
 }
 
 impl App {
-    pub fn new(music_dir: impl AsRef<Path>) -> Self {
-        // Create picker after entering alternate screen, but before reading terminal events
-        let picker = ratatui_image::picker::Picker::from_query_stdio().unwrap();
-
-        let events = EventHandler::new();
-        let jukebox = Jukebox::new(music_dir, events.clone_sender()).unwrap();
+    pub fn new(
+        events: EventHandler,
+        jukebox: Jukebox,
+        picker: ratatui_image::picker::Picker,
+    ) -> Self {
         let pages = Pages::new(picker, events.clone_sender());
         let colors = Colors::new();
         let title_line = Line::styled("jukebox", Style::new().fg(colors.neutral)).centered();
@@ -96,6 +93,10 @@ impl App {
             Route::Logs => self.pages.logs.on_enter(),
         }
         self.render(&mut terminal)?;
+
+        // Start reading events and load music
+        self.events.start();
+        self.jukebox.load();
 
         // Run event loop
         while self.running {
@@ -136,7 +137,6 @@ impl App {
             KeyCode::Up => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     self.jukebox.pause_or_play();
-                    self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
                     Some(key)
@@ -145,7 +145,6 @@ impl App {
             KeyCode::Down => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     self.jukebox.stop();
-                    self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
                     Some(key)
@@ -172,7 +171,6 @@ impl App {
                 MediaKeyCode::Pause => todo!(),
                 MediaKeyCode::PlayPause => {
                     self.jukebox.pause_or_play();
-                    self.events.send(AppEvent::UpdateAndRender);
                     None
                 }
                 MediaKeyCode::Stop => todo!(),
@@ -231,26 +229,6 @@ impl App {
                 }
 
                 self.render(terminal)?;
-            }
-            AppEvent::Jukebox(event) => {
-                match event {
-                    JukeboxEvent::Play(id) => {
-                        self.jukebox.play(id);
-                    }
-                    JukeboxEvent::Stop => {
-                        self.jukebox.stop();
-                    }
-                    JukeboxEvent::PauseOrPlay => {
-                        self.jukebox.pause_or_play();
-                    }
-                    JukeboxEvent::Next => {
-                        self.jukebox.play_next();
-                    }
-                    JukeboxEvent::Previous => {
-                        self.jukebox.play_previous();
-                    }
-                }
-                self.events.send(AppEvent::UpdateAndRender);
             }
             AppEvent::Log(log) => {
                 self.pages.logs.enqueue(log);
