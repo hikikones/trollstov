@@ -10,7 +10,7 @@ use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
     app::Colors,
-    audio::AudioPicture,
+    audio::{AudioPicture, AudioRating},
     jukebox::{Jukebox, TrackId},
     utils,
 };
@@ -156,7 +156,7 @@ impl NowPlayingPage {
 
                 let mut info_area = utils::align(
                     Rect {
-                        height: 8,
+                        height: 11,
                         ..right_area
                     },
                     img_area,
@@ -171,6 +171,7 @@ impl NowPlayingPage {
                     ("ALBUM", track.album()),
                     ("TITLE", track.title()),
                     ("ARTIST", track.artist()),
+                    ("RATING", track.rating_display()),
                 ] {
                     Span::styled(label, neutral_style).render(info_area, buf);
                     info_area.y += 1;
@@ -179,9 +180,19 @@ impl NowPlayingPage {
                 }
             }
             None => {
-                Line::styled("No track currently playing", neutral_style)
-                    .centered()
-                    .render(area, buf);
+                const NO_TRACK: &str = "No track currently playing";
+                Span::styled(NO_TRACK, neutral_style).render(
+                    utils::align(
+                        Rect {
+                            width: NO_TRACK.len() as u16,
+                            height: 1,
+                            ..area
+                        },
+                        area,
+                        utils::Alignment::CenterHorizontal,
+                    ),
+                    buf,
+                );
             }
         }
     }

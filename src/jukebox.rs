@@ -367,11 +367,11 @@ impl Track {
     pub const fn rating_display(&self) -> &str {
         match self.metadata.rating() {
             Some(rating) => match rating {
-                AudioRating::Awful => "*",
-                AudioRating::Bad => "**",
-                AudioRating::Ok => "***",
-                AudioRating::Good => "****",
-                AudioRating::Amazing => "*****",
+                AudioRating::Awful => "★",
+                AudioRating::Bad => "★★",
+                AudioRating::Ok => "★★★",
+                AudioRating::Good => "★★★★",
+                AudioRating::Amazing => "★★★★★",
             },
             None => "",
         }
