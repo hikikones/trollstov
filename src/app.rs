@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use ratatui::{
     CompletedFrame,
     crossterm::event::{
@@ -60,14 +58,13 @@ impl Colors {
 }
 
 impl App {
-    pub fn new(music_dir: impl AsRef<Path>) -> Self {
-        // Create picker after entering alternate screen, but before reading terminal events
-        let picker = ratatui_image::picker::Picker::from_query_stdio().unwrap();
-
-        let pages = Pages::new(picker);
+    pub fn new(
+        events: EventHandler,
+        jukebox: Jukebox,
+        picker: ratatui_image::picker::Picker,
+    ) -> Self {
+        let pages = Pages::new(picker, events.clone_sender());
         let colors = Colors::new();
-        let events = EventHandler::new();
-        let jukebox = Jukebox::new(music_dir).unwrap();
         let title_line = Line::styled("jukebox", Style::new().fg(colors.neutral)).centered();
 
         Self {
@@ -91,11 +88,15 @@ impl App {
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Render initial page
         match self.route {
-            Route::Tracks => self.pages.tracks.on_enter(&self.jukebox),
-            Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jukebox),
+            Route::Tracks => self.pages.tracks.on_enter(),
+            Route::NowPlaying => self.pages.now_playing.on_enter(),
             Route::Logs => self.pages.logs.on_enter(),
         }
         self.render(&mut terminal)?;
+
+        // Start reading events and load music
+        self.events.start();
+        self.jukebox.load();
 
         // Run event loop
         while self.running {
@@ -136,7 +137,6 @@ impl App {
             KeyCode::Up => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     self.jukebox.pause_or_play();
-                    self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
                     Some(key)
@@ -145,7 +145,6 @@ impl App {
             KeyCode::Down => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     self.jukebox.stop();
-                    self.events.send(AppEvent::UpdateAndRender);
                     None
                 } else {
                     Some(key)
@@ -153,7 +152,7 @@ impl App {
             }
             KeyCode::Right => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.jukebox.play_random();
+                    self.jukebox.play_next();
                     None
                 } else {
                     Some(key)
@@ -172,12 +171,11 @@ impl App {
                 MediaKeyCode::Pause => todo!(),
                 MediaKeyCode::PlayPause => {
                     self.jukebox.pause_or_play();
-                    self.events.send(AppEvent::UpdateAndRender);
                     None
                 }
                 MediaKeyCode::Stop => todo!(),
                 MediaKeyCode::TrackNext => {
-                    self.jukebox.play_random();
+                    self.jukebox.play_next();
                     None
                 }
                 MediaKeyCode::TrackPrevious => todo!(),
@@ -188,21 +186,13 @@ impl App {
 
         if let Some(key) = pass_on_key_event {
             match self.route {
-                Route::Tracks => self.pages.tracks.on_input(
-                    key.code,
-                    key.modifiers,
-                    &self.events,
-                    &mut self.jukebox,
-                ),
-                Route::NowPlaying => {
+                Route::Tracks => {
                     self.pages
-                        .now_playing
-                        .on_input(key.code, key.modifiers, &self.events)
+                        .tracks
+                        .on_input(key.code, key.modifiers, &mut self.jukebox)
                 }
-                Route::Logs => self
-                    .pages
-                    .logs
-                    .on_input(key.code, key.modifiers, &self.events),
+                Route::NowPlaying => self.pages.now_playing.on_input(key.code, key.modifiers),
+                Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
             }
         }
     }
@@ -233,8 +223,8 @@ impl App {
                 self.route = route;
 
                 match route {
-                    Route::Tracks => self.pages.tracks.on_enter(&self.jukebox),
-                    Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jukebox),
+                    Route::Tracks => self.pages.tracks.on_enter(),
+                    Route::NowPlaying => self.pages.now_playing.on_enter(),
                     Route::Logs => self.pages.logs.on_enter(),
                 }
 
@@ -252,7 +242,7 @@ impl App {
     }
 
     fn update(&mut self) {
-        self.jukebox.update(&self.events);
+        self.jukebox.update();
         self.pages.now_playing.on_update(&self.jukebox);
     }
 

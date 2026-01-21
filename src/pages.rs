@@ -6,6 +6,8 @@ pub use logs::*;
 pub use playing::*;
 pub use tracks::*;
 
+use crate::events::EventSender;
+
 pub struct Pages {
     pub tracks: TracksPage,
     pub now_playing: NowPlayingPage,
@@ -13,11 +15,11 @@ pub struct Pages {
 }
 
 impl Pages {
-    pub fn new(picker: ratatui_image::picker::Picker) -> Self {
+    pub fn new(picker: ratatui_image::picker::Picker, events: EventSender) -> Self {
         Self {
-            tracks: TracksPage::new(),
+            tracks: TracksPage::new(events.clone()),
             now_playing: NowPlayingPage::new(picker),
-            logs: LogsPage::new(),
+            logs: LogsPage::new(events),
         }
     }
 }

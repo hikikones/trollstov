@@ -5,7 +5,7 @@ use ratatui::{
 
 use crate::{
     app::Colors,
-    events::{AppEvent, EventHandler},
+    events::{AppEvent, EventSender},
 };
 
 pub struct LogsPage {
@@ -14,16 +14,18 @@ pub struct LogsPage {
     index: usize,
     vertical_scroll: usize,
     horizontal_scroll: usize,
+    events: EventSender,
 }
 
 impl LogsPage {
-    pub const fn new() -> Self {
+    pub const fn new(events: EventSender) -> Self {
         Self {
             logs: Vec::new(),
             queue: Vec::new(),
             index: 0,
             vertical_scroll: 0,
             horizontal_scroll: 0,
+            events,
         }
     }
 
@@ -90,7 +92,7 @@ impl LogsPage {
             });
     }
 
-    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, events: &EventHandler) {
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) {
         match key {
             KeyCode::Down => {
                 let old_index = self.index;
@@ -98,7 +100,7 @@ impl LogsPage {
                 if self.index != old_index {
                     self.horizontal_scroll = 0;
                 }
-                events.send(AppEvent::Render);
+                self.events.send(AppEvent::Render);
             }
             KeyCode::Up => {
                 let old_index = self.index;
@@ -106,15 +108,15 @@ impl LogsPage {
                 if self.index != old_index {
                     self.horizontal_scroll = 0;
                 }
-                events.send(AppEvent::Render);
+                self.events.send(AppEvent::Render);
             }
             KeyCode::Right => {
                 self.horizontal_scroll += 1;
-                events.send(AppEvent::Render);
+                self.events.send(AppEvent::Render);
             }
             KeyCode::Left => {
                 self.horizontal_scroll = self.horizontal_scroll.saturating_sub(1);
-                events.send(AppEvent::Render);
+                self.events.send(AppEvent::Render);
             }
             _ => {}
         }

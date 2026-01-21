@@ -33,9 +33,12 @@ pub struct EventHandler {
 impl EventHandler {
     pub fn new() -> Self {
         let (sender, receiver) = mpsc::channel();
-        let actor = EventThread::new(sender.clone());
-        thread::spawn(|| actor.run());
         Self { sender, receiver }
+    }
+
+    pub fn start(&self) {
+        let actor = EventThread(self.sender.clone());
+        thread::spawn(|| actor.run());
     }
 
     pub fn next(&self) -> Result<Event, mpsc::RecvError> {
@@ -45,17 +48,27 @@ impl EventHandler {
     pub fn send(&self, app_event: AppEvent) {
         let _ = self.sender.send(Event::App(app_event));
     }
+
+    pub fn clone_sender(&self) -> EventSender {
+        EventSender(self.sender.clone())
+    }
 }
 
-struct EventThread {
-    sender: mpsc::Sender<Event>,
-}
+pub struct EventSender(mpsc::Sender<Event>);
 
-impl EventThread {
-    fn new(sender: mpsc::Sender<Event>) -> Self {
-        Self { sender }
+impl EventSender {
+    pub fn send(&self, app_event: AppEvent) {
+        let _ = self.0.send(Event::App(app_event));
     }
 
+    pub fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+struct EventThread(mpsc::Sender<Event>);
+
+impl EventThread {
     fn run(self) -> Result<(), std::io::Error> {
         // Setup timers
         let mut update = Timer::new(Duration::from_secs_f64(UPDATE_FREQUENCY));
@@ -81,7 +94,7 @@ impl EventThread {
     }
 
     fn send(&self, event: Event) {
-        let _ = self.sender.send(event);
+        let _ = self.0.send(event);
     }
 }
 
