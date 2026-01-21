@@ -8,7 +8,7 @@ use unicode_width::UnicodeWidthStr;
 use crate::{
     app::Colors,
     audio::AudioRating,
-    events::{AppEvent, EventHandler},
+    events::{AppEvent, EventHandler, JukeboxEvent},
     jukebox::Jukebox,
 };
 
@@ -164,7 +164,7 @@ impl TracksPage {
             }
             KeyCode::Enter => {
                 let id = jb.get_key_from_index(self.index).unwrap();
-                jb.play(id);
+                events.send(AppEvent::Jukebox(JukeboxEvent::Play(id)));
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {

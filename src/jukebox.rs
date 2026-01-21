@@ -224,7 +224,7 @@ impl Jukebox {
 
         // Play next when idle and finished
         if self.sink.empty() && !self.sink.is_paused() {
-            self.play_random();
+            self.play_next();
         }
     }
 
@@ -261,7 +261,7 @@ impl Jukebox {
         self.stopped = self.current.take();
     }
 
-    pub fn play_random(&mut self) {
+    pub fn play_next(&mut self) {
         let next_id = fastrand::u64(0..self.tracks.len() as u64);
         self.play(TrackId(next_id));
     }
