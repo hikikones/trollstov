@@ -64,10 +64,10 @@ impl App {
         // Create picker after entering alternate screen, but before reading terminal events
         let picker = ratatui_image::picker::Picker::from_query_stdio().unwrap();
 
-        let pages = Pages::new(picker);
-        let colors = Colors::new();
         let events = EventHandler::new();
-        let jukebox = Jukebox::new(music_dir).unwrap();
+        let jukebox = Jukebox::new(music_dir, events.clone_sender()).unwrap();
+        let pages = Pages::new(picker, events.clone_sender());
+        let colors = Colors::new();
         let title_line = Line::styled("jukebox", Style::new().fg(colors.neutral)).centered();
 
         Self {
@@ -91,8 +91,8 @@ impl App {
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Render initial page
         match self.route {
-            Route::Tracks => self.pages.tracks.on_enter(&self.jukebox),
-            Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jukebox),
+            Route::Tracks => self.pages.tracks.on_enter(),
+            Route::NowPlaying => self.pages.now_playing.on_enter(),
             Route::Logs => self.pages.logs.on_enter(),
         }
         self.render(&mut terminal)?;
@@ -188,21 +188,13 @@ impl App {
 
         if let Some(key) = pass_on_key_event {
             match self.route {
-                Route::Tracks => self.pages.tracks.on_input(
-                    key.code,
-                    key.modifiers,
-                    &self.events,
-                    &mut self.jukebox,
-                ),
-                Route::NowPlaying => {
+                Route::Tracks => {
                     self.pages
-                        .now_playing
-                        .on_input(key.code, key.modifiers, &self.events)
+                        .tracks
+                        .on_input(key.code, key.modifiers, &mut self.jukebox)
                 }
-                Route::Logs => self
-                    .pages
-                    .logs
-                    .on_input(key.code, key.modifiers, &self.events),
+                Route::NowPlaying => self.pages.now_playing.on_input(key.code, key.modifiers),
+                Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
             }
         }
     }
@@ -233,8 +225,8 @@ impl App {
                 self.route = route;
 
                 match route {
-                    Route::Tracks => self.pages.tracks.on_enter(&self.jukebox),
-                    Route::NowPlaying => self.pages.now_playing.on_enter(&mut self.jukebox),
+                    Route::Tracks => self.pages.tracks.on_enter(),
+                    Route::NowPlaying => self.pages.now_playing.on_enter(),
                     Route::Logs => self.pages.logs.on_enter(),
                 }
 
@@ -272,7 +264,7 @@ impl App {
     }
 
     fn update(&mut self) {
-        self.jukebox.update(&self.events);
+        self.jukebox.update();
         self.pages.now_playing.on_update(&self.jukebox);
     }
 

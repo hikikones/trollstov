@@ -11,7 +11,6 @@ use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 use crate::{
     app::Colors,
     audio::AudioPicture,
-    events::EventHandler,
     jukebox::{Jukebox, TrackId},
     utils,
 };
@@ -33,7 +32,7 @@ impl NowPlayingPage {
         }
     }
 
-    pub fn on_enter(&mut self, jb: &Jukebox) {
+    pub fn on_enter(&mut self) {
         // todo?
     }
 
@@ -187,7 +186,7 @@ impl NowPlayingPage {
         }
     }
 
-    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, events: &EventHandler) {
+    pub fn on_input(&mut self, _key: KeyCode, _modifiers: KeyModifiers) {
         // todo
     }
 

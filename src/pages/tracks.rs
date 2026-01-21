@@ -8,7 +8,7 @@ use unicode_width::UnicodeWidthStr;
 use crate::{
     app::Colors,
     audio::AudioRating,
-    events::{AppEvent, EventHandler, JukeboxEvent},
+    events::{AppEvent, EventSender, JukeboxEvent},
     jukebox::Jukebox,
 };
 
@@ -16,18 +16,20 @@ pub struct TracksPage {
     index: usize,
     scroll: usize,
     line_buffer: String,
+    events: EventSender,
 }
 
 impl TracksPage {
-    pub fn new() -> Self {
+    pub fn new(events: EventSender) -> Self {
         Self {
             index: 0,
             scroll: 0,
             line_buffer: String::new(),
+            events,
         }
     }
 
-    pub fn on_enter(&mut self, jb: &Jukebox) {
+    pub fn on_enter(&mut self) {
         // todo
     }
 
@@ -146,25 +148,19 @@ impl TracksPage {
             });
     }
 
-    pub fn on_input(
-        &mut self,
-        key: KeyCode,
-        _modifiers: KeyModifiers,
-        events: &EventHandler,
-        jb: &mut Jukebox,
-    ) {
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) {
         match key {
             KeyCode::Down => {
                 self.index = usize::min(self.index + 1, jb.len().saturating_sub(1));
-                events.send(AppEvent::Render);
+                self.events.send(AppEvent::Render);
             }
             KeyCode::Up => {
                 self.index = self.index.saturating_sub(1);
-                events.send(AppEvent::Render);
+                self.events.send(AppEvent::Render);
             }
             KeyCode::Enter => {
                 let id = jb.get_key_from_index(self.index).unwrap();
-                events.send(AppEvent::Jukebox(JukeboxEvent::Play(id)));
+                self.events.send(AppEvent::Jukebox(JukeboxEvent::Play(id)));
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
@@ -174,7 +170,7 @@ impl TracksPage {
                 }
                 's' => {
                     jb.sort(jb.get_sort().next());
-                    events.send(AppEvent::Render);
+                    self.events.send(AppEvent::Render);
                 }
                 _ => {}
             },

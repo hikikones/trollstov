@@ -12,7 +12,7 @@ use rodio::decoder::Decoder;
 
 use crate::{
     audio::*,
-    events::{AppEvent, EventHandler},
+    events::{AppEvent, EventHandler, EventSender},
     pages::{Log, LogLevel},
     utils,
 };
@@ -22,6 +22,7 @@ pub struct Jukebox {
     sort: TrackSort,
     current: Option<TrackId>,
     stopped: Option<TrackId>,
+    events: EventSender,
     audio_file_receiver:
         Option<mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileError>>>,
     audio_play_handle:
@@ -33,7 +34,7 @@ pub struct Jukebox {
 }
 
 impl Jukebox {
-    pub fn new(dir: impl AsRef<Path>) -> Result<Self, rodio::StreamError> {
+    pub fn new(dir: impl AsRef<Path>, app_events: EventSender) -> Result<Self, rodio::StreamError> {
         let stream = rodio::OutputStreamBuilder::open_default_stream()?;
         let sink = rodio::Sink::connect_new(stream.mixer());
         sink.pause();
@@ -46,6 +47,7 @@ impl Jukebox {
             sort: TrackSort::default(),
             current: None,
             stopped: None,
+            events: app_events,
             audio_file_receiver: Some(receiver),
             audio_play_handle: None,
             audio_write_handle: None,
@@ -119,7 +121,7 @@ impl Jukebox {
         self.sink.get_pos()
     }
 
-    pub fn update(&mut self, events: &EventHandler) {
+    pub fn update(&mut self) {
         // Receive processed audio files and convert to tracks
         if let Some(receiver) = self.audio_file_receiver.as_ref() {
             loop {
@@ -164,7 +166,7 @@ impl Jukebox {
                                         Log::new(msg, LogLevel::Warning)
                                     }
                                 };
-                                events.send(AppEvent::Log(log));
+                                self.events.send(AppEvent::Log(log));
                             }
                         }
                     }
@@ -191,11 +193,11 @@ impl Jukebox {
                         self.sink.play();
                         self.current = Some(id);
                         self.stopped = None;
-                        events.send(AppEvent::UpdateAndRender);
+                        self.events.send(AppEvent::UpdateAndRender);
                     }
                     Err(err) => {
                         let log = Log::new(err.to_string(), LogLevel::Error);
-                        events.send(AppEvent::Log(log));
+                        self.events.send(AppEvent::Log(log));
                     }
                 }
             } else {
@@ -210,11 +212,11 @@ impl Jukebox {
                     Ok((id, new_rating)) => {
                         let track = self.get_mut(id).unwrap();
                         track.set_rating(new_rating);
-                        events.send(AppEvent::Render);
+                        self.events.send(AppEvent::Render);
                     }
                     Err(err) => {
                         let log = Log::new(err.to_string(), LogLevel::Error);
-                        events.send(AppEvent::Log(log));
+                        self.events.send(AppEvent::Log(log));
                     }
                 }
             } else {
@@ -257,8 +259,11 @@ impl Jukebox {
     }
 
     pub fn stop(&mut self) {
-        self.sink.clear();
-        self.stopped = self.current.take();
+        if let Some(id) = self.current.take() {
+            self.sink.clear();
+            self.stopped = Some(id);
+            self.events.send(AppEvent::UpdateAndRender);
+        }
     }
 
     pub fn play_next(&mut self) {
