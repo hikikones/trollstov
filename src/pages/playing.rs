@@ -171,45 +171,12 @@ impl NowPlayingPage {
                     ("ALBUM", track.album()),
                     ("TITLE", track.title()),
                     ("ARTIST", track.artist()),
+                    ("RATING", track.rating_display()),
                 ] {
                     Span::styled(label, neutral_style).render(info_area, buf);
                     info_area.y += 1;
                     Span::raw(info).render(info_area, buf);
                     info_area.y += 2;
-                }
-
-                Span::styled("RATING", neutral_style).render(info_area, buf);
-                info_area.y += 1;
-                let accent_style = Style::new().fg(colors.accent);
-                match track.rating() {
-                    Some(rating) => match rating {
-                        AudioRating::Awful => {
-                            Span::styled("★", accent_style).render(info_area, buf);
-                            info_area.x += 1;
-                            Span::styled("☆☆☆☆", neutral_style).render(info_area, buf);
-                        }
-                        AudioRating::Bad => {
-                            Span::styled("★★", accent_style).render(info_area, buf);
-                            info_area.x += 2;
-                            Span::styled("☆☆☆", neutral_style).render(info_area, buf);
-                        }
-                        AudioRating::Ok => {
-                            Span::styled("★★★", accent_style).render(info_area, buf);
-                            info_area.x += 3;
-                            Span::styled("☆☆", neutral_style).render(info_area, buf);
-                        }
-                        AudioRating::Good => {
-                            Span::styled("★★★★", accent_style).render(info_area, buf);
-                            info_area.x += 4;
-                            Span::styled("☆", neutral_style).render(info_area, buf);
-                        }
-                        AudioRating::Amazing => {
-                            Span::styled("★★★★★", accent_style).render(info_area, buf);
-                        }
-                    },
-                    None => {
-                        Span::styled("☆☆☆☆☆", neutral_style).render(info_area, buf);
-                    }
                 }
             }
             None => {
