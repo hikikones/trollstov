@@ -6,7 +6,10 @@ use std::{
 
 use ratatui::crossterm::event::{self, Event as CrosstermEvent};
 
-use crate::pages::{Log, Route};
+use crate::{
+    jukebox::TrackId,
+    pages::{Log, Route},
+};
 
 const UPDATE_FREQUENCY: f64 = 1.0 / 8.0;
 const RENDER_FREQUENCY: f64 = 1.0 / 1.0;
@@ -21,8 +24,17 @@ pub enum AppEvent {
     Render,
     UpdateAndRender,
     Route(Route),
+    Jukebox(JukeboxEvent),
     Log(Log),
     Quit,
+}
+
+pub enum JukeboxEvent {
+    Play(TrackId),
+    Stop,
+    PauseOrPlay,
+    Next,
+    Previous,
 }
 
 pub struct EventHandler {

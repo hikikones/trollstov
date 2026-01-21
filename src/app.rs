@@ -10,7 +10,7 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::{
-    events::{AppEvent, Event, EventHandler},
+    events::{AppEvent, Event, EventHandler, JukeboxEvent},
     jukebox::{Jukebox, TrackId},
     pages::{Pages, Route},
     terminal::Terminal,
@@ -240,6 +240,27 @@ impl App {
 
                 self.render(terminal)?;
             }
+            AppEvent::Jukebox(event) => match event {
+                JukeboxEvent::Play(id) => {
+                    self.jukebox.play(id);
+                }
+                JukeboxEvent::Stop => {
+                    self.jukebox.stop();
+                    self.events.send(AppEvent::UpdateAndRender);
+                }
+                JukeboxEvent::PauseOrPlay => {
+                    self.jukebox.pause_or_play();
+                    self.events.send(AppEvent::UpdateAndRender);
+                }
+                JukeboxEvent::Next => {
+                    self.jukebox.play_random();
+                    self.events.send(AppEvent::UpdateAndRender);
+                }
+                JukeboxEvent::Previous => {
+                    self.jukebox.play_previous();
+                    self.events.send(AppEvent::UpdateAndRender);
+                }
+            },
             AppEvent::Log(log) => {
                 self.pages.logs.enqueue(log);
             }
