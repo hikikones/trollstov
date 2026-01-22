@@ -17,6 +17,7 @@ ratatui-image = { version = "10.0", default-features = false, features = [
   "crossterm"
 ] }
 rodio = "0.21"
+seahash = "4.1.0"
 terminal-colorsaurus = "1.0"
 unicode-segmentation = "1.12"
 unicode-width = "0.2"

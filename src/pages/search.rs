@@ -37,9 +37,6 @@ impl SearchPage {
 
     pub fn on_enter(&mut self) {
         // todo
-        // for _ in 0..100 {
-        //     self.tracks.push(TrackId::default());
-        // }
     }
 
     pub fn on_render(
@@ -56,6 +53,7 @@ impl SearchPage {
             colors,
         );
 
+        // Update search results
         if self.is_dirty {
             self.is_dirty = false;
             self.matcher.update(self.input.as_str());
@@ -71,6 +69,7 @@ impl SearchPage {
                 .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
         }
 
+        // Render search results
         let area = Rect {
             y: area.y + 2,
             height: area.height.saturating_sub(2),
@@ -89,7 +88,6 @@ impl SearchPage {
             self.scroll -= height_diff;
         }
 
-        let mut buffer = itoa::Buffer::new();
         let mut line_area = Rect { height: 1, ..area };
 
         self.tracks
@@ -100,15 +98,8 @@ impl SearchPage {
             .skip(self.scroll)
             .take(height)
             .for_each(|(i, track)| {
-                self.line_buffer.extend([
-                    buffer.format(i + 1),
-                    " ",
-                    track.artist(),
-                    " ",
-                    track.album(),
-                    " ",
-                    track.title(),
-                ]);
+                self.line_buffer
+                    .extend([track.artist(), " ", track.album(), " ", track.title()]);
 
                 let style = if self.index == i {
                     Style::new().bg(colors.accent).fg(colors.on_accent)
@@ -139,8 +130,10 @@ impl SearchPage {
                 // jb.play(id);
             }
             _ => {
+                let hash_old = seahash::hash(self.input.as_str().as_bytes());
                 if self.input.input(key, modifiers) {
-                    self.is_dirty = true;
+                    let hash_new = seahash::hash(self.input.as_str().as_bytes());
+                    self.is_dirty = hash_old != hash_new;
                     self.events.send(AppEvent::Render);
                 }
             }
