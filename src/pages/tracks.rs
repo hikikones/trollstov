@@ -142,8 +142,8 @@ impl TracksPage {
                 }
 
                 Span::styled(&self.line_buffer, style).render(row_area, buf);
-                self.line_buffer.clear();
 
+                self.line_buffer.clear();
                 row_area.y += 1;
             });
     }
