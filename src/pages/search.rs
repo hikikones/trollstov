@@ -60,7 +60,7 @@ impl SearchPage {
             self.scroll = 0;
             self.tracks.clear();
 
-            if !self.input.is_empty() {
+            if !self.input.as_str().trim().is_empty() {
                 self.matcher.update(self.input.as_str());
                 self.tracks.extend(jb.iter().filter_map(|(id, track)| {
                     self.line_buffer.extend([
@@ -140,9 +140,9 @@ impl SearchPage {
                 // jb.play(id);
             }
             _ => {
-                let hash_old = seahash::hash(self.input.as_str().as_bytes());
+                let hash_old = seahash::hash(self.input.as_str().trim().as_bytes());
                 if self.input.input(key, modifiers) {
-                    let hash_new = seahash::hash(self.input.as_str().as_bytes());
+                    let hash_new = seahash::hash(self.input.as_str().trim().as_bytes());
                     self.is_dirty = hash_old != hash_new;
                     self.events.send(AppEvent::Render);
                 }
