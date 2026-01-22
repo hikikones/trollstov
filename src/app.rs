@@ -183,6 +183,17 @@ impl App {
                 MediaKeyCode::TrackPrevious => todo!(),
                 _ => None,
             },
+            KeyCode::Char(c) => match c {
+                '/' => {
+                    if self.route == Route::Search {
+                        Some(key)
+                    } else {
+                        self.events.send(AppEvent::Route(Route::Search));
+                        None
+                    }
+                }
+                _ => Some(key),
+            },
             _ => Some(key),
         };
 
