@@ -56,6 +56,8 @@ impl SearchPage {
         // Update search results
         if self.is_dirty {
             self.is_dirty = false;
+            self.index = 0;
+            self.scroll = 0;
             self.tracks.clear();
 
             if !self.input.is_empty() {
