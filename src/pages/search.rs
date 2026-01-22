@@ -14,7 +14,7 @@ pub struct SearchPage {
     index: usize,
     scroll: usize,
     input: TextInput,
-    tracks: Vec<(TrackId, u32)>,
+    tracks: Vec<(TrackId, u16)>,
     matcher: Matcher,
     is_dirty: bool,
     events: EventSender,
@@ -157,7 +157,7 @@ impl SearchPage {
 
 pub struct Matcher {
     matcher: nucleo_matcher::Matcher,
-    pattern: nucleo_matcher::pattern::Pattern,
+    atom: nucleo_matcher::pattern::Atom,
     buffer: Vec<char>,
 }
 
@@ -165,28 +165,29 @@ impl Matcher {
     pub fn new() -> Self {
         Self {
             matcher: nucleo_matcher::Matcher::new(nucleo_matcher::Config::DEFAULT),
-            pattern: nucleo_matcher::pattern::Pattern::new(
-                "",
-                nucleo_matcher::pattern::CaseMatching::Smart,
-                nucleo_matcher::pattern::Normalization::Smart,
-                nucleo_matcher::pattern::AtomKind::Fuzzy,
-            ),
+            atom: Self::create_atom(""),
             buffer: Vec::new(),
         }
     }
 
-    pub fn update(&mut self, pattern: &str) {
-        self.pattern.reparse(
-            pattern,
-            nucleo_matcher::pattern::CaseMatching::Smart,
-            nucleo_matcher::pattern::Normalization::Smart,
-        );
+    pub fn update(&mut self, needle: &str) {
+        self.atom = Self::create_atom(needle);
     }
 
-    pub fn score(&mut self, haystack: &str) -> Option<u32> {
-        self.pattern.score(
+    pub fn score(&mut self, haystack: &str) -> Option<u16> {
+        self.atom.score(
             nucleo_matcher::Utf32Str::new(haystack, &mut self.buffer),
             &mut self.matcher,
+        )
+    }
+
+    fn create_atom(needle: &str) -> nucleo_matcher::pattern::Atom {
+        nucleo_matcher::pattern::Atom::new(
+            needle,
+            nucleo_matcher::pattern::CaseMatching::Smart,
+            nucleo_matcher::pattern::Normalization::Smart,
+            nucleo_matcher::pattern::AtomKind::Fuzzy,
+            true,
         )
     }
 }
