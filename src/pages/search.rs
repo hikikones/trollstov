@@ -56,17 +56,25 @@ impl SearchPage {
         // Update search results
         if self.is_dirty {
             self.is_dirty = false;
-            self.matcher.update(self.input.as_str());
             self.tracks.clear();
-            self.tracks.extend(jb.iter().filter_map(|(id, track)| {
-                self.line_buffer
-                    .extend([track.artist(), " ", track.album(), " ", track.title()]);
-                let score = self.matcher.score(&self.line_buffer);
-                self.line_buffer.clear();
-                score.map(|score| (id, score))
-            }));
-            self.tracks
-                .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
+
+            if !self.input.is_empty() {
+                self.matcher.update(self.input.as_str());
+                self.tracks.extend(jb.iter().filter_map(|(id, track)| {
+                    self.line_buffer.extend([
+                        track.artist(),
+                        " ",
+                        track.album(),
+                        " ",
+                        track.title(),
+                    ]);
+                    let score = self.matcher.score(&self.line_buffer);
+                    self.line_buffer.clear();
+                    score.map(|score| (id, score))
+                }));
+                self.tracks
+                    .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
+            }
         }
 
         // Render search results
