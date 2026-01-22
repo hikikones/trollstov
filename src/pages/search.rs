@@ -13,12 +13,12 @@ use crate::{
 pub struct SearchPage {
     index: usize,
     scroll: usize,
-    input: TextInput,
-    tracks: Vec<(TrackId, u16)>,
+    search_input: TextInput,
+    search_results: Vec<(TrackId, u16)>,
     matcher: Matcher,
     is_dirty: bool,
     events: EventSender,
-    line_buffer: String,
+    buffer: String,
 }
 
 impl SearchPage {
@@ -26,12 +26,12 @@ impl SearchPage {
         Self {
             index: 0,
             scroll: 0,
-            input: TextInput::new().with_placeholder("search..."),
-            tracks: Vec::new(),
+            search_input: TextInput::new().with_placeholder("search..."),
+            search_results: Vec::new(),
             matcher: Matcher::new(),
             is_dirty: false,
             events,
-            line_buffer: String::new(),
+            buffer: String::new(),
         }
     }
 
@@ -47,7 +47,7 @@ impl SearchPage {
         colors: &Colors,
         menu: &mut Line,
     ) {
-        self.input.render(
+        self.search_input.render(
             area.centered_horizontally(Constraint::Percentage(60)),
             buf,
             colors,
@@ -58,23 +58,24 @@ impl SearchPage {
             self.is_dirty = false;
             self.index = 0;
             self.scroll = 0;
-            self.tracks.clear();
+            self.search_results.clear();
 
-            if !self.input.as_str().trim().is_empty() {
-                self.matcher.update(self.input.as_str());
-                self.tracks.extend(jb.iter().filter_map(|(id, track)| {
-                    self.line_buffer.extend([
-                        track.artist(),
-                        " ",
-                        track.album(),
-                        " ",
-                        track.title(),
-                    ]);
-                    let score = self.matcher.score(&self.line_buffer);
-                    self.line_buffer.clear();
-                    score.map(|score| (id, score))
-                }));
-                self.tracks
+            if !self.search_input.as_str().trim().is_empty() {
+                self.matcher.update(self.search_input.as_str());
+                self.search_results
+                    .extend(jb.iter().filter_map(|(id, track)| {
+                        self.buffer.extend([
+                            track.artist(),
+                            " ",
+                            track.album(),
+                            " ",
+                            track.title(),
+                        ]);
+                        let score = self.matcher.score(&self.buffer);
+                        self.buffer.clear();
+                        score.map(|score| (id, score))
+                    }));
+                self.search_results
                     .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
             }
         }
@@ -98,28 +99,32 @@ impl SearchPage {
             self.scroll -= height_diff;
         }
 
+        let current = jb.current();
         let mut line_area = Rect { height: 1, ..area };
 
-        self.tracks
+        self.search_results
             .iter()
             .copied()
-            .filter_map(|(id, _)| jb.get(id))
+            .filter_map(|(id, _)| jb.get(id).map(|track| (id, track)))
             .enumerate()
             .skip(self.scroll)
             .take(height)
-            .for_each(|(i, track)| {
-                self.line_buffer
+            .for_each(|(i, (id, track))| {
+                self.buffer
                     .extend([track.artist(), " ", track.album(), " ", track.title()]);
 
-                let style = if self.index == i {
-                    Style::new().bg(colors.accent).fg(colors.on_accent)
-                } else {
-                    Style::new()
-                };
+                let mut style = Style::new();
+                if self.index == i {
+                    style.bg = Some(colors.accent);
+                    style.fg = Some(colors.on_accent);
+                }
+                if current == Some(id) {
+                    style.add_modifier.insert(Modifier::BOLD);
+                }
 
-                Line::styled(&self.line_buffer, style).render(line_area, buf);
+                Line::styled(&self.buffer, style).render(line_area, buf);
 
-                self.line_buffer.clear();
+                self.buffer.clear();
                 line_area.y += 1;
             });
     }
@@ -127,7 +132,8 @@ impl SearchPage {
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
         match key {
             KeyCode::Down => {
-                self.index = usize::min(self.index + 1, self.tracks.len().saturating_sub(1));
+                self.index =
+                    usize::min(self.index + 1, self.search_results.len().saturating_sub(1));
                 self.events.send(AppEvent::Render);
             }
             KeyCode::Up => {
@@ -135,14 +141,14 @@ impl SearchPage {
                 self.events.send(AppEvent::Render);
             }
             KeyCode::Enter => {
-                // todo
-                // let id = jb.get_key_from_index(self.index).unwrap();
-                // jb.play(id);
+                if let Some((id, _)) = self.search_results.get(self.index).copied() {
+                    jb.play(id);
+                }
             }
             _ => {
-                let hash_old = seahash::hash(self.input.as_str().trim().as_bytes());
-                if self.input.input(key, modifiers) {
-                    let hash_new = seahash::hash(self.input.as_str().trim().as_bytes());
+                let hash_old = seahash::hash(self.search_input.as_str().trim().as_bytes());
+                if self.search_input.input(key, modifiers) {
+                    let hash_new = seahash::hash(self.search_input.as_str().trim().as_bytes());
                     self.is_dirty = hash_old != hash_new;
                     self.events.send(AppEvent::Render);
                 }

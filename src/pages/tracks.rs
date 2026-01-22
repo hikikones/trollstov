@@ -135,9 +135,7 @@ impl TracksPage {
                     style.bg = Some(colors.accent);
                     style.fg = Some(colors.on_accent);
                 }
-                if let Some(current) = current
-                    && current == id
-                {
+                if current == Some(id) {
                     style.add_modifier.insert(Modifier::BOLD);
                 }
 
