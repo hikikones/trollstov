@@ -135,15 +135,13 @@ impl TracksPage {
                     style.bg = Some(colors.accent);
                     style.fg = Some(colors.on_accent);
                 }
-                if let Some(current) = current
-                    && current == id
-                {
+                if current == Some(id) {
                     style.add_modifier.insert(Modifier::BOLD);
                 }
 
                 Span::styled(&self.line_buffer, style).render(row_area, buf);
-                self.line_buffer.clear();
 
+                self.line_buffer.clear();
                 row_area.y += 1;
             });
     }
