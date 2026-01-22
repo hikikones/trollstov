@@ -7,14 +7,16 @@ use crate::{
     app::Colors,
     editor::TextInput,
     events::{AppEvent, EventSender},
-    jukebox::{Jukebox, Track, TrackId},
+    jukebox::{Jukebox, TrackId},
 };
 
 pub struct SearchPage {
     index: usize,
     scroll: usize,
     input: TextInput,
-    tracks: Vec<TrackId>,
+    tracks: Vec<(TrackId, u32)>,
+    matcher: Matcher,
+    is_dirty: bool,
     events: EventSender,
     line_buffer: String,
 }
@@ -26,6 +28,8 @@ impl SearchPage {
             scroll: 0,
             input: TextInput::new().with_placeholder("search..."),
             tracks: Vec::new(),
+            matcher: Matcher::new(),
+            is_dirty: false,
             events,
             line_buffer: String::new(),
         }
@@ -33,9 +37,9 @@ impl SearchPage {
 
     pub fn on_enter(&mut self) {
         // todo
-        for _ in 0..100 {
-            self.tracks.push(TrackId::default());
-        }
+        // for _ in 0..100 {
+        //     self.tracks.push(TrackId::default());
+        // }
     }
 
     pub fn on_render(
@@ -51,6 +55,21 @@ impl SearchPage {
             buf,
             colors,
         );
+
+        if self.is_dirty {
+            self.is_dirty = false;
+            self.matcher.update(self.input.as_str());
+            self.tracks.clear();
+            self.tracks.extend(jb.iter().filter_map(|(id, track)| {
+                self.line_buffer
+                    .extend([track.artist(), " ", track.album(), " ", track.title()]);
+                let score = self.matcher.score(&self.line_buffer);
+                self.line_buffer.clear();
+                score.map(|score| (id, score))
+            }));
+            self.tracks
+                .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
+        }
 
         let area = Rect {
             y: area.y + 2,
@@ -76,7 +95,7 @@ impl SearchPage {
         self.tracks
             .iter()
             .copied()
-            .filter_map(|id| jb.get(id))
+            .filter_map(|(id, _)| jb.get(id))
             .enumerate()
             .skip(self.scroll)
             .take(height)
@@ -85,9 +104,9 @@ impl SearchPage {
                     buffer.format(i + 1),
                     " ",
                     track.artist(),
-                    " - ",
+                    " ",
                     track.album(),
-                    " - ",
+                    " ",
                     track.title(),
                 ]);
 
@@ -97,7 +116,7 @@ impl SearchPage {
                     Style::new()
                 };
 
-                Span::styled(&self.line_buffer, style).render(line_area, buf);
+                Line::styled(&self.line_buffer, style).render(line_area, buf);
 
                 self.line_buffer.clear();
                 line_area.y += 1;
@@ -121,6 +140,7 @@ impl SearchPage {
             }
             _ => {
                 if self.input.input(key, modifiers) {
+                    self.is_dirty = true;
                     self.events.send(AppEvent::Render);
                 }
             }
@@ -129,5 +149,41 @@ impl SearchPage {
 
     pub fn on_exit(&mut self) {
         // todo
+    }
+}
+
+pub struct Matcher {
+    matcher: nucleo_matcher::Matcher,
+    pattern: nucleo_matcher::pattern::Pattern,
+    buffer: Vec<char>,
+}
+
+impl Matcher {
+    pub fn new() -> Self {
+        Self {
+            matcher: nucleo_matcher::Matcher::new(nucleo_matcher::Config::DEFAULT),
+            pattern: nucleo_matcher::pattern::Pattern::new(
+                "",
+                nucleo_matcher::pattern::CaseMatching::Smart,
+                nucleo_matcher::pattern::Normalization::Smart,
+                nucleo_matcher::pattern::AtomKind::Fuzzy,
+            ),
+            buffer: Vec::new(),
+        }
+    }
+
+    pub fn update(&mut self, pattern: &str) {
+        self.pattern.reparse(
+            pattern,
+            nucleo_matcher::pattern::CaseMatching::Smart,
+            nucleo_matcher::pattern::Normalization::Smart,
+        );
+    }
+
+    pub fn score(&mut self, haystack: &str) -> Option<u32> {
+        self.pattern.score(
+            nucleo_matcher::Utf32Str::new(haystack, &mut self.buffer),
+            &mut self.matcher,
+        )
     }
 }
