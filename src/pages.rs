@@ -32,17 +32,17 @@ impl Pages {
 pub enum Route {
     #[default]
     Tracks,
-    Search,
     NowPlaying,
+    Search,
     Logs,
 }
 
 impl Route {
     pub const fn next(self) -> Self {
         match self {
-            Self::Tracks => Self::Search,
-            Self::Search => Self::NowPlaying,
-            Self::NowPlaying => Self::Logs,
+            Self::Tracks => Self::NowPlaying,
+            Self::NowPlaying => Self::Search,
+            Self::Search => Self::Logs,
             Self::Logs => Self::Tracks,
         }
     }
@@ -50,9 +50,9 @@ impl Route {
     pub const fn prev(self) -> Self {
         match self {
             Self::Tracks => Self::Logs,
-            Self::Search => Self::Tracks,
-            Self::NowPlaying => Self::Search,
-            Self::Logs => Self::NowPlaying,
+            Self::NowPlaying => Self::Tracks,
+            Self::Search => Self::NowPlaying,
+            Self::Logs => Self::Search,
         }
     }
 }
