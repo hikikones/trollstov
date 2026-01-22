@@ -1,15 +1,18 @@
 mod logs;
 mod playing;
+mod search;
 mod tracks;
 
 pub use logs::*;
 pub use playing::*;
+pub use search::*;
 pub use tracks::*;
 
 use crate::events::EventSender;
 
 pub struct Pages {
     pub tracks: TracksPage,
+    pub search: SearchPage,
     pub now_playing: NowPlayingPage,
     pub logs: LogsPage,
 }
@@ -18,6 +21,7 @@ impl Pages {
     pub fn new(picker: ratatui_image::picker::Picker, events: EventSender) -> Self {
         Self {
             tracks: TracksPage::new(events.clone()),
+            search: SearchPage::new(events.clone()),
             now_playing: NowPlayingPage::new(picker),
             logs: LogsPage::new(events),
         }
@@ -28,6 +32,7 @@ impl Pages {
 pub enum Route {
     #[default]
     Tracks,
+    Search,
     NowPlaying,
     Logs,
 }
@@ -35,7 +40,8 @@ pub enum Route {
 impl Route {
     pub const fn next(self) -> Self {
         match self {
-            Self::Tracks => Self::NowPlaying,
+            Self::Tracks => Self::Search,
+            Self::Search => Self::NowPlaying,
             Self::NowPlaying => Self::Logs,
             Self::Logs => Self::Tracks,
         }
@@ -44,7 +50,8 @@ impl Route {
     pub const fn prev(self) -> Self {
         match self {
             Self::Tracks => Self::Logs,
-            Self::NowPlaying => Self::Tracks,
+            Self::Search => Self::Tracks,
+            Self::NowPlaying => Self::Search,
             Self::Logs => Self::NowPlaying,
         }
     }
