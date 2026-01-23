@@ -55,7 +55,7 @@ impl TracksPage {
         let mut x = header_area.x;
         for (label, width, spacing) in [
             (
-                if sort == TrackSort::Title {
+                if sort == TrackSort::TitleAscending {
                     "Title⌄"
                 } else {
                     "Title"
@@ -64,7 +64,7 @@ impl TracksPage {
                 spacing,
             ),
             (
-                if sort == TrackSort::Artist {
+                if sort == TrackSort::ArtistAscending {
                     "Artist⌄"
                 } else {
                     "Artist"
@@ -73,7 +73,7 @@ impl TracksPage {
                 spacing,
             ),
             (
-                if sort == TrackSort::Album {
+                if sort == TrackSort::AlbumAscending {
                     "Album⌄"
                 } else {
                     "Album"
@@ -82,7 +82,7 @@ impl TracksPage {
                 spacing,
             ),
             (
-                if sort == TrackSort::Time {
+                if sort == TrackSort::TimeAscending {
                     "Time⌄"
                 } else {
                     "Time"
@@ -91,7 +91,7 @@ impl TracksPage {
                 spacing,
             ),
             (
-                if sort == TrackSort::Rating {
+                if sort == TrackSort::RatingAscending {
                     "Rating⌄"
                 } else {
                     "Rating"

@@ -400,42 +400,42 @@ impl Track {
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum TrackSort {
-    Title,
-    Artist,
+    TitleAscending,
+    ArtistAscending,
     #[default]
-    Album,
-    Time,
-    Rating,
+    AlbumAscending,
+    TimeAscending,
+    RatingAscending,
 }
 
 impl TrackSort {
     pub const fn next(self) -> Self {
         match self {
-            Self::Title => Self::Artist,
-            Self::Artist => Self::Album,
-            Self::Album => Self::Time,
-            Self::Time => Self::Rating,
-            Self::Rating => Self::Title,
+            Self::TitleAscending => Self::ArtistAscending,
+            Self::ArtistAscending => Self::AlbumAscending,
+            Self::AlbumAscending => Self::TimeAscending,
+            Self::TimeAscending => Self::RatingAscending,
+            Self::RatingAscending => Self::TitleAscending,
         }
     }
 
     pub const fn prev(self) -> Self {
         match self {
-            Self::Title => Self::Rating,
-            Self::Artist => Self::Title,
-            Self::Album => Self::Artist,
-            Self::Time => Self::Album,
-            Self::Rating => Self::Time,
+            Self::TitleAscending => Self::RatingAscending,
+            Self::ArtistAscending => Self::TitleAscending,
+            Self::AlbumAscending => Self::ArtistAscending,
+            Self::TimeAscending => Self::AlbumAscending,
+            Self::RatingAscending => Self::TimeAscending,
         }
     }
 
     fn cmp(self, track1: &Track, track2: &Track) -> Ordering {
         match self {
-            Self::Title => track1.title().cmp(track2.title()),
-            Self::Artist => track1.artist().cmp(track2.artist()),
-            Self::Album => track1.album().cmp(track2.album()),
-            Self::Time => track1.duration_display().cmp(track2.duration_display()),
-            Self::Rating => {
+            Self::TitleAscending => track1.title().cmp(track2.title()),
+            Self::ArtistAscending => track1.artist().cmp(track2.artist()),
+            Self::AlbumAscending => track1.album().cmp(track2.album()),
+            Self::TimeAscending => track1.duration_display().cmp(track2.duration_display()),
+            Self::RatingAscending => {
                 let r1 = track1.rating().map(|r| r as u8).unwrap_or(0);
                 let r2 = track2.rating().map(|r| r as u8).unwrap_or(0);
                 r2.cmp(&r1)
