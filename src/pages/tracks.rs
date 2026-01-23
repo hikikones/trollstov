@@ -197,7 +197,7 @@ impl TracksPage {
             });
     }
 
-    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) {
+    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
         match key {
             KeyCode::Down => {
                 self.index = usize::min(self.index + 1, jb.len().saturating_sub(1));
@@ -218,7 +218,12 @@ impl TracksPage {
                     jb.set_rating(id, rating);
                 }
                 's' => {
-                    jb.sort(jb.get_sort().next());
+                    let ctrl = modifiers.contains(KeyModifiers::CONTROL);
+                    if ctrl {
+                        jb.sort(jb.get_sort().prev());
+                    } else {
+                        jb.sort(jb.get_sort().next());
+                    }
                     self.events.send(AppEvent::Render);
                 }
                 _ => {}
