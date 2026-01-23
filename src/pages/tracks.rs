@@ -55,8 +55,10 @@ impl TracksPage {
         let mut x = header_area.x;
         for (label, width, spacing) in [
             (
-                if sort == TrackSort::Title {
+                if sort == TrackSort::TitleAscending {
                     "Title⌄"
+                } else if sort == TrackSort::TitleDescending {
+                    "Title⌃"
                 } else {
                     "Title"
                 },
@@ -64,8 +66,10 @@ impl TracksPage {
                 spacing,
             ),
             (
-                if sort == TrackSort::Artist {
+                if sort == TrackSort::ArtistAscending {
                     "Artist⌄"
+                } else if sort == TrackSort::ArtistDescending {
+                    "Artist⌃"
                 } else {
                     "Artist"
                 },
@@ -73,8 +77,10 @@ impl TracksPage {
                 spacing,
             ),
             (
-                if sort == TrackSort::Album {
+                if sort == TrackSort::AlbumAscending {
                     "Album⌄"
+                } else if sort == TrackSort::AlbumDescending {
+                    "Album⌃"
                 } else {
                     "Album"
                 },
@@ -82,8 +88,10 @@ impl TracksPage {
                 spacing,
             ),
             (
-                if sort == TrackSort::Time {
+                if sort == TrackSort::TimeAscending {
                     "Time⌄"
+                } else if sort == TrackSort::TimeDescending {
+                    "Time⌃"
                 } else {
                     "Time"
                 },
@@ -91,8 +99,10 @@ impl TracksPage {
                 spacing,
             ),
             (
-                if sort == TrackSort::Rating {
+                if sort == TrackSort::RatingAscending {
                     "Rating⌄"
+                } else if sort == TrackSort::RatingDescending {
+                    "Rating⌃"
                 } else {
                     "Rating"
                 },
@@ -187,7 +197,7 @@ impl TracksPage {
             });
     }
 
-    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) {
+    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
         match key {
             KeyCode::Down => {
                 self.index = usize::min(self.index + 1, jb.len().saturating_sub(1));
@@ -208,7 +218,13 @@ impl TracksPage {
                     jb.set_rating(id, rating);
                 }
                 's' => {
-                    jb.sort(jb.get_sort().next());
+                    let ctrl = modifiers.contains(KeyModifiers::CONTROL);
+                    let current_sort = jb.get_sort();
+                    if ctrl {
+                        jb.sort(current_sort.prev());
+                    } else {
+                        jb.sort(current_sort.next());
+                    }
                     self.events.send(AppEvent::Render);
                 }
                 _ => {}
