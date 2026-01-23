@@ -30,6 +30,8 @@ pub struct App {
     playing_status_line: Line<'static>,
     playing_current_duration: String,
     playing_total_duration: String,
+    shortcuts_app: utils::Shortcuts<'static>,
+    shortcuts_page: utils::Shortcuts<'static>,
 }
 
 pub struct Colors {
@@ -67,6 +69,16 @@ impl App {
         let colors = Colors::new();
         let title_line = Line::styled("jukebox", Style::new().fg(colors.neutral)).centered();
 
+        let mut shortcuts_app = utils::Shortcuts::new(colors.neutral, colors.accent);
+        shortcuts_app.extend([
+            utils::Shortcut::new("Quit", "Esc"),
+            utils::Shortcut::new("Navigate", "(⇧)Tab"),
+            utils::Shortcut::new("Play/Pause", "^￪"),
+            utils::Shortcut::new("Next/Prev", "^⇆"),
+            utils::Shortcut::new("Stop", "^￬"),
+        ]);
+        let shortcuts_page = utils::Shortcuts::new(Color::Reset, colors.accent);
+
         Self {
             running: true,
             pages,
@@ -82,6 +94,8 @@ impl App {
             playing_status_line: Line::default().centered(),
             playing_current_duration: String::with_capacity(5),
             playing_total_duration: String::from("00:00"),
+            shortcuts_app,
+            shortcuts_page,
         }
     }
 
@@ -277,14 +291,20 @@ impl App {
                 nav_area,
                 menu_area,
                 body_area,
+                shortcuts_page_area,
+                _,
                 playing_title_area,
                 playing_status_area,
+                shortcuts_app_area,
             ] = Layout::vertical([
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Fill(0),
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
             ])
@@ -317,7 +337,7 @@ impl App {
 
             // Body
             const MAX_WIDTH: u16 = 128;
-            const MARGIN: u16 = 2;
+            const MARGIN: u16 = 1;
             let body = body_area
                 .centered_horizontally(Constraint::Length(MAX_WIDTH + MARGIN))
                 .inner(Margin::new(MARGIN, MARGIN));
@@ -329,6 +349,7 @@ impl App {
                         &self.jukebox,
                         &self.colors,
                         &mut self.menu_line,
+                        &mut self.shortcuts_page,
                     );
                 }
                 Route::NowPlaying => {
@@ -349,6 +370,8 @@ impl App {
                     self.pages.logs.on_render(body, buf, &self.colors);
                 }
             }
+            self.shortcuts_page.render(shortcuts_page_area, buf);
+            self.shortcuts_page.clear();
 
             // Menu
             (&self.menu_line).render(menu_area, buf);
@@ -458,6 +481,9 @@ impl App {
                 },
                 buf,
             );
+
+            // Shortcuts
+            self.shortcuts_app.render(shortcuts_app_area, buf);
         })
     }
 }
