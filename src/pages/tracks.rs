@@ -219,10 +219,11 @@ impl TracksPage {
                 }
                 's' => {
                     let ctrl = modifiers.contains(KeyModifiers::CONTROL);
+                    let current_sort = jb.get_sort();
                     if ctrl {
-                        jb.sort(jb.get_sort().prev());
+                        jb.sort(current_sort.prev());
                     } else {
-                        jb.sort(jb.get_sort().next());
+                        jb.sort(current_sort.next());
                     }
                     self.events.send(AppEvent::Render);
                 }
