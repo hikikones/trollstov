@@ -95,7 +95,7 @@ impl AudioFile {
                     match rating {
                         Some(rating) => {
                             id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
-                                String::new(),
+                                String::new(), // todo add no@email here?
                                 rating.into_id3v2(),
                                 0,
                             )));
