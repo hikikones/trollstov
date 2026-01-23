@@ -401,43 +401,67 @@ impl Track {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum TrackSort {
     TitleAscending,
+    TitleDescending,
     ArtistAscending,
+    ArtistDescending,
     #[default]
     AlbumAscending,
+    AlbumDescending,
     TimeAscending,
+    TimeDescending,
     RatingAscending,
+    RatingDescending,
 }
 
 impl TrackSort {
     pub const fn next(self) -> Self {
         match self {
-            Self::TitleAscending => Self::ArtistAscending,
-            Self::ArtistAscending => Self::AlbumAscending,
-            Self::AlbumAscending => Self::TimeAscending,
-            Self::TimeAscending => Self::RatingAscending,
-            Self::RatingAscending => Self::TitleAscending,
+            Self::TitleAscending => Self::TitleDescending,
+            Self::TitleDescending => Self::ArtistAscending,
+            Self::ArtistAscending => Self::ArtistDescending,
+            Self::ArtistDescending => Self::AlbumAscending,
+            Self::AlbumAscending => Self::AlbumDescending,
+            Self::AlbumDescending => Self::TimeAscending,
+            Self::TimeAscending => Self::TimeDescending,
+            Self::TimeDescending => Self::RatingAscending,
+            Self::RatingAscending => Self::RatingDescending,
+            Self::RatingDescending => Self::TitleAscending,
         }
     }
 
     pub const fn prev(self) -> Self {
         match self {
-            Self::TitleAscending => Self::RatingAscending,
-            Self::ArtistAscending => Self::TitleAscending,
-            Self::AlbumAscending => Self::ArtistAscending,
-            Self::TimeAscending => Self::AlbumAscending,
-            Self::RatingAscending => Self::TimeAscending,
+            Self::TitleAscending => Self::RatingDescending,
+            Self::TitleDescending => Self::TitleAscending,
+            Self::ArtistAscending => Self::TitleDescending,
+            Self::ArtistDescending => Self::ArtistAscending,
+            Self::AlbumAscending => Self::ArtistDescending,
+            Self::AlbumDescending => Self::AlbumAscending,
+            Self::TimeAscending => Self::AlbumDescending,
+            Self::TimeDescending => Self::TimeAscending,
+            Self::RatingAscending => Self::TimeDescending,
+            Self::RatingDescending => Self::RatingAscending,
         }
     }
 
-    fn cmp(self, track1: &Track, track2: &Track) -> Ordering {
+    fn cmp(self, t1: &Track, t2: &Track) -> Ordering {
         match self {
-            Self::TitleAscending => track1.title().cmp(track2.title()),
-            Self::ArtistAscending => track1.artist().cmp(track2.artist()),
-            Self::AlbumAscending => track1.album().cmp(track2.album()),
-            Self::TimeAscending => track1.duration_display().cmp(track2.duration_display()),
+            Self::TitleAscending => t1.title().cmp(t2.title()),
+            Self::TitleDescending => t2.title().cmp(t1.title()),
+            Self::ArtistAscending => t1.artist().cmp(t2.artist()),
+            Self::ArtistDescending => t2.artist().cmp(t1.artist()),
+            Self::AlbumAscending => t1.album().cmp(t2.album()),
+            Self::AlbumDescending => t2.album().cmp(t1.album()),
+            Self::TimeAscending => t1.duration_display().cmp(t2.duration_display()),
+            Self::TimeDescending => t2.duration_display().cmp(t1.duration_display()),
             Self::RatingAscending => {
-                let r1 = track1.rating().map(|r| r as u8).unwrap_or(0);
-                let r2 = track2.rating().map(|r| r as u8).unwrap_or(0);
+                let r1 = t1.rating().map(|r| r as u8).unwrap_or(0);
+                let r2 = t2.rating().map(|r| r as u8).unwrap_or(0);
+                r1.cmp(&r2)
+            }
+            Self::RatingDescending => {
+                let r1 = t1.rating().map(|r| r as u8).unwrap_or(0);
+                let r2 = t2.rating().map(|r| r as u8).unwrap_or(0);
                 r2.cmp(&r1)
             }
         }
