@@ -57,6 +57,8 @@ impl TracksPage {
             (
                 if sort == TrackSort::TitleAscending {
                     "Title⌄"
+                } else if sort == TrackSort::TitleDescending {
+                    "Title⌃"
                 } else {
                     "Title"
                 },
@@ -66,6 +68,8 @@ impl TracksPage {
             (
                 if sort == TrackSort::ArtistAscending {
                     "Artist⌄"
+                } else if sort == TrackSort::ArtistDescending {
+                    "Artist⌃"
                 } else {
                     "Artist"
                 },
@@ -75,6 +79,8 @@ impl TracksPage {
             (
                 if sort == TrackSort::AlbumAscending {
                     "Album⌄"
+                } else if sort == TrackSort::AlbumDescending {
+                    "Album⌃"
                 } else {
                     "Album"
                 },
@@ -84,6 +90,8 @@ impl TracksPage {
             (
                 if sort == TrackSort::TimeAscending {
                     "Time⌄"
+                } else if sort == TrackSort::TimeDescending {
+                    "Time⌃"
                 } else {
                     "Time"
                 },
@@ -93,6 +101,8 @@ impl TracksPage {
             (
                 if sort == TrackSort::RatingAscending {
                     "Rating⌄"
+                } else if sort == TrackSort::RatingDescending {
+                    "Rating⌃"
                 } else {
                     "Rating"
                 },
