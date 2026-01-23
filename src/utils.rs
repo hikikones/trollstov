@@ -101,14 +101,16 @@ impl<'a> Shortcut<'a> {
 }
 
 pub struct Shortcuts<'a> {
-    color: Color,
+    name_color: Color,
+    key_color: Color,
     line: Line<'a>,
 }
 
 impl<'a> Shortcuts<'a> {
-    pub fn new(color: Color) -> Self {
+    pub fn new(name_color: Color, key_color: Color) -> Self {
         Self {
-            color,
+            name_color,
+            key_color,
             line: Line::default().centered(),
         }
     }
@@ -116,15 +118,15 @@ impl<'a> Shortcuts<'a> {
     pub fn push(&mut self, shortcut: Shortcut<'a>) {
         let spans = [
             Span::raw(" "),
-            Span::styled(shortcut.key, self.color),
+            Span::styled(shortcut.key, self.key_color),
             Span::raw(" "),
-            Span::raw(shortcut.name),
+            Span::styled(shortcut.name, self.name_color),
             Span::raw(" "),
         ];
         self.line.spans.extend(spans);
     }
 
-    pub fn extend(&mut self, shortcuts: impl Iterator<Item = Shortcut<'a>>) {
+    pub fn extend(&mut self, shortcuts: impl IntoIterator<Item = Shortcut<'a>>) {
         for shortcut in shortcuts {
             self.push(shortcut);
         }

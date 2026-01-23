@@ -10,6 +10,7 @@ use crate::{
     audio::AudioRating,
     events::{AppEvent, EventSender},
     jukebox::{Jukebox, TrackSort},
+    utils,
 };
 
 pub struct TracksPage {
@@ -40,6 +41,7 @@ impl TracksPage {
         jb: &Jukebox,
         colors: &Colors,
         menu: &mut Line,
+        shortcuts: &mut utils::Shortcuts,
     ) {
         let spacing = 2;
         let time_width = 6 + spacing;
@@ -195,9 +197,12 @@ impl TracksPage {
                 self.line_buffer.clear();
                 row_area.y += 1;
             });
+
+        // Shortcuts
+        shortcuts.extend([utils::Shortcut::new("sort", "(⇧)s")]);
     }
 
-    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) {
         match key {
             KeyCode::Down => {
                 self.index = usize::min(self.index + 1, jb.len().saturating_sub(1));
@@ -218,13 +223,11 @@ impl TracksPage {
                     jb.set_rating(id, rating);
                 }
                 's' => {
-                    let ctrl = modifiers.contains(KeyModifiers::CONTROL);
-                    let current_sort = jb.get_sort();
-                    if ctrl {
-                        jb.sort(current_sort.prev());
-                    } else {
-                        jb.sort(current_sort.next());
-                    }
+                    jb.sort(jb.get_sort().next());
+                    self.events.send(AppEvent::Render);
+                }
+                'S' => {
+                    jb.sort(jb.get_sort().prev());
                     self.events.send(AppEvent::Render);
                 }
                 _ => {}
