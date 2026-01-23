@@ -267,12 +267,13 @@ impl AudioMetadata {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum AudioRating {
-    Awful,
-    Bad,
-    Ok,
-    Good,
-    Amazing,
+    Awful = 1,
+    Bad = 2,
+    Ok = 3,
+    Good = 4,
+    Amazing = 5,
 }
 
 impl AudioRating {

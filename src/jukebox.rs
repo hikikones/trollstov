@@ -405,6 +405,7 @@ pub enum TrackSort {
     #[default]
     Album,
     Time,
+    Rating,
 }
 
 impl TrackSort {
@@ -413,25 +414,32 @@ impl TrackSort {
             Self::Title => Self::Artist,
             Self::Artist => Self::Album,
             Self::Album => Self::Time,
-            Self::Time => Self::Title,
+            Self::Time => Self::Rating,
+            Self::Rating => Self::Title,
         }
     }
 
     pub const fn prev(self) -> Self {
         match self {
-            Self::Title => Self::Time,
+            Self::Title => Self::Rating,
             Self::Artist => Self::Title,
             Self::Album => Self::Artist,
             Self::Time => Self::Album,
+            Self::Rating => Self::Time,
         }
     }
 
     fn cmp(self, track1: &Track, track2: &Track) -> Ordering {
         match self {
-            TrackSort::Title => track1.title().cmp(track2.title()),
-            TrackSort::Artist => track1.artist().cmp(track2.artist()),
-            TrackSort::Album => track1.album().cmp(track2.album()),
-            TrackSort::Time => track1.duration_display().cmp(track2.duration_display()),
+            Self::Title => track1.title().cmp(track2.title()),
+            Self::Artist => track1.artist().cmp(track2.artist()),
+            Self::Album => track1.album().cmp(track2.album()),
+            Self::Time => track1.duration_display().cmp(track2.duration_display()),
+            Self::Rating => {
+                let r1 = track1.rating().map(|r| r as u8).unwrap_or(0);
+                let r2 = track2.rating().map(|r| r as u8).unwrap_or(0);
+                r2.cmp(&r1)
+            }
         }
     }
 }
