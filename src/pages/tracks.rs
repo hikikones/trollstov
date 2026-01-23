@@ -9,7 +9,7 @@ use crate::{
     app::Colors,
     audio::AudioRating,
     events::{AppEvent, EventSender},
-    jukebox::Jukebox,
+    jukebox::{Jukebox, TrackSort},
 };
 
 pub struct TracksPage {
@@ -43,7 +43,7 @@ impl TracksPage {
     ) {
         let spacing = 2;
         let time_width = 6 + spacing;
-        let rating_width = 6;
+        let rating_width = 7;
         let remaining_width = area.width.saturating_sub(time_width + rating_width);
         let info_width = remaining_width / 3;
 
@@ -51,13 +51,54 @@ impl TracksPage {
             Layout::vertical([Constraint::Length(1), Constraint::Fill(0)]).areas(area);
 
         // Render the header for the table
+        let sort = jb.get_sort();
         let mut x = header_area.x;
         for (label, width, spacing) in [
-            ("Title", info_width, spacing),
-            ("Artist", info_width, spacing),
-            ("Album", info_width, spacing),
-            ("Time", time_width, spacing),
-            ("Rating", rating_width, 0),
+            (
+                if sort == TrackSort::Title {
+                    "Title⌄"
+                } else {
+                    "Title"
+                },
+                info_width,
+                spacing,
+            ),
+            (
+                if sort == TrackSort::Artist {
+                    "Artist⌄"
+                } else {
+                    "Artist"
+                },
+                info_width,
+                spacing,
+            ),
+            (
+                if sort == TrackSort::Album {
+                    "Album⌄"
+                } else {
+                    "Album"
+                },
+                info_width,
+                spacing,
+            ),
+            (
+                if sort == TrackSort::Time {
+                    "Time⌄"
+                } else {
+                    "Time"
+                },
+                time_width,
+                spacing,
+            ),
+            (
+                if sort == TrackSort::Rating {
+                    "Rating⌄"
+                } else {
+                    "Rating"
+                },
+                rating_width,
+                0,
+            ),
         ] {
             let col = Rect {
                 width: width.saturating_sub(spacing),

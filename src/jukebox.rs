@@ -398,7 +398,7 @@ impl Track {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum TrackSort {
     Title,
     Artist,
