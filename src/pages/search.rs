@@ -99,7 +99,7 @@ impl SearchPage {
             self.scroll -= height_diff;
         }
 
-        let current = jb.current();
+        let current = jb.current_track();
         let mut line_area = Rect { height: 1, ..area };
 
         self.search_results

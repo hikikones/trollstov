@@ -403,13 +403,13 @@ impl App {
             self.menu_line.spans.clear();
 
             // Playing
-            if self.current != self.jukebox.current() {
+            if self.current != self.jukebox.current_track() {
                 // Update currently playing
-                self.current = self.jukebox.current();
+                self.current = self.jukebox.current_track();
                 self.playing_title.clear();
                 self.playing_total_duration.clear();
 
-                match self.jukebox.current() {
+                match self.jukebox.current_track() {
                     Some(id) => {
                         let track = self.jukebox.get(id).unwrap();
                         self.playing_title.push_str(track.artist());
@@ -435,10 +435,10 @@ impl App {
 
             self.playing_status_line.spans.clear();
 
-            match self.jukebox.current() {
+            match self.jukebox.current_track() {
                 Some(id) => {
                     let track = self.jukebox.get(id).unwrap();
-                    let current_duration = self.jukebox.pos();
+                    let current_duration = self.jukebox.current_audio_position();
                     let total_duration = track.duration();
 
                     self.playing_current_duration.clear();

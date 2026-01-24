@@ -139,7 +139,7 @@ impl TracksPage {
             height: 1,
             ..table_area
         };
-        let current = jb.current();
+        let current = jb.current_track();
         self.line_buffer.reserve(table_area.width as usize);
 
         jb.iter()
@@ -217,21 +217,21 @@ impl TracksPage {
                 self.events.send(AppEvent::Render);
             }
             KeyCode::Enter => {
-                let id = jb.get_key_from_index(self.index).unwrap();
+                let id = jb.get_id_from_index(self.index).unwrap();
                 jb.play(id);
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
-                    let id = jb.get_key_from_index(self.index).unwrap();
+                    let id = jb.get_id_from_index(self.index).unwrap();
                     let rating = AudioRating::from_char(c).unwrap();
                     jb.set_rating(id, rating);
                 }
                 'q' => {
-                    let id = jb.get_key_from_index(self.index).unwrap();
+                    let id = jb.get_id_from_index(self.index).unwrap();
                     jb.enqueue_back(id);
                 }
                 'n' => {
-                    let id = jb.get_key_from_index(self.index).unwrap();
+                    let id = jb.get_id_from_index(self.index).unwrap();
                     jb.enqueue_front(id);
                 }
                 's' => {
