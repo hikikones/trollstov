@@ -25,11 +25,13 @@ pub struct Jukebox {
     current: Option<TrackId>,
     stopped: Option<TrackId>,
     queue: VecDeque<TrackId>,
+    history: Vec<TrackId>,
     events: EventSender,
     audio_file_receiver:
         Option<mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileError>>>,
-    audio_play_handle:
-        Option<std::thread::JoinHandle<Result<(TrackId, Decoder<BufReader<File>>), JukeboxError>>>,
+    audio_play_handle: Option<
+        std::thread::JoinHandle<Result<(TrackId, Decoder<BufReader<File>>, bool), JukeboxError>>,
+    >,
     audio_write_handle:
         Option<std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileError>>>,
     sink: rodio::Sink,
@@ -49,6 +51,7 @@ impl Jukebox {
             current: None,
             stopped: None,
             queue: VecDeque::new(),
+            history: Vec::new(),
             events,
             audio_file_receiver: None,
             audio_play_handle: None,
@@ -217,7 +220,10 @@ impl Jukebox {
         if let Some(handle) = self.audio_play_handle.take() {
             if handle.is_finished() {
                 match handle.join().unwrap() {
-                    Ok((id, source)) => {
+                    Ok((id, source, add_to_history)) => {
+                        if add_to_history && let Some(current_id) = self.current {
+                            self.history.push(current_id);
+                        }
                         self.sink.clear();
                         self.sink.append(source);
                         self.sink.play();
@@ -260,7 +266,7 @@ impl Jukebox {
         }
     }
 
-    pub fn play(&mut self, id: TrackId) {
+    fn inner_play(&mut self, id: TrackId, add_to_history: bool) {
         let track = self.tracks.get(&id).unwrap();
         let path = track.path().to_path_buf();
 
@@ -268,9 +274,13 @@ impl Jukebox {
             let file = File::open(path)?;
             let buffer = BufReader::new(file);
             let source = Decoder::new(buffer)?;
-            Ok((id, source))
+            Ok((id, source, add_to_history))
         });
         self.audio_play_handle = Some(handle);
+    }
+
+    pub fn play(&mut self, id: TrackId) {
+        self.inner_play(id, true);
     }
 
     pub fn pause_or_play(&mut self) {
@@ -311,7 +321,9 @@ impl Jukebox {
     }
 
     pub fn play_previous(&mut self) {
-        todo!()
+        if let Some(id) = self.history.pop() {
+            self.inner_play(id, false);
+        }
     }
 
     pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
