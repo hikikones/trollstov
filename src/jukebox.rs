@@ -221,9 +221,16 @@ impl Jukebox {
             if handle.is_finished() {
                 match handle.join().unwrap() {
                     Ok((id, source, add_to_history)) => {
-                        if add_to_history && let Some(current_id) = self.current {
-                            self.history.push(current_id);
+                        if let Some(current_id) = self.current() {
+                            if add_to_history {
+                                // New track, add to history
+                                self.history.push(current_id);
+                            } else {
+                                // Playing previous, enqueue current so we remember
+                                self.queue.push_front(current_id);
+                            }
                         }
+
                         self.sink.clear();
                         self.sink.append(source);
                         self.sink.play();
@@ -266,7 +273,11 @@ impl Jukebox {
         }
     }
 
-    fn inner_play(&mut self, id: TrackId, add_to_history: bool) {
+    pub fn play(&mut self, id: TrackId) {
+        self.play_inner(id, true);
+    }
+
+    fn play_inner(&mut self, id: TrackId, add_to_history: bool) {
         let track = self.tracks.get(&id).unwrap();
         let path = track.path().to_path_buf();
 
@@ -277,10 +288,6 @@ impl Jukebox {
             Ok((id, source, add_to_history))
         });
         self.audio_play_handle = Some(handle);
-    }
-
-    pub fn play(&mut self, id: TrackId) {
-        self.inner_play(id, true);
     }
 
     pub fn pause_or_play(&mut self) {
@@ -322,7 +329,7 @@ impl Jukebox {
 
     pub fn play_previous(&mut self) {
         if let Some(id) = self.history.pop() {
-            self.inner_play(id, false);
+            self.play_inner(id, false);
         }
     }
 
