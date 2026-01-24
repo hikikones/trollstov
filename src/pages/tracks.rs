@@ -199,7 +199,11 @@ impl TracksPage {
             });
 
         // Shortcuts
-        shortcuts.extend([utils::Shortcut::new("sort", "(⇧)s")]);
+        shortcuts.extend([
+            utils::Shortcut::new("Add to queue", "q"),
+            utils::Shortcut::new("Play next", "n"),
+            utils::Shortcut::new("Sort", "(⇧)s"),
+        ]);
     }
 
     pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) {
@@ -221,6 +225,14 @@ impl TracksPage {
                     let id = jb.get_key_from_index(self.index).unwrap();
                     let rating = AudioRating::from_char(c).unwrap();
                     jb.set_rating(id, rating);
+                }
+                'q' => {
+                    let id = jb.get_key_from_index(self.index).unwrap();
+                    jb.enqueue_back(id);
+                }
+                'n' => {
+                    let id = jb.get_key_from_index(self.index).unwrap();
+                    jb.enqueue_front(id);
                 }
                 's' => {
                     jb.sort(jb.get_sort().next());

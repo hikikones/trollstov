@@ -1,5 +1,6 @@
 use std::{
     cmp::Ordering,
+    collections::VecDeque,
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
@@ -23,6 +24,7 @@ pub struct Jukebox {
     sort: TrackSort,
     current: Option<TrackId>,
     stopped: Option<TrackId>,
+    queue: VecDeque<TrackId>,
     events: EventSender,
     audio_file_receiver:
         Option<mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileError>>>,
@@ -46,6 +48,7 @@ impl Jukebox {
             sort: TrackSort::default(),
             current: None,
             stopped: None,
+            queue: VecDeque::new(),
             events,
             audio_file_receiver: None,
             audio_play_handle: None,
@@ -124,6 +127,28 @@ impl Jukebox {
 
     pub fn pos(&self) -> Duration {
         self.sink.get_pos()
+    }
+
+    pub fn is_queue_empty(&self) -> bool {
+        self.queue.is_empty()
+    }
+
+    pub fn queue_len(&self) -> usize {
+        self.queue.len()
+    }
+
+    pub fn queue_iter(&self) -> impl Iterator<Item = (TrackId, &Track)> {
+        self.queue
+            .iter()
+            .filter_map(|id| self.tracks.get(id).map(|track| (*id, track)))
+    }
+
+    pub fn enqueue_front(&mut self, id: TrackId) {
+        self.queue.push_front(id);
+    }
+
+    pub fn enqueue_back(&mut self, id: TrackId) {
+        self.queue.push_back(id);
     }
 
     pub fn update(&mut self) {
