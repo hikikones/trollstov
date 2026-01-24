@@ -6,7 +6,8 @@ use ratatui::{
 use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
-    jukebox::{Jukebox, TrackId},
+    jukebox::Jukebox,
+    utils,
 };
 
 pub struct QueuePage {
@@ -38,6 +39,23 @@ impl QueuePage {
         colors: &Colors,
         menu: &mut Line,
     ) {
+        if jb.is_queue_empty() {
+            const EMPTY_QUEUE: &str = "No tracks in the queue";
+            Span::styled(EMPTY_QUEUE, Style::new().fg(colors.neutral)).render(
+                utils::align(
+                    Rect {
+                        width: EMPTY_QUEUE.len() as u16,
+                        height: 1,
+                        ..area
+                    },
+                    area,
+                    utils::Alignment::CenterHorizontal,
+                ),
+                buf,
+            );
+            return;
+        }
+
         let height = area.height as usize;
         if self.index > self.scroll {
             let height_diff = self.index - self.scroll;
@@ -56,7 +74,7 @@ impl QueuePage {
             .enumerate()
             .skip(self.scroll)
             .take(height)
-            .for_each(|(i, (id, track))| {
+            .for_each(|(i, (_id, track))| {
                 self.buffer
                     .extend([track.title(), " ", track.artist(), " ", track.album()]);
 
@@ -73,7 +91,7 @@ impl QueuePage {
             });
     }
 
-    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) {
         match key {
             KeyCode::Down => {
                 self.index = usize::min(self.index + 1, jb.queue_len().saturating_sub(1));
@@ -82,11 +100,6 @@ impl QueuePage {
             KeyCode::Up => {
                 self.index = self.index.saturating_sub(1);
                 self.events.send(AppEvent::Render);
-            }
-            KeyCode::Enter => {
-                // if let Some((id, _)) = self.search_results.get(self.index).copied() {
-                //     jb.play(id);
-                // }
             }
             _ => {}
         }

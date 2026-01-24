@@ -8,6 +8,7 @@ use crate::{
     editor::TextInput,
     events::{AppEvent, EventSender},
     jukebox::{Jukebox, TrackId},
+    utils,
 };
 
 pub struct SearchPage {
@@ -47,6 +48,23 @@ impl SearchPage {
         colors: &Colors,
         menu: &mut Line,
     ) {
+        if jb.is_empty() {
+            const NO_TRACKS: &str = "No tracks to search for";
+            Span::styled(NO_TRACKS, Style::new().fg(colors.neutral)).render(
+                utils::align(
+                    Rect {
+                        width: NO_TRACKS.len() as u16,
+                        height: 1,
+                        ..area
+                    },
+                    area,
+                    utils::Alignment::CenterHorizontal,
+                ),
+                buf,
+            );
+            return;
+        }
+
         self.search_input.render(
             area.centered_horizontally(Constraint::Percentage(60)),
             buf,

@@ -43,6 +43,23 @@ impl TracksPage {
         menu: &mut Line,
         shortcuts: &mut utils::Shortcuts,
     ) {
+        if jb.is_empty() {
+            const NO_TRACKS: &str = "No tracks to be found";
+            Span::styled(NO_TRACKS, Style::new().fg(colors.neutral)).render(
+                utils::align(
+                    Rect {
+                        width: NO_TRACKS.len() as u16,
+                        height: 1,
+                        ..area
+                    },
+                    area,
+                    utils::Alignment::CenterHorizontal,
+                ),
+                buf,
+            );
+            return;
+        }
+
         let spacing = 2;
         let time_width = 6 + spacing;
         let rating_width = 7;
@@ -200,9 +217,9 @@ impl TracksPage {
 
         // Shortcuts
         shortcuts.extend([
+            utils::Shortcut::new("Sort", "(⇧)s"),
             utils::Shortcut::new("Add to queue", "q"),
             utils::Shortcut::new("Play next", "n"),
-            utils::Shortcut::new("Sort", "(⇧)s"),
         ]);
     }
 
