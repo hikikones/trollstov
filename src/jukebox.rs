@@ -297,8 +297,17 @@ impl Jukebox {
     }
 
     pub fn play_next(&mut self) {
-        let next_id = fastrand::u64(0..self.tracks.len() as u64);
-        self.play(TrackId(next_id));
+        match self.queue.pop_front() {
+            Some(id) => {
+                // Play next track in queue
+                self.play(id);
+            }
+            None => {
+                // Play random track
+                let random_id = fastrand::u64(0..self.tracks.len() as u64);
+                self.play(TrackId(random_id));
+            }
+        }
     }
 
     pub fn play_previous(&mut self) {
