@@ -76,6 +76,7 @@ impl App {
             utils::Shortcut::new("Play/Pause", "^￪"),
             utils::Shortcut::new("Next/Prev", "^⇆"),
             utils::Shortcut::new("Stop", "^￬"),
+            utils::Shortcut::new("Search", "/"),
         ]);
         let shortcuts_page = utils::Shortcuts::new(Color::Reset, colors.accent);
 
@@ -104,6 +105,7 @@ impl App {
         match self.route {
             Route::Tracks => self.pages.tracks.on_enter(),
             Route::NowPlaying => self.pages.now_playing.on_enter(),
+            Route::Queue => self.pages.queue.on_enter(),
             Route::Search => self.pages.search.on_enter(),
             Route::Logs => self.pages.logs.on_enter(),
         }
@@ -219,6 +221,11 @@ impl App {
                         .on_input(key.code, key.modifiers, &mut self.jukebox)
                 }
                 Route::NowPlaying => self.pages.now_playing.on_input(key.code, key.modifiers),
+                Route::Queue => {
+                    self.pages
+                        .queue
+                        .on_input(key.code, key.modifiers, &mut self.jukebox)
+                }
                 Route::Search => {
                     self.pages
                         .search
@@ -249,6 +256,7 @@ impl App {
                 match self.route {
                     Route::Tracks => self.pages.tracks.on_exit(),
                     Route::NowPlaying => self.pages.now_playing.on_exit(),
+                    Route::Queue => self.pages.queue.on_exit(),
                     Route::Search => self.pages.search.on_exit(),
                     Route::Logs => self.pages.logs.on_exit(),
                 }
@@ -258,6 +266,7 @@ impl App {
                 match route {
                     Route::Tracks => self.pages.tracks.on_enter(),
                     Route::NowPlaying => self.pages.now_playing.on_enter(),
+                    Route::Queue => self.pages.queue.on_enter(),
                     Route::Search => self.pages.search.on_enter(),
                     Route::Logs => self.pages.logs.on_enter(),
                 }
@@ -316,10 +325,17 @@ impl App {
             if Route::Tracks == Route::NowPlaying {}
 
             // Navigation
-            for route in [Route::Tracks, Route::NowPlaying, Route::Search, Route::Logs] {
+            for route in [
+                Route::Tracks,
+                Route::NowPlaying,
+                Route::Queue,
+                Route::Search,
+                Route::Logs,
+            ] {
                 let (name, is_current) = match route {
                     Route::Tracks => ("Tracks", self.route == Route::Tracks),
                     Route::NowPlaying => ("Now Playing", self.route == Route::NowPlaying),
+                    Route::Queue => ("Queue", self.route == Route::Queue),
                     Route::Search => ("Search", self.route == Route::Search),
                     Route::Logs => ("Logs", self.route == Route::Logs),
                 };
@@ -356,6 +372,15 @@ impl App {
                     self.pages
                         .now_playing
                         .on_render(body, buf, &self.jukebox, &self.colors);
+                }
+                Route::Queue => {
+                    self.pages.queue.on_render(
+                        body,
+                        buf,
+                        &self.jukebox,
+                        &self.colors,
+                        &mut self.menu_line,
+                    );
                 }
                 Route::Search => {
                     self.pages.search.on_render(
