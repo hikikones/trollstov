@@ -328,6 +328,8 @@ impl Jukebox {
     }
 
     pub fn play_previous(&mut self) {
+        // TODO: If current track position is under 5%, play previous track.
+        // If not, rewind to start?
         if let Some(id) = self.history.pop() {
             self.play_inner(id, false);
         }
