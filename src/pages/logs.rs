@@ -6,6 +6,7 @@ use ratatui::{
 use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
+    utils,
 };
 
 pub struct LogsPage {
@@ -42,6 +43,23 @@ impl LogsPage {
     }
 
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, colors: &Colors) {
+        if self.logs.is_empty() {
+            const NO_LOGS: &str = "No logs to report";
+            Span::styled(NO_LOGS, Style::new().fg(colors.neutral)).render(
+                utils::align(
+                    Rect {
+                        width: NO_LOGS.len() as u16,
+                        height: 1,
+                        ..area
+                    },
+                    area,
+                    utils::Alignment::CenterHorizontal,
+                ),
+                buf,
+            );
+            return;
+        }
+
         let mut line_area = Rect { height: 1, ..area };
         let mut line = Line::default();
 

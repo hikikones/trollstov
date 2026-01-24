@@ -37,11 +37,11 @@ impl NowPlayingPage {
     }
 
     pub fn on_update(&mut self, jb: &Jukebox) {
-        if self.current != jb.current() {
-            self.current = jb.current();
+        if self.current != jb.current_track() {
+            self.current = jb.current_track();
 
             // Track has changed, time to update image
-            match jb.current() {
+            match jb.current_track() {
                 Some(tid) => {
                     // Load image in thread and store handle
                     self.image = FrontCover::Loading;
