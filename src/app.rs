@@ -77,6 +77,7 @@ impl App {
             utils::Shortcut::new("Next/Prev", "^⇆"),
             utils::Shortcut::new("Stop", "^￬"),
             utils::Shortcut::new("Search", "/"),
+            utils::Shortcut::new("Seek 30s", "⎇→"),
         ]);
         let shortcuts_page = utils::Shortcuts::new(Color::Reset, colors.accent);
 
@@ -138,6 +139,7 @@ impl App {
     }
 
     fn handle_key_press(&mut self, key: KeyEvent) {
+        let alt = key.modifiers.contains(KeyModifiers::ALT);
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         let pass_on_key_event = match key.code {
             KeyCode::Esc => {
@@ -171,6 +173,9 @@ impl App {
             KeyCode::Right => {
                 if ctrl {
                     self.jukebox.play_next();
+                    None
+                } else if alt {
+                    self.jukebox.seek(std::time::Duration::from_secs(30));
                     None
                 } else {
                     Some(key)
