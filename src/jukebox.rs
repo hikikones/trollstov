@@ -298,6 +298,14 @@ impl Jukebox {
         self.actions.push_back(JukeboxAction::Previous);
     }
 
+    pub fn seek(&mut self, dur: Duration) {
+        if self.sink.empty() {
+            return;
+        }
+
+        let _ = self.sink.try_seek(self.sink.get_pos() + dur);
+    }
+
     pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
         self.actions.push_back(JukeboxAction::Rating(id, rating));
     }
