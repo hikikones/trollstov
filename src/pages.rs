@@ -62,4 +62,14 @@ impl Route {
             Self::Logs => Self::Search,
         }
     }
+
+    pub const fn title(self) -> &'static str {
+        match self {
+            Self::Tracks => "Tracks",
+            Self::NowPlaying => "Now Playing",
+            Self::Queue => "Queue",
+            Self::Search => "Search",
+            Self::Logs => "Logs",
+        }
+    }
 }

@@ -46,6 +46,13 @@ impl TextSegment {
         }
     }
 
+    pub fn pop(&mut self) {
+        if let Some((_, len, width)) = self.styles.pop() {
+            self.text.truncate(self.text.len() - len);
+            self.total_width -= width;
+        }
+    }
+
     pub fn clear(&mut self) {
         self.text.clear();
         self.styles.clear();

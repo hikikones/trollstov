@@ -1,12 +1,6 @@
 use std::time::Duration;
 
-use ratatui::{
-    buffer::Buffer,
-    layout::Rect,
-    style::Color,
-    text::{Line, Span},
-    widgets::Widget,
-};
+use ratatui::layout::Rect;
 
 /// Aligns the inner [Rect] inside the outer [Rect].
 /// Assumes the inner rect fits inside outer rect.
