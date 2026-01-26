@@ -13,6 +13,7 @@ use crate::{
     pages::{Pages, Route},
     terminal::Terminal,
     utils,
+    widgets::{Shortcut, Shortcuts},
 };
 
 pub struct App {
@@ -30,8 +31,8 @@ pub struct App {
     playing_status_line: Line<'static>,
     playing_current_duration: String,
     playing_total_duration: String,
-    shortcuts_app: utils::Shortcuts<'static>,
-    shortcuts_page: utils::Shortcuts<'static>,
+    shortcuts_app: Shortcuts<'static>,
+    shortcuts_page: Shortcuts<'static>,
 }
 
 pub struct Colors {
@@ -69,17 +70,17 @@ impl App {
         let colors = Colors::new();
         let title_line = Line::styled("jukebox", Style::new().fg(colors.neutral)).centered();
 
-        let mut shortcuts_app = utils::Shortcuts::new(colors.neutral, colors.accent);
+        let mut shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
         shortcuts_app.extend([
-            utils::Shortcut::new("Quit", "Esc"),
-            utils::Shortcut::new("Navigate", "(⇧)Tab"),
-            utils::Shortcut::new("Play/Pause", "^￪"),
-            utils::Shortcut::new("Next/Prev", "^⇆"),
-            utils::Shortcut::new("Stop", "^￬"),
-            utils::Shortcut::new("Search", "/"),
-            utils::Shortcut::new("Seek 30s", "⎇→"),
+            Shortcut::new("Quit", "Esc"),
+            Shortcut::new("Navigate", "(⇧)Tab"),
+            Shortcut::new("Play/Pause", "^￪"),
+            Shortcut::new("Next/Prev", "^⇆"),
+            Shortcut::new("Stop", "^￬"),
+            Shortcut::new("Search", "/"),
+            Shortcut::new("Seek 30s", "⎇→"),
         ]);
-        let shortcuts_page = utils::Shortcuts::new(Color::Reset, colors.accent);
+        let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
 
         Self {
             running: true,
