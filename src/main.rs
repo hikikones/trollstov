@@ -6,6 +6,7 @@ mod jukebox;
 mod pages;
 mod terminal;
 mod utils;
+mod widgets;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let music_dir = std::env::args().last().expect("expected dir path");

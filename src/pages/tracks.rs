@@ -11,6 +11,7 @@ use crate::{
     events::{AppEvent, EventSender},
     jukebox::{Jukebox, TrackSort},
     utils,
+    widgets::{Shortcut, Shortcuts},
 };
 
 pub struct TracksPage {
@@ -41,7 +42,7 @@ impl TracksPage {
         jb: &Jukebox,
         colors: &Colors,
         menu: &mut Line,
-        shortcuts: &mut utils::Shortcuts,
+        shortcuts: &mut Shortcuts,
     ) {
         if jb.is_empty() {
             const NO_TRACKS: &str = "No tracks to be found";
@@ -217,9 +218,9 @@ impl TracksPage {
 
         // Shortcuts
         shortcuts.extend([
-            utils::Shortcut::new("Sort", "(⇧)s"),
-            utils::Shortcut::new("Add to queue", "q"),
-            utils::Shortcut::new("Play next", "n"),
+            Shortcut::new("Sort", "(⇧)s"),
+            Shortcut::new("Add to queue", "q"),
+            Shortcut::new("Play next", "n"),
         ]);
     }
 

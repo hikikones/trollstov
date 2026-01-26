@@ -13,6 +13,7 @@ use crate::{
     pages::{Pages, Route},
     terminal::Terminal,
     utils,
+    widgets::{Shortcut, Shortcuts, TextSegment},
 };
 
 pub struct App {
@@ -24,14 +25,14 @@ pub struct App {
     jukebox: Jukebox,
     current: Option<TrackId>,
     title_line: Line<'static>,
-    nav_line: Line<'static>,
+    nav_line: TextSegment,
     menu_line: Line<'static>,
     playing_title: String,
     playing_status_line: Line<'static>,
     playing_current_duration: String,
     playing_total_duration: String,
-    shortcuts_app: utils::Shortcuts<'static>,
-    shortcuts_page: utils::Shortcuts<'static>,
+    shortcuts_app: Shortcuts<'static>,
+    shortcuts_page: Shortcuts<'static>,
 }
 
 pub struct Colors {
@@ -69,17 +70,17 @@ impl App {
         let colors = Colors::new();
         let title_line = Line::styled("jukebox", Style::new().fg(colors.neutral)).centered();
 
-        let mut shortcuts_app = utils::Shortcuts::new(colors.neutral, colors.accent);
+        let mut shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
         shortcuts_app.extend([
-            utils::Shortcut::new("Quit", "Esc"),
-            utils::Shortcut::new("Navigate", "(⇧)Tab"),
-            utils::Shortcut::new("Play/Pause", "^￪"),
-            utils::Shortcut::new("Next/Prev", "^⇆"),
-            utils::Shortcut::new("Stop", "^￬"),
-            utils::Shortcut::new("Search", "/"),
-            utils::Shortcut::new("Seek 30s", "⎇→"),
+            Shortcut::new("Quit", "Esc"),
+            Shortcut::new("Navigate", "(⇧)Tab"),
+            Shortcut::new("Play/Pause", "^￪"),
+            Shortcut::new("Next/Prev", "^⇆"),
+            Shortcut::new("Stop", "^￬"),
+            Shortcut::new("Search", "/"),
+            Shortcut::new("Seek 30s", "⎇→"),
         ]);
-        let shortcuts_page = utils::Shortcuts::new(Color::Reset, colors.accent);
+        let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
 
         Self {
             running: true,
@@ -90,7 +91,7 @@ impl App {
             jukebox,
             current: None,
             title_line,
-            nav_line: Line::default().centered(),
+            nav_line: TextSegment::new(),
             menu_line: Line::default().centered(),
             playing_title: String::new(),
             playing_status_line: Line::default().centered(),
@@ -330,31 +331,46 @@ impl App {
             if Route::Tracks == Route::NowPlaying {}
 
             // Navigation
-            for route in [
-                Route::Tracks,
-                Route::NowPlaying,
-                Route::Queue,
-                Route::Search,
-                Route::Logs,
+            for (route, spacing) in [
+                (Route::Tracks, "   "),
+                (Route::NowPlaying, "   "),
+                (Route::Queue, "   "),
+                (Route::Search, "   "),
+                (Route::Logs, ""),
             ] {
-                let (name, is_current) = match route {
-                    Route::Tracks => ("Tracks", self.route == Route::Tracks),
-                    Route::NowPlaying => ("Now Playing", self.route == Route::NowPlaying),
-                    Route::Queue => ("Queue", self.route == Route::Queue),
-                    Route::Search => ("Search", self.route == Route::Search),
-                    Route::Logs => ("Logs", self.route == Route::Logs),
-                };
-                let style = if is_current {
+                let style = if route == self.route {
                     Style::new().bold().fg(self.colors.accent)
                 } else {
                     Style::new()
                 };
-                self.nav_line
-                    .extend([Span::styled(name, style), Span::raw("   ")]);
+
+                self.nav_line.push(route.title(), style);
+                if route == Route::Logs {
+                    let new_logs = self.pages.logs.queue_len();
+                    if new_logs > 0 {
+                        let mut buffer = itoa::Buffer::new();
+                        self.nav_line.extend([
+                            ("(", style),
+                            (buffer.format(new_logs), style),
+                            (")", style),
+                        ]);
+                    }
+                }
+                self.nav_line.push(spacing, Style::new());
             }
-            self.nav_line.spans.pop();
-            (&self.nav_line).render(nav_area, buf);
-            self.nav_line.spans.clear();
+            self.nav_line.render(
+                utils::align(
+                    Rect {
+                        width: self.nav_line.width(),
+                        height: 1,
+                        ..nav_area
+                    },
+                    nav_area,
+                    utils::Alignment::CenterHorizontal,
+                ),
+                buf,
+            );
+            self.nav_line.clear();
 
             // Body
             const MAX_WIDTH: u16 = 128;
