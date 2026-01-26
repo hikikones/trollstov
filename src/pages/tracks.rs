@@ -43,27 +43,6 @@ impl TracksPage {
         menu: &mut Line,
         shortcuts: &mut utils::Shortcuts,
     ) {
-        let mut t = crate::widgets::TextSegment::new();
-        t.push("hello, ", Style::new());
-        t.push("WORLD!", Style::new().fg(colors.accent));
-        t.extend([
-            (" ok test biatch", Style::new()),
-            (" another one", Style::new().reversed()),
-        ]);
-        t.render(
-            utils::align(
-                Rect {
-                    width: t.width(),
-                    height: 1,
-                    ..area
-                },
-                area,
-                utils::Alignment::CenterHorizontal,
-            ),
-            buf,
-        );
-        return;
-
         if jb.is_empty() {
             const NO_TRACKS: &str = "No tracks to be found";
             Span::styled(NO_TRACKS, Style::new().fg(colors.neutral)).render(

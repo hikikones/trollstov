@@ -1,5 +1,4 @@
 use ratatui::{buffer::Buffer, layout::Rect, style::Style};
-use unicode_segmentation::UnicodeSegmentation;
 
 pub struct TextSegment {
     text: String,
@@ -48,27 +47,16 @@ impl TextSegment {
     }
 
     pub fn render(&self, area: Rect, buf: &mut Buffer) {
-        let area = area.intersection(buf.area);
-        if area.is_empty() {
-            return;
-        }
-        let Rect { mut x, mut y, .. } = area;
         let max_width = area.width as usize;
         let mut start = 0;
         let mut current_width = 0;
-        let mut remaining_width = max_width;
-        // let mut x = 0;
+        let Rect { mut x, mut y, .. } = area;
+
         for (style, len, width) in self.styles.iter().copied() {
             let end = start + len;
             let text = &self.text[start..end];
-            // if current_width + width <= max_width {
-            //     // buf.render string
-            // } else {
-            //     // no fit, split up
-            // }
-            // remaining_width = remaining_width.saturating_sub(width);
-            current_width += width;
 
+            current_width += width;
             if current_width > max_width {
                 let remaining = max_width - (current_width - width);
                 if remaining > 0 {
@@ -79,24 +67,6 @@ impl TextSegment {
                 (x, y) = buf.set_stringn(x, y, text, width, style);
             }
 
-            // if current_width + width > max_width {
-            //     break;
-            // }
-
-            // current_width += width;
-            // x +=
-
-            //todo render
-            // for g in unicode_segmentation::UnicodeSegmentation::graphemes(text, true) {
-            //     let w = unicode_width::UnicodeWidthStr::width(g);
-            //     cw += w;
-            //     if cw > max_width {
-            //         return;
-            //     }
-
-            //     buf[(0, 0)].set_style(style).set_symbol(symbol);
-            //     buf.set_stringn(x, y, string, max_width, style)
-            // }
             start = end;
         }
     }
