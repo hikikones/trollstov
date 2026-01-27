@@ -25,7 +25,7 @@ pub struct App {
     events: EventHandler,
     jukebox: Jukebox,
     current: Option<TrackId>,
-    navigation: TextSegment,
+    navigation: Navigation,
     playback_title: TextSegment,
     playback_status: PlaybackStatus,
     shortcuts_app: Shortcuts<'static>,
@@ -86,7 +86,7 @@ impl App {
             events,
             jukebox,
             current: None,
-            navigation: TextSegment::new(),
+            navigation: Navigation::new(),
             playback_title: TextSegment::new(),
             playback_status: PlaybackStatus::new(),
             shortcuts_app,
@@ -282,45 +282,9 @@ impl App {
             );
 
             // Navigation
-            for (route, spacing) in [
-                (Route::Tracks, "   "),
-                (Route::NowPlaying, "   "),
-                (Route::Queue, "   "),
-                (Route::Search, "   "),
-                (Route::Logs, ""),
-            ] {
-                let style = if route == self.route {
-                    Style::new().bold().fg(self.colors.accent)
-                } else {
-                    Style::new()
-                };
-
-                self.navigation.push_str(route.title(), style);
-                if route == Route::Logs {
-                    let new_logs = self.pages.logs.queue_len();
-                    if new_logs > 0 {
-                        let mut buffer = itoa::Buffer::new();
-                        self.navigation.extend([
-                            ("(", style),
-                            (buffer.format(new_logs), style),
-                            (")", style),
-                        ]);
-                    }
-                }
-                self.navigation.push_str(spacing, Style::new());
-            }
-            self.navigation.render(
-                utils::align(
-                    Rect {
-                        width: self.navigation.width(),
-                        height: 1,
-                        ..nav_area
-                    },
-                    nav_area,
-                    utils::Alignment::CenterHorizontal,
-                ),
-                buf,
-            );
+            self.navigation
+                .prepare(self.route, &self.pages, &self.colors);
+            self.navigation.render(nav_area, buf);
             self.navigation.clear();
 
             // Body
@@ -452,15 +416,65 @@ impl App {
     }
 }
 
-struct PlaybackStatus {
-    text: TextSegment,
+struct Navigation(TextSegment);
+
+impl Navigation {
+    const fn new() -> Self {
+        Self(TextSegment::new())
+    }
+
+    fn prepare(&mut self, current_route: Route, pages: &Pages, colors: &Colors) {
+        const SPACING: &str = "   ";
+        for (route, spacing) in [
+            (Route::Tracks, SPACING),
+            (Route::NowPlaying, SPACING),
+            (Route::Queue, SPACING),
+            (Route::Search, SPACING),
+            (Route::Logs, ""),
+        ] {
+            let style = if route == current_route {
+                Style::new().bold().fg(colors.accent)
+            } else {
+                Style::new()
+            };
+
+            self.0.push_str(route.title(), style);
+            if route == Route::Logs {
+                let new_logs = pages.logs.queue_len();
+                if new_logs > 0 {
+                    let mut buffer = itoa::Buffer::new();
+                    self.0
+                        .extend([("(", style), (buffer.format(new_logs), style), (")", style)]);
+                }
+            }
+            self.0.push_str(spacing, Style::new());
+        }
+    }
+
+    fn render(&self, line: Rect, buf: &mut Buffer) {
+        self.0.render(
+            utils::align(
+                Rect {
+                    width: self.0.width(),
+                    ..line
+                },
+                line,
+                utils::Alignment::CenterHorizontal,
+            ),
+            buf,
+        );
+    }
+
+    fn clear(&mut self) {
+        self.0.clear();
+    }
 }
+
+struct PlaybackStatus(TextSegment);
 
 impl PlaybackStatus {
     const fn new() -> Self {
-        Self {
-            text: TextSegment::new(),
-        }
+        Self(TextSegment::new())
     }
 
     fn render_status(
@@ -471,16 +485,16 @@ impl PlaybackStatus {
         total_duration: Duration,
         colors: &Colors,
     ) {
-        self.text.clear();
+        self.0.clear();
 
         let accent_style = Style::new().fg(colors.accent);
         let neutral_style = Style::new().fg(colors.neutral);
 
-        self.text.push_chars(
+        self.0.push_chars(
             &utils::format_duration_on_stack(current_duration),
             neutral_style,
         );
-        self.text.push_char(' ', neutral_style);
+        self.0.push_char(' ', neutral_style);
 
         let status_width = line.width / 3;
         let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
@@ -491,19 +505,19 @@ impl PlaybackStatus {
             } else {
                 ('─', neutral_style)
             };
-            self.text.push_char(ch, style);
+            self.0.push_char(ch, style);
         }
 
-        self.text.push_char(' ', neutral_style);
-        self.text.push_chars(
+        self.0.push_char(' ', neutral_style);
+        self.0.push_chars(
             &utils::format_duration_on_stack(total_duration),
             neutral_style,
         );
 
-        self.text.render(
+        self.0.render(
             utils::align(
                 Rect {
-                    width: self.text.width(),
+                    width: self.0.width(),
                     ..line
                 },
                 line,
@@ -514,22 +528,22 @@ impl PlaybackStatus {
     }
 
     fn render_empty(&mut self, line: Rect, buf: &mut Buffer, colors: &Colors) {
-        self.text.clear();
+        self.0.clear();
 
         let style = Style::new().fg(colors.neutral);
-        self.text.push_str("00:00 ", style);
+        self.0.push_str("00:00 ", style);
 
         let status_width = line.width / 3;
         for _ in 0..status_width {
-            self.text.push_char('─', style);
+            self.0.push_char('─', style);
         }
 
-        self.text.push_str(" 00:00", style);
+        self.0.push_str(" 00:00", style);
 
-        self.text.render(
+        self.0.render(
             utils::align(
                 Rect {
-                    width: self.text.width(),
+                    width: self.0.width(),
                     ..line
                 },
                 line,
