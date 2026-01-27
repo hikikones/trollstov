@@ -11,7 +11,7 @@ use crate::{
 
 pub struct LogsPage {
     logs: Vec<Log>,
-    queue: Vec<Log>,
+    queue: u32,
     index: usize,
     vertical_scroll: usize,
     horizontal_scroll: usize,
@@ -22,7 +22,7 @@ impl LogsPage {
     pub const fn new(events: EventSender) -> Self {
         Self {
             logs: Vec::new(),
-            queue: Vec::new(),
+            queue: 0,
             index: 0,
             vertical_scroll: 0,
             horizontal_scroll: 0,
@@ -31,15 +31,16 @@ impl LogsPage {
     }
 
     pub fn enqueue(&mut self, log: Log) {
-        self.queue.push(log);
+        self.logs.push(log);
+        self.queue += 1;
     }
 
-    pub const fn queue_len(&self) -> usize {
-        self.queue.len()
+    pub const fn queue_len(&self) -> u32 {
+        self.queue
     }
 
     pub fn on_enter(&mut self) {
-        self.logs.extend(self.queue.drain(..));
+        self.queue = 0;
     }
 
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, colors: &Colors) {
