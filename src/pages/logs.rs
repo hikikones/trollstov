@@ -60,26 +60,16 @@ impl LogsPage {
             return;
         }
 
+        self.vertical_scroll =
+            utils::calculate_scroll(area.height, self.index, self.vertical_scroll);
         let mut line_area = Rect { height: 1, ..area };
         let mut line = Line::default();
-
-        let height = area.height as usize;
-        if self.index > self.vertical_scroll {
-            let height_diff = self.index - self.vertical_scroll;
-            let height = height.saturating_sub(1);
-            if height_diff > height {
-                self.vertical_scroll += height_diff - height;
-            }
-        } else if self.vertical_scroll > self.index {
-            let height_diff = self.vertical_scroll - self.index;
-            self.vertical_scroll -= height_diff;
-        }
 
         self.logs
             .iter()
             .enumerate()
             .skip(self.vertical_scroll)
-            .take(height)
+            .take(area.height as usize)
             .for_each(|(i, log)| {
                 let (label, label_width, label_style) = match log.level {
                     LogLevel::Info => ("Info", 4, Style::new().fg(Color::Green)),

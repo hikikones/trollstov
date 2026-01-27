@@ -105,20 +105,9 @@ impl SearchPage {
             ..area
         };
 
-        let height = area.height as usize;
-        if self.index > self.scroll {
-            let height_diff = self.index - self.scroll;
-            let height = height.saturating_sub(1);
-            if height_diff > height {
-                self.scroll += height_diff - height;
-            }
-        } else if self.scroll > self.index {
-            let height_diff = self.scroll - self.index;
-            self.scroll -= height_diff;
-        }
-
-        let current = jb.current_track();
+        self.scroll = utils::calculate_scroll(area.height, self.index, self.scroll);
         let mut line_area = Rect { height: 1, ..area };
+        let current = jb.current_track();
 
         self.search_results
             .iter()
@@ -126,7 +115,7 @@ impl SearchPage {
             .filter_map(|(id, _)| jb.get(id).map(|track| (id, track)))
             .enumerate()
             .skip(self.scroll)
-            .take(height)
+            .take(area.height as usize)
             .for_each(|(i, (id, track))| {
                 self.buffer
                     .extend([track.artist(), " ", track.album(), " ", track.title()]);

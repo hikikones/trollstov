@@ -82,3 +82,19 @@ pub fn format_duration(duration: Duration, s: &mut String) {
         s.push_str(buffer.format(seconds));
     }
 }
+
+/// Calculates the amount of lines to scroll given the height and current index.
+pub fn calculate_scroll(height: u16, index: usize, mut scroll: usize) -> usize {
+    let height = height as usize;
+    if index > scroll {
+        let height_diff = index - scroll;
+        let height = height.saturating_sub(1);
+        if height_diff > height {
+            scroll += height_diff - height;
+        }
+    } else if scroll > index {
+        let height_diff = scroll - index;
+        scroll -= height_diff;
+    }
+    scroll
+}

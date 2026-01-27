@@ -56,24 +56,13 @@ impl QueuePage {
             return;
         }
 
-        let height = area.height as usize;
-        if self.index > self.scroll {
-            let height_diff = self.index - self.scroll;
-            let height = height.saturating_sub(1);
-            if height_diff > height {
-                self.scroll += height_diff - height;
-            }
-        } else if self.scroll > self.index {
-            let height_diff = self.scroll - self.index;
-            self.scroll -= height_diff;
-        }
-
+        self.scroll = utils::calculate_scroll(area.height, self.index, self.scroll);
         let mut line_area = Rect { height: 1, ..area };
 
         jb.queue_iter()
             .enumerate()
             .skip(self.scroll)
-            .take(height)
+            .take(area.height as usize)
             .for_each(|(i, (_id, track))| {
                 self.buffer
                     .extend([track.title(), " ", track.artist(), " ", track.album()]);
