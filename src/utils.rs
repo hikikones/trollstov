@@ -6,10 +6,25 @@ use ratatui::layout::Rect;
 /// Assumes the inner rect fits inside outer rect.
 pub fn align(inner: Rect, outer: Rect, alignment: Alignment) -> Rect {
     match alignment {
-        Alignment::TopLeft => todo!(),
-        Alignment::Top => todo!(),
-        Alignment::TopCenter => todo!(),
-        Alignment::TopRight => todo!(),
+        Alignment::TopLeft => Rect {
+            x: outer.x,
+            y: outer.y,
+            ..inner
+        },
+        Alignment::Top => Rect {
+            y: outer.y,
+            ..inner
+        },
+        Alignment::TopCenter => Rect {
+            x: outer.x + (outer.width.saturating_sub(inner.width)) / 2,
+            y: outer.y,
+            ..inner
+        },
+        Alignment::TopRight => Rect {
+            x: outer.x + outer.width.saturating_sub(inner.width),
+            y: outer.y,
+            ..inner
+        },
         Alignment::Right => Rect {
             x: outer.x + outer.width.saturating_sub(inner.width),
             ..inner
@@ -19,12 +34,34 @@ pub fn align(inner: Rect, outer: Rect, alignment: Alignment) -> Rect {
             y: outer.y + (outer.height.saturating_sub(inner.height)) / 2,
             ..inner
         },
-        Alignment::BottomRight => todo!(),
-        Alignment::Bottom => todo!(),
-        Alignment::BottomCenter => todo!(),
-        Alignment::BottomLeft => todo!(),
-        Alignment::Left => todo!(),
-        Alignment::LeftCenter => todo!(),
+        Alignment::BottomRight => Rect {
+            x: outer.x + outer.width.saturating_sub(inner.width),
+            y: outer.y + outer.height.saturating_sub(inner.height),
+            ..inner
+        },
+        Alignment::Bottom => Rect {
+            y: outer.y + outer.height.saturating_sub(inner.height),
+            ..inner
+        },
+        Alignment::BottomCenter => Rect {
+            x: outer.x + (outer.width.saturating_sub(inner.width)) / 2,
+            y: outer.y + outer.height.saturating_sub(inner.height),
+            ..inner
+        },
+        Alignment::BottomLeft => Rect {
+            x: outer.x,
+            y: outer.y + outer.height.saturating_sub(inner.height),
+            ..inner
+        },
+        Alignment::Left => Rect {
+            x: outer.x,
+            ..inner
+        },
+        Alignment::LeftCenter => Rect {
+            x: outer.x,
+            y: outer.y + (outer.height.saturating_sub(inner.height)) / 2,
+            ..inner
+        },
         Alignment::Center => Rect {
             x: outer.x + (outer.width.saturating_sub(inner.width)) / 2,
             y: outer.y + (outer.height.saturating_sub(inner.height)) / 2,
@@ -76,8 +113,11 @@ pub fn format_duration_in_place(duration: Duration, s: &mut String) {
     if minutes < 10 {
         s.push('0');
         s.push_str(buffer.format(minutes));
-    } else {
+    } else if minutes < 100 {
         s.push_str(buffer.format(minutes));
+    } else {
+        s.push_str("99:99");
+        return;
     }
 
     s.push(':');
