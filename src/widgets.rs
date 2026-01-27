@@ -1,7 +1,7 @@
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
-    layout::Rect,
+    layout::{Alignment, Rect},
     style::{Color, Style},
     text::{Line, Span},
     widgets::Widget,
@@ -12,6 +12,7 @@ pub struct TextSegment {
     text: String,
     segments: Vec<(Style, usize, usize)>,
     total_width: usize,
+    alignment: Alignment,
 }
 
 impl TextSegment {
@@ -20,7 +21,17 @@ impl TextSegment {
             text: String::new(),
             segments: Vec::new(),
             total_width: 0,
+            alignment: Alignment::Left,
         }
+    }
+
+    pub const fn with_alignment(mut self, alignment: Alignment) -> Self {
+        self.alignment = alignment;
+        self
+    }
+
+    pub const fn set_alignment(&mut self, alignment: Alignment) {
+        self.alignment = alignment;
     }
 
     pub const fn width(&self) -> u16 {
@@ -86,7 +97,19 @@ impl TextSegment {
         let max_width = area.width as usize;
         let mut start = 0;
         let mut current_width = 0;
-        let Rect { mut x, mut y, .. } = area;
+
+        let area = match self.alignment {
+            Alignment::Left => area,
+            Alignment::Center => Rect {
+                x: area.x + (area.width.saturating_sub(self.total_width as u16)) / 2,
+                ..area
+            },
+            Alignment::Right => Rect {
+                x: area.x + area.width.saturating_sub(self.total_width as u16),
+                ..area
+            },
+        };
+        let Rect { mut x, y, .. } = area;
 
         for (style, len, width) in self.segments.iter().copied() {
             let end = start + len;
@@ -100,7 +123,7 @@ impl TextSegment {
                 }
                 break;
             } else {
-                (x, y) = buf.set_stringn(x, y, text, width, style);
+                (x, _) = buf.set_stringn(x, y, text, width, style);
             }
 
             start = end;

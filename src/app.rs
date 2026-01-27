@@ -10,7 +10,7 @@ use ratatui::{
 
 use crate::{
     events::{AppEvent, Event, EventHandler},
-    jukebox::{Jukebox, Track, TrackId},
+    jukebox::{Jukebox, Track},
     pages::{Pages, Route},
     terminal::Terminal,
     utils,
@@ -24,10 +24,7 @@ pub struct App {
     colors: Colors,
     events: EventHandler,
     jukebox: Jukebox,
-    current: Option<TrackId>,
-    navigation: Navigation,
-    playback_title: PlaybackTitle,
-    playback_status: PlaybackStatus,
+    text_segment: TextSegment,
     shortcuts_app: Shortcuts<'static>,
     shortcuts_page: Shortcuts<'static>,
 }
@@ -85,10 +82,7 @@ impl App {
             colors,
             events,
             jukebox,
-            current: None,
-            navigation: Navigation::new(),
-            playback_title: PlaybackTitle::new(),
-            playback_status: PlaybackStatus::new(),
+            text_segment: TextSegment::new().with_alignment(Alignment::Center),
             shortcuts_app,
             shortcuts_page,
         }
@@ -255,8 +249,8 @@ impl App {
                 body_area,
                 shortcuts_page_area,
                 _,
-                playing_title_area,
-                playing_status_area,
+                playback_title_area,
+                playback_status_area,
                 shortcuts_app_area,
             ] = Layout::vertical([
                 Constraint::Length(1),
@@ -282,10 +276,14 @@ impl App {
             );
 
             // Navigation
-            self.navigation
-                .prepare(self.route, &self.pages, &self.colors);
-            self.navigation.render(nav_area, buf);
-            self.navigation.clear();
+            prepare_navigation(
+                &mut self.text_segment,
+                self.route,
+                &self.pages,
+                &self.colors,
+            );
+            self.text_segment.render(nav_area, buf);
+            self.text_segment.clear();
 
             // Body
             const MAX_WIDTH: u16 = 128;
@@ -330,27 +328,31 @@ impl App {
                 Some(id) => {
                     let track = self.jukebox.get(id).unwrap();
 
-                    // Update playback title
-                    if self.current != self.jukebox.current_track() {
-                        self.current = self.jukebox.current_track();
-                        self.playback_title.update(track, &self.colors);
-                    }
-
                     // Render playback title
-                    self.playback_title.render(playing_title_area, buf);
+                    prepare_playback_title(&mut self.text_segment, track, &self.colors);
+                    self.text_segment.render(playback_title_area, buf);
+                    self.text_segment.clear();
 
-                    // Render playback status
-                    self.playback_status.render_status(
-                        playing_status_area,
-                        buf,
+                    // Render active playback status
+                    prepare_playback_status_active(
+                        &mut self.text_segment,
+                        playback_status_area,
                         self.jukebox.current_audio_position(),
                         track.duration(),
                         &self.colors,
                     );
+                    self.text_segment.render(playback_status_area, buf);
+                    self.text_segment.clear();
                 }
                 None => {
-                    self.playback_status
-                        .render_empty(playing_status_area, buf, &self.colors);
+                    // Render empty playback status
+                    prepare_playback_status_empty(
+                        &mut self.text_segment,
+                        playback_status_area,
+                        &self.colors,
+                    );
+                    self.text_segment.render(playback_status_area, buf);
+                    self.text_segment.clear();
                 }
             }
 
@@ -399,174 +401,91 @@ impl App {
     }
 }
 
-struct Navigation(TextSegment);
+fn prepare_navigation(
+    text: &mut TextSegment,
+    current_route: Route,
+    pages: &Pages,
+    colors: &Colors,
+) {
+    const SPACING: &str = "   ";
+    for (route, spacing) in [
+        (Route::Tracks, SPACING),
+        (Route::NowPlaying, SPACING),
+        (Route::Queue, SPACING),
+        (Route::Search, SPACING),
+        (Route::Logs, ""),
+    ] {
+        let style = if route == current_route {
+            Style::new().bold().fg(colors.accent)
+        } else {
+            Style::new()
+        };
 
-impl Navigation {
-    const fn new() -> Self {
-        Self(TextSegment::new())
-    }
-
-    fn prepare(&mut self, current_route: Route, pages: &Pages, colors: &Colors) {
-        const SPACING: &str = "   ";
-        for (route, spacing) in [
-            (Route::Tracks, SPACING),
-            (Route::NowPlaying, SPACING),
-            (Route::Queue, SPACING),
-            (Route::Search, SPACING),
-            (Route::Logs, ""),
-        ] {
-            let style = if route == current_route {
-                Style::new().bold().fg(colors.accent)
-            } else {
-                Style::new()
-            };
-
-            self.0.push_str(route.title(), style);
-            if route == Route::Logs {
-                let new_logs = pages.logs.queue_len();
-                if new_logs > 0 {
-                    let mut buffer = itoa::Buffer::new();
-                    self.0
-                        .extend([("(", style), (buffer.format(new_logs), style), (")", style)]);
-                }
+        text.push_str(route.title(), style);
+        if route == Route::Logs {
+            let new_logs = pages.logs.queue_len();
+            if new_logs > 0 {
+                let mut buffer = itoa::Buffer::new();
+                text.extend([("(", style), (buffer.format(new_logs), style), (")", style)]);
             }
-            self.0.push_str(spacing, Style::new());
         }
-    }
-
-    fn render(&self, line: Rect, buf: &mut Buffer) {
-        self.0.render(
-            utils::align(
-                Rect {
-                    width: self.0.width(),
-                    ..line
-                },
-                line,
-                utils::Alignment::CenterHorizontal,
-            ),
-            buf,
-        );
-    }
-
-    fn clear(&mut self) {
-        self.0.clear();
+        text.push_str(spacing, Style::new());
     }
 }
 
-struct PlaybackTitle(TextSegment);
+fn prepare_playback_title(text: &mut TextSegment, track: &Track, colors: &Colors) {
+    let neutral_style = Style::new().fg(colors.neutral);
 
-impl PlaybackTitle {
-    const fn new() -> Self {
-        Self(TextSegment::new())
+    text.push_str(track.artist(), neutral_style);
+    if !(track.artist().is_empty() || track.title().is_empty()) {
+        text.push_str(" - ", neutral_style);
     }
-
-    fn update(&mut self, track: &Track, colors: &Colors) {
-        self.0.clear();
-
-        let neutral_style = Style::new().fg(colors.neutral);
-
-        self.0.push_str(track.artist(), neutral_style);
-        if !(track.artist().is_empty() || track.title().is_empty()) {
-            self.0.push_str(" - ", neutral_style);
-        }
-        self.0.push_str(track.title(), neutral_style);
-    }
-
-    fn render(&self, line: Rect, buf: &mut Buffer) {
-        self.0.render(
-            utils::align(
-                Rect {
-                    width: self.0.width(),
-                    ..line
-                },
-                line,
-                utils::Alignment::CenterHorizontal,
-            ),
-            buf,
-        );
-    }
+    text.push_str(track.title(), neutral_style);
 }
 
-struct PlaybackStatus(TextSegment);
+fn prepare_playback_status_active(
+    text: &mut TextSegment,
+    line: Rect,
+    current_duration: Duration,
+    total_duration: Duration,
+    colors: &Colors,
+) {
+    let accent_style = Style::new().fg(colors.accent);
+    let neutral_style = Style::new().fg(colors.neutral);
 
-impl PlaybackStatus {
-    const fn new() -> Self {
-        Self(TextSegment::new())
+    text.push_chars(
+        &utils::format_duration_on_stack(current_duration),
+        neutral_style,
+    );
+    text.push_char(' ', neutral_style);
+
+    let status_width = line.width / 3;
+    let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
+    let max_highlight_bound = (status_width as f32 * progress) as u16;
+    for i in 0..status_width {
+        let (ch, style) = if i <= max_highlight_bound {
+            ('━', accent_style)
+        } else {
+            ('─', neutral_style)
+        };
+        text.push_char(ch, style);
     }
 
-    fn render_status(
-        &mut self,
-        line: Rect,
-        buf: &mut Buffer,
-        current_duration: Duration,
-        total_duration: Duration,
-        colors: &Colors,
-    ) {
-        self.0.clear();
+    text.push_char(' ', neutral_style);
+    text.push_chars(
+        &utils::format_duration_on_stack(total_duration),
+        neutral_style,
+    );
+}
 
-        let accent_style = Style::new().fg(colors.accent);
-        let neutral_style = Style::new().fg(colors.neutral);
+fn prepare_playback_status_empty(text: &mut TextSegment, line: Rect, colors: &Colors) {
+    let style = Style::new().fg(colors.neutral);
+    text.push_str("00:00 ", style);
 
-        self.0.push_chars(
-            &utils::format_duration_on_stack(current_duration),
-            neutral_style,
-        );
-        self.0.push_char(' ', neutral_style);
-
-        let status_width = line.width / 3;
-        let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
-        let max_highlight_bound = (status_width as f32 * progress) as u16;
-        for i in 0..status_width {
-            let (ch, style) = if i <= max_highlight_bound {
-                ('━', accent_style)
-            } else {
-                ('─', neutral_style)
-            };
-            self.0.push_char(ch, style);
-        }
-
-        self.0.push_char(' ', neutral_style);
-        self.0.push_chars(
-            &utils::format_duration_on_stack(total_duration),
-            neutral_style,
-        );
-
-        self.0.render(
-            utils::align(
-                Rect {
-                    width: self.0.width(),
-                    ..line
-                },
-                line,
-                utils::Alignment::CenterHorizontal,
-            ),
-            buf,
-        );
+    let status_width = line.width / 3;
+    for _ in 0..status_width {
+        text.push_char('─', style);
     }
 
-    fn render_empty(&mut self, line: Rect, buf: &mut Buffer, colors: &Colors) {
-        self.0.clear();
-
-        let style = Style::new().fg(colors.neutral);
-        self.0.push_str("00:00 ", style);
-
-        let status_width = line.width / 3;
-        for _ in 0..status_width {
-            self.0.push_char('─', style);
-        }
-
-        self.0.push_str(" 00:00", style);
-
-        self.0.render(
-            utils::align(
-                Rect {
-                    width: self.0.width(),
-                    ..line
-                },
-                line,
-                utils::Alignment::CenterHorizontal,
-            ),
-            buf,
-        );
-    }
+    text.push_str(" 00:00", style);
 }
