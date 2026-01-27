@@ -41,13 +41,12 @@ impl SearchPage {
 
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         if jb.is_empty() {
-            const NO_TRACKS: &str = "No tracks to search for";
-            buf.set_stringn(
-                area.x + (area.width.saturating_sub(NO_TRACKS.len() as u16)) / 2,
-                area.y,
-                NO_TRACKS,
-                NO_TRACKS.len(),
+            utils::print_ascii(
+                area,
+                buf,
+                "No tracks to search for",
                 Style::new().fg(colors.neutral),
+                Alignment::Center,
             );
             return;
         }

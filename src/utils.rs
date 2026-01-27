@@ -1,6 +1,26 @@
 use std::time::Duration;
 
-use ratatui::layout::Rect;
+use ratatui::{buffer::Buffer, layout::Rect, style::Style};
+
+/// Prints the str `s` assuming only ASCII, no newlines or
+/// control characters for easy layout calculation.
+pub fn print_ascii(
+    area: Rect,
+    buf: &mut Buffer,
+    s: impl AsRef<str>,
+    style: Style,
+    alignment: ratatui::layout::Alignment,
+) {
+    let s = s.as_ref();
+    let x = match alignment {
+        ratatui::layout::Alignment::Left => area.x,
+        ratatui::layout::Alignment::Center => {
+            area.x + (area.width.saturating_sub(s.len() as u16)) / 2
+        }
+        ratatui::layout::Alignment::Right => area.x + area.width.saturating_sub(s.len() as u16),
+    };
+    buf.set_stringn(x, area.y, s, s.len(), style);
+}
 
 /// Aligns the inner [Rect] inside the outer [Rect].
 /// Assumes the inner rect fits inside outer rect.
