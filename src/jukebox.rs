@@ -554,8 +554,8 @@ impl TrackSort {
             Self::ArtistDescending => t2.artist().cmp(t1.artist()),
             Self::AlbumAscending => t1.album().cmp(t2.album()),
             Self::AlbumDescending => t2.album().cmp(t1.album()),
-            Self::TimeAscending => t1.duration_display().cmp(t2.duration_display()),
-            Self::TimeDescending => t2.duration_display().cmp(t1.duration_display()),
+            Self::TimeAscending => t1.duration().cmp(&t2.duration()),
+            Self::TimeDescending => t2.duration().cmp(&t1.duration()),
             Self::RatingAscending => {
                 let r1 = t1.rating().map(|r| r as u8).unwrap_or(0);
                 let r2 = t2.rating().map(|r| r as u8).unwrap_or(0);
