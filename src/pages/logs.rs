@@ -56,7 +56,7 @@ impl LogsPage {
         }
 
         self.vertical_scroll =
-            utils::calculate_scroll(area.height, self.index, self.vertical_scroll);
+            utils::calculate_scroll(self.index, area.height, self.vertical_scroll);
         let mut line_area = Rect { height: 1, ..area };
         let mut line = Line::default();
 

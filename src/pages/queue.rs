@@ -41,7 +41,7 @@ impl QueuePage {
             return;
         }
 
-        self.scroll = utils::calculate_scroll(area.height, self.index, self.scroll);
+        self.scroll = utils::calculate_scroll(self.index, area.height, self.scroll);
         let mut line_area = Rect { height: 1, ..area };
 
         jb.queue_iter()

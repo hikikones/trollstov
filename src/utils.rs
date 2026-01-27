@@ -179,8 +179,9 @@ pub fn format_duration_on_stack(duration: Duration) -> [char; 5] {
     chars
 }
 
-/// Calculates the amount of lines to scroll given the height and current index.
-pub fn calculate_scroll(height: u16, index: usize, mut scroll: usize) -> usize {
+/// Calculates the amount of lines to scroll/skip
+/// given the index (current line) and height of area.
+pub fn calculate_scroll(index: usize, height: u16, mut scroll: usize) -> usize {
     let height = height as usize;
     if index > scroll {
         let height_diff = index - scroll;

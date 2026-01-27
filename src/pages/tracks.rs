@@ -2,8 +2,6 @@ use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
 };
-use unicode_segmentation::UnicodeSegmentation;
-use unicode_width::UnicodeWidthStr;
 
 use crate::{
     app::Colors,
@@ -17,7 +15,6 @@ use crate::{
 pub struct TracksPage {
     index: usize,
     scroll: usize,
-    line_buffer: String,
     events: EventSender,
 }
 
@@ -26,7 +23,6 @@ impl TracksPage {
         Self {
             index: 0,
             scroll: 0,
-            line_buffer: String::new(),
             events,
         }
     }
@@ -52,149 +48,8 @@ impl TracksPage {
             return;
         }
 
-        let spacing = 2;
-        let time_width = 6 + spacing;
-        let rating_width = 7;
-        let remaining_width = area.width.saturating_sub(time_width + rating_width);
-        let info_width = remaining_width / 3;
-
-        let [header_area, table_area] =
-            Layout::vertical([Constraint::Length(1), Constraint::Fill(0)]).areas(area);
-
-        // Render the header for the table
-        let sort = jb.get_sort();
-        let mut x = header_area.x;
-        for (label, width, spacing) in [
-            (
-                if sort == TrackSort::TitleAscending {
-                    "Title⌄"
-                } else if sort == TrackSort::TitleDescending {
-                    "Title⌃"
-                } else {
-                    "Title"
-                },
-                info_width,
-                spacing,
-            ),
-            (
-                if sort == TrackSort::ArtistAscending {
-                    "Artist⌄"
-                } else if sort == TrackSort::ArtistDescending {
-                    "Artist⌃"
-                } else {
-                    "Artist"
-                },
-                info_width,
-                spacing,
-            ),
-            (
-                if sort == TrackSort::AlbumAscending {
-                    "Album⌄"
-                } else if sort == TrackSort::AlbumDescending {
-                    "Album⌃"
-                } else {
-                    "Album"
-                },
-                info_width,
-                spacing,
-            ),
-            (
-                if sort == TrackSort::TimeAscending {
-                    "Time⌄"
-                } else if sort == TrackSort::TimeDescending {
-                    "Time⌃"
-                } else {
-                    "Time"
-                },
-                time_width,
-                spacing,
-            ),
-            (
-                if sort == TrackSort::RatingAscending {
-                    "Rating⌄"
-                } else if sort == TrackSort::RatingDescending {
-                    "Rating⌃"
-                } else {
-                    "Rating"
-                },
-                rating_width,
-                0,
-            ),
-        ] {
-            let col = Rect {
-                width: width.saturating_sub(spacing),
-                height: 1,
-                x,
-                y: header_area.y,
-            };
-            Span::raw(label).render(col, buf);
-            x += width;
-        }
-
-        // Render the body for the table
-        self.scroll = utils::calculate_scroll(table_area.height, self.index, self.scroll);
-        let mut row_area = Rect {
-            height: 1,
-            ..table_area
-        };
-        let current = jb.current_track();
-        self.line_buffer.reserve(table_area.width as usize);
-
-        jb.iter()
-            .enumerate()
-            .skip(self.scroll)
-            .take(table_area.height as usize)
-            .for_each(|(i, (id, track))| {
-                for (text, width, spacing) in [
-                    (track.title(), info_width, spacing),
-                    (track.artist(), info_width, spacing),
-                    (track.album(), info_width, spacing),
-                    (track.duration_display(), time_width, spacing),
-                    (track.rating_display(), rating_width, 0),
-                ] {
-                    // Determine how much text we can fill for each column
-                    let max_text_width = width.saturating_sub(spacing);
-                    let text_width = text.width() as u16;
-                    if text_width <= max_text_width {
-                        // Text fits, fill in remaining with spaces
-                        self.line_buffer.push_str(text);
-                        for _ in 0..max_text_width.saturating_sub(text_width) + spacing {
-                            self.line_buffer.push(' ');
-                        }
-                    } else {
-                        // No fit, fill in what we can
-                        let mut curr_width = 0;
-                        for grapheme in text.graphemes(true) {
-                            let grapheme_width = grapheme.width() as u16;
-                            if curr_width + grapheme_width <= max_text_width {
-                                // Keep pushing
-                                self.line_buffer.push_str(grapheme);
-                                curr_width += grapheme_width;
-                            } else {
-                                // Done, fill in remaining with spaces
-                                for _ in 0..max_text_width.saturating_sub(curr_width) + spacing {
-                                    self.line_buffer.push(' ');
-                                }
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                let mut style = Style::new();
-                if self.index == i {
-                    style.bg = Some(colors.accent);
-                    style.fg = Some(colors.on_accent);
-                }
-                if current == Some(id) {
-                    style.add_modifier.insert(Modifier::BOLD);
-                }
-
-                Span::styled(&self.line_buffer, style).render(row_area, buf);
-
-                self.line_buffer.clear();
-                row_area.y += 1;
-            });
+        // Tracks table
+        render_tracks_table(area, buf, &mut self.scroll, self.index, jb, colors);
 
         // Shortcuts
         shortcuts.extend([
@@ -247,4 +102,136 @@ impl TracksPage {
     }
 
     pub fn on_exit(&self) {}
+}
+
+fn render_tracks_table(
+    area: Rect,
+    buf: &mut Buffer,
+    scroll: &mut usize,
+    index: usize,
+    jb: &Jukebox,
+    colors: &Colors,
+) {
+    let spacing = 2;
+    let time_width = 6 + spacing;
+    let rating_width = 7;
+    let remaining_width = area.width.saturating_sub(time_width + rating_width);
+    let info_width = remaining_width / 3;
+
+    let header_area = Rect { height: 1, ..area };
+    let table_area = Rect {
+        y: area.y + 1,
+        height: area.height.saturating_sub(1),
+        ..area
+    };
+
+    // Render the header for the table
+    let sort = jb.get_sort();
+    let mut x = header_area.x;
+    for (label, width, spacing) in [
+        (
+            if sort == TrackSort::TitleAscending {
+                "Title⌄"
+            } else if sort == TrackSort::TitleDescending {
+                "Title⌃"
+            } else {
+                "Title"
+            },
+            info_width,
+            spacing,
+        ),
+        (
+            if sort == TrackSort::ArtistAscending {
+                "Artist⌄"
+            } else if sort == TrackSort::ArtistDescending {
+                "Artist⌃"
+            } else {
+                "Artist"
+            },
+            info_width,
+            spacing,
+        ),
+        (
+            if sort == TrackSort::AlbumAscending {
+                "Album⌄"
+            } else if sort == TrackSort::AlbumDescending {
+                "Album⌃"
+            } else {
+                "Album"
+            },
+            info_width,
+            spacing,
+        ),
+        (
+            if sort == TrackSort::TimeAscending {
+                "Time⌄"
+            } else if sort == TrackSort::TimeDescending {
+                "Time⌃"
+            } else {
+                "Time"
+            },
+            time_width,
+            spacing,
+        ),
+        (
+            if sort == TrackSort::RatingAscending {
+                "Rating⌄"
+            } else if sort == TrackSort::RatingDescending {
+                "Rating⌃"
+            } else {
+                "Rating"
+            },
+            rating_width,
+            0,
+        ),
+    ] {
+        buf.set_stringn(
+            x,
+            header_area.y,
+            label,
+            width.saturating_sub(spacing) as usize,
+            Style::new(),
+        );
+        x += width;
+    }
+
+    // Render the body for the table
+    *scroll = utils::calculate_scroll(index, table_area.height, *scroll);
+    let current = jb.current_track();
+    let Rect { mut x, mut y, .. } = table_area;
+
+    jb.iter()
+        .enumerate()
+        .skip(*scroll)
+        .take(table_area.height as usize)
+        .for_each(|(i, (id, track))| {
+            let mut style = Style::new();
+
+            if index == i {
+                style.bg = Some(colors.accent);
+                style.fg = Some(colors.on_accent);
+            }
+            if current == Some(id) {
+                style.add_modifier.insert(Modifier::BOLD);
+            }
+
+            for (text, width, spacing) in [
+                (track.title(), info_width, spacing),
+                (track.artist(), info_width, spacing),
+                (track.album(), info_width, spacing),
+                (track.duration_display(), time_width, spacing),
+                (track.rating_display(), rating_width, 0),
+            ] {
+                let (next_x, _) =
+                    buf.set_stringn(x, y, text, width.saturating_sub(spacing) as usize, style);
+                let remaining = width - (next_x - x);
+                for i in 0..remaining {
+                    buf[(next_x + i, y)].set_style(style);
+                }
+                x = next_x + remaining;
+            }
+
+            x = table_area.x;
+            y += 1;
+        });
 }
