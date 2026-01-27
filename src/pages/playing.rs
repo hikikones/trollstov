@@ -193,6 +193,9 @@ impl NowPlayingPage {
                 );
             }
         }
+
+        // TODO: Move play queue page here.
+        // Render below in a wide scrollable bordered block.
     }
 
     pub fn on_input(&mut self, _key: KeyCode, _modifiers: KeyModifiers) {}
