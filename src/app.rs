@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use ratatui::{
     CompletedFrame,
     crossterm::event::{
@@ -5,7 +7,6 @@ use ratatui::{
     },
     prelude::*,
 };
-use unicode_width::UnicodeWidthStr;
 
 use crate::{
     events::{AppEvent, Event, EventHandler},
@@ -25,10 +26,8 @@ pub struct App {
     jukebox: Jukebox,
     current: Option<TrackId>,
     navigation: TextSegment,
-    playing_title: String,
-    playing_status_line: Line<'static>,
-    playing_current_duration: String,
-    playing_total_duration: String,
+    playback_title: TextSegment,
+    playback_status: PlaybackStatus,
     shortcuts_app: Shortcuts<'static>,
     shortcuts_page: Shortcuts<'static>,
 }
@@ -88,10 +87,8 @@ impl App {
             jukebox,
             current: None,
             navigation: TextSegment::new(),
-            playing_title: String::new(),
-            playing_status_line: Line::default().centered(),
-            playing_current_duration: String::with_capacity(5),
-            playing_total_duration: String::from("00:00"),
+            playback_title: TextSegment::new(),
+            playback_status: PlaybackStatus::new(),
             shortcuts_app,
             shortcuts_page,
         }
@@ -342,7 +339,7 @@ impl App {
                     Style::new()
                 };
 
-                self.navigation.push(route.title(), style);
+                self.navigation.push_str(route.title(), style);
                 if route == Route::Logs {
                     let new_logs = self.pages.logs.queue_len();
                     if new_logs > 0 {
@@ -354,7 +351,7 @@ impl App {
                         ]);
                     }
                 }
-                self.navigation.push(spacing, Style::new());
+                self.navigation.push_str(spacing, Style::new());
             }
             self.navigation.render(
                 utils::align(
@@ -408,113 +405,143 @@ impl App {
             self.shortcuts_page.render(shortcuts_page_area, buf);
             self.shortcuts_page.clear();
 
-            // Playing
-            if self.current != self.jukebox.current_track() {
-                // Update currently playing
-                self.current = self.jukebox.current_track();
-                self.playing_title.clear();
-                self.playing_total_duration.clear();
-
-                match self.jukebox.current_track() {
-                    Some(id) => {
-                        let track = self.jukebox.get(id).unwrap();
-                        self.playing_title.push_str(track.artist());
-                        if !(track.artist().is_empty() || track.title().is_empty()) {
-                            self.playing_title.push_str(" - ");
-                        }
-                        self.playing_title.push_str(track.title());
-                        self.playing_total_duration
-                            .push_str(track.duration_display());
-                    }
-                    None => {
-                        self.playing_total_duration.push_str("00:00");
-                    }
-                }
-            }
-
-            let [left_time_area, status_area, right_time_area] = Layout::horizontal([
-                Constraint::Fill(0),
-                Constraint::Percentage(30),
-                Constraint::Fill(0),
-            ])
-            .areas(playing_status_area);
-
-            self.playing_status_line.spans.clear();
-
+            // Playback
             match self.jukebox.current_track() {
                 Some(id) => {
                     let track = self.jukebox.get(id).unwrap();
-                    let current_duration = self.jukebox.current_audio_position();
-                    let total_duration = track.duration();
 
-                    self.playing_current_duration.clear();
-                    utils::format_duration(current_duration, &mut self.playing_current_duration);
+                    // Update playback title
+                    if self.current != self.jukebox.current_track() {
+                        self.current = self.jukebox.current_track();
+                        self.playback_title.clear();
 
-                    let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
-                    let max_highlight_bound = (status_area.width as f32 * progress) as u16;
-                    for i in 0..status_area.width {
-                        let (c, style) = if i <= max_highlight_bound {
-                            ("━", Style::new().fg(self.colors.accent))
-                        } else {
-                            ("─", Style::new().fg(self.colors.neutral))
-                        };
-                        self.playing_status_line.spans.push(Span::styled(c, style));
+                        let neutral_style = Style::new().fg(self.colors.neutral);
+                        self.playback_title.push_str(track.artist(), neutral_style);
+                        if !(track.artist().is_empty() || track.title().is_empty()) {
+                            self.playback_title.push_str(" - ", neutral_style);
+                        }
+                        self.playback_title.push_str(track.title(), neutral_style);
                     }
+
+                    // Render playback title
+                    self.playback_title.render(
+                        utils::align(
+                            Rect {
+                                width: self.playback_title.width(),
+                                ..playing_title_area
+                            },
+                            playing_title_area,
+                            utils::Alignment::CenterHorizontal,
+                        ),
+                        buf,
+                    );
+
+                    // Render playback status
+                    self.playback_status.render_status(
+                        playing_status_area,
+                        buf,
+                        self.jukebox.current_audio_position(),
+                        track.duration(),
+                        &self.colors,
+                    );
                 }
                 None => {
-                    self.playing_current_duration.clear();
-                    self.playing_current_duration.push_str("00:00");
-                    for _ in 0..status_area.width {
-                        self.playing_status_line
-                            .spans
-                            .push(Span::styled("─", Style::new().fg(self.colors.neutral)));
-                    }
+                    self.playback_status
+                        .render_empty(playing_status_area, buf, &self.colors);
                 }
             }
-
-            Span::styled(&self.playing_title, Style::new().fg(self.colors.neutral)).render(
-                utils::align(
-                    Rect {
-                        width: self.playing_title.width() as u16,
-                        ..playing_title_area
-                    },
-                    playing_title_area,
-                    utils::Alignment::CenterHorizontal,
-                ),
-                buf,
-            );
-
-            Span::styled(
-                &self.playing_current_duration,
-                Style::new().fg(self.colors.neutral),
-            )
-            .render(
-                utils::align(
-                    Rect {
-                        width: 6,
-                        ..left_time_area
-                    },
-                    left_time_area,
-                    utils::Alignment::Right,
-                ),
-                buf,
-            );
-            (&self.playing_status_line).render(status_area, buf);
-            Span::styled(
-                &self.playing_total_duration,
-                Style::new().fg(self.colors.neutral),
-            )
-            .render(
-                Rect {
-                    x: right_time_area.x + 1,
-                    width: 5,
-                    ..right_time_area
-                },
-                buf,
-            );
 
             // Shortcuts
             self.shortcuts_app.render(shortcuts_app_area, buf);
         })
+    }
+}
+
+struct PlaybackStatus {
+    text: TextSegment,
+}
+
+impl PlaybackStatus {
+    const fn new() -> Self {
+        Self {
+            text: TextSegment::new(),
+        }
+    }
+
+    fn render_status(
+        &mut self,
+
+        line: Rect,
+        buf: &mut Buffer,
+        current_duration: Duration,
+        total_duration: Duration,
+        colors: &Colors,
+    ) {
+        self.text.clear();
+
+        let accent_style = Style::new().fg(colors.accent);
+        let neutral_style = Style::new().fg(colors.neutral);
+
+        self.text.push_chars(
+            &utils::format_duration_on_stack(current_duration),
+            neutral_style,
+        );
+        self.text.push_char(' ', neutral_style);
+
+        let status_width = line.width / 3;
+        let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
+        let max_highlight_bound = (status_width as f32 * progress) as u16;
+        for i in 0..status_width {
+            let (ch, style) = if i <= max_highlight_bound {
+                ('━', accent_style)
+            } else {
+                ('─', neutral_style)
+            };
+            self.text.push_char(ch, style);
+        }
+
+        self.text.push_char(' ', neutral_style);
+        self.text.push_chars(
+            &utils::format_duration_on_stack(total_duration),
+            neutral_style,
+        );
+
+        self.text.render(
+            utils::align(
+                Rect {
+                    width: self.text.width(),
+                    ..line
+                },
+                line,
+                utils::Alignment::CenterHorizontal,
+            ),
+            buf,
+        );
+    }
+
+    fn render_empty(&mut self, line: Rect, buf: &mut Buffer, colors: &Colors) {
+        self.text.clear();
+
+        let style = Style::new().fg(colors.neutral);
+        self.text.push_str("00:00 ", style);
+
+        let status_width = line.width / 3;
+        for _ in 0..status_width {
+            self.text.push_char('─', style);
+        }
+
+        self.text.push_str(" 00:00", style);
+
+        self.text.render(
+            utils::align(
+                Rect {
+                    width: self.text.width(),
+                    ..line
+                },
+                line,
+                utils::Alignment::CenterHorizontal,
+            ),
+            buf,
+        );
     }
 }

@@ -10,7 +10,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 pub struct TextSegment {
     text: String,
-    styles: Vec<(Style, usize, usize)>,
+    segments: Vec<(Style, usize, usize)>,
     total_width: usize,
 }
 
@@ -18,7 +18,7 @@ impl TextSegment {
     pub const fn new() -> Self {
         Self {
             text: String::new(),
-            styles: Vec::new(),
+            segments: Vec::new(),
             total_width: 0,
         }
     }
@@ -27,9 +27,30 @@ impl TextSegment {
         self.total_width as u16
     }
 
-    pub fn push(&mut self, text: impl AsRef<str>, style: Style) {
-        let text = text.as_ref();
+    pub fn push_char(&mut self, ch: char, style: Style) {
+        let len = ch.len_utf8();
+        let width = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
 
+        self.text.push(ch);
+        self.segments.push((style, len, width));
+        self.total_width += width;
+    }
+
+    pub fn push_chars(&mut self, chars: &[char], style: Style) {
+        let mut len = 0;
+        let mut width = 0;
+
+        for ch in chars.iter().copied() {
+            len += ch.len_utf8();
+            width += unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
+            self.text.push(ch);
+        }
+
+        self.segments.push((style, len, width));
+        self.total_width += width;
+    }
+
+    pub fn push_str(&mut self, text: &str, style: Style) {
         if text.is_empty() {
             return;
         }
@@ -38,18 +59,18 @@ impl TextSegment {
         let width = unicode_width::UnicodeWidthStr::width(text);
 
         self.text.push_str(text);
-        self.styles.push((style, len, width));
+        self.segments.push((style, len, width));
         self.total_width += width;
     }
 
-    pub fn extend(&mut self, items: impl IntoIterator<Item = (impl AsRef<str>, Style)>) {
+    pub fn extend<'a>(&mut self, items: impl IntoIterator<Item = (&'a str, Style)>) {
         for (text, style) in items.into_iter() {
-            self.push(text, style);
+            self.push_str(text, style);
         }
     }
 
     pub fn pop(&mut self) {
-        if let Some((_, len, width)) = self.styles.pop() {
+        if let Some((_, len, width)) = self.segments.pop() {
             self.text.truncate(self.text.len() - len);
             self.total_width -= width;
         }
@@ -57,7 +78,7 @@ impl TextSegment {
 
     pub fn clear(&mut self) {
         self.text.clear();
-        self.styles.clear();
+        self.segments.clear();
         self.total_width = 0;
     }
 
@@ -67,7 +88,7 @@ impl TextSegment {
         let mut current_width = 0;
         let Rect { mut x, mut y, .. } = area;
 
-        for (style, len, width) in self.styles.iter().copied() {
+        for (style, len, width) in self.segments.iter().copied() {
             let end = start + len;
             let text = &self.text[start..end];
 

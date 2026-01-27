@@ -438,8 +438,7 @@ impl Track {
         path: PathBuf,
         extension: AudioFileExtension,
     ) -> Self {
-        let mut duration_display = String::with_capacity(5);
-        utils::format_duration(properties.duration(), &mut duration_display);
+        let duration_display = utils::format_duration(properties.duration());
 
         Self {
             metadata,
