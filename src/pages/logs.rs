@@ -130,9 +130,7 @@ impl LogsPage {
         }
     }
 
-    pub fn on_exit(&mut self) {
-        // todo
-    }
+    pub fn on_exit(&self) {}
 }
 
 pub struct Log {

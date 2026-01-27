@@ -31,9 +31,7 @@ impl TracksPage {
         }
     }
 
-    pub fn on_enter(&mut self) {
-        // todo
-    }
+    pub fn on_enter(&self) {}
 
     pub fn on_render(
         &mut self,
@@ -254,7 +252,5 @@ impl TracksPage {
         }
     }
 
-    pub fn on_exit(&mut self) {
-        // todo
-    }
+    pub fn on_exit(&self) {}
 }

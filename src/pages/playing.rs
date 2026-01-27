@@ -32,9 +32,7 @@ impl NowPlayingPage {
         }
     }
 
-    pub fn on_enter(&mut self) {
-        // todo?
-    }
+    pub fn on_enter(&self) {}
 
     pub fn on_update(&mut self, jb: &Jukebox) {
         if self.current != jb.current_track() {
@@ -197,13 +195,9 @@ impl NowPlayingPage {
         }
     }
 
-    pub fn on_input(&mut self, _key: KeyCode, _modifiers: KeyModifiers) {
-        // todo
-    }
+    pub fn on_input(&mut self, _key: KeyCode, _modifiers: KeyModifiers) {}
 
-    pub fn on_exit(&mut self) {
-        // todo
-    }
+    pub fn on_exit(&mut self) {}
 }
 
 enum FrontCover {
