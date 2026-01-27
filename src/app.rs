@@ -10,7 +10,7 @@ use ratatui::{
 
 use crate::{
     events::{AppEvent, Event, EventHandler},
-    jukebox::{Jukebox, TrackId},
+    jukebox::{Jukebox, Track, TrackId},
     pages::{Pages, Route},
     terminal::Terminal,
     utils,
@@ -26,7 +26,7 @@ pub struct App {
     jukebox: Jukebox,
     current: Option<TrackId>,
     navigation: Navigation,
-    playback_title: TextSegment,
+    playback_title: PlaybackTitle,
     playback_status: PlaybackStatus,
     shortcuts_app: Shortcuts<'static>,
     shortcuts_page: Shortcuts<'static>,
@@ -87,7 +87,7 @@ impl App {
             jukebox,
             current: None,
             navigation: Navigation::new(),
-            playback_title: TextSegment::new(),
+            playback_title: PlaybackTitle::new(),
             playback_status: PlaybackStatus::new(),
             shortcuts_app,
             shortcuts_page,
@@ -333,28 +333,11 @@ impl App {
                     // Update playback title
                     if self.current != self.jukebox.current_track() {
                         self.current = self.jukebox.current_track();
-                        self.playback_title.clear();
-
-                        let neutral_style = Style::new().fg(self.colors.neutral);
-                        self.playback_title.push_str(track.artist(), neutral_style);
-                        if !(track.artist().is_empty() || track.title().is_empty()) {
-                            self.playback_title.push_str(" - ", neutral_style);
-                        }
-                        self.playback_title.push_str(track.title(), neutral_style);
+                        self.playback_title.update(track, &self.colors);
                     }
 
                     // Render playback title
-                    self.playback_title.render(
-                        utils::align(
-                            Rect {
-                                width: self.playback_title.width(),
-                                ..playing_title_area
-                            },
-                            playing_title_area,
-                            utils::Alignment::CenterHorizontal,
-                        ),
-                        buf,
-                    );
+                    self.playback_title.render(playing_title_area, buf);
 
                     // Render playback status
                     self.playback_status.render_status(
@@ -467,6 +450,40 @@ impl Navigation {
 
     fn clear(&mut self) {
         self.0.clear();
+    }
+}
+
+struct PlaybackTitle(TextSegment);
+
+impl PlaybackTitle {
+    const fn new() -> Self {
+        Self(TextSegment::new())
+    }
+
+    fn update(&mut self, track: &Track, colors: &Colors) {
+        self.0.clear();
+
+        let neutral_style = Style::new().fg(colors.neutral);
+
+        self.0.push_str(track.artist(), neutral_style);
+        if !(track.artist().is_empty() || track.title().is_empty()) {
+            self.0.push_str(" - ", neutral_style);
+        }
+        self.0.push_str(track.title(), neutral_style);
+    }
+
+    fn render(&self, line: Rect, buf: &mut Buffer) {
+        self.0.render(
+            utils::align(
+                Rect {
+                    width: self.0.width(),
+                    ..line
+                },
+                line,
+                utils::Alignment::CenterHorizontal,
+            ),
+            buf,
+        );
     }
 }
 
