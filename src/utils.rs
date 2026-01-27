@@ -100,19 +100,18 @@ pub fn format_duration_on_stack(duration: Duration) -> [char; 5] {
 
     if minutes < 10 {
         chars[1] = unsafe { buffer.format(minutes).chars().next().unwrap_unchecked() };
-    } else if minutes > 99 {
-        chars[0] = '9';
-        chars[1] = '9';
-    } else {
+    } else if minutes < 100 {
         for (i, char) in buffer.format(minutes).chars().enumerate() {
             chars[i] = char;
         }
+    } else {
+        return ['9', '9', ':', '9', '9'];
     }
 
     if seconds < 10 {
         chars[4] = unsafe { buffer.format(seconds).chars().next().unwrap_unchecked() };
     } else {
-        for (i, char) in buffer.format(minutes).chars().enumerate() {
+        for (i, char) in buffer.format(seconds).chars().enumerate() {
             chars[i + 3] = char;
         }
     }
