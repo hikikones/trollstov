@@ -96,13 +96,7 @@ impl App {
 
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Render initial page
-        match self.route {
-            Route::Tracks => self.pages.tracks.on_enter(),
-            Route::NowPlaying => self.pages.now_playing.on_enter(),
-            Route::Queue => self.pages.queue.on_enter(),
-            Route::Search => self.pages.search.on_enter(),
-            Route::Logs => self.pages.logs.on_enter(),
-        }
+        self.on_enter();
         self.render(&mut terminal)?;
 
         // Start reading events and load music
@@ -134,52 +128,44 @@ impl App {
     fn handle_key_press(&mut self, key: KeyEvent) {
         let alt = key.modifiers.contains(KeyModifiers::ALT);
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
-        let pass_on_key_event = match key.code {
+        match key.code {
             KeyCode::Esc => {
                 self.events.send(AppEvent::Quit);
-                None
             }
             KeyCode::Tab => {
                 self.events.send(AppEvent::Route(self.route.next()));
-                None
             }
             KeyCode::BackTab => {
                 self.events.send(AppEvent::Route(self.route.prev()));
-                None
             }
             KeyCode::Up => {
                 if ctrl {
                     self.jukebox.pause_or_play();
-                    None
                 } else {
-                    Some(key)
+                    self.on_input(key);
                 }
             }
             KeyCode::Down => {
                 if ctrl {
                     self.jukebox.stop();
-                    None
                 } else {
-                    Some(key)
+                    self.on_input(key);
                 }
             }
             KeyCode::Right => {
                 if ctrl {
                     self.jukebox.play_next();
-                    None
                 } else if alt {
                     self.jukebox.seek(std::time::Duration::from_secs(30));
-                    None
                 } else {
-                    Some(key)
+                    self.on_input(key);
                 }
             }
             KeyCode::Left => {
                 if ctrl {
                     self.jukebox.play_previous();
-                    None
                 } else {
-                    Some(key)
+                    self.on_input(key);
                 }
             }
             KeyCode::Media(media) => match media {
@@ -187,49 +173,34 @@ impl App {
                 MediaKeyCode::Pause => todo!(),
                 MediaKeyCode::PlayPause => {
                     self.jukebox.pause_or_play();
-                    None
                 }
                 MediaKeyCode::Stop => todo!(),
                 MediaKeyCode::TrackNext => {
                     self.jukebox.play_next();
-                    None
                 }
                 MediaKeyCode::TrackPrevious => todo!(),
-                _ => None,
+                MediaKeyCode::Reverse => todo!(),
+                MediaKeyCode::FastForward => todo!(),
+                MediaKeyCode::Rewind => todo!(),
+                MediaKeyCode::Record => todo!(),
+                MediaKeyCode::LowerVolume => todo!(),
+                MediaKeyCode::RaiseVolume => todo!(),
+                MediaKeyCode::MuteVolume => todo!(),
             },
             KeyCode::Char(c) => match c {
                 '/' => {
                     if self.route == Route::Search {
-                        Some(key)
+                        self.on_input(key);
                     } else {
                         self.events.send(AppEvent::Route(Route::Search));
-                        None
                     }
                 }
-                _ => Some(key),
+                _ => {
+                    self.on_input(key);
+                }
             },
-            _ => Some(key),
-        };
-
-        if let Some(key) = pass_on_key_event {
-            match self.route {
-                Route::Tracks => {
-                    self.pages
-                        .tracks
-                        .on_input(key.code, key.modifiers, &mut self.jukebox)
-                }
-                Route::NowPlaying => self.pages.now_playing.on_input(key.code, key.modifiers),
-                Route::Queue => {
-                    self.pages
-                        .queue
-                        .on_input(key.code, key.modifiers, &mut self.jukebox)
-                }
-                Route::Search => {
-                    self.pages
-                        .search
-                        .on_input(key.code, key.modifiers, &mut self.jukebox)
-                }
-                Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
+            _ => {
+                self.on_input(key);
             }
         }
     }
@@ -251,24 +222,9 @@ impl App {
                 self.render(terminal)?;
             }
             AppEvent::Route(route) => {
-                match self.route {
-                    Route::Tracks => self.pages.tracks.on_exit(),
-                    Route::NowPlaying => self.pages.now_playing.on_exit(),
-                    Route::Queue => self.pages.queue.on_exit(),
-                    Route::Search => self.pages.search.on_exit(),
-                    Route::Logs => self.pages.logs.on_exit(),
-                }
-
+                self.on_exit();
                 self.route = route;
-
-                match route {
-                    Route::Tracks => self.pages.tracks.on_enter(),
-                    Route::NowPlaying => self.pages.now_playing.on_enter(),
-                    Route::Queue => self.pages.queue.on_enter(),
-                    Route::Search => self.pages.search.on_enter(),
-                    Route::Logs => self.pages.logs.on_enter(),
-                }
-
+                self.on_enter();
                 self.render(terminal)?;
             }
             AppEvent::Log(log) => {
@@ -455,6 +411,45 @@ impl App {
             self.shortcuts_app.render(shortcuts_app_area, buf);
         })
     }
+
+    fn on_enter(&mut self) {
+        match self.route {
+            Route::Tracks => self.pages.tracks.on_enter(),
+            Route::NowPlaying => self.pages.now_playing.on_enter(),
+            Route::Queue => self.pages.queue.on_enter(),
+            Route::Search => self.pages.search.on_enter(),
+            Route::Logs => self.pages.logs.on_enter(),
+        }
+    }
+
+    fn on_exit(&mut self) {
+        match self.route {
+            Route::Tracks => self.pages.tracks.on_exit(),
+            Route::NowPlaying => self.pages.now_playing.on_exit(),
+            Route::Queue => self.pages.queue.on_exit(),
+            Route::Search => self.pages.search.on_exit(),
+            Route::Logs => self.pages.logs.on_exit(),
+        }
+    }
+
+    fn on_input(&mut self, key: KeyEvent) {
+        match self.route {
+            Route::Tracks => self
+                .pages
+                .tracks
+                .on_input(key.code, key.modifiers, &mut self.jukebox),
+            Route::NowPlaying => self.pages.now_playing.on_input(key.code, key.modifiers),
+            Route::Queue => self
+                .pages
+                .queue
+                .on_input(key.code, key.modifiers, &mut self.jukebox),
+            Route::Search => self
+                .pages
+                .search
+                .on_input(key.code, key.modifiers, &mut self.jukebox),
+            Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
+        }
+    }
 }
 
 struct PlaybackStatus {
@@ -470,7 +465,6 @@ impl PlaybackStatus {
 
     fn render_status(
         &mut self,
-
         line: Rect,
         buf: &mut Buffer,
         current_duration: Duration,
