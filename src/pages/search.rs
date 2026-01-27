@@ -41,14 +41,7 @@ impl SearchPage {
         // todo
     }
 
-    pub fn on_render(
-        &mut self,
-        area: Rect,
-        buf: &mut Buffer,
-        jb: &Jukebox,
-        colors: &Colors,
-        menu: &mut Line,
-    ) {
+    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         if jb.is_empty() {
             const NO_TRACKS: &str = "No tracks to search for";
             Span::styled(NO_TRACKS, Style::new().fg(colors.neutral)).render(

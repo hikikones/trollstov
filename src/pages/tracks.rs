@@ -41,7 +41,6 @@ impl TracksPage {
         buf: &mut Buffer,
         jb: &Jukebox,
         colors: &Colors,
-        menu: &mut Line,
         shortcuts: &mut Shortcuts,
     ) {
         if jb.is_empty() {

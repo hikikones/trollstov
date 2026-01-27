@@ -10,7 +10,7 @@ use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
     app::Colors,
-    audio::{AudioPicture, AudioRating},
+    audio::AudioPicture,
     jukebox::{Jukebox, TrackId},
     utils,
 };

@@ -31,14 +31,7 @@ impl QueuePage {
         // todo
     }
 
-    pub fn on_render(
-        &mut self,
-        area: Rect,
-        buf: &mut Buffer,
-        jb: &Jukebox,
-        colors: &Colors,
-        menu: &mut Line,
-    ) {
+    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         if jb.is_queue_empty() {
             const EMPTY_QUEUE: &str = "No tracks in the queue";
             Span::styled(EMPTY_QUEUE, Style::new().fg(colors.neutral)).render(

@@ -24,9 +24,7 @@ pub struct App {
     events: EventHandler,
     jukebox: Jukebox,
     current: Option<TrackId>,
-    title_line: Line<'static>,
-    nav_line: TextSegment,
-    menu_line: Line<'static>,
+    navigation: TextSegment,
     playing_title: String,
     playing_status_line: Line<'static>,
     playing_current_duration: String,
@@ -68,7 +66,6 @@ impl App {
     ) -> Self {
         let colors = Colors::new();
         let pages = Pages::new(picker, events.clone_sender(), &colors);
-        let title_line = Line::styled("jukebox", Style::new().fg(colors.neutral)).centered();
 
         let mut shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
         shortcuts_app.extend([
@@ -90,9 +87,7 @@ impl App {
             events,
             jukebox,
             current: None,
-            title_line,
-            nav_line: TextSegment::new(),
-            menu_line: Line::default().centered(),
+            navigation: TextSegment::new(),
             playing_title: String::new(),
             playing_status_line: Line::default().centered(),
             playing_current_duration: String::with_capacity(5),
@@ -304,7 +299,6 @@ impl App {
                 title_area,
                 _,
                 nav_area,
-                menu_area,
                 body_area,
                 shortcuts_page_area,
                 _,
@@ -312,7 +306,6 @@ impl App {
                 playing_status_area,
                 shortcuts_app_area,
             ] = Layout::vertical([
-                Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
@@ -326,9 +319,14 @@ impl App {
             .areas(area);
 
             // Title
-            (&self.title_line).render(title_area, buf);
-
-            if Route::Tracks == Route::NowPlaying {}
+            const TITLE: &str = "jukebox";
+            buf.set_stringn(
+                title_area.x + (title_area.width.saturating_sub(TITLE.len() as u16)) / 2,
+                title_area.y,
+                TITLE,
+                TITLE.len(),
+                Style::new().fg(self.colors.neutral),
+            );
 
             // Navigation
             for (route, spacing) in [
@@ -344,24 +342,24 @@ impl App {
                     Style::new()
                 };
 
-                self.nav_line.push(route.title(), style);
+                self.navigation.push(route.title(), style);
                 if route == Route::Logs {
                     let new_logs = self.pages.logs.queue_len();
                     if new_logs > 0 {
                         let mut buffer = itoa::Buffer::new();
-                        self.nav_line.extend([
+                        self.navigation.extend([
                             ("(", style),
                             (buffer.format(new_logs), style),
                             (")", style),
                         ]);
                     }
                 }
-                self.nav_line.push(spacing, Style::new());
+                self.navigation.push(spacing, Style::new());
             }
-            self.nav_line.render(
+            self.navigation.render(
                 utils::align(
                     Rect {
-                        width: self.nav_line.width(),
+                        width: self.navigation.width(),
                         height: 1,
                         ..nav_area
                     },
@@ -370,7 +368,7 @@ impl App {
                 ),
                 buf,
             );
-            self.nav_line.clear();
+            self.navigation.clear();
 
             // Body
             const MAX_WIDTH: u16 = 128;
@@ -385,7 +383,6 @@ impl App {
                         buf,
                         &self.jukebox,
                         &self.colors,
-                        &mut self.menu_line,
                         &mut self.shortcuts_page,
                     );
                 }
@@ -395,22 +392,14 @@ impl App {
                         .on_render(body, buf, &self.jukebox, &self.colors);
                 }
                 Route::Queue => {
-                    self.pages.queue.on_render(
-                        body,
-                        buf,
-                        &self.jukebox,
-                        &self.colors,
-                        &mut self.menu_line,
-                    );
+                    self.pages
+                        .queue
+                        .on_render(body, buf, &self.jukebox, &self.colors);
                 }
                 Route::Search => {
-                    self.pages.search.on_render(
-                        body,
-                        buf,
-                        &self.jukebox,
-                        &self.colors,
-                        &mut self.menu_line,
-                    );
+                    self.pages
+                        .search
+                        .on_render(body, buf, &self.jukebox, &self.colors);
                 }
                 Route::Logs => {
                     self.pages.logs.on_render(body, buf, &self.colors);
@@ -418,10 +407,6 @@ impl App {
             }
             self.shortcuts_page.render(shortcuts_page_area, buf);
             self.shortcuts_page.clear();
-
-            // Menu
-            (&self.menu_line).render(menu_area, buf);
-            self.menu_line.spans.clear();
 
             // Playing
             if self.current != self.jukebox.current_track() {
