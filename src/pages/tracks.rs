@@ -43,17 +43,12 @@ impl TracksPage {
     ) {
         if jb.is_empty() {
             const NO_TRACKS: &str = "No tracks to be found";
-            Span::styled(NO_TRACKS, Style::new().fg(colors.neutral)).render(
-                utils::align(
-                    Rect {
-                        width: NO_TRACKS.len() as u16,
-                        height: 1,
-                        ..area
-                    },
-                    area,
-                    utils::Alignment::CenterHorizontal,
-                ),
-                buf,
+            buf.set_stringn(
+                area.x + (area.width.saturating_sub(NO_TRACKS.len() as u16)) / 2,
+                area.y,
+                NO_TRACKS,
+                NO_TRACKS.len(),
+                Style::new().fg(colors.neutral),
             );
             return;
         }

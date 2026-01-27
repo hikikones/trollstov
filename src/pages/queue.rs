@@ -32,17 +32,12 @@ impl QueuePage {
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         if jb.is_queue_empty() {
             const EMPTY_QUEUE: &str = "No tracks in the queue";
-            Span::styled(EMPTY_QUEUE, Style::new().fg(colors.neutral)).render(
-                utils::align(
-                    Rect {
-                        width: EMPTY_QUEUE.len() as u16,
-                        height: 1,
-                        ..area
-                    },
-                    area,
-                    utils::Alignment::CenterHorizontal,
-                ),
-                buf,
+            buf.set_stringn(
+                area.x + (area.width.saturating_sub(EMPTY_QUEUE.len() as u16)) / 2,
+                area.y,
+                EMPTY_QUEUE,
+                EMPTY_QUEUE.len(),
+                Style::new().fg(colors.neutral),
             );
             return;
         }

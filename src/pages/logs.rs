@@ -46,17 +46,12 @@ impl LogsPage {
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, colors: &Colors) {
         if self.logs.is_empty() {
             const NO_LOGS: &str = "No logs to report";
-            Span::styled(NO_LOGS, Style::new().fg(colors.neutral)).render(
-                utils::align(
-                    Rect {
-                        width: NO_LOGS.len() as u16,
-                        height: 1,
-                        ..area
-                    },
-                    area,
-                    utils::Alignment::CenterHorizontal,
-                ),
-                buf,
+            buf.set_stringn(
+                area.x + (area.width.saturating_sub(NO_LOGS.len() as u16)) / 2,
+                area.y,
+                NO_LOGS,
+                NO_LOGS.len(),
+                Style::new().fg(colors.neutral),
             );
             return;
         }
