@@ -66,8 +66,8 @@ impl App {
         jukebox: Jukebox,
         picker: ratatui_image::picker::Picker,
     ) -> Self {
-        let pages = Pages::new(picker, events.clone_sender());
         let colors = Colors::new();
+        let pages = Pages::new(picker, events.clone_sender(), &colors);
         let title_line = Line::styled("jukebox", Style::new().fg(colors.neutral)).centered();
 
         let mut shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);

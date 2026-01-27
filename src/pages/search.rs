@@ -5,10 +5,10 @@ use ratatui::{
 
 use crate::{
     app::Colors,
-    editor::TextInput,
     events::{AppEvent, EventSender},
     jukebox::{Jukebox, TrackId},
     utils,
+    widgets::TextInput,
 };
 
 pub struct SearchPage {
@@ -23,11 +23,12 @@ pub struct SearchPage {
 }
 
 impl SearchPage {
-    pub fn new(events: EventSender) -> Self {
+    pub fn new(colors: &Colors, events: EventSender) -> Self {
         Self {
             index: 0,
             scroll: 0,
-            search_input: TextInput::new().with_placeholder("search..."),
+            search_input: TextInput::new(colors.on_accent, colors.accent, colors.neutral)
+                .with_placeholder("search..."),
             search_results: Vec::new(),
             matcher: Matcher::new(),
             is_dirty: false,
@@ -65,11 +66,8 @@ impl SearchPage {
             return;
         }
 
-        self.search_input.render(
-            area.centered_horizontally(Constraint::Percentage(60)),
-            buf,
-            colors,
-        );
+        self.search_input
+            .render(area.centered_horizontally(Constraint::Percentage(60)), buf);
 
         // Update search results
         if self.is_dirty {
