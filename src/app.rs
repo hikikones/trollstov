@@ -90,6 +90,7 @@ impl App {
 
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Render initial page
+        // TODO: Show ASCII logo instead
         self.on_enter();
         self.render(&mut terminal)?;
 
