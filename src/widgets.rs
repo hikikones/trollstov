@@ -10,7 +10,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 pub struct TextSegment {
     text: String,
-    segments: Vec<(Style, usize, usize)>,
+    segments: Vec<(usize, Style)>,
     total_width: usize,
     alignment: Alignment,
 }
@@ -39,12 +39,9 @@ impl TextSegment {
     }
 
     pub fn push_char(&mut self, ch: char, style: Style) {
-        let len = ch.len_utf8();
-        let width = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
-
         self.text.push(ch);
-        self.segments.push((style, len, width));
-        self.total_width += width;
+        self.segments.push((ch.len_utf8(), style));
+        self.total_width += unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
     }
 
     pub fn push_chars(&mut self, chars: &[char], style: Style) {
@@ -57,7 +54,7 @@ impl TextSegment {
             self.text.push(ch);
         }
 
-        self.segments.push((style, len, width));
+        self.segments.push((len, style));
         self.total_width += width;
     }
 
@@ -66,24 +63,14 @@ impl TextSegment {
             return;
         }
 
-        let len = text.len();
-        let width = unicode_width::UnicodeWidthStr::width(text);
-
         self.text.push_str(text);
-        self.segments.push((style, len, width));
-        self.total_width += width;
+        self.segments.push((text.len(), style));
+        self.total_width += unicode_width::UnicodeWidthStr::width(text);
     }
 
     pub fn extend<'a>(&mut self, items: impl IntoIterator<Item = (&'a str, Style)>) {
         for (text, style) in items.into_iter() {
             self.push_str(text, style);
-        }
-    }
-
-    pub fn pop(&mut self) {
-        if let Some((_, len, width)) = self.segments.pop() {
-            self.text.truncate(self.text.len() - len);
-            self.total_width -= width;
         }
     }
 
@@ -93,40 +80,38 @@ impl TextSegment {
         self.total_width = 0;
     }
 
-    pub fn render(&self, area: Rect, buf: &mut Buffer) {
-        let max_width = area.width as usize;
-        let mut start = 0;
-        let mut current_width = 0;
-
-        let area = match self.alignment {
-            Alignment::Left => area,
+    pub fn render(&self, line: Rect, buf: &mut Buffer) {
+        let line = match self.alignment {
+            Alignment::Left => line,
             Alignment::Center => Rect {
-                x: area.x + (area.width.saturating_sub(self.total_width as u16)) / 2,
-                ..area
+                x: line.x + (line.width.saturating_sub(self.width())) / 2,
+                ..line
             },
             Alignment::Right => Rect {
-                x: area.x + area.width.saturating_sub(self.total_width as u16),
-                ..area
+                x: line.x + line.width.saturating_sub(self.width()),
+                ..line
             },
         };
-        let Rect { mut x, y, .. } = area;
+        let mut start = 0;
+        let Rect {
+            mut x,
+            y,
+            mut width,
+            ..
+        } = line;
 
-        for (style, len, width) in self.segments.iter().copied() {
+        for (len, style) in self.segments.iter().copied() {
             let end = start + len;
             let text = &self.text[start..end];
 
-            current_width += width;
-            if current_width > max_width {
-                let remaining = max_width - (current_width - width);
-                if remaining > 0 {
-                    buf.set_stringn(x, y, text, remaining, style);
-                }
-                break;
-            } else {
-                (x, _) = buf.set_stringn(x, y, text, width, style);
-            }
-
+            let (next_x, _) = buf.set_stringn(x, y, text, width as usize, style);
+            width -= next_x - x;
+            x = next_x;
             start = end;
+
+            if width == 0 {
+                break;
+            }
         }
     }
 }
