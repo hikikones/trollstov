@@ -200,7 +200,10 @@ fn render_tracks_table(
     // Render the body for the table
     *scroll = utils::calculate_scroll(index, table_area.height, *scroll);
     let current = jb.current_track();
-    let Rect { mut x, mut y, .. } = table_area;
+    let mut row = Rect {
+        height: 1,
+        ..table_area
+    };
 
     jb.iter()
         .enumerate()
@@ -217,23 +220,18 @@ fn render_tracks_table(
                 style.add_modifier.insert(Modifier::BOLD);
             }
 
-            for (text, width, spacing) in [
-                (track.title(), info_width, spacing),
-                (track.artist(), info_width, spacing),
-                (track.album(), info_width, spacing),
-                (track.duration_display(), time_width, spacing),
-                (track.rating_display(), rating_width, 0),
-            ] {
-                let (next_x, _) =
-                    buf.set_stringn(x, y, text, width.saturating_sub(spacing) as usize, style);
-                let remaining = width - (next_x - x);
-                for i in 0..remaining {
-                    buf[(next_x + i, y)].set_style(style);
-                }
-                x = next_x + remaining;
-            }
-
-            x = table_area.x;
-            y += 1;
+            utils::print_text_segments(
+                row,
+                buf,
+                [
+                    (track.title(), info_width, spacing),
+                    (track.artist(), info_width, spacing),
+                    (track.album(), info_width, spacing),
+                    (track.duration_display(), time_width, spacing),
+                    (track.rating_display(), rating_width, 0),
+                ],
+                style,
+            );
+            row.y += 1;
         });
 }

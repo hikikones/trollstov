@@ -50,7 +50,7 @@ pub fn print_line(line: Rect, buf: &mut Buffer, text: impl AsRef<str>, style: St
     }
 }
 
-/// Prints an iterator of text slices and fills remaining empty cells with the given style.
+/// Prints a collection of text slices and fills remaining empty cells with the given style.
 pub fn print_line_iter(
     line: Rect,
     buf: &mut Buffer,
@@ -75,6 +75,26 @@ pub fn print_line_iter(
 
     for i in 0..width {
         buf[(x + i, y)].set_style(style);
+    }
+}
+
+/// Prints a collection of text segments with widths and spacing.
+/// Fills remaining empty cells with the given style.
+pub fn print_text_segments(
+    line: Rect,
+    buf: &mut Buffer,
+    segments: impl IntoIterator<Item = (impl AsRef<str>, u16, u16)>,
+    style: Style,
+) {
+    let Rect { mut x, y, .. } = line;
+    for (text, width, spacing) in segments {
+        let text_width = width.saturating_sub(spacing);
+        let (next_x, _) = buf.set_stringn(x, y, text, text_width as usize, style);
+        let remaining = width - (next_x - x);
+        for i in 0..remaining {
+            buf[(next_x + i, y)].set_style(style);
+        }
+        x = next_x + remaining;
     }
 }
 
