@@ -46,7 +46,7 @@ impl SearchPage {
                 buf,
                 "No tracks to search for",
                 Style::new().fg(colors.neutral),
-                Alignment::Center,
+                utils::Alignment::CenterHorizontal,
             );
             return;
         }

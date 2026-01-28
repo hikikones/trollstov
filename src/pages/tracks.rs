@@ -43,7 +43,7 @@ impl TracksPage {
                 buf,
                 "No tracks to be found",
                 Style::new().fg(colors.neutral),
-                Alignment::Center,
+                utils::Alignment::CenterHorizontal,
             );
             return;
         }

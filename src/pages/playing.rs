@@ -105,35 +105,23 @@ impl NowPlayingPage {
 
                 match &mut self.image {
                     FrontCover::None => {
-                        const NO_IMAGE: &str = "NO IMAGE";
                         Block::bordered().style(neutral_style).render(img_area, buf);
-                        Span::styled(NO_IMAGE, neutral_style).render(
-                            utils::align(
-                                Rect {
-                                    width: NO_IMAGE.len() as u16,
-                                    height: 1,
-                                    ..img_area
-                                },
-                                img_area,
-                                utils::Alignment::Center,
-                            ),
+                        utils::print_ascii(
+                            img_area,
                             buf,
+                            "NO IMAGE",
+                            neutral_style,
+                            utils::Alignment::Center,
                         );
                     }
                     FrontCover::Loading => {
-                        const LOADING: &str = "LOADING";
                         Block::bordered().style(neutral_style).render(img_area, buf);
-                        Span::styled(LOADING, neutral_style).render(
-                            utils::align(
-                                Rect {
-                                    width: LOADING.len() as u16,
-                                    height: 1,
-                                    ..img_area
-                                },
-                                img_area,
-                                utils::Alignment::Center,
-                            ),
+                        utils::print_ascii(
+                            img_area,
                             buf,
+                            "LOADING",
+                            neutral_style,
+                            utils::Alignment::Center,
                         );
                     }
                     FrontCover::Ready(image) => {
@@ -178,18 +166,12 @@ impl NowPlayingPage {
                 }
             }
             None => {
-                const NO_TRACK: &str = "No track currently playing";
-                Span::styled(NO_TRACK, neutral_style).render(
-                    utils::align(
-                        Rect {
-                            width: NO_TRACK.len() as u16,
-                            height: 1,
-                            ..area
-                        },
-                        area,
-                        utils::Alignment::CenterHorizontal,
-                    ),
+                utils::print_ascii(
+                    area,
                     buf,
+                    "No track currently playing",
+                    neutral_style,
+                    utils::Alignment::CenterHorizontal,
                 );
             }
         }

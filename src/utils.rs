@@ -7,19 +7,21 @@ use ratatui::{buffer::Buffer, layout::Rect, style::Style};
 pub fn print_ascii(
     area: Rect,
     buf: &mut Buffer,
-    s: impl AsRef<str>,
+    ascii: impl AsRef<str>,
     style: Style,
-    alignment: ratatui::layout::Alignment,
+    alignment: Alignment,
 ) {
-    let s = s.as_ref();
-    let x = match alignment {
-        ratatui::layout::Alignment::Left => area.x,
-        ratatui::layout::Alignment::Center => {
-            area.x + (area.width.saturating_sub(s.len() as u16)) / 2
-        }
-        ratatui::layout::Alignment::Right => area.x + area.width.saturating_sub(s.len() as u16),
-    };
-    buf.set_stringn(x, area.y, s, s.len(), style);
+    let ascii = ascii.as_ref();
+    let Rect { x, y, .. } = align(
+        Rect {
+            width: ascii.len() as u16,
+            height: 1,
+            ..area
+        },
+        area,
+        alignment,
+    );
+    buf.set_stringn(x, y, ascii, ascii.len(), style);
 }
 
 /// Aligns the inner [Rect] inside the outer [Rect].

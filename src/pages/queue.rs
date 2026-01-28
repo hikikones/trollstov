@@ -36,7 +36,7 @@ impl QueuePage {
                 buf,
                 "No tracks in the queue",
                 Style::new().fg(colors.neutral),
-                Alignment::Center,
+                utils::Alignment::CenterHorizontal,
             );
             return;
         }

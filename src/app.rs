@@ -267,13 +267,12 @@ impl App {
             .areas(area);
 
             // Title
-            const TITLE: &str = "jukebox";
-            buf.set_stringn(
-                title_area.x + (title_area.width.saturating_sub(TITLE.len() as u16)) / 2,
-                title_area.y,
-                TITLE,
-                TITLE.len(),
+            utils::print_ascii(
+                title_area,
+                buf,
+                "jukebox",
                 Style::new().fg(self.colors.neutral),
+                utils::Alignment::CenterHorizontal,
             );
 
             // Navigation
