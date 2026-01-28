@@ -118,7 +118,6 @@ fn render_logs<'a>(
         .take(area.height as usize)
         .for_each(|(i, log)| {
             let (label, label_width, label_style) = match log.level {
-                LogLevel::Info => ("Info", 4, Style::new().fg(Color::Green)),
                 LogLevel::Warning => ("Warning", 7, Style::new().fg(Color::Yellow)),
                 LogLevel::Error => ("Error", 5, Style::new().fg(Color::Red)),
             };
@@ -170,7 +169,6 @@ impl Log {
 }
 
 pub enum LogLevel {
-    Info,
     Warning,
     Error,
 }

@@ -174,6 +174,7 @@ pub fn align(inner: Rect, outer: Rect, alignment: Alignment) -> Rect {
     }
 }
 
+#[allow(unused)]
 pub enum Alignment {
     TopLeft,
     Top,

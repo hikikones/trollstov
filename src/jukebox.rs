@@ -100,31 +100,8 @@ impl Jukebox {
         self.tracks.keys().nth(i).copied()
     }
 
-    pub fn get_id_value_from_index(&self, i: usize) -> Option<(TrackId, &Track)> {
-        self.tracks.iter().nth(i).map(|(id, track)| (*id, track))
-    }
-
-    pub fn get_index_from_id(&self, id: TrackId) -> Option<usize> {
-        self.ids()
-            .enumerate()
-            .find(|(_, tid)| *tid == id)
-            .map(|(i, _)| i)
-    }
-
     pub fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, &Track)> + DoubleEndedIterator {
         self.tracks.iter().map(|(id, track)| (*id, track))
-    }
-
-    pub fn ids(&self) -> std::iter::Copied<indexmap::map::Keys<'_, TrackId, Track>> {
-        self.tracks.keys().copied()
-    }
-
-    pub fn tracks(&self) -> indexmap::map::Values<'_, TrackId, Track> {
-        self.tracks.values()
-    }
-
-    pub fn tracks_mut(&mut self) -> indexmap::map::ValuesMut<'_, TrackId, Track> {
-        self.tracks.values_mut()
     }
 
     pub const fn get_sort(&self) -> TrackSort {
@@ -169,106 +146,7 @@ impl Jukebox {
 
     pub fn update(&mut self) {
         self.receive_audio_files();
-
-        if let Some(action) = self.actions.pop_front() {
-            match action {
-                JukeboxAction::Play(id, add_to_history) => {
-                    match self.audio_play_handle.as_ref() {
-                        Some(handle) => {
-                            if handle.is_finished() {
-                                let handle = self.audio_play_handle.take().unwrap();
-                                match handle.join().unwrap() {
-                                    Ok((id, source)) => {
-                                        if let Some(current_id) = self.current_track() {
-                                            if add_to_history {
-                                                // New track, add to history
-                                                self.history.push(current_id);
-                                            } else {
-                                                // Playing previous, enqueue current so we remember
-                                                self.queue.push_front(current_id);
-                                            }
-                                        }
-                                        self.sink.clear();
-                                        self.sink.append(source);
-                                        self.sink.play();
-                                        self.current = Some(id);
-                                        self.stopped = None;
-                                        self.events.send(AppEvent::UpdateAndRender);
-                                    }
-                                    Err(err) => {
-                                        let log = Log::new(err.to_string(), LogLevel::Error);
-                                        self.events.send(AppEvent::Log(log));
-                                    }
-                                }
-                            } else {
-                                self.actions.push_front(action);
-                            }
-                        }
-                        None => {
-                            self.audio_play_handle = Some(self.decode_audio(id));
-                            self.actions.push_front(action);
-                        }
-                    }
-                }
-                JukeboxAction::PausePlay => {
-                    if self.sink.is_paused() {
-                        match self.stopped.take() {
-                            Some(id) => {
-                                self.play(id);
-                            }
-                            None => {
-                                self.sink.play();
-                            }
-                        }
-                    } else {
-                        self.sink.pause();
-                    }
-                }
-                JukeboxAction::Stop => {
-                    if let Some(id) = self.current.take() {
-                        self.sink.clear();
-                        self.stopped = Some(id);
-                        self.events.send(AppEvent::UpdateAndRender);
-                    }
-                }
-                JukeboxAction::Next => {
-                    let next_id = self
-                        .queue
-                        .pop_front()
-                        .unwrap_or_else(|| TrackId(fastrand::u64(0..self.tracks.len() as u64)));
-                    self.play(next_id);
-                }
-                JukeboxAction::Previous => {
-                    if let Some(id) = self.history.pop() {
-                        self.actions.push_front(JukeboxAction::Play(id, false));
-                    }
-                }
-                JukeboxAction::Rating(id, rating) => match self.audio_write_handle.as_ref() {
-                    Some(handle) => {
-                        if handle.is_finished() {
-                            let handle = self.audio_write_handle.take().unwrap();
-                            match handle.join().unwrap() {
-                                Ok((id, new_rating)) => {
-                                    let track = self.get_mut(id).unwrap();
-                                    track.set_rating(new_rating);
-                                    self.events.send(AppEvent::Render);
-                                }
-                                Err(err) => {
-                                    let log = Log::new(err.to_string(), LogLevel::Error);
-                                    self.events.send(AppEvent::Log(log));
-                                }
-                            }
-                        } else {
-                            self.actions.push_front(action);
-                        }
-                    }
-                    None => {
-                        self.audio_write_handle = Some(self.write_rating(id, rating));
-                        self.actions.push_front(action);
-                    }
-                },
-            }
-        }
+        self.apply_actions();
 
         // Play next when idle and finished
         if self.actions.is_empty() && self.sink.empty() && !self.sink.is_paused() {
@@ -368,7 +246,7 @@ impl Jukebox {
                                 extension,
                             )),
                             AudioFileExtension::Opus => Err(AudioFileError::Unsupported(format!(
-                                "Unsupported file {}.",
+                                "Unsupported file \"{}\".",
                                 audio_file.path().to_string_lossy()
                             ))),
                         });
@@ -405,6 +283,108 @@ impl Jukebox {
                     mpsc::TryRecvError::Disconnected => {
                         self.audio_file_receiver = None;
                         break;
+                    }
+                },
+            }
+        }
+    }
+
+    fn apply_actions(&mut self) {
+        if let Some(action) = self.actions.pop_front() {
+            match action {
+                JukeboxAction::Play(id, add_to_history) => {
+                    match self.audio_play_handle.as_ref() {
+                        Some(handle) => {
+                            if handle.is_finished() {
+                                let handle = self.audio_play_handle.take().unwrap();
+                                match handle.join().unwrap() {
+                                    Ok((id, source)) => {
+                                        if let Some(current_id) = self.current_track() {
+                                            if add_to_history {
+                                                // New track, add to history
+                                                self.history.push(current_id);
+                                            } else {
+                                                // Playing previous, enqueue current so we remember
+                                                self.queue.push_front(current_id);
+                                            }
+                                        }
+                                        self.sink.clear();
+                                        self.sink.append(source);
+                                        self.sink.play();
+                                        self.current = Some(id);
+                                        self.stopped = None;
+                                        self.events.send(AppEvent::UpdateAndRender);
+                                    }
+                                    Err(err) => {
+                                        let log = Log::new(err.to_string(), LogLevel::Error);
+                                        self.events.send(AppEvent::Log(log));
+                                    }
+                                }
+                            } else {
+                                self.actions.push_front(action);
+                            }
+                        }
+                        None => {
+                            self.audio_play_handle = Some(self.decode_audio(id));
+                            self.actions.push_front(action);
+                        }
+                    }
+                }
+                JukeboxAction::PausePlay => {
+                    if self.sink.is_paused() {
+                        match self.stopped.take() {
+                            Some(id) => {
+                                self.play(id);
+                            }
+                            None => {
+                                self.sink.play();
+                            }
+                        }
+                    } else {
+                        self.sink.pause();
+                    }
+                }
+                JukeboxAction::Stop => {
+                    if let Some(id) = self.current.take() {
+                        self.sink.clear();
+                        self.stopped = Some(id);
+                        self.events.send(AppEvent::UpdateAndRender);
+                    }
+                }
+                JukeboxAction::Next => {
+                    let next_id = self
+                        .queue
+                        .pop_front()
+                        .unwrap_or_else(|| TrackId(fastrand::u64(0..self.tracks.len() as u64)));
+                    self.play(next_id);
+                }
+                JukeboxAction::Previous => {
+                    if let Some(id) = self.history.pop() {
+                        self.actions.push_front(JukeboxAction::Play(id, false));
+                    }
+                }
+                JukeboxAction::Rating(id, rating) => match self.audio_write_handle.as_ref() {
+                    Some(handle) => {
+                        if handle.is_finished() {
+                            let handle = self.audio_write_handle.take().unwrap();
+                            match handle.join().unwrap() {
+                                Ok((id, new_rating)) => {
+                                    let track = self.get_mut(id).unwrap();
+                                    track.set_rating(new_rating);
+                                    self.events.send(AppEvent::Render);
+                                }
+                                Err(err) => {
+                                    let log = Log::new(err.to_string(), LogLevel::Error);
+                                    self.events.send(AppEvent::Log(log));
+                                }
+                            }
+                        } else {
+                            self.actions.push_front(action);
+                        }
+                    }
+                    None => {
+                        self.audio_write_handle = Some(self.write_rating(id, rating));
+                        self.actions.push_front(action);
                     }
                 },
             }
