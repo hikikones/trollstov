@@ -11,7 +11,7 @@ use crate::{
 
 pub struct LogsPage {
     logs: Vec<Log>,
-    queue: Vec<Log>,
+    queue: u32,
     index: usize,
     vertical_scroll: usize,
     horizontal_scroll: usize,
@@ -22,7 +22,7 @@ impl LogsPage {
     pub const fn new(events: EventSender) -> Self {
         Self {
             logs: Vec::new(),
-            queue: Vec::new(),
+            queue: 0,
             index: 0,
             vertical_scroll: 0,
             horizontal_scroll: 0,
@@ -31,83 +31,33 @@ impl LogsPage {
     }
 
     pub fn enqueue(&mut self, log: Log) {
-        self.queue.push(log);
+        self.logs.push(log);
+        self.queue += 1;
     }
 
-    pub const fn queue_len(&self) -> usize {
-        self.queue.len()
+    pub const fn queue_len(&self) -> u32 {
+        self.queue
     }
 
     pub fn on_enter(&mut self) {
-        self.logs.extend(self.queue.drain(..));
+        self.queue = 0;
     }
 
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, colors: &Colors) {
         if self.logs.is_empty() {
-            const NO_LOGS: &str = "No logs to report";
-            Span::styled(NO_LOGS, Style::new().fg(colors.neutral)).render(
-                utils::align(
-                    Rect {
-                        width: NO_LOGS.len() as u16,
-                        height: 1,
-                        ..area
-                    },
-                    area,
-                    utils::Alignment::CenterHorizontal,
-                ),
+            utils::print_ascii(
+                area,
                 buf,
+                "No logs to report",
+                Style::new().fg(colors.neutral),
+                utils::Alignment::CenterHorizontal,
             );
             return;
         }
 
-        let mut line_area = Rect { height: 1, ..area };
-        let mut line = Line::default();
-
-        let height = area.height as usize;
-        if self.index > self.vertical_scroll {
-            let height_diff = self.index - self.vertical_scroll;
-            let height = height.saturating_sub(1);
-            if height_diff > height {
-                self.vertical_scroll += height_diff - height;
-            }
-        } else if self.vertical_scroll > self.index {
-            let height_diff = self.vertical_scroll - self.index;
-            self.vertical_scroll -= height_diff;
-        }
-
-        self.logs
-            .iter()
-            .enumerate()
-            .skip(self.vertical_scroll)
-            .take(height)
-            .for_each(|(i, log)| {
-                let (label, label_width, label_style) = match log.level {
-                    LogLevel::Info => ("Info", 4, Style::new().fg(Color::Green)),
-                    LogLevel::Warning => ("Warning", 7, Style::new().fg(Color::Yellow)),
-                    LogLevel::Error => ("Error", 5, Style::new().fg(Color::Red)),
-                };
-                line.push_span(Span::styled(label, label_style));
-                line.push_span(Span::raw(" "));
-
-                let (scroll, style) = if self.index == i {
-                    let label_width = label_width + 1;
-                    let log_width_area = line_area.width.saturating_sub(label_width);
-                    let max_scroll = log.width.saturating_sub(log_width_area as usize);
-                    self.horizontal_scroll = self.horizontal_scroll.min(max_scroll);
-                    (
-                        self.horizontal_scroll,
-                        Style::new().bg(colors.accent).fg(colors.on_accent).bold(),
-                    )
-                } else {
-                    (0, Style::new())
-                };
-
-                line.push_span(Span::styled(&log.message[scroll..], style));
-
-                (&line).render(line_area, buf);
-                line.spans.clear();
-                line_area.y += 1;
-            });
+        self.vertical_scroll =
+            utils::calculate_scroll(self.index, area.height, self.vertical_scroll);
+        self.render_logs(area, buf, colors);
     }
 
     pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) {
@@ -140,8 +90,47 @@ impl LogsPage {
         }
     }
 
-    pub fn on_exit(&mut self) {
-        // todo
+    pub fn on_exit(&self) {}
+
+    fn render_logs(&mut self, area: Rect, buf: &mut Buffer, colors: &Colors) {
+        let mut line = Rect { height: 1, ..area };
+
+        self.logs
+            .iter()
+            .enumerate()
+            .skip(self.vertical_scroll)
+            .take(area.height as usize)
+            .for_each(|(i, log)| {
+                let (label, label_width, label_style) = match log.level {
+                    LogLevel::Warning => ("Warning", 7, Style::new().fg(Color::Yellow)),
+                    LogLevel::Error => ("Error", 5, Style::new().fg(Color::Red)),
+                };
+
+                buf.set_stringn(line.x, line.y, label, label_width, label_style);
+
+                let label_width = label_width + 1;
+                let log_width = (line.width as usize).saturating_sub(label_width);
+
+                let (scroll, style) = if self.index == i {
+                    let max_scroll = log.width.saturating_sub(log_width);
+                    self.horizontal_scroll = max_scroll.min(self.horizontal_scroll);
+                    (
+                        self.horizontal_scroll,
+                        Style::new().bg(colors.accent).fg(colors.on_accent).bold(),
+                    )
+                } else {
+                    (0, Style::new())
+                };
+
+                let log_line = Rect {
+                    x: line.x + label_width as u16,
+                    width: log_width as u16,
+                    ..line
+                };
+                utils::print_line(log_line, buf, &log.message[scroll..], style);
+
+                line.y += 1;
+            });
     }
 }
 
@@ -165,7 +154,6 @@ impl Log {
 }
 
 pub enum LogLevel {
-    Info,
     Warning,
     Error,
 }

@@ -14,7 +14,6 @@ pub struct QueuePage {
     index: usize,
     scroll: usize,
     events: EventSender,
-    buffer: String,
 }
 
 impl QueuePage {
@@ -23,72 +22,25 @@ impl QueuePage {
             index: 0,
             scroll: 0,
             events,
-            buffer: String::new(),
         }
     }
 
-    pub fn on_enter(&mut self) {
-        // todo
-    }
+    pub fn on_enter(&self) {}
 
-    pub fn on_render(
-        &mut self,
-        area: Rect,
-        buf: &mut Buffer,
-        jb: &Jukebox,
-        colors: &Colors,
-        menu: &mut Line,
-    ) {
+    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         if jb.is_queue_empty() {
-            const EMPTY_QUEUE: &str = "No tracks in the queue";
-            Span::styled(EMPTY_QUEUE, Style::new().fg(colors.neutral)).render(
-                utils::align(
-                    Rect {
-                        width: EMPTY_QUEUE.len() as u16,
-                        height: 1,
-                        ..area
-                    },
-                    area,
-                    utils::Alignment::CenterHorizontal,
-                ),
+            utils::print_ascii(
+                area,
                 buf,
+                "No tracks in the queue",
+                Style::new().fg(colors.neutral),
+                utils::Alignment::CenterHorizontal,
             );
             return;
         }
 
-        let height = area.height as usize;
-        if self.index > self.scroll {
-            let height_diff = self.index - self.scroll;
-            let height = height.saturating_sub(1);
-            if height_diff > height {
-                self.scroll += height_diff - height;
-            }
-        } else if self.scroll > self.index {
-            let height_diff = self.scroll - self.index;
-            self.scroll -= height_diff;
-        }
-
-        let mut line_area = Rect { height: 1, ..area };
-
-        jb.queue_iter()
-            .enumerate()
-            .skip(self.scroll)
-            .take(height)
-            .for_each(|(i, (_id, track))| {
-                self.buffer
-                    .extend([track.title(), " ", track.artist(), " ", track.album()]);
-
-                let mut style = Style::new();
-                if self.index == i {
-                    style.bg = Some(colors.accent);
-                    style.fg = Some(colors.on_accent);
-                }
-
-                Line::styled(&self.buffer, style).render(line_area, buf);
-
-                self.buffer.clear();
-                line_area.y += 1;
-            });
+        self.scroll = utils::calculate_scroll(self.index, area.height, self.scroll);
+        self.render_queue(area, buf, jb, colors);
     }
 
     pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) {
@@ -105,7 +57,30 @@ impl QueuePage {
         }
     }
 
-    pub fn on_exit(&mut self) {
-        // todo
+    pub fn on_exit(&self) {}
+
+    fn render_queue(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+        let mut line_area = Rect { height: 1, ..area };
+
+        jb.queue_iter()
+            .enumerate()
+            .skip(self.scroll)
+            .take(area.height as usize)
+            .for_each(|(i, (_id, track))| {
+                let mut style = Style::new();
+                if self.index == i {
+                    style.bg = Some(colors.accent);
+                    style.fg = Some(colors.on_accent);
+                }
+
+                utils::print_line_iter(
+                    line_area,
+                    buf,
+                    [track.title(), " ", track.artist(), " ", track.album()],
+                    style,
+                );
+
+                line_area.y += 1;
+            });
     }
 }

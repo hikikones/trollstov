@@ -10,19 +10,19 @@ use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
     app::Colors,
-    audio::{AudioPicture, AudioRating},
+    audio::AudioPicture,
     jukebox::{Jukebox, TrackId},
     utils,
 };
 
-pub struct NowPlayingPage {
+pub struct PlayingPage {
     current: Option<TrackId>,
     picker: Picker,
     image: FrontCover,
     image_handle: Option<JoinHandle<FrontCover>>,
 }
 
-impl NowPlayingPage {
+impl PlayingPage {
     pub const fn new(picker: Picker) -> Self {
         Self {
             current: None,
@@ -32,9 +32,7 @@ impl NowPlayingPage {
         }
     }
 
-    pub fn on_enter(&mut self) {
-        // todo?
-    }
+    pub fn on_enter(&self) {}
 
     pub fn on_update(&mut self, jb: &Jukebox) {
         if self.current != jb.current_track() {
@@ -107,35 +105,23 @@ impl NowPlayingPage {
 
                 match &mut self.image {
                     FrontCover::None => {
-                        const NO_IMAGE: &str = "NO IMAGE";
                         Block::bordered().style(neutral_style).render(img_area, buf);
-                        Span::styled(NO_IMAGE, neutral_style).render(
-                            utils::align(
-                                Rect {
-                                    width: NO_IMAGE.len() as u16,
-                                    height: 1,
-                                    ..img_area
-                                },
-                                img_area,
-                                utils::Alignment::Center,
-                            ),
+                        utils::print_ascii(
+                            img_area,
                             buf,
+                            "NO IMAGE",
+                            neutral_style,
+                            utils::Alignment::Center,
                         );
                     }
                     FrontCover::Loading => {
-                        const LOADING: &str = "LOADING";
                         Block::bordered().style(neutral_style).render(img_area, buf);
-                        Span::styled(LOADING, neutral_style).render(
-                            utils::align(
-                                Rect {
-                                    width: LOADING.len() as u16,
-                                    height: 1,
-                                    ..img_area
-                                },
-                                img_area,
-                                utils::Alignment::Center,
-                            ),
+                        utils::print_ascii(
+                            img_area,
                             buf,
+                            "LOADING",
+                            neutral_style,
+                            utils::Alignment::Center,
                         );
                     }
                     FrontCover::Ready(image) => {
@@ -180,30 +166,23 @@ impl NowPlayingPage {
                 }
             }
             None => {
-                const NO_TRACK: &str = "No track currently playing";
-                Span::styled(NO_TRACK, neutral_style).render(
-                    utils::align(
-                        Rect {
-                            width: NO_TRACK.len() as u16,
-                            height: 1,
-                            ..area
-                        },
-                        area,
-                        utils::Alignment::CenterHorizontal,
-                    ),
+                utils::print_ascii(
+                    area,
                     buf,
+                    "No track currently playing",
+                    neutral_style,
+                    utils::Alignment::CenterHorizontal,
                 );
             }
         }
+
+        // TODO: Move play queue page here.
+        // Render below in a wide scrollable bordered block.
     }
 
-    pub fn on_input(&mut self, _key: KeyCode, _modifiers: KeyModifiers) {
-        // todo
-    }
+    pub fn on_input(&mut self, _key: KeyCode, _modifiers: KeyModifiers) {}
 
-    pub fn on_exit(&mut self) {
-        // todo
-    }
+    pub fn on_exit(&mut self) {}
 }
 
 enum FrontCover {

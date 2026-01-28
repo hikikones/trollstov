@@ -5,10 +5,10 @@ use ratatui::{
 
 use crate::{
     app::Colors,
-    editor::TextInput,
     events::{AppEvent, EventSender},
     jukebox::{Jukebox, TrackId},
     utils,
+    widgets::TextInput,
 };
 
 pub struct SearchPage {
@@ -23,11 +23,12 @@ pub struct SearchPage {
 }
 
 impl SearchPage {
-    pub fn new(events: EventSender) -> Self {
+    pub fn new(colors: &Colors, events: EventSender) -> Self {
         Self {
             index: 0,
             scroll: 0,
-            search_input: TextInput::new().with_placeholder("search..."),
+            search_input: TextInput::new(colors.on_accent, colors.accent, colors.neutral)
+                .with_placeholder("search..."),
             search_results: Vec::new(),
             matcher: Matcher::new(),
             is_dirty: false,
@@ -36,66 +37,27 @@ impl SearchPage {
         }
     }
 
-    pub fn on_enter(&mut self) {
-        // todo
-    }
+    pub fn on_enter(&self) {}
 
-    pub fn on_render(
-        &mut self,
-        area: Rect,
-        buf: &mut Buffer,
-        jb: &Jukebox,
-        colors: &Colors,
-        menu: &mut Line,
-    ) {
+    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         if jb.is_empty() {
-            const NO_TRACKS: &str = "No tracks to search for";
-            Span::styled(NO_TRACKS, Style::new().fg(colors.neutral)).render(
-                utils::align(
-                    Rect {
-                        width: NO_TRACKS.len() as u16,
-                        height: 1,
-                        ..area
-                    },
-                    area,
-                    utils::Alignment::CenterHorizontal,
-                ),
+            utils::print_ascii(
+                area,
                 buf,
+                "No tracks to search for",
+                Style::new().fg(colors.neutral),
+                utils::Alignment::CenterHorizontal,
             );
             return;
         }
 
-        self.search_input.render(
-            area.centered_horizontally(Constraint::Percentage(60)),
-            buf,
-            colors,
-        );
+        // Render search input
+        self.search_input
+            .render(area.centered_horizontally(Constraint::Percentage(60)), buf);
 
         // Update search results
         if self.is_dirty {
-            self.is_dirty = false;
-            self.index = 0;
-            self.scroll = 0;
-            self.search_results.clear();
-
-            if !self.search_input.as_str().trim().is_empty() {
-                self.matcher.update(self.search_input.as_str());
-                self.search_results
-                    .extend(jb.iter().filter_map(|(id, track)| {
-                        self.buffer.extend([
-                            track.artist(),
-                            " ",
-                            track.album(),
-                            " ",
-                            track.title(),
-                        ]);
-                        let score = self.matcher.score(&self.buffer);
-                        self.buffer.clear();
-                        score.map(|score| (id, score))
-                    }));
-                self.search_results
-                    .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
-            }
+            self.update_search_results(jb);
         }
 
         // Render search results
@@ -104,47 +66,8 @@ impl SearchPage {
             height: area.height.saturating_sub(2),
             ..area
         };
-
-        let height = area.height as usize;
-        if self.index > self.scroll {
-            let height_diff = self.index - self.scroll;
-            let height = height.saturating_sub(1);
-            if height_diff > height {
-                self.scroll += height_diff - height;
-            }
-        } else if self.scroll > self.index {
-            let height_diff = self.scroll - self.index;
-            self.scroll -= height_diff;
-        }
-
-        let current = jb.current_track();
-        let mut line_area = Rect { height: 1, ..area };
-
-        self.search_results
-            .iter()
-            .copied()
-            .filter_map(|(id, _)| jb.get(id).map(|track| (id, track)))
-            .enumerate()
-            .skip(self.scroll)
-            .take(height)
-            .for_each(|(i, (id, track))| {
-                self.buffer
-                    .extend([track.artist(), " ", track.album(), " ", track.title()]);
-
-                let mut style = Style::new();
-                if self.index == i {
-                    style.bg = Some(colors.accent);
-                    style.fg = Some(colors.on_accent);
-                }
-                if current == Some(id) {
-                    style.add_modifier.insert(Modifier::BOLD);
-                }
-
-                Line::styled(&self.buffer, style).render(line_area, buf);
-
-                self.buffer.clear();
-                line_area.y += 1;
-            });
+        self.scroll = utils::calculate_scroll(self.index, area.height, self.scroll);
+        self.render_search_results(area, buf, jb, colors);
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
@@ -174,8 +97,65 @@ impl SearchPage {
         }
     }
 
-    pub fn on_exit(&mut self) {
-        // todo
+    pub fn on_exit(&self) {}
+
+    fn update_search_results(&mut self, jb: &Jukebox) {
+        self.is_dirty = false;
+        self.index = 0;
+        self.scroll = 0;
+        self.search_results.clear();
+
+        if !self.search_input.as_str().trim().is_empty() {
+            self.matcher.update(self.search_input.as_str());
+            self.search_results
+                .extend(jb.iter().filter_map(|(id, track)| {
+                    self.buffer
+                        .extend([track.artist(), " ", track.album(), " ", track.title()]);
+                    let score = self.matcher.score(&self.buffer);
+                    self.buffer.clear();
+                    score.map(|score| (id, score))
+                }));
+            self.search_results
+                .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
+        }
+    }
+
+    fn render_search_results(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        jb: &Jukebox,
+        colors: &Colors,
+    ) {
+        let mut line_area = Rect { height: 1, ..area };
+        let current = jb.current_track();
+
+        self.search_results
+            .iter()
+            .copied()
+            .filter_map(|(id, _)| jb.get(id).map(|track| (id, track)))
+            .enumerate()
+            .skip(self.scroll)
+            .take(area.height as usize)
+            .for_each(|(i, (id, track))| {
+                let mut style = Style::new();
+                if self.index == i {
+                    style.bg = Some(colors.accent);
+                    style.fg = Some(colors.on_accent);
+                }
+                if current == Some(id) {
+                    style.add_modifier.insert(Modifier::BOLD);
+                }
+
+                utils::print_line_iter(
+                    line_area,
+                    buf,
+                    [track.artist(), " ", track.album(), " ", track.title()],
+                    style,
+                );
+
+                line_area.y += 1;
+            });
     }
 }
 

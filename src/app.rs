@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use ratatui::{
     CompletedFrame,
     crossterm::event::{
@@ -5,11 +7,10 @@ use ratatui::{
     },
     prelude::*,
 };
-use unicode_width::UnicodeWidthStr;
 
 use crate::{
     events::{AppEvent, Event, EventHandler},
-    jukebox::{Jukebox, TrackId},
+    jukebox::{Jukebox, Track},
     pages::{Pages, Route},
     terminal::Terminal,
     utils,
@@ -23,14 +24,7 @@ pub struct App {
     colors: Colors,
     events: EventHandler,
     jukebox: Jukebox,
-    current: Option<TrackId>,
-    title_line: Line<'static>,
-    nav_line: TextSegment,
-    menu_line: Line<'static>,
-    playing_title: String,
-    playing_status_line: Line<'static>,
-    playing_current_duration: String,
-    playing_total_duration: String,
+    text_segment: TextSegment,
     shortcuts_app: Shortcuts<'static>,
     shortcuts_page: Shortcuts<'static>,
 }
@@ -66,9 +60,8 @@ impl App {
         jukebox: Jukebox,
         picker: ratatui_image::picker::Picker,
     ) -> Self {
-        let pages = Pages::new(picker, events.clone_sender());
         let colors = Colors::new();
-        let title_line = Line::styled("jukebox", Style::new().fg(colors.neutral)).centered();
+        let pages = Pages::new(picker, events.clone_sender(), &colors);
 
         let mut shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
         shortcuts_app.extend([
@@ -89,14 +82,7 @@ impl App {
             colors,
             events,
             jukebox,
-            current: None,
-            title_line,
-            nav_line: TextSegment::new(),
-            menu_line: Line::default().centered(),
-            playing_title: String::new(),
-            playing_status_line: Line::default().centered(),
-            playing_current_duration: String::with_capacity(5),
-            playing_total_duration: String::from("00:00"),
+            text_segment: TextSegment::new().with_alignment(Alignment::Center),
             shortcuts_app,
             shortcuts_page,
         }
@@ -104,13 +90,8 @@ impl App {
 
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Render initial page
-        match self.route {
-            Route::Tracks => self.pages.tracks.on_enter(),
-            Route::NowPlaying => self.pages.now_playing.on_enter(),
-            Route::Queue => self.pages.queue.on_enter(),
-            Route::Search => self.pages.search.on_enter(),
-            Route::Logs => self.pages.logs.on_enter(),
-        }
+        // TODO: Show ASCII logo instead
+        self.on_enter();
         self.render(&mut terminal)?;
 
         // Start reading events and load music
@@ -142,52 +123,44 @@ impl App {
     fn handle_key_press(&mut self, key: KeyEvent) {
         let alt = key.modifiers.contains(KeyModifiers::ALT);
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
-        let pass_on_key_event = match key.code {
+        match key.code {
             KeyCode::Esc => {
                 self.events.send(AppEvent::Quit);
-                None
             }
             KeyCode::Tab => {
                 self.events.send(AppEvent::Route(self.route.next()));
-                None
             }
             KeyCode::BackTab => {
                 self.events.send(AppEvent::Route(self.route.prev()));
-                None
             }
             KeyCode::Up => {
                 if ctrl {
                     self.jukebox.pause_or_play();
-                    None
                 } else {
-                    Some(key)
+                    self.on_input(key);
                 }
             }
             KeyCode::Down => {
                 if ctrl {
                     self.jukebox.stop();
-                    None
                 } else {
-                    Some(key)
+                    self.on_input(key);
                 }
             }
             KeyCode::Right => {
                 if ctrl {
                     self.jukebox.play_next();
-                    None
                 } else if alt {
                     self.jukebox.seek(std::time::Duration::from_secs(30));
-                    None
                 } else {
-                    Some(key)
+                    self.on_input(key);
                 }
             }
             KeyCode::Left => {
                 if ctrl {
                     self.jukebox.play_previous();
-                    None
                 } else {
-                    Some(key)
+                    self.on_input(key);
                 }
             }
             KeyCode::Media(media) => match media {
@@ -195,49 +168,34 @@ impl App {
                 MediaKeyCode::Pause => todo!(),
                 MediaKeyCode::PlayPause => {
                     self.jukebox.pause_or_play();
-                    None
                 }
                 MediaKeyCode::Stop => todo!(),
                 MediaKeyCode::TrackNext => {
                     self.jukebox.play_next();
-                    None
                 }
                 MediaKeyCode::TrackPrevious => todo!(),
-                _ => None,
+                MediaKeyCode::Reverse => todo!(),
+                MediaKeyCode::FastForward => todo!(),
+                MediaKeyCode::Rewind => todo!(),
+                MediaKeyCode::Record => todo!(),
+                MediaKeyCode::LowerVolume => todo!(),
+                MediaKeyCode::RaiseVolume => todo!(),
+                MediaKeyCode::MuteVolume => todo!(),
             },
             KeyCode::Char(c) => match c {
                 '/' => {
                     if self.route == Route::Search {
-                        Some(key)
+                        self.on_input(key);
                     } else {
                         self.events.send(AppEvent::Route(Route::Search));
-                        None
                     }
                 }
-                _ => Some(key),
+                _ => {
+                    self.on_input(key);
+                }
             },
-            _ => Some(key),
-        };
-
-        if let Some(key) = pass_on_key_event {
-            match self.route {
-                Route::Tracks => {
-                    self.pages
-                        .tracks
-                        .on_input(key.code, key.modifiers, &mut self.jukebox)
-                }
-                Route::NowPlaying => self.pages.now_playing.on_input(key.code, key.modifiers),
-                Route::Queue => {
-                    self.pages
-                        .queue
-                        .on_input(key.code, key.modifiers, &mut self.jukebox)
-                }
-                Route::Search => {
-                    self.pages
-                        .search
-                        .on_input(key.code, key.modifiers, &mut self.jukebox)
-                }
-                Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
+            _ => {
+                self.on_input(key);
             }
         }
     }
@@ -259,24 +217,9 @@ impl App {
                 self.render(terminal)?;
             }
             AppEvent::Route(route) => {
-                match self.route {
-                    Route::Tracks => self.pages.tracks.on_exit(),
-                    Route::NowPlaying => self.pages.now_playing.on_exit(),
-                    Route::Queue => self.pages.queue.on_exit(),
-                    Route::Search => self.pages.search.on_exit(),
-                    Route::Logs => self.pages.logs.on_exit(),
-                }
-
+                self.on_exit();
                 self.route = route;
-
-                match route {
-                    Route::Tracks => self.pages.tracks.on_enter(),
-                    Route::NowPlaying => self.pages.now_playing.on_enter(),
-                    Route::Queue => self.pages.queue.on_enter(),
-                    Route::Search => self.pages.search.on_enter(),
-                    Route::Logs => self.pages.logs.on_enter(),
-                }
-
+                self.on_enter();
                 self.render(terminal)?;
             }
             AppEvent::Log(log) => {
@@ -292,7 +235,7 @@ impl App {
 
     fn update(&mut self) {
         self.jukebox.update();
-        self.pages.now_playing.on_update(&self.jukebox);
+        self.pages.playing.on_update(&self.jukebox);
     }
 
     fn render<'a>(&'a mut self, terminal: &'a mut Terminal) -> std::io::Result<CompletedFrame<'a>> {
@@ -304,15 +247,13 @@ impl App {
                 title_area,
                 _,
                 nav_area,
-                menu_area,
                 body_area,
                 shortcuts_page_area,
                 _,
-                playing_title_area,
-                playing_status_area,
+                playback_title_area,
+                playback_status_area,
                 shortcuts_app_area,
             ] = Layout::vertical([
-                Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
@@ -326,51 +267,23 @@ impl App {
             .areas(area);
 
             // Title
-            (&self.title_line).render(title_area, buf);
-
-            if Route::Tracks == Route::NowPlaying {}
+            utils::print_ascii(
+                title_area,
+                buf,
+                "jukebox",
+                Style::new().fg(self.colors.neutral),
+                utils::Alignment::CenterHorizontal,
+            );
 
             // Navigation
-            for (route, spacing) in [
-                (Route::Tracks, "   "),
-                (Route::NowPlaying, "   "),
-                (Route::Queue, "   "),
-                (Route::Search, "   "),
-                (Route::Logs, ""),
-            ] {
-                let style = if route == self.route {
-                    Style::new().bold().fg(self.colors.accent)
-                } else {
-                    Style::new()
-                };
-
-                self.nav_line.push(route.title(), style);
-                if route == Route::Logs {
-                    let new_logs = self.pages.logs.queue_len();
-                    if new_logs > 0 {
-                        let mut buffer = itoa::Buffer::new();
-                        self.nav_line.extend([
-                            ("(", style),
-                            (buffer.format(new_logs), style),
-                            (")", style),
-                        ]);
-                    }
-                }
-                self.nav_line.push(spacing, Style::new());
-            }
-            self.nav_line.render(
-                utils::align(
-                    Rect {
-                        width: self.nav_line.width(),
-                        height: 1,
-                        ..nav_area
-                    },
-                    nav_area,
-                    utils::Alignment::CenterHorizontal,
-                ),
+            render_navigation(
+                nav_area,
                 buf,
+                &mut self.text_segment,
+                self.route,
+                &self.pages,
+                &self.colors,
             );
-            self.nav_line.clear();
 
             // Body
             const MAX_WIDTH: u16 = 128;
@@ -385,32 +298,23 @@ impl App {
                         buf,
                         &self.jukebox,
                         &self.colors,
-                        &mut self.menu_line,
                         &mut self.shortcuts_page,
                     );
                 }
                 Route::NowPlaying => {
                     self.pages
-                        .now_playing
+                        .playing
                         .on_render(body, buf, &self.jukebox, &self.colors);
                 }
                 Route::Queue => {
-                    self.pages.queue.on_render(
-                        body,
-                        buf,
-                        &self.jukebox,
-                        &self.colors,
-                        &mut self.menu_line,
-                    );
+                    self.pages
+                        .queue
+                        .on_render(body, buf, &self.jukebox, &self.colors);
                 }
                 Route::Search => {
-                    self.pages.search.on_render(
-                        body,
-                        buf,
-                        &self.jukebox,
-                        &self.colors,
-                        &mut self.menu_line,
-                    );
+                    self.pages
+                        .search
+                        .on_render(body, buf, &self.jukebox, &self.colors);
                 }
                 Route::Logs => {
                     self.pages.logs.on_render(body, buf, &self.colors);
@@ -419,117 +323,195 @@ impl App {
             self.shortcuts_page.render(shortcuts_page_area, buf);
             self.shortcuts_page.clear();
 
-            // Menu
-            (&self.menu_line).render(menu_area, buf);
-            self.menu_line.spans.clear();
-
-            // Playing
-            if self.current != self.jukebox.current_track() {
-                // Update currently playing
-                self.current = self.jukebox.current_track();
-                self.playing_title.clear();
-                self.playing_total_duration.clear();
-
-                match self.jukebox.current_track() {
-                    Some(id) => {
-                        let track = self.jukebox.get(id).unwrap();
-                        self.playing_title.push_str(track.artist());
-                        if !(track.artist().is_empty() || track.title().is_empty()) {
-                            self.playing_title.push_str(" - ");
-                        }
-                        self.playing_title.push_str(track.title());
-                        self.playing_total_duration
-                            .push_str(track.duration_display());
-                    }
-                    None => {
-                        self.playing_total_duration.push_str("00:00");
-                    }
-                }
-            }
-
-            let [left_time_area, status_area, right_time_area] = Layout::horizontal([
-                Constraint::Fill(0),
-                Constraint::Percentage(30),
-                Constraint::Fill(0),
-            ])
-            .areas(playing_status_area);
-
-            self.playing_status_line.spans.clear();
-
+            // Playback
             match self.jukebox.current_track() {
                 Some(id) => {
                     let track = self.jukebox.get(id).unwrap();
-                    let current_duration = self.jukebox.current_audio_position();
-                    let total_duration = track.duration();
 
-                    self.playing_current_duration.clear();
-                    utils::format_duration(current_duration, &mut self.playing_current_duration);
+                    // Render playback title
+                    render_playback_title(
+                        playback_title_area,
+                        buf,
+                        &mut self.text_segment,
+                        track,
+                        &self.colors,
+                    );
 
-                    let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
-                    let max_highlight_bound = (status_area.width as f32 * progress) as u16;
-                    for i in 0..status_area.width {
-                        let (c, style) = if i <= max_highlight_bound {
-                            ("━", Style::new().fg(self.colors.accent))
-                        } else {
-                            ("─", Style::new().fg(self.colors.neutral))
-                        };
-                        self.playing_status_line.spans.push(Span::styled(c, style));
-                    }
+                    // Render active playback status
+                    render_playback_status_active(
+                        playback_status_area,
+                        buf,
+                        &mut self.text_segment,
+                        self.jukebox.current_audio_position(),
+                        track.duration(),
+                        &self.colors,
+                    );
                 }
                 None => {
-                    self.playing_current_duration.clear();
-                    self.playing_current_duration.push_str("00:00");
-                    for _ in 0..status_area.width {
-                        self.playing_status_line
-                            .spans
-                            .push(Span::styled("─", Style::new().fg(self.colors.neutral)));
-                    }
+                    // Render empty playback status
+                    render_playback_status_empty(
+                        playback_status_area,
+                        buf,
+                        &mut self.text_segment,
+                        &self.colors,
+                    );
                 }
             }
-
-            Span::styled(&self.playing_title, Style::new().fg(self.colors.neutral)).render(
-                utils::align(
-                    Rect {
-                        width: self.playing_title.width() as u16,
-                        ..playing_title_area
-                    },
-                    playing_title_area,
-                    utils::Alignment::CenterHorizontal,
-                ),
-                buf,
-            );
-
-            Span::styled(
-                &self.playing_current_duration,
-                Style::new().fg(self.colors.neutral),
-            )
-            .render(
-                utils::align(
-                    Rect {
-                        width: 6,
-                        ..left_time_area
-                    },
-                    left_time_area,
-                    utils::Alignment::Right,
-                ),
-                buf,
-            );
-            (&self.playing_status_line).render(status_area, buf);
-            Span::styled(
-                &self.playing_total_duration,
-                Style::new().fg(self.colors.neutral),
-            )
-            .render(
-                Rect {
-                    x: right_time_area.x + 1,
-                    width: 5,
-                    ..right_time_area
-                },
-                buf,
-            );
 
             // Shortcuts
             self.shortcuts_app.render(shortcuts_app_area, buf);
         })
     }
+
+    fn on_enter(&mut self) {
+        match self.route {
+            Route::Tracks => self.pages.tracks.on_enter(),
+            Route::NowPlaying => self.pages.playing.on_enter(),
+            Route::Queue => self.pages.queue.on_enter(),
+            Route::Search => self.pages.search.on_enter(),
+            Route::Logs => self.pages.logs.on_enter(),
+        }
+    }
+
+    fn on_exit(&mut self) {
+        match self.route {
+            Route::Tracks => self.pages.tracks.on_exit(),
+            Route::NowPlaying => self.pages.playing.on_exit(),
+            Route::Queue => self.pages.queue.on_exit(),
+            Route::Search => self.pages.search.on_exit(),
+            Route::Logs => self.pages.logs.on_exit(),
+        }
+    }
+
+    fn on_input(&mut self, key: KeyEvent) {
+        match self.route {
+            Route::Tracks => self
+                .pages
+                .tracks
+                .on_input(key.code, key.modifiers, &mut self.jukebox),
+            Route::NowPlaying => self.pages.playing.on_input(key.code, key.modifiers),
+            Route::Queue => self
+                .pages
+                .queue
+                .on_input(key.code, key.modifiers, &mut self.jukebox),
+            Route::Search => self
+                .pages
+                .search
+                .on_input(key.code, key.modifiers, &mut self.jukebox),
+            Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
+        }
+    }
+}
+
+fn render_navigation(
+    line: Rect,
+    buf: &mut Buffer,
+    text: &mut TextSegment,
+    current_route: Route,
+    pages: &Pages,
+    colors: &Colors,
+) {
+    const SPACING: &str = "   ";
+    for (route, spacing) in [
+        (Route::Tracks, SPACING),
+        (Route::NowPlaying, SPACING),
+        (Route::Queue, SPACING),
+        (Route::Search, SPACING),
+        (Route::Logs, ""),
+    ] {
+        let style = if route == current_route {
+            Style::new().bold().fg(colors.accent)
+        } else {
+            Style::new()
+        };
+
+        text.push_str(route.title(), style);
+        if route == Route::Logs {
+            let new_logs = pages.logs.queue_len();
+            if new_logs > 0 {
+                let mut buffer = itoa::Buffer::new();
+                text.extend([("(", style), (buffer.format(new_logs), style), (")", style)]);
+            }
+        }
+        text.push_str(spacing, Style::new());
+    }
+
+    text.render(line, buf);
+    text.clear();
+}
+
+fn render_playback_title(
+    line: Rect,
+    buf: &mut Buffer,
+    text: &mut TextSegment,
+    track: &Track,
+    colors: &Colors,
+) {
+    let neutral_style = Style::new().fg(colors.neutral);
+
+    text.push_str(track.artist(), neutral_style);
+    if !(track.artist().is_empty() || track.title().is_empty()) {
+        text.push_str(" - ", neutral_style);
+    }
+    text.push_str(track.title(), neutral_style);
+
+    text.render(line, buf);
+    text.clear();
+}
+
+fn render_playback_status_active(
+    line: Rect,
+    buf: &mut Buffer,
+    text: &mut TextSegment,
+    current_duration: Duration,
+    total_duration: Duration,
+    colors: &Colors,
+) {
+    let accent_style = Style::new().fg(colors.accent);
+    let neutral_style = Style::new().fg(colors.neutral);
+
+    text.push_chars(
+        &utils::format_duration_on_stack(current_duration),
+        neutral_style,
+    );
+    text.push_char(' ', neutral_style);
+
+    let status_width = line.width / 3;
+    let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
+    let max_highlight_bound = (status_width as f32 * progress) as u16;
+    for i in 0..status_width {
+        let (ch, style) = if i <= max_highlight_bound {
+            ('━', accent_style)
+        } else {
+            ('─', neutral_style)
+        };
+        text.push_char(ch, style);
+    }
+
+    text.push_char(' ', neutral_style);
+    text.push_chars(
+        &utils::format_duration_on_stack(total_duration),
+        neutral_style,
+    );
+
+    text.render(line, buf);
+    text.clear();
+}
+
+fn render_playback_status_empty(
+    line: Rect,
+    buf: &mut Buffer,
+    text: &mut TextSegment,
+    colors: &Colors,
+) {
+    let style = Style::new().fg(colors.neutral);
+    text.push_str("00:00 ", style);
+    let status_width = line.width / 3;
+    for _ in 0..status_width {
+        text.push_char('─', style);
+    }
+    text.push_str(" 00:00", style);
+
+    text.render(line, buf);
+    text.clear();
 }
