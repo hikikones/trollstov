@@ -12,19 +12,31 @@ pub fn print_ascii(
     alignment: Alignment,
 ) {
     let ascii = ascii.as_ref();
-    if ascii.len() >= area.width as usize {
-        buf.set_stringn(area.x, area.y, ascii, area.width as usize, style);
-    } else {
-        let Rect { x, y, .. } = align(
-            Rect {
-                width: ascii.len() as u16,
-                height: 1,
-                ..area
-            },
-            area,
-            alignment,
-        );
-        buf.set_stringn(x, y, ascii, ascii.len(), style);
+
+    let Rect {
+        mut x,
+        y,
+        mut width,
+        ..
+    } = align(
+        Rect {
+            width: ascii.len() as u16,
+            height: 1,
+            ..area
+        },
+        area,
+        alignment,
+    );
+
+    for ch in ascii.chars() {
+        if width == 0 {
+            break;
+        }
+
+        buf[(x, y)].set_char(ch).set_style(style);
+
+        x += 1;
+        width -= 1;
     }
 }
 
