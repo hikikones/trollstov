@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use ratatui::{buffer::Buffer, layout::Rect, style::Style};
 
-/// Prints the str `s` assuming only ASCII, no newlines or
-/// control characters for easy layout calculation.
+/// Prints `ascii` assuming only ASCII, no newlines or
+/// control characters for simple layout calculation.
 pub fn print_ascii(
     area: Rect,
     buf: &mut Buffer,
@@ -12,16 +12,58 @@ pub fn print_ascii(
     alignment: Alignment,
 ) {
     let ascii = ascii.as_ref();
-    let Rect { x, y, .. } = align(
-        Rect {
-            width: ascii.len() as u16,
-            height: 1,
-            ..area
-        },
-        area,
-        alignment,
-    );
-    buf.set_stringn(x, y, ascii, ascii.len(), style);
+    if ascii.len() >= area.width as usize {
+        buf.set_stringn(area.x, area.y, ascii, area.width as usize, style);
+    } else {
+        let Rect { x, y, .. } = align(
+            Rect {
+                width: ascii.len() as u16,
+                height: 1,
+                ..area
+            },
+            area,
+            alignment,
+        );
+        buf.set_stringn(x, y, ascii, ascii.len(), style);
+    }
+}
+
+/// Prints `text` and fills remaining empty cells with the given style.
+pub fn print_line(line: Rect, buf: &mut Buffer, text: impl AsRef<str>, style: Style) {
+    let Rect { x, y, width, .. } = line;
+    let (end_x, _) = buf.set_stringn(x, y, text, width as usize, style);
+    let remaining = width - (end_x - x);
+    for i in 0..remaining {
+        buf[(end_x + i, y)].set_style(style);
+    }
+}
+
+/// Prints an iterator of text slices and fills remaining empty cells with the given style.
+pub fn print_line_iter(
+    line: Rect,
+    buf: &mut Buffer,
+    texts: impl IntoIterator<Item = impl AsRef<str>>,
+    style: Style,
+) {
+    let Rect {
+        mut x,
+        y,
+        mut width,
+        ..
+    } = line;
+
+    for text in texts {
+        let (next_x, _) = buf.set_stringn(x, y, text, width as usize, style);
+        width -= next_x - x;
+        x = next_x;
+        if width == 0 {
+            break;
+        }
+    }
+
+    for i in 0..width {
+        buf[(x + i, y)].set_style(style);
+    }
 }
 
 /// Aligns the inner [Rect] inside the outer [Rect].

@@ -51,34 +51,13 @@ impl SearchPage {
             return;
         }
 
+        // Render search input
         self.search_input
             .render(area.centered_horizontally(Constraint::Percentage(60)), buf);
 
         // Update search results
         if self.is_dirty {
-            self.is_dirty = false;
-            self.index = 0;
-            self.scroll = 0;
-            self.search_results.clear();
-
-            if !self.search_input.as_str().trim().is_empty() {
-                self.matcher.update(self.search_input.as_str());
-                self.search_results
-                    .extend(jb.iter().filter_map(|(id, track)| {
-                        self.buffer.extend([
-                            track.artist(),
-                            " ",
-                            track.album(),
-                            " ",
-                            track.title(),
-                        ]);
-                        let score = self.matcher.score(&self.buffer);
-                        self.buffer.clear();
-                        score.map(|score| (id, score))
-                    }));
-                self.search_results
-                    .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
-            }
+            self.update_search_results(jb);
         }
 
         // Render search results
@@ -87,36 +66,16 @@ impl SearchPage {
             height: area.height.saturating_sub(2),
             ..area
         };
-
         self.scroll = utils::calculate_scroll(self.index, area.height, self.scroll);
-        let mut line_area = Rect { height: 1, ..area };
-        let current = jb.current_track();
-
-        self.search_results
-            .iter()
-            .copied()
-            .filter_map(|(id, _)| jb.get(id).map(|track| (id, track)))
-            .enumerate()
-            .skip(self.scroll)
-            .take(area.height as usize)
-            .for_each(|(i, (id, track))| {
-                self.buffer
-                    .extend([track.artist(), " ", track.album(), " ", track.title()]);
-
-                let mut style = Style::new();
-                if self.index == i {
-                    style.bg = Some(colors.accent);
-                    style.fg = Some(colors.on_accent);
-                }
-                if current == Some(id) {
-                    style.add_modifier.insert(Modifier::BOLD);
-                }
-
-                Line::styled(&self.buffer, style).render(line_area, buf);
-
-                self.buffer.clear();
-                line_area.y += 1;
-            });
+        render_search_results(
+            area,
+            buf,
+            self.search_results.iter().copied(),
+            jb,
+            self.scroll,
+            self.index,
+            colors,
+        );
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
@@ -147,6 +106,65 @@ impl SearchPage {
     }
 
     pub fn on_exit(&self) {}
+
+    fn update_search_results(&mut self, jb: &Jukebox) {
+        self.is_dirty = false;
+        self.index = 0;
+        self.scroll = 0;
+        self.search_results.clear();
+
+        if !self.search_input.as_str().trim().is_empty() {
+            self.matcher.update(self.search_input.as_str());
+            self.search_results
+                .extend(jb.iter().filter_map(|(id, track)| {
+                    self.buffer
+                        .extend([track.artist(), " ", track.album(), " ", track.title()]);
+                    let score = self.matcher.score(&self.buffer);
+                    self.buffer.clear();
+                    score.map(|score| (id, score))
+                }));
+            self.search_results
+                .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
+        }
+    }
+}
+
+fn render_search_results(
+    area: Rect,
+    buf: &mut Buffer,
+    tracks: impl Iterator<Item = (TrackId, u16)>,
+    jb: &Jukebox,
+    scroll: usize,
+    index: usize,
+    colors: &Colors,
+) {
+    let mut line_area = Rect { height: 1, ..area };
+    let current = jb.current_track();
+
+    tracks
+        .filter_map(|(id, _)| jb.get(id).map(|track| (id, track)))
+        .enumerate()
+        .skip(scroll)
+        .take(area.height as usize)
+        .for_each(|(i, (id, track))| {
+            let mut style = Style::new();
+            if index == i {
+                style.bg = Some(colors.accent);
+                style.fg = Some(colors.on_accent);
+            }
+            if current == Some(id) {
+                style.add_modifier.insert(Modifier::BOLD);
+            }
+
+            utils::print_line_iter(
+                line_area,
+                buf,
+                [track.artist(), " ", track.album(), " ", track.title()],
+                style,
+            );
+
+            line_area.y += 1;
+        });
 }
 
 pub struct Matcher {
