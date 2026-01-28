@@ -57,15 +57,7 @@ impl LogsPage {
 
         self.vertical_scroll =
             utils::calculate_scroll(self.index, area.height, self.vertical_scroll);
-        render_logs(
-            area,
-            buf,
-            &self.logs,
-            self.index,
-            self.vertical_scroll,
-            &mut self.horizontal_scroll,
-            colors,
-        );
+        self.render_logs(area, buf, colors);
     }
 
     pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) {
@@ -99,54 +91,47 @@ impl LogsPage {
     }
 
     pub fn on_exit(&self) {}
-}
 
-fn render_logs<'a>(
-    area: Rect,
-    buf: &mut Buffer,
-    logs: impl IntoIterator<Item = &'a Log>,
-    index: usize,
-    vertical_scroll: usize,
-    horizontal_scroll: &mut usize,
-    colors: &Colors,
-) {
-    let mut line = Rect { height: 1, ..area };
+    fn render_logs(&mut self, area: Rect, buf: &mut Buffer, colors: &Colors) {
+        let mut line = Rect { height: 1, ..area };
 
-    logs.into_iter()
-        .enumerate()
-        .skip(vertical_scroll)
-        .take(area.height as usize)
-        .for_each(|(i, log)| {
-            let (label, label_width, label_style) = match log.level {
-                LogLevel::Warning => ("Warning", 7, Style::new().fg(Color::Yellow)),
-                LogLevel::Error => ("Error", 5, Style::new().fg(Color::Red)),
-            };
+        self.logs
+            .iter()
+            .enumerate()
+            .skip(self.vertical_scroll)
+            .take(area.height as usize)
+            .for_each(|(i, log)| {
+                let (label, label_width, label_style) = match log.level {
+                    LogLevel::Warning => ("Warning", 7, Style::new().fg(Color::Yellow)),
+                    LogLevel::Error => ("Error", 5, Style::new().fg(Color::Red)),
+                };
 
-            buf.set_stringn(line.x, line.y, label, label_width, label_style);
+                buf.set_stringn(line.x, line.y, label, label_width, label_style);
 
-            let label_width = label_width + 1;
-            let log_width = (line.width as usize).saturating_sub(label_width);
+                let label_width = label_width + 1;
+                let log_width = (line.width as usize).saturating_sub(label_width);
 
-            let (scroll, style) = if index == i {
-                let max_scroll = log.width.saturating_sub(log_width);
-                *horizontal_scroll = max_scroll.min(*horizontal_scroll);
-                (
-                    *horizontal_scroll,
-                    Style::new().bg(colors.accent).fg(colors.on_accent).bold(),
-                )
-            } else {
-                (0, Style::new())
-            };
+                let (scroll, style) = if self.index == i {
+                    let max_scroll = log.width.saturating_sub(log_width);
+                    self.horizontal_scroll = max_scroll.min(self.horizontal_scroll);
+                    (
+                        self.horizontal_scroll,
+                        Style::new().bg(colors.accent).fg(colors.on_accent).bold(),
+                    )
+                } else {
+                    (0, Style::new())
+                };
 
-            let log_line = Rect {
-                x: line.x + label_width as u16,
-                width: log_width as u16,
-                ..line
-            };
-            utils::print_line(log_line, buf, &log.message[scroll..], style);
+                let log_line = Rect {
+                    x: line.x + label_width as u16,
+                    width: log_width as u16,
+                    ..line
+                };
+                utils::print_line(log_line, buf, &log.message[scroll..], style);
 
-            line.y += 1;
-        });
+                line.y += 1;
+            });
+    }
 }
 
 pub struct Log {

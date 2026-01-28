@@ -67,15 +67,7 @@ impl SearchPage {
             ..area
         };
         self.scroll = utils::calculate_scroll(self.index, area.height, self.scroll);
-        render_search_results(
-            area,
-            buf,
-            self.search_results.iter().copied(),
-            jb,
-            self.scroll,
-            self.index,
-            colors,
-        );
+        self.render_search_results(area, buf, jb, colors);
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
@@ -127,44 +119,44 @@ impl SearchPage {
                 .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
         }
     }
-}
 
-fn render_search_results(
-    area: Rect,
-    buf: &mut Buffer,
-    tracks: impl Iterator<Item = (TrackId, u16)>,
-    jb: &Jukebox,
-    scroll: usize,
-    index: usize,
-    colors: &Colors,
-) {
-    let mut line_area = Rect { height: 1, ..area };
-    let current = jb.current_track();
+    fn render_search_results(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        jb: &Jukebox,
+        colors: &Colors,
+    ) {
+        let mut line_area = Rect { height: 1, ..area };
+        let current = jb.current_track();
 
-    tracks
-        .filter_map(|(id, _)| jb.get(id).map(|track| (id, track)))
-        .enumerate()
-        .skip(scroll)
-        .take(area.height as usize)
-        .for_each(|(i, (id, track))| {
-            let mut style = Style::new();
-            if index == i {
-                style.bg = Some(colors.accent);
-                style.fg = Some(colors.on_accent);
-            }
-            if current == Some(id) {
-                style.add_modifier.insert(Modifier::BOLD);
-            }
+        self.search_results
+            .iter()
+            .copied()
+            .filter_map(|(id, _)| jb.get(id).map(|track| (id, track)))
+            .enumerate()
+            .skip(self.scroll)
+            .take(area.height as usize)
+            .for_each(|(i, (id, track))| {
+                let mut style = Style::new();
+                if self.index == i {
+                    style.bg = Some(colors.accent);
+                    style.fg = Some(colors.on_accent);
+                }
+                if current == Some(id) {
+                    style.add_modifier.insert(Modifier::BOLD);
+                }
 
-            utils::print_line_iter(
-                line_area,
-                buf,
-                [track.artist(), " ", track.album(), " ", track.title()],
-                style,
-            );
+                utils::print_line_iter(
+                    line_area,
+                    buf,
+                    [track.artist(), " ", track.album(), " ", track.title()],
+                    style,
+                );
 
-            line_area.y += 1;
-        });
+                line_area.y += 1;
+            });
+    }
 }
 
 pub struct Matcher {

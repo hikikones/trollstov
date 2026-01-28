@@ -40,7 +40,7 @@ impl QueuePage {
         }
 
         self.scroll = utils::calculate_scroll(self.index, area.height, self.scroll);
-        render_queue(area, buf, jb, self.scroll, self.index, colors);
+        self.render_queue(area, buf, jb, colors);
     }
 
     pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) {
@@ -58,36 +58,29 @@ impl QueuePage {
     }
 
     pub fn on_exit(&self) {}
-}
 
-fn render_queue(
-    area: Rect,
-    buf: &mut Buffer,
-    jb: &Jukebox,
-    scroll: usize,
-    index: usize,
-    colors: &Colors,
-) {
-    let mut line_area = Rect { height: 1, ..area };
+    fn render_queue(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+        let mut line_area = Rect { height: 1, ..area };
 
-    jb.queue_iter()
-        .enumerate()
-        .skip(scroll)
-        .take(area.height as usize)
-        .for_each(|(i, (_id, track))| {
-            let mut style = Style::new();
-            if index == i {
-                style.bg = Some(colors.accent);
-                style.fg = Some(colors.on_accent);
-            }
+        jb.queue_iter()
+            .enumerate()
+            .skip(self.scroll)
+            .take(area.height as usize)
+            .for_each(|(i, (_id, track))| {
+                let mut style = Style::new();
+                if self.index == i {
+                    style.bg = Some(colors.accent);
+                    style.fg = Some(colors.on_accent);
+                }
 
-            utils::print_line_iter(
-                line_area,
-                buf,
-                [track.title(), " ", track.artist(), " ", track.album()],
-                style,
-            );
+                utils::print_line_iter(
+                    line_area,
+                    buf,
+                    [track.title(), " ", track.artist(), " ", track.album()],
+                    style,
+                );
 
-            line_area.y += 1;
-        });
+                line_area.y += 1;
+            });
+    }
 }

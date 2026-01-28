@@ -276,14 +276,14 @@ impl App {
             );
 
             // Navigation
-            prepare_navigation(
+            render_navigation(
+                nav_area,
+                buf,
                 &mut self.text_segment,
                 self.route,
                 &self.pages,
                 &self.colors,
             );
-            self.text_segment.render(nav_area, buf);
-            self.text_segment.clear();
 
             // Body
             const MAX_WIDTH: u16 = 128;
@@ -329,30 +329,32 @@ impl App {
                     let track = self.jukebox.get(id).unwrap();
 
                     // Render playback title
-                    prepare_playback_title(&mut self.text_segment, track, &self.colors);
-                    self.text_segment.render(playback_title_area, buf);
-                    self.text_segment.clear();
+                    render_playback_title(
+                        playback_title_area,
+                        buf,
+                        &mut self.text_segment,
+                        track,
+                        &self.colors,
+                    );
 
                     // Render active playback status
-                    prepare_playback_status_active(
-                        &mut self.text_segment,
+                    render_playback_status_active(
                         playback_status_area,
+                        buf,
+                        &mut self.text_segment,
                         self.jukebox.current_audio_position(),
                         track.duration(),
                         &self.colors,
                     );
-                    self.text_segment.render(playback_status_area, buf);
-                    self.text_segment.clear();
                 }
                 None => {
                     // Render empty playback status
-                    prepare_playback_status_empty(
-                        &mut self.text_segment,
+                    render_playback_status_empty(
                         playback_status_area,
+                        buf,
+                        &mut self.text_segment,
                         &self.colors,
                     );
-                    self.text_segment.render(playback_status_area, buf);
-                    self.text_segment.clear();
                 }
             }
 
@@ -401,7 +403,9 @@ impl App {
     }
 }
 
-fn prepare_navigation(
+fn render_navigation(
+    line: Rect,
+    buf: &mut Buffer,
     text: &mut TextSegment,
     current_route: Route,
     pages: &Pages,
@@ -431,9 +435,18 @@ fn prepare_navigation(
         }
         text.push_str(spacing, Style::new());
     }
+
+    text.render(line, buf);
+    text.clear();
 }
 
-fn prepare_playback_title(text: &mut TextSegment, track: &Track, colors: &Colors) {
+fn render_playback_title(
+    line: Rect,
+    buf: &mut Buffer,
+    text: &mut TextSegment,
+    track: &Track,
+    colors: &Colors,
+) {
     let neutral_style = Style::new().fg(colors.neutral);
 
     text.push_str(track.artist(), neutral_style);
@@ -441,11 +454,15 @@ fn prepare_playback_title(text: &mut TextSegment, track: &Track, colors: &Colors
         text.push_str(" - ", neutral_style);
     }
     text.push_str(track.title(), neutral_style);
+
+    text.render(line, buf);
+    text.clear();
 }
 
-fn prepare_playback_status_active(
-    text: &mut TextSegment,
+fn render_playback_status_active(
     line: Rect,
+    buf: &mut Buffer,
+    text: &mut TextSegment,
     current_duration: Duration,
     total_duration: Duration,
     colors: &Colors,
@@ -476,16 +493,25 @@ fn prepare_playback_status_active(
         &utils::format_duration_on_stack(total_duration),
         neutral_style,
     );
+
+    text.render(line, buf);
+    text.clear();
 }
 
-fn prepare_playback_status_empty(text: &mut TextSegment, line: Rect, colors: &Colors) {
+fn render_playback_status_empty(
+    line: Rect,
+    buf: &mut Buffer,
+    text: &mut TextSegment,
+    colors: &Colors,
+) {
     let style = Style::new().fg(colors.neutral);
     text.push_str("00:00 ", style);
-
     let status_width = line.width / 3;
     for _ in 0..status_width {
         text.push_char('─', style);
     }
-
     text.push_str(" 00:00", style);
+
+    text.render(line, buf);
+    text.clear();
 }

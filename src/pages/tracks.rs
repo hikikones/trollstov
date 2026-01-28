@@ -48,8 +48,8 @@ impl TracksPage {
             return;
         }
 
-        // Tracks table
-        render_tracks_table(area, buf, &mut self.scroll, self.index, jb, colors);
+        // Render tracks table
+        self.render_tracks(area, buf, jb, colors);
 
         // TODO: Add selector index for selecting multiple tracks.
 
@@ -104,134 +104,127 @@ impl TracksPage {
     }
 
     pub fn on_exit(&self) {}
-}
 
-fn render_tracks_table(
-    area: Rect,
-    buf: &mut Buffer,
-    scroll: &mut usize,
-    index: usize,
-    jb: &Jukebox,
-    colors: &Colors,
-) {
-    let spacing = 2;
-    let time_width = 6 + spacing;
-    let rating_width = 7;
-    let remaining_width = area.width.saturating_sub(time_width + rating_width);
-    let info_width = remaining_width / 3;
+    fn render_tracks(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+        let spacing = 2;
+        let time_width = 6 + spacing;
+        let rating_width = 7;
+        let remaining_width = area.width.saturating_sub(time_width + rating_width);
+        let info_width = remaining_width / 3;
 
-    let header_area = Rect { height: 1, ..area };
-    let table_area = Rect {
-        y: area.y + 1,
-        height: area.height.saturating_sub(1),
-        ..area
-    };
+        let header_area = Rect { height: 1, ..area };
+        let table_area = Rect {
+            y: area.y + 1,
+            height: area.height.saturating_sub(1),
+            ..area
+        };
 
-    // Render the header for the table
-    let sort = jb.get_sort();
-    let mut x = header_area.x;
-    for (label, width, spacing) in [
-        (
-            if sort == TrackSort::TitleAscending {
-                "Title⌄"
-            } else if sort == TrackSort::TitleDescending {
-                "Title⌃"
-            } else {
-                "Title"
-            },
-            info_width,
-            spacing,
-        ),
-        (
-            if sort == TrackSort::ArtistAscending {
-                "Artist⌄"
-            } else if sort == TrackSort::ArtistDescending {
-                "Artist⌃"
-            } else {
-                "Artist"
-            },
-            info_width,
-            spacing,
-        ),
-        (
-            if sort == TrackSort::AlbumAscending {
-                "Album⌄"
-            } else if sort == TrackSort::AlbumDescending {
-                "Album⌃"
-            } else {
-                "Album"
-            },
-            info_width,
-            spacing,
-        ),
-        (
-            if sort == TrackSort::TimeAscending {
-                "Time⌄"
-            } else if sort == TrackSort::TimeDescending {
-                "Time⌃"
-            } else {
-                "Time"
-            },
-            time_width,
-            spacing,
-        ),
-        (
-            if sort == TrackSort::RatingAscending {
-                "Rating⌄"
-            } else if sort == TrackSort::RatingDescending {
-                "Rating⌃"
-            } else {
-                "Rating"
-            },
-            rating_width,
-            0,
-        ),
-    ] {
-        buf.set_stringn(
-            x,
-            header_area.y,
-            label,
-            width.saturating_sub(spacing) as usize,
-            Style::new(),
-        );
-        x += width;
-    }
-
-    // Render the body for the table
-    *scroll = utils::calculate_scroll(index, table_area.height, *scroll);
-    let current = jb.current_track();
-    let mut row = Rect {
-        height: 1,
-        ..table_area
-    };
-
-    jb.iter()
-        .enumerate()
-        .skip(*scroll)
-        .take(table_area.height as usize)
-        .for_each(|(i, (id, track))| {
-            let mut style = Style::new();
-
-            if index == i {
-                style.bg = Some(colors.accent);
-                style.fg = Some(colors.on_accent);
-            }
-            if current == Some(id) {
-                style.add_modifier.insert(Modifier::BOLD);
-            }
-
-            utils::print_text_segments(
-                row,
-                buf,
-                [
-                    (track.title(), info_width, spacing),
-                    (track.artist(), info_width, spacing),
-                    (track.album(), info_width, spacing),
-                    (track.duration_display(), time_width, spacing),
-                    (track.rating_display(), rating_width, 0),
-                ],
-                style,
+        // Render the header for the table
+        let sort = jb.get_sort();
+        let mut x = header_area.x;
+        for (label, width, spacing) in [
+            (
+                if sort == TrackSort::TitleAscending {
+                    "Title⌄"
+                } else if sort == TrackSort::TitleDescending {
+                    "Title⌃"
+                } else {
+                    "Title"
+                },
+                info_width,
+                spacing,
+            ),
+            (
+                if sort == TrackSort::ArtistAscending {
+                    "Artist⌄"
+                } else if sort == TrackSort::ArtistDescending {
+                    "Artist⌃"
+                } else {
+                    "Artist"
+                },
+                info_width,
+                spacing,
+            ),
+            (
+                if sort == TrackSort::AlbumAscending {
+                    "Album⌄"
+                } else if sort == TrackSort::AlbumDescending {
+                    "Album⌃"
+                } else {
+                    "Album"
+                },
+                info_width,
+                spacing,
+            ),
+            (
+                if sort == TrackSort::TimeAscending {
+                    "Time⌄"
+                } else if sort == TrackSort::TimeDescending {
+                    "Time⌃"
+                } else {
+                    "Time"
+                },
+                time_width,
+                spacing,
+            ),
+            (
+                if sort == TrackSort::RatingAscending {
+                    "Rating⌄"
+                } else if sort == TrackSort::RatingDescending {
+                    "Rating⌃"
+                } else {
+                    "Rating"
+                },
+                rating_width,
+                0,
+            ),
+        ] {
+            buf.set_stringn(
+                x,
+                header_area.y,
+                label,
+                width.saturating_sub(spacing) as usize,
+                Style::new(),
             );
-            row.y += 1;
-        });
+            x += width;
+        }
+
+        // Render the body for the table
+        self.scroll = utils::calculate_scroll(self.index, table_area.height, self.scroll);
+        let current = jb.current_track();
+        let mut row = Rect {
+            height: 1,
+            ..table_area
+        };
+
+        jb.iter()
+            .enumerate()
+            .skip(self.scroll)
+            .take(table_area.height as usize)
+            .for_each(|(i, (id, track))| {
+                let mut style = Style::new();
+
+                if self.index == i {
+                    style.bg = Some(colors.accent);
+                    style.fg = Some(colors.on_accent);
+                }
+                if current == Some(id) {
+                    style.add_modifier.insert(Modifier::BOLD);
+                }
+
+                utils::print_text_segments(
+                    row,
+                    buf,
+                    [
+                        (track.title(), info_width, spacing),
+                        (track.artist(), info_width, spacing),
+                        (track.album(), info_width, spacing),
+                        (track.duration_display(), time_width, spacing),
+                        (track.rating_display(), rating_width, 0),
+                    ],
+                    style,
+                );
+                row.y += 1;
+            });
+    }
 }
