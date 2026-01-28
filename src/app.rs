@@ -235,7 +235,7 @@ impl App {
 
     fn update(&mut self) {
         self.jukebox.update();
-        self.pages.now_playing.on_update(&self.jukebox);
+        self.pages.playing.on_update(&self.jukebox);
     }
 
     fn render<'a>(&'a mut self, terminal: &'a mut Terminal) -> std::io::Result<CompletedFrame<'a>> {
@@ -303,7 +303,7 @@ impl App {
                 }
                 Route::NowPlaying => {
                     self.pages
-                        .now_playing
+                        .playing
                         .on_render(body, buf, &self.jukebox, &self.colors);
                 }
                 Route::Queue => {
@@ -364,7 +364,7 @@ impl App {
     fn on_enter(&mut self) {
         match self.route {
             Route::Tracks => self.pages.tracks.on_enter(),
-            Route::NowPlaying => self.pages.now_playing.on_enter(),
+            Route::NowPlaying => self.pages.playing.on_enter(),
             Route::Queue => self.pages.queue.on_enter(),
             Route::Search => self.pages.search.on_enter(),
             Route::Logs => self.pages.logs.on_enter(),
@@ -374,7 +374,7 @@ impl App {
     fn on_exit(&mut self) {
         match self.route {
             Route::Tracks => self.pages.tracks.on_exit(),
-            Route::NowPlaying => self.pages.now_playing.on_exit(),
+            Route::NowPlaying => self.pages.playing.on_exit(),
             Route::Queue => self.pages.queue.on_exit(),
             Route::Search => self.pages.search.on_exit(),
             Route::Logs => self.pages.logs.on_exit(),
@@ -387,7 +387,7 @@ impl App {
                 .pages
                 .tracks
                 .on_input(key.code, key.modifiers, &mut self.jukebox),
-            Route::NowPlaying => self.pages.now_playing.on_input(key.code, key.modifiers),
+            Route::NowPlaying => self.pages.playing.on_input(key.code, key.modifiers),
             Route::Queue => self
                 .pages
                 .queue

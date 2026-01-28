@@ -15,14 +15,14 @@ use crate::{
     utils,
 };
 
-pub struct NowPlayingPage {
+pub struct PlayingPage {
     current: Option<TrackId>,
     picker: Picker,
     image: FrontCover,
     image_handle: Option<JoinHandle<FrontCover>>,
 }
 
-impl NowPlayingPage {
+impl PlayingPage {
     pub const fn new(picker: Picker) -> Self {
         Self {
             current: None,

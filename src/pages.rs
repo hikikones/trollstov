@@ -14,7 +14,7 @@ use crate::{app::Colors, events::EventSender};
 
 pub struct Pages {
     pub tracks: TracksPage,
-    pub now_playing: NowPlayingPage,
+    pub playing: PlayingPage,
     pub queue: QueuePage,
     pub search: SearchPage,
     pub logs: LogsPage,
@@ -28,7 +28,7 @@ impl Pages {
     ) -> Self {
         Self {
             tracks: TracksPage::new(events.clone()),
-            now_playing: NowPlayingPage::new(picker),
+            playing: PlayingPage::new(picker),
             queue: QueuePage::new(events.clone()),
             search: SearchPage::new(colors, events.clone()),
             logs: LogsPage::new(events),
