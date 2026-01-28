@@ -51,6 +51,8 @@ impl TracksPage {
         // Tracks table
         render_tracks_table(area, buf, &mut self.scroll, self.index, jb, colors);
 
+        // Add selector index for selecting multiple tracks.
+
         // Shortcuts
         shortcuts.extend([
             Shortcut::new("Sort", "(⇧)s"),
