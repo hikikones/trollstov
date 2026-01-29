@@ -19,8 +19,7 @@ use crate::{
 };
 
 type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileError>>;
-type AudioPlayHandle =
-    std::thread::JoinHandle<Result<(TrackId, Decoder<BufReader<File>>), JukeboxError>>;
+type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, JukeboxError>>;
 type AudioWriteHandle =
     std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileError>>;
 
@@ -30,24 +29,13 @@ pub struct Jukebox {
     sort: TrackSort,
     current: Option<TrackId>,
     stopped: Option<TrackId>,
-    queue: VecDeque<TrackId>,
-    history: Vec<TrackId>,
-    actions: VecDeque<JukeboxAction>,
+    queue: PlayQueue,
     events: EventSender,
     audio_file_receiver: Option<AudioFileReceiver>,
-    audio_play_handle: Option<AudioPlayHandle>,
+    audio_decode_handle: Option<AudioDecodeHandle>,
     audio_write_handle: Option<AudioWriteHandle>,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
-}
-
-enum JukeboxAction {
-    Play(TrackId, bool),
-    PausePlay,
-    Stop,
-    Next,
-    Previous,
-    Rating(TrackId, AudioRating),
 }
 
 impl Jukebox {
@@ -62,12 +50,10 @@ impl Jukebox {
             sort: TrackSort::default(),
             current: None,
             stopped: None,
-            queue: VecDeque::new(),
-            history: Vec::new(),
-            actions: VecDeque::new(),
+            queue: PlayQueue::new(),
             events,
             audio_file_receiver: None,
-            audio_play_handle: None,
+            audio_decode_handle: None,
             audio_write_handle: None,
             sink,
             _stream: stream,
@@ -146,34 +132,92 @@ impl Jukebox {
 
     pub fn update(&mut self) {
         self.receive_audio_files();
-        self.apply_actions();
+
+        // Poll thread handle for audio decoding
+        if let Some(handle) = self.audio_decode_handle.as_ref() {
+            if handle.is_finished() {
+                let handle = self.audio_decode_handle.take().unwrap();
+                match handle.join().unwrap() {
+                    Ok(decoded_audio) => {
+                        self.sink.clear();
+                        self.sink.append(decoded_audio);
+                        self.sink.play();
+                        self.events.send(AppEvent::Render);
+                    }
+                    Err(err) => {
+                        let log = Log::new(err.to_string(), LogLevel::Error);
+                        self.events.send(AppEvent::Log(log));
+                    }
+                }
+            }
+        }
+
+        // Poll thread handle for finished tag writing
+        if let Some(handle) = self.audio_write_handle.as_ref() {
+            if handle.is_finished() {
+                let handle = self.audio_write_handle.take().unwrap();
+                match handle.join().unwrap() {
+                    Ok((id, new_rating)) => {
+                        let track = self.get_mut(id).unwrap();
+                        track.set_rating(new_rating);
+                        self.events.send(AppEvent::Render);
+                    }
+                    Err(err) => {
+                        let log = Log::new(err.to_string(), LogLevel::Error);
+                        self.events.send(AppEvent::Log(log));
+                    }
+                }
+            }
+        }
 
         // Play next when idle and finished
-        if self.actions.is_empty() && self.sink.empty() && !self.sink.is_paused() {
+        if self.sink.empty() && !self.sink.is_paused() {
             self.play_next();
         }
     }
 
     pub fn play(&mut self, id: TrackId) {
         // TODO: If new track is same as current, simply rewind.
-        self.actions.push_back(JukeboxAction::Play(id, true));
+        if let Some(current_id) = self.current_track() {
+            self.queue.add_to_history(current_id);
+        }
+        self.start_play(id);
     }
 
     pub fn pause_or_play(&mut self) {
-        self.actions.push_back(JukeboxAction::PausePlay);
+        if self.sink.is_paused() {
+            match self.stopped.take() {
+                Some(id) => {
+                    self.play(id);
+                }
+                None => {
+                    self.sink.play();
+                }
+            }
+        } else {
+            self.sink.pause();
+        }
     }
 
     pub fn stop(&mut self) {
         // TODO: Should stop also clear queue and history?
-        self.actions.push_back(JukeboxAction::Stop);
+        if let Some(id) = self.current.take() {
+            self.sink.clear();
+            self.stopped = Some(id);
+            self.events.send(AppEvent::UpdateAndRender);
+        }
     }
 
     pub fn play_next(&mut self) {
-        self.actions.push_back(JukeboxAction::Next);
+        if let Some(id) = self.queue.next(self.tracks.len(), self.current) {
+            self.start_play(id);
+        }
     }
 
     pub fn play_previous(&mut self) {
-        self.actions.push_back(JukeboxAction::Previous);
+        if let Some(id) = self.queue.previous(self.current) {
+            self.start_play(id);
+        }
     }
 
     pub fn seek(&mut self, dur: Duration) {
@@ -185,10 +229,20 @@ impl Jukebox {
     }
 
     pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
-        self.actions.push_back(JukeboxAction::Rating(id, rating));
+        // TODO: Write handle should be a list/queue of handles.
+        // Don't want multiple threads writing to the same file
+        // in case someone spams the rating button.
+        self.audio_write_handle = Some(self.write_rating(id, rating));
     }
 
-    fn decode_audio(&mut self, id: TrackId) -> AudioPlayHandle {
+    fn start_play(&mut self, id: TrackId) {
+        self.current = Some(id);
+        self.stopped = None;
+        self.audio_decode_handle = Some(self.decode_audio(id));
+        self.events.send(AppEvent::UpdateAndRender);
+    }
+
+    fn decode_audio(&mut self, id: TrackId) -> AudioDecodeHandle {
         let track = self.tracks.get(&id).unwrap();
         let path = track.path().to_path_buf();
 
@@ -196,7 +250,7 @@ impl Jukebox {
             let file = File::open(path)?;
             let buffer = BufReader::new(file);
             let source = Decoder::new(buffer)?;
-            Ok((id, source))
+            Ok(source)
         })
     }
 
@@ -208,6 +262,7 @@ impl Jukebox {
 
         std::thread::spawn(move || {
             let mut audio_file = AudioFile::read_from_path_and_extension(path, extension)?;
+            // TODO: Move new_rating logic outside thread
             let new_rating = match current_rating {
                 Some(current_rating) => {
                     if current_rating != rating {
@@ -283,108 +338,6 @@ impl Jukebox {
                     mpsc::TryRecvError::Disconnected => {
                         self.audio_file_receiver = None;
                         break;
-                    }
-                },
-            }
-        }
-    }
-
-    fn apply_actions(&mut self) {
-        if let Some(action) = self.actions.pop_front() {
-            match action {
-                JukeboxAction::Play(id, add_to_history) => {
-                    match self.audio_play_handle.as_ref() {
-                        Some(handle) => {
-                            if handle.is_finished() {
-                                let handle = self.audio_play_handle.take().unwrap();
-                                match handle.join().unwrap() {
-                                    Ok((id, source)) => {
-                                        if let Some(current_id) = self.current_track() {
-                                            if add_to_history {
-                                                // New track, add to history
-                                                self.history.push(current_id);
-                                            } else {
-                                                // Playing previous, enqueue current so we remember
-                                                self.queue.push_front(current_id);
-                                            }
-                                        }
-                                        self.sink.clear();
-                                        self.sink.append(source);
-                                        self.sink.play();
-                                        self.current = Some(id);
-                                        self.stopped = None;
-                                        self.events.send(AppEvent::UpdateAndRender);
-                                    }
-                                    Err(err) => {
-                                        let log = Log::new(err.to_string(), LogLevel::Error);
-                                        self.events.send(AppEvent::Log(log));
-                                    }
-                                }
-                            } else {
-                                self.actions.push_front(action);
-                            }
-                        }
-                        None => {
-                            self.audio_play_handle = Some(self.decode_audio(id));
-                            self.actions.push_front(action);
-                        }
-                    }
-                }
-                JukeboxAction::PausePlay => {
-                    if self.sink.is_paused() {
-                        match self.stopped.take() {
-                            Some(id) => {
-                                self.play(id);
-                            }
-                            None => {
-                                self.sink.play();
-                            }
-                        }
-                    } else {
-                        self.sink.pause();
-                    }
-                }
-                JukeboxAction::Stop => {
-                    if let Some(id) = self.current.take() {
-                        self.sink.clear();
-                        self.stopped = Some(id);
-                        self.events.send(AppEvent::UpdateAndRender);
-                    }
-                }
-                JukeboxAction::Next => {
-                    let next_id = self
-                        .queue
-                        .pop_front()
-                        .unwrap_or_else(|| TrackId(fastrand::u64(0..self.tracks.len() as u64)));
-                    self.play(next_id);
-                }
-                JukeboxAction::Previous => {
-                    if let Some(id) = self.history.pop() {
-                        self.actions.push_front(JukeboxAction::Play(id, false));
-                    }
-                }
-                JukeboxAction::Rating(id, rating) => match self.audio_write_handle.as_ref() {
-                    Some(handle) => {
-                        if handle.is_finished() {
-                            let handle = self.audio_write_handle.take().unwrap();
-                            match handle.join().unwrap() {
-                                Ok((id, new_rating)) => {
-                                    let track = self.get_mut(id).unwrap();
-                                    track.set_rating(new_rating);
-                                    self.events.send(AppEvent::Render);
-                                }
-                                Err(err) => {
-                                    let log = Log::new(err.to_string(), LogLevel::Error);
-                                    self.events.send(AppEvent::Log(log));
-                                }
-                            }
-                        } else {
-                            self.actions.push_front(action);
-                        }
-                    }
-                    None => {
-                        self.audio_write_handle = Some(self.write_rating(id, rating));
-                        self.actions.push_front(action);
                     }
                 },
             }
@@ -591,5 +544,144 @@ impl From<rodio::decoder::DecoderError> for JukeboxError {
 impl From<AudioFileError> for JukeboxError {
     fn from(error: AudioFileError) -> Self {
         Self::Audio(error)
+    }
+}
+
+struct PlayQueue {
+    queue: VecDeque<TrackId>,
+    history: Vec<TrackId>,
+}
+
+impl PlayQueue {
+    const fn new() -> Self {
+        Self {
+            queue: VecDeque::new(),
+            history: Vec::new(),
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.queue.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.queue.is_empty()
+    }
+
+    fn iter(&self) -> std::collections::vec_deque::Iter<'_, TrackId> {
+        self.queue.iter()
+    }
+
+    fn push_back(&mut self, id: TrackId) {
+        self.queue.push_back(id);
+    }
+
+    fn push_front(&mut self, id: TrackId) {
+        self.queue.push_front(id);
+    }
+
+    fn add_to_history(&mut self, id: TrackId) {
+        self.history.push(id);
+    }
+
+    fn next(&mut self, tracks_len: usize, current_track: Option<TrackId>) -> Option<TrackId> {
+        if tracks_len == 0 {
+            return None;
+        }
+
+        if let Some(id) = current_track {
+            self.history.push(id);
+        }
+
+        self.queue
+            .pop_front()
+            .unwrap_or_else(|| TrackId(fastrand::u64(0..tracks_len as u64)))
+            .into()
+    }
+
+    fn previous(&mut self, current_track: Option<TrackId>) -> Option<TrackId> {
+        if let Some(previous_id) = self.history.pop() {
+            if let Some(current_id) = current_track {
+                self.queue.push_front(current_id);
+            }
+
+            return Some(previous_id);
+        }
+
+        None
+    }
+
+    fn clear(&mut self) {
+        self.queue.clear();
+        self.history.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn play_queue() {
+        const TRACKS_LEN: usize = 3;
+        let mut queue = PlayQueue::new();
+        let mut current = None;
+
+        for i in 0..TRACKS_LEN {
+            queue.push_back(TrackId(i as u64));
+        }
+
+        assert_eq!(current, None);
+        assert_eq!(queue.queue.len(), TRACKS_LEN);
+        assert_eq!(queue.history.len(), 0);
+
+        // Next
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(0)));
+        assert_eq!(queue.queue.len(), 2);
+        assert_eq!(queue.history.len(), 0);
+
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(1)));
+        assert_eq!(queue.queue.len(), 1);
+        assert_eq!(queue.history.len(), 1);
+
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(2)));
+        assert_eq!(queue.queue.len(), 0);
+        assert_eq!(queue.history.len(), 2);
+
+        // Previous
+        current = queue.previous(current);
+        assert_eq!(current, Some(TrackId(1)));
+        assert_eq!(queue.queue.len(), 1);
+        assert_eq!(queue.history.len(), 1);
+
+        current = queue.previous(current);
+        assert_eq!(current, Some(TrackId(0)));
+        assert_eq!(queue.queue.len(), 2);
+        assert_eq!(queue.history.len(), 0);
+
+        current = queue.previous(current);
+        assert_eq!(current, None);
+        assert_eq!(queue.queue.len(), 2);
+        assert_eq!(queue.history.len(), 0);
+
+        // Next
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(1)));
+        assert_eq!(queue.queue.len(), 1);
+        assert_eq!(queue.history.len(), 0);
+
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(2)));
+        assert_eq!(queue.queue.len(), 0);
+        assert_eq!(queue.history.len(), 1);
+
+        // Previous
+        current = queue.previous(current);
+        assert_eq!(current, Some(TrackId(1)));
+        assert_eq!(queue.queue.len(), 1);
+        assert_eq!(queue.history.len(), 0);
     }
 }
