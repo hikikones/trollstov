@@ -4,13 +4,14 @@ use image::GenericImageView;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
-    widgets::Block,
+    widgets::{Block, Padding},
 };
 use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
     app::Colors,
     audio::AudioPicture,
+    events::{AppEvent, EventSender},
     jukebox::{Jukebox, TrackId},
     utils,
 };
@@ -20,15 +21,23 @@ pub struct PlayingPage {
     picker: Picker,
     image: FrontCover,
     image_handle: Option<JoinHandle<FrontCover>>,
+    index: usize,
+    scroll: usize,
+    play_queue_title: String,
+    events: EventSender,
 }
 
 impl PlayingPage {
-    pub const fn new(picker: Picker) -> Self {
+    pub const fn new(picker: Picker, events: EventSender) -> Self {
         Self {
             current: None,
             picker,
             image: FrontCover::None,
             image_handle: None,
+            index: 0,
+            scroll: 0,
+            play_queue_title: String::new(),
+            events,
         }
     }
 
@@ -79,6 +88,54 @@ impl PlayingPage {
     }
 
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+        let [playing_area, _, queue_area] = Layout::vertical([
+            Constraint::Percentage(60),
+            Constraint::Length(2),
+            Constraint::Fill(0),
+        ])
+        .areas(area);
+
+        // Render track
+        self.render_track(playing_area, buf, jb, colors);
+
+        // Render play queue
+        self.play_queue_title.push_str(" Play Queue ");
+        if !jb.is_queue_empty() {
+            let mut buffer = itoa::Buffer::new();
+            self.play_queue_title
+                .extend(["(", buffer.format(jb.queue_len()), ") "]);
+        }
+
+        let block = Block::bordered()
+            .title(self.play_queue_title.as_str())
+            .title_alignment(Alignment::Center)
+            .style(Style::new().fg(colors.neutral))
+            .padding(Padding::horizontal(1));
+        let queue_area_inner = block.inner(queue_area);
+        block.render(queue_area, buf);
+        self.play_queue_title.clear();
+
+        self.scroll = utils::calculate_scroll(self.index, queue_area_inner.height, self.scroll);
+        self.render_queue(queue_area_inner, buf, jb, colors);
+    }
+
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &Jukebox) {
+        match key {
+            KeyCode::Down => {
+                self.index = usize::min(self.index + 1, jb.queue_len().saturating_sub(1));
+                self.events.send(AppEvent::Render);
+            }
+            KeyCode::Up => {
+                self.index = self.index.saturating_sub(1);
+                self.events.send(AppEvent::Render);
+            }
+            _ => {}
+        }
+    }
+
+    pub fn on_exit(&mut self) {}
+
+    fn render_track(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         let neutral_style = Style::new().fg(colors.neutral);
 
         // Show currently playing, image or not
@@ -100,7 +157,7 @@ impl PlayingPage {
                         height: img_h,
                         ..left_area
                     };
-                    utils::align(img_r, left_area, utils::Alignment::Right)
+                    utils::align(img_r, left_area, utils::Alignment::RightCenter)
                 };
 
                 match &mut self.image {
@@ -134,7 +191,7 @@ impl PlayingPage {
                                 ..left_area
                             },
                             left_area,
-                            utils::Alignment::Right,
+                            utils::Alignment::RightCenter,
                         );
                         StatefulImage::default().render(img_area, buf, image);
                     }
@@ -171,18 +228,47 @@ impl PlayingPage {
                     buf,
                     "No track currently playing",
                     neutral_style,
-                    utils::Alignment::CenterHorizontal,
+                    utils::Alignment::Center,
                 );
             }
         }
-
-        // TODO: Move play queue page here.
-        // Render below in a wide scrollable bordered block.
     }
 
-    pub fn on_input(&mut self, _key: KeyCode, _modifiers: KeyModifiers) {}
+    fn render_queue(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+        if jb.is_queue_empty() {
+            utils::print_ascii(
+                area,
+                buf,
+                "No tracks in the queue",
+                Style::new().fg(colors.neutral),
+                utils::Alignment::Center,
+            );
+            return;
+        }
 
-    pub fn on_exit(&mut self) {}
+        let mut line_area = Rect { height: 1, ..area };
+
+        jb.queue_iter()
+            .enumerate()
+            .skip(self.scroll)
+            .take(area.height as usize)
+            .for_each(|(i, (_id, track))| {
+                let mut style = Style::new();
+                if self.index == i {
+                    style.bg = Some(colors.accent);
+                    style.fg = Some(colors.on_accent);
+                }
+
+                utils::print_line_iter(
+                    line_area,
+                    buf,
+                    [track.title(), " ", track.artist(), " ", track.album()],
+                    style,
+                );
+
+                line_area.y += 1;
+            });
+    }
 }
 
 enum FrontCover {

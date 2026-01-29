@@ -17,6 +17,8 @@ use crate::{
     widgets::{Shortcut, Shortcuts, TextSegment},
 };
 
+// TODO: Add scrolling bars to the various pages.
+
 pub struct App {
     running: bool,
     pages: Pages,
@@ -306,11 +308,6 @@ impl App {
                         .playing
                         .on_render(body, buf, &self.jukebox, &self.colors);
                 }
-                Route::Queue => {
-                    self.pages
-                        .queue
-                        .on_render(body, buf, &self.jukebox, &self.colors);
-                }
                 Route::Search => {
                     self.pages
                         .search
@@ -367,7 +364,6 @@ impl App {
         match self.route {
             Route::Tracks => self.pages.tracks.on_enter(),
             Route::NowPlaying => self.pages.playing.on_enter(),
-            Route::Queue => self.pages.queue.on_enter(),
             Route::Search => self.pages.search.on_enter(),
             Route::Logs => self.pages.logs.on_enter(),
         }
@@ -377,7 +373,6 @@ impl App {
         match self.route {
             Route::Tracks => self.pages.tracks.on_exit(),
             Route::NowPlaying => self.pages.playing.on_exit(),
-            Route::Queue => self.pages.queue.on_exit(),
             Route::Search => self.pages.search.on_exit(),
             Route::Logs => self.pages.logs.on_exit(),
         }
@@ -389,11 +384,11 @@ impl App {
                 .pages
                 .tracks
                 .on_input(key.code, key.modifiers, &mut self.jukebox),
-            Route::NowPlaying => self.pages.playing.on_input(key.code, key.modifiers),
-            Route::Queue => self
-                .pages
-                .queue
-                .on_input(key.code, key.modifiers, &mut self.jukebox),
+            Route::NowPlaying => {
+                self.pages
+                    .playing
+                    .on_input(key.code, key.modifiers, &self.jukebox)
+            }
             Route::Search => self
                 .pages
                 .search
@@ -415,7 +410,6 @@ fn render_navigation(
     for (route, spacing) in [
         (Route::Tracks, SPACING),
         (Route::NowPlaying, SPACING),
-        (Route::Queue, SPACING),
         (Route::Search, SPACING),
         (Route::Logs, ""),
     ] {
