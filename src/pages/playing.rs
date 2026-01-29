@@ -4,13 +4,14 @@ use image::GenericImageView;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
-    widgets::Block,
+    widgets::{Block, Padding},
 };
 use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
     app::Colors,
     audio::AudioPicture,
+    events::{AppEvent, EventSender},
     jukebox::{Jukebox, TrackId},
     utils,
 };
@@ -20,15 +21,21 @@ pub struct PlayingPage {
     picker: Picker,
     image: FrontCover,
     image_handle: Option<JoinHandle<FrontCover>>,
+    index: usize,
+    scroll: usize,
+    events: EventSender,
 }
 
 impl PlayingPage {
-    pub const fn new(picker: Picker) -> Self {
+    pub const fn new(picker: Picker, events: EventSender) -> Self {
         Self {
             current: None,
             picker,
             image: FrontCover::None,
             image_handle: None,
+            index: 0,
+            scroll: 0,
+            events,
         }
     }
 
@@ -79,6 +86,9 @@ impl PlayingPage {
     }
 
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+        let [playing_area, queue_area] =
+            Layout::vertical([Constraint::Percentage(60), Constraint::Fill(0)]).areas(area);
+
         let neutral_style = Style::new().fg(colors.neutral);
 
         // Show currently playing, image or not
@@ -89,7 +99,7 @@ impl PlayingPage {
                     Constraint::Length(3),
                     Constraint::Fill(0),
                 ])
-                .areas(area);
+                .areas(playing_area);
 
                 const MAX_COVER_SIZE: u16 = 15;
                 let mut img_area = {
@@ -176,13 +186,70 @@ impl PlayingPage {
             }
         }
 
-        // TODO: Move play queue page here.
-        // Render below in a wide scrollable bordered block.
+        // Render play queue
+        let block = Block::bordered()
+            .title(" Play Queue ")
+            .title_alignment(Alignment::Center)
+            .style(Style::new().fg(colors.neutral))
+            .padding(Padding::horizontal(1));
+        let queue_area_inner = block.inner(queue_area);
+        block.render(queue_area, buf);
+
+        self.scroll = utils::calculate_scroll(self.index, queue_area_inner.height, self.scroll);
+        self.render_queue(queue_area_inner, buf, jb, colors);
     }
 
-    pub fn on_input(&mut self, _key: KeyCode, _modifiers: KeyModifiers) {}
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &Jukebox) {
+        match key {
+            KeyCode::Down => {
+                self.index = usize::min(self.index + 1, jb.queue_len().saturating_sub(1));
+                self.events.send(AppEvent::Render);
+            }
+            KeyCode::Up => {
+                self.index = self.index.saturating_sub(1);
+                self.events.send(AppEvent::Render);
+            }
+            _ => {}
+        }
+    }
 
     pub fn on_exit(&mut self) {}
+
+    fn render_queue(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+        if jb.is_queue_empty() {
+            utils::print_ascii(
+                area,
+                buf,
+                "No tracks in the queue",
+                Style::new().fg(colors.neutral),
+                utils::Alignment::Center,
+            );
+            return;
+        }
+
+        let mut line_area = Rect { height: 1, ..area };
+
+        jb.queue_iter()
+            .enumerate()
+            .skip(self.scroll)
+            .take(area.height as usize)
+            .for_each(|(i, (_id, track))| {
+                let mut style = Style::new();
+                if self.index == i {
+                    style.bg = Some(colors.accent);
+                    style.fg = Some(colors.on_accent);
+                }
+
+                utils::print_line_iter(
+                    line_area,
+                    buf,
+                    [track.title(), " ", track.artist(), " ", track.album()],
+                    style,
+                );
+
+                line_area.y += 1;
+            });
+    }
 }
 
 enum FrontCover {

@@ -28,7 +28,7 @@ impl Pages {
     ) -> Self {
         Self {
             tracks: TracksPage::new(events.clone()),
-            playing: PlayingPage::new(picker),
+            playing: PlayingPage::new(picker, events.clone()),
             queue: QueuePage::new(events.clone()),
             search: SearchPage::new(colors, events.clone()),
             logs: LogsPage::new(events),

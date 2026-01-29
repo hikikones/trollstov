@@ -17,6 +17,8 @@ use crate::{
     widgets::{Shortcut, Shortcuts, TextSegment},
 };
 
+// TODO: Add scrolling bars to the various pages.
+
 pub struct App {
     running: bool,
     pages: Pages,
@@ -389,7 +391,11 @@ impl App {
                 .pages
                 .tracks
                 .on_input(key.code, key.modifiers, &mut self.jukebox),
-            Route::NowPlaying => self.pages.playing.on_input(key.code, key.modifiers),
+            Route::NowPlaying => {
+                self.pages
+                    .playing
+                    .on_input(key.code, key.modifiers, &self.jukebox)
+            }
             Route::Queue => self
                 .pages
                 .queue
