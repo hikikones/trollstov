@@ -399,6 +399,57 @@ impl Jukebox {
     }
 }
 
+struct PlayQueue {
+    queue: VecDeque<TrackId>,
+    history: Vec<TrackId>,
+}
+
+impl PlayQueue {
+    const fn new() -> Self {
+        Self {
+            queue: VecDeque::new(),
+            history: Vec::new(),
+        }
+    }
+
+    fn push_back(&mut self, id: TrackId) {
+        self.queue.push_back(id);
+    }
+
+    fn push_front(&mut self, id: TrackId) {
+        self.queue.push_front(id);
+    }
+
+    fn next(&mut self, tracks_len: usize, current_track: Option<TrackId>) -> Option<TrackId> {
+        if tracks_len == 0 {
+            return None;
+        }
+
+        if let Some(id) = current_track {
+            self.history.push(id);
+        }
+
+        let next_id = self
+            .queue
+            .pop_front()
+            .unwrap_or_else(|| TrackId(fastrand::u64(0..tracks_len as u64)));
+        Some(next_id)
+    }
+
+    fn previous(&mut self, current_track: Option<TrackId>) -> Option<TrackId> {
+        if let Some(id) = current_track {
+            self.queue.push_front(id);
+        }
+
+        self.history.pop()
+    }
+
+    fn clear(&mut self) {
+        self.queue.clear();
+        self.history.clear();
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TrackId(u64);
 
