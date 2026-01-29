@@ -23,6 +23,7 @@ pub struct PlayingPage {
     image_handle: Option<JoinHandle<FrontCover>>,
     index: usize,
     scroll: usize,
+    play_queue_title: String,
     events: EventSender,
 }
 
@@ -35,6 +36,7 @@ impl PlayingPage {
             image_handle: None,
             index: 0,
             scroll: 0,
+            play_queue_title: String::new(),
             events,
         }
     }
@@ -187,13 +189,21 @@ impl PlayingPage {
         }
 
         // Render play queue
+        self.play_queue_title.push_str(" Play Queue ");
+        if !jb.is_queue_empty() {
+            let mut buffer = itoa::Buffer::new();
+            self.play_queue_title
+                .extend(["(", buffer.format(jb.queue_len()), ") "]);
+        }
+
         let block = Block::bordered()
-            .title(" Play Queue ")
+            .title(self.play_queue_title.as_str())
             .title_alignment(Alignment::Center)
             .style(Style::new().fg(colors.neutral))
             .padding(Padding::horizontal(1));
         let queue_area_inner = block.inner(queue_area);
         block.render(queue_area, buf);
+        self.play_queue_title.clear();
 
         self.scroll = utils::calculate_scroll(self.index, queue_area_inner.height, self.scroll);
         self.render_queue(queue_area_inner, buf, jb, colors);
