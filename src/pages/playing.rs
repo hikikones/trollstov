@@ -112,6 +112,7 @@ impl PlayingPage {
             .style(Style::new().fg(colors.neutral))
             .padding(Padding::horizontal(1));
         let queue_area_inner = block.inner(queue_area);
+
         block.render(queue_area, buf);
         self.play_queue_title.clear();
 
