@@ -548,12 +548,12 @@ mod tests {
         // Next
         current = queue.next(TRACKS_LEN, current);
         assert_eq!(current, Some(TrackId(0)));
-        assert_eq!(queue.queue.len(), TRACKS_LEN - 1);
+        assert_eq!(queue.queue.len(), 2);
         assert_eq!(queue.history.len(), 0);
 
         current = queue.next(TRACKS_LEN, current);
         assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), TRACKS_LEN - 2);
+        assert_eq!(queue.queue.len(), 1);
         assert_eq!(queue.history.len(), 1);
 
         current = queue.next(TRACKS_LEN, current);
@@ -564,17 +564,34 @@ mod tests {
         // Previous
         current = queue.previous(current);
         assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), TRACKS_LEN - 2);
+        assert_eq!(queue.queue.len(), 1);
         assert_eq!(queue.history.len(), 1);
 
         current = queue.previous(current);
         assert_eq!(current, Some(TrackId(0)));
-        assert_eq!(queue.queue.len(), TRACKS_LEN - 1);
+        assert_eq!(queue.queue.len(), 2);
         assert_eq!(queue.history.len(), 0);
 
         current = queue.previous(current);
         assert_eq!(current, None);
-        assert_eq!(queue.queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue.len(), 2);
+        assert_eq!(queue.history.len(), 0);
+
+        // Next
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(1)));
+        assert_eq!(queue.queue.len(), 1);
+        assert_eq!(queue.history.len(), 0);
+
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(2)));
+        assert_eq!(queue.queue.len(), 0);
+        assert_eq!(queue.history.len(), 1);
+
+        // Previous
+        current = queue.previous(current);
+        assert_eq!(current, Some(TrackId(1)));
+        assert_eq!(queue.queue.len(), 1);
         assert_eq!(queue.history.len(), 0);
     }
 }
