@@ -50,7 +50,7 @@ impl LogsPage {
                 buf,
                 "No logs to report",
                 Style::new().fg(colors.neutral),
-                utils::Alignment::CenterHorizontal,
+                utils::Alignment::Center,
             );
             return;
         }

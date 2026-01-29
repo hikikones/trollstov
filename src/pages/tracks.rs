@@ -1,6 +1,7 @@
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
+    widgets::{Block, Padding},
 };
 
 use crate::{
@@ -12,7 +13,10 @@ use crate::{
     widgets::{Shortcut, Shortcuts},
 };
 
+// TODO: Add selector index for selecting multiple tracks.
+
 pub struct TracksPage {
+    title: String,
     index: usize,
     scroll: usize,
     events: EventSender,
@@ -21,6 +25,7 @@ pub struct TracksPage {
 impl TracksPage {
     pub fn new(events: EventSender) -> Self {
         Self {
+            title: String::new(),
             index: 0,
             scroll: 0,
             events,
@@ -43,15 +48,26 @@ impl TracksPage {
                 buf,
                 "No tracks to be found",
                 Style::new().fg(colors.neutral),
-                utils::Alignment::CenterHorizontal,
+                utils::Alignment::Center,
             );
             return;
         }
 
         // Render tracks table
-        self.render_tracks(area, buf, jb, colors);
+        let mut buffer = itoa::Buffer::new();
+        self.title
+            .extend([" All tracks (", buffer.format(jb.len()), ") "]);
 
-        // TODO: Add selector index for selecting multiple tracks.
+        let block = Block::bordered()
+            .title(self.title.as_str())
+            .title_alignment(Alignment::Center)
+            .padding(Padding::horizontal(1));
+        let tracks_area = block.inner(area);
+
+        block.render(area, buf);
+        self.title.clear();
+
+        self.render_tracks(tracks_area, buf, jb, colors);
 
         // Shortcuts
         shortcuts.extend([
