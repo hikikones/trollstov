@@ -88,8 +88,12 @@ impl PlayingPage {
     }
 
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
-        let [playing_area, queue_area] =
-            Layout::vertical([Constraint::Percentage(60), Constraint::Fill(0)]).areas(area);
+        let [playing_area, _, queue_area] = Layout::vertical([
+            Constraint::Percentage(60),
+            Constraint::Length(2),
+            Constraint::Fill(0),
+        ])
+        .areas(area);
 
         // Render track
         self.render_track(playing_area, buf, jb, colors);
@@ -153,7 +157,7 @@ impl PlayingPage {
                         height: img_h,
                         ..left_area
                     };
-                    utils::align(img_r, left_area, utils::Alignment::Right)
+                    utils::align(img_r, left_area, utils::Alignment::RightCenter)
                 };
 
                 match &mut self.image {
@@ -187,7 +191,7 @@ impl PlayingPage {
                                 ..left_area
                             },
                             left_area,
-                            utils::Alignment::Right,
+                            utils::Alignment::RightCenter,
                         );
                         StatefulImage::default().render(img_area, buf, image);
                     }
@@ -224,7 +228,7 @@ impl PlayingPage {
                     buf,
                     "No track currently playing",
                     neutral_style,
-                    utils::Alignment::CenterHorizontal,
+                    utils::Alignment::Center,
                 );
             }
         }
