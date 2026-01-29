@@ -119,7 +119,6 @@ impl Jukebox {
 
     pub fn queue_iter(&self) -> impl Iterator<Item = (TrackId, &Track)> {
         self.queue
-            .queue
             .iter()
             .filter_map(|id| self.tracks.get(id).map(|track| (*id, track)))
     }
@@ -144,9 +143,7 @@ impl Jukebox {
                         self.sink.clear();
                         self.sink.append(source);
                         self.sink.play();
-                        self.current = Some(id);
-                        self.stopped = None;
-                        self.events.send(AppEvent::UpdateAndRender);
+                        self.events.send(AppEvent::Render);
                     }
                     Err(err) => {
                         let log = Log::new(err.to_string(), LogLevel::Error);
@@ -182,7 +179,10 @@ impl Jukebox {
 
     pub fn play(&mut self, id: TrackId) {
         // TODO: If new track is same as current, simply rewind.
-        self.audio_play_handle = Some(self.decode_audio(id));
+        if let Some(current_id) = self.current_track() {
+            self.queue.add_to_history(current_id);
+        }
+        self.start_play(id);
     }
 
     pub fn pause_or_play(&mut self) {
@@ -211,13 +211,13 @@ impl Jukebox {
 
     pub fn play_next(&mut self) {
         if let Some(id) = self.queue.next(self.tracks.len(), self.current) {
-            self.play(id);
+            self.start_play(id);
         }
     }
 
     pub fn play_previous(&mut self) {
         if let Some(id) = self.queue.previous(self.current) {
-            self.play(id);
+            self.start_play(id);
         }
     }
 
@@ -233,6 +233,13 @@ impl Jukebox {
         // TODO: Write handle should be a list of handles.
         // Just in case you want to rate multiple tracks at once.
         self.audio_write_handle = Some(self.write_rating(id, rating));
+    }
+
+    fn start_play(&mut self, id: TrackId) {
+        self.current = Some(id);
+        self.stopped = None;
+        self.audio_play_handle = Some(self.decode_audio(id));
+        self.events.send(AppEvent::UpdateAndRender);
     }
 
     fn decode_audio(&mut self, id: TrackId) -> AudioDecodeHandle {
@@ -255,6 +262,7 @@ impl Jukebox {
 
         std::thread::spawn(move || {
             let mut audio_file = AudioFile::read_from_path_and_extension(path, extension)?;
+            // TODO: Move new_rating logic outside thread.
             let new_rating = match current_rating {
                 Some(current_rating) => {
                     if current_rating != rating {
@@ -365,12 +373,20 @@ impl PlayQueue {
         self.queue.is_empty()
     }
 
+    fn iter(&self) -> std::collections::vec_deque::Iter<'_, TrackId> {
+        self.queue.iter()
+    }
+
     fn push_back(&mut self, id: TrackId) {
         self.queue.push_back(id);
     }
 
     fn push_front(&mut self, id: TrackId) {
         self.queue.push_front(id);
+    }
+
+    fn add_to_history(&mut self, id: TrackId) {
+        self.history.push(id);
     }
 
     fn next(&mut self, tracks_len: usize, current_track: Option<TrackId>) -> Option<TrackId> {
