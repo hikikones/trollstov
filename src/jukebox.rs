@@ -352,145 +352,6 @@ impl Jukebox {
     }
 }
 
-struct PlayQueue {
-    queue: VecDeque<TrackId>,
-    history: Vec<TrackId>,
-}
-
-impl PlayQueue {
-    const fn new() -> Self {
-        Self {
-            queue: VecDeque::new(),
-            history: Vec::new(),
-        }
-    }
-
-    fn len(&self) -> usize {
-        self.queue.len()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.queue.is_empty()
-    }
-
-    fn iter(&self) -> std::collections::vec_deque::Iter<'_, TrackId> {
-        self.queue.iter()
-    }
-
-    fn push_back(&mut self, id: TrackId) {
-        self.queue.push_back(id);
-    }
-
-    fn push_front(&mut self, id: TrackId) {
-        self.queue.push_front(id);
-    }
-
-    fn add_to_history(&mut self, id: TrackId) {
-        self.history.push(id);
-    }
-
-    fn next(&mut self, tracks_len: usize, current_track: Option<TrackId>) -> Option<TrackId> {
-        if tracks_len == 0 {
-            return None;
-        }
-
-        if let Some(id) = current_track {
-            self.history.push(id);
-        }
-
-        self.queue
-            .pop_front()
-            .unwrap_or_else(|| TrackId(fastrand::u64(0..tracks_len as u64)))
-            .into()
-    }
-
-    fn previous(&mut self, current_track: Option<TrackId>) -> Option<TrackId> {
-        if let Some(previous_id) = self.history.pop() {
-            if let Some(current_id) = current_track {
-                self.queue.push_front(current_id);
-            }
-
-            return Some(previous_id);
-        }
-
-        None
-    }
-
-    fn clear(&mut self) {
-        self.queue.clear();
-        self.history.clear();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn play_queue() {
-        const TRACKS_LEN: usize = 3;
-        let mut queue = PlayQueue::new();
-        let mut current = None;
-
-        for i in 0..TRACKS_LEN {
-            queue.push_back(TrackId(i as u64));
-        }
-
-        assert_eq!(current, None);
-        assert_eq!(queue.queue.len(), TRACKS_LEN);
-        assert_eq!(queue.history.len(), 0);
-
-        // Next
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(0)));
-        assert_eq!(queue.queue.len(), 2);
-        assert_eq!(queue.history.len(), 0);
-
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), 1);
-        assert_eq!(queue.history.len(), 1);
-
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(2)));
-        assert_eq!(queue.queue.len(), 0);
-        assert_eq!(queue.history.len(), 2);
-
-        // Previous
-        current = queue.previous(current);
-        assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), 1);
-        assert_eq!(queue.history.len(), 1);
-
-        current = queue.previous(current);
-        assert_eq!(current, Some(TrackId(0)));
-        assert_eq!(queue.queue.len(), 2);
-        assert_eq!(queue.history.len(), 0);
-
-        current = queue.previous(current);
-        assert_eq!(current, None);
-        assert_eq!(queue.queue.len(), 2);
-        assert_eq!(queue.history.len(), 0);
-
-        // Next
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), 1);
-        assert_eq!(queue.history.len(), 0);
-
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(2)));
-        assert_eq!(queue.queue.len(), 0);
-        assert_eq!(queue.history.len(), 1);
-
-        // Previous
-        current = queue.previous(current);
-        assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), 1);
-        assert_eq!(queue.history.len(), 0);
-    }
-}
-
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TrackId(u64);
 
@@ -683,5 +544,144 @@ impl From<rodio::decoder::DecoderError> for JukeboxError {
 impl From<AudioFileError> for JukeboxError {
     fn from(error: AudioFileError) -> Self {
         Self::Audio(error)
+    }
+}
+
+struct PlayQueue {
+    queue: VecDeque<TrackId>,
+    history: Vec<TrackId>,
+}
+
+impl PlayQueue {
+    const fn new() -> Self {
+        Self {
+            queue: VecDeque::new(),
+            history: Vec::new(),
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.queue.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.queue.is_empty()
+    }
+
+    fn iter(&self) -> std::collections::vec_deque::Iter<'_, TrackId> {
+        self.queue.iter()
+    }
+
+    fn push_back(&mut self, id: TrackId) {
+        self.queue.push_back(id);
+    }
+
+    fn push_front(&mut self, id: TrackId) {
+        self.queue.push_front(id);
+    }
+
+    fn add_to_history(&mut self, id: TrackId) {
+        self.history.push(id);
+    }
+
+    fn next(&mut self, tracks_len: usize, current_track: Option<TrackId>) -> Option<TrackId> {
+        if tracks_len == 0 {
+            return None;
+        }
+
+        if let Some(id) = current_track {
+            self.history.push(id);
+        }
+
+        self.queue
+            .pop_front()
+            .unwrap_or_else(|| TrackId(fastrand::u64(0..tracks_len as u64)))
+            .into()
+    }
+
+    fn previous(&mut self, current_track: Option<TrackId>) -> Option<TrackId> {
+        if let Some(previous_id) = self.history.pop() {
+            if let Some(current_id) = current_track {
+                self.queue.push_front(current_id);
+            }
+
+            return Some(previous_id);
+        }
+
+        None
+    }
+
+    fn clear(&mut self) {
+        self.queue.clear();
+        self.history.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn play_queue() {
+        const TRACKS_LEN: usize = 3;
+        let mut queue = PlayQueue::new();
+        let mut current = None;
+
+        for i in 0..TRACKS_LEN {
+            queue.push_back(TrackId(i as u64));
+        }
+
+        assert_eq!(current, None);
+        assert_eq!(queue.queue.len(), TRACKS_LEN);
+        assert_eq!(queue.history.len(), 0);
+
+        // Next
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(0)));
+        assert_eq!(queue.queue.len(), 2);
+        assert_eq!(queue.history.len(), 0);
+
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(1)));
+        assert_eq!(queue.queue.len(), 1);
+        assert_eq!(queue.history.len(), 1);
+
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(2)));
+        assert_eq!(queue.queue.len(), 0);
+        assert_eq!(queue.history.len(), 2);
+
+        // Previous
+        current = queue.previous(current);
+        assert_eq!(current, Some(TrackId(1)));
+        assert_eq!(queue.queue.len(), 1);
+        assert_eq!(queue.history.len(), 1);
+
+        current = queue.previous(current);
+        assert_eq!(current, Some(TrackId(0)));
+        assert_eq!(queue.queue.len(), 2);
+        assert_eq!(queue.history.len(), 0);
+
+        current = queue.previous(current);
+        assert_eq!(current, None);
+        assert_eq!(queue.queue.len(), 2);
+        assert_eq!(queue.history.len(), 0);
+
+        // Next
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(1)));
+        assert_eq!(queue.queue.len(), 1);
+        assert_eq!(queue.history.len(), 0);
+
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(2)));
+        assert_eq!(queue.queue.len(), 0);
+        assert_eq!(queue.history.len(), 1);
+
+        // Previous
+        current = queue.previous(current);
+        assert_eq!(current, Some(TrackId(1)));
+        assert_eq!(queue.queue.len(), 1);
+        assert_eq!(queue.history.len(), 0);
     }
 }
