@@ -19,8 +19,7 @@ use crate::{
 };
 
 type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileError>>;
-type AudioDecodeHandle =
-    std::thread::JoinHandle<Result<(TrackId, Decoder<BufReader<File>>), JukeboxError>>;
+type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, JukeboxError>>;
 type AudioWriteHandle =
     std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileError>>;
 
@@ -33,7 +32,7 @@ pub struct Jukebox {
     queue: PlayQueue,
     events: EventSender,
     audio_file_receiver: Option<AudioFileReceiver>,
-    audio_play_handle: Option<AudioDecodeHandle>,
+    audio_decode_handle: Option<AudioDecodeHandle>,
     audio_write_handle: Option<AudioWriteHandle>,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
@@ -54,7 +53,7 @@ impl Jukebox {
             queue: PlayQueue::new(),
             events,
             audio_file_receiver: None,
-            audio_play_handle: None,
+            audio_decode_handle: None,
             audio_write_handle: None,
             sink,
             _stream: stream,
@@ -135,13 +134,13 @@ impl Jukebox {
         self.receive_audio_files();
 
         // Poll thread handle for audio decoding
-        if let Some(handle) = self.audio_play_handle.as_ref() {
+        if let Some(handle) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
-                let handle = self.audio_play_handle.take().unwrap();
+                let handle = self.audio_decode_handle.take().unwrap();
                 match handle.join().unwrap() {
-                    Ok((id, source)) => {
+                    Ok(decoded_audio) => {
                         self.sink.clear();
-                        self.sink.append(source);
+                        self.sink.append(decoded_audio);
                         self.sink.play();
                         self.events.send(AppEvent::Render);
                     }
@@ -230,15 +229,16 @@ impl Jukebox {
     }
 
     pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
-        // TODO: Write handle should be a list of handles.
-        // Just in case you want to rate multiple tracks at once.
+        // TODO: Write handle should be a list/queue of handles.
+        // Don't want multiple threads writing to the same file
+        // in case someone spams the rating button.
         self.audio_write_handle = Some(self.write_rating(id, rating));
     }
 
     fn start_play(&mut self, id: TrackId) {
         self.current = Some(id);
         self.stopped = None;
-        self.audio_play_handle = Some(self.decode_audio(id));
+        self.audio_decode_handle = Some(self.decode_audio(id));
         self.events.send(AppEvent::UpdateAndRender);
     }
 
@@ -250,7 +250,7 @@ impl Jukebox {
             let file = File::open(path)?;
             let buffer = BufReader::new(file);
             let source = Decoder::new(buffer)?;
-            Ok((id, source))
+            Ok(source)
         })
     }
 
@@ -262,7 +262,7 @@ impl Jukebox {
 
         std::thread::spawn(move || {
             let mut audio_file = AudioFile::read_from_path_and_extension(path, extension)?;
-            // TODO: Move new_rating logic outside thread.
+            // TODO: Move new_rating logic outside thread
             let new_rating = match current_rating {
                 Some(current_rating) => {
                     if current_rating != rating {
