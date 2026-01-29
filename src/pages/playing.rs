@@ -91,6 +91,47 @@ impl PlayingPage {
         let [playing_area, queue_area] =
             Layout::vertical([Constraint::Percentage(60), Constraint::Fill(0)]).areas(area);
 
+        // Render track
+        self.render_track(playing_area, buf, jb, colors);
+
+        // Render play queue
+        self.play_queue_title.push_str(" Play Queue ");
+        if !jb.is_queue_empty() {
+            let mut buffer = itoa::Buffer::new();
+            self.play_queue_title
+                .extend(["(", buffer.format(jb.queue_len()), ") "]);
+        }
+
+        let block = Block::bordered()
+            .title(self.play_queue_title.as_str())
+            .title_alignment(Alignment::Center)
+            .style(Style::new().fg(colors.neutral))
+            .padding(Padding::horizontal(1));
+        let queue_area_inner = block.inner(queue_area);
+        block.render(queue_area, buf);
+        self.play_queue_title.clear();
+
+        self.scroll = utils::calculate_scroll(self.index, queue_area_inner.height, self.scroll);
+        self.render_queue(queue_area_inner, buf, jb, colors);
+    }
+
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &Jukebox) {
+        match key {
+            KeyCode::Down => {
+                self.index = usize::min(self.index + 1, jb.queue_len().saturating_sub(1));
+                self.events.send(AppEvent::Render);
+            }
+            KeyCode::Up => {
+                self.index = self.index.saturating_sub(1);
+                self.events.send(AppEvent::Render);
+            }
+            _ => {}
+        }
+    }
+
+    pub fn on_exit(&mut self) {}
+
+    fn render_track(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         let neutral_style = Style::new().fg(colors.neutral);
 
         // Show currently playing, image or not
@@ -101,7 +142,7 @@ impl PlayingPage {
                     Constraint::Length(3),
                     Constraint::Fill(0),
                 ])
-                .areas(playing_area);
+                .areas(area);
 
                 const MAX_COVER_SIZE: u16 = 15;
                 let mut img_area = {
@@ -187,43 +228,7 @@ impl PlayingPage {
                 );
             }
         }
-
-        // Render play queue
-        self.play_queue_title.push_str(" Play Queue ");
-        if !jb.is_queue_empty() {
-            let mut buffer = itoa::Buffer::new();
-            self.play_queue_title
-                .extend(["(", buffer.format(jb.queue_len()), ") "]);
-        }
-
-        let block = Block::bordered()
-            .title(self.play_queue_title.as_str())
-            .title_alignment(Alignment::Center)
-            .style(Style::new().fg(colors.neutral))
-            .padding(Padding::horizontal(1));
-        let queue_area_inner = block.inner(queue_area);
-        block.render(queue_area, buf);
-        self.play_queue_title.clear();
-
-        self.scroll = utils::calculate_scroll(self.index, queue_area_inner.height, self.scroll);
-        self.render_queue(queue_area_inner, buf, jb, colors);
     }
-
-    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &Jukebox) {
-        match key {
-            KeyCode::Down => {
-                self.index = usize::min(self.index + 1, jb.queue_len().saturating_sub(1));
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::Up => {
-                self.index = self.index.saturating_sub(1);
-                self.events.send(AppEvent::Render);
-            }
-            _ => {}
-        }
-    }
-
-    pub fn on_exit(&mut self) {}
 
     fn render_queue(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         if jb.is_queue_empty() {
