@@ -450,6 +450,58 @@ impl PlayQueue {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn play_queue() {
+        const TRACKS_LEN: usize = 3;
+        let mut queue = PlayQueue::new();
+        let mut current = None;
+
+        for i in 0..TRACKS_LEN {
+            queue.push_back(TrackId(i as u64));
+        }
+
+        assert_eq!(current, None);
+        assert_eq!(queue.queue.len(), TRACKS_LEN);
+        assert_eq!(queue.history.len(), 0);
+
+        // Next
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(0)));
+        assert_eq!(queue.queue.len(), TRACKS_LEN - 1);
+        assert_eq!(queue.history.len(), 0);
+
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(1)));
+        assert_eq!(queue.queue.len(), TRACKS_LEN - 2);
+        assert_eq!(queue.history.len(), 1);
+
+        current = queue.next(TRACKS_LEN, current);
+        assert_eq!(current, Some(TrackId(2)));
+        assert_eq!(queue.queue.len(), 0);
+        assert_eq!(queue.history.len(), 2);
+
+        // Previous
+        current = queue.previous(current);
+        assert_eq!(current, Some(TrackId(1)));
+        assert_eq!(queue.queue.len(), TRACKS_LEN - 2);
+        assert_eq!(queue.history.len(), 1);
+
+        current = queue.previous(current);
+        assert_eq!(current, Some(TrackId(0)));
+        assert_eq!(queue.queue.len(), TRACKS_LEN - 1);
+        assert_eq!(queue.history.len(), 0);
+
+        current = queue.previous(current);
+        assert_eq!(current, None);
+        assert_eq!(queue.queue.len(), TRACKS_LEN);
+        assert_eq!(queue.history.len(), 0);
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TrackId(u64);
 
