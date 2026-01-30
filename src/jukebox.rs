@@ -272,24 +272,24 @@ impl Jukebox {
         let extension = track.extension();
         let current_rating = track.rating();
 
-        std::thread::spawn(move || {
-            let mut audio_file = AudioFile::read_from_path_and_extension(path, extension)?;
-            // TODO: Move new_rating logic outside thread
-            let new_rating = match current_rating {
-                Some(current_rating) => {
-                    if current_rating != rating {
-                        // Replace rating when they differ
-                        Some(rating)
-                    } else {
-                        // Remove rating when they are the same
-                        None
-                    }
-                }
-                None => {
-                    // Insert new rating
+        let new_rating = match current_rating {
+            Some(current_rating) => {
+                if current_rating != rating {
+                    // Replace rating when they differ
                     Some(rating)
+                } else {
+                    // Remove rating when they are the same
+                    None
                 }
-            };
+            }
+            None => {
+                // Insert new rating
+                Some(rating)
+            }
+        };
+
+        std::thread::spawn(move || {
+            let mut audio_file = AudioFile::read_from(path, extension)?;
             audio_file.write_rating(new_rating)?;
             Ok((id, new_rating))
         })
