@@ -19,6 +19,7 @@ use crate::{
 
 // TODO: Add scrolling bars to the various pages.
 // TODO: Add a playlist page for artists/albums/genres and filtering.
+// TODO: Handle most unwraps.
 
 pub struct App {
     running: bool,
