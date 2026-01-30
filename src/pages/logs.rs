@@ -1,6 +1,7 @@
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
+    widgets::{Block, Padding},
 };
 
 use crate::{
@@ -10,6 +11,7 @@ use crate::{
 };
 
 pub struct LogsPage {
+    title: String,
     logs: Vec<Log>,
     queue: u32,
     index: usize,
@@ -21,6 +23,7 @@ pub struct LogsPage {
 impl LogsPage {
     pub const fn new(events: EventSender) -> Self {
         Self {
+            title: String::new(),
             logs: Vec::new(),
             queue: 0,
             index: 0,
@@ -55,9 +58,22 @@ impl LogsPage {
             return;
         }
 
+        let mut buffer = itoa::Buffer::new();
+        let len = buffer.format(self.logs.len());
+        self.title.extend([" Logs (", len, ") "]);
+
+        let block = Block::bordered()
+            .title(self.title.as_str())
+            .title_alignment(Alignment::Center)
+            .padding(Padding::horizontal(1));
+        let logs_area = block.inner(area);
+
+        block.render(area, buf);
+        self.title.clear();
+
         self.vertical_scroll =
-            utils::calculate_scroll(self.index, area.height, self.vertical_scroll);
-        self.render_logs(area, buf, colors);
+            utils::calculate_scroll(self.index, logs_area.height, self.vertical_scroll);
+        self.render_logs(logs_area, buf, colors);
     }
 
     pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) {
@@ -101,18 +117,8 @@ impl LogsPage {
             .skip(self.vertical_scroll)
             .take(area.height as usize)
             .for_each(|(i, log)| {
-                let (label, label_width, label_style) = match log.level {
-                    LogLevel::Warning => ("Warning", 7, Style::new().fg(Color::Yellow)),
-                    LogLevel::Error => ("Error", 5, Style::new().fg(Color::Red)),
-                };
-
-                buf.set_stringn(line.x, line.y, label, label_width, label_style);
-
-                let label_width = label_width + 1;
-                let log_width = (line.width as usize).saturating_sub(label_width);
-
                 let (scroll, style) = if self.index == i {
-                    let max_scroll = log.width.saturating_sub(log_width);
+                    let max_scroll = log.width.saturating_sub(line.width as usize);
                     self.horizontal_scroll = max_scroll.min(self.horizontal_scroll);
                     (
                         self.horizontal_scroll,
@@ -122,12 +128,7 @@ impl LogsPage {
                     (0, Style::new())
                 };
 
-                let log_line = Rect {
-                    x: line.x + label_width as u16,
-                    width: log_width as u16,
-                    ..line
-                };
-                utils::print_line(log_line, buf, &log.message[scroll..], style);
+                utils::print_line(line, buf, &log.message[scroll..], style);
 
                 line.y += 1;
             });
@@ -136,24 +137,13 @@ impl LogsPage {
 
 pub struct Log {
     message: String,
-    level: LogLevel,
     width: usize,
 }
 
 impl Log {
-    pub fn new(message: impl Into<String>, level: LogLevel) -> Self {
+    pub fn new(message: impl Into<String>) -> Self {
         let message = message.into();
         let width = unicode_width::UnicodeWidthStr::width(message.as_str());
-
-        Self {
-            message,
-            level,
-            width,
-        }
+        Self { message, width }
     }
-}
-
-pub enum LogLevel {
-    Warning,
-    Error,
 }

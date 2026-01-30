@@ -102,8 +102,8 @@ impl PlayingPage {
         self.play_queue_title.push_str(" Play Queue ");
         if !jb.is_queue_empty() {
             let mut buffer = itoa::Buffer::new();
-            self.play_queue_title
-                .extend(["(", buffer.format(jb.queue_len()), ") "]);
+            let len = buffer.format(jb.queue_len());
+            self.play_queue_title.extend(["(", len, ") "]);
         }
 
         let block = Block::bordered()
