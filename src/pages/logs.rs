@@ -1,6 +1,7 @@
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
+    widgets::{Block, Padding},
 };
 
 use crate::{
@@ -10,6 +11,7 @@ use crate::{
 };
 
 pub struct LogsPage {
+    title: String,
     logs: Vec<Log>,
     queue: u32,
     index: usize,
@@ -21,6 +23,7 @@ pub struct LogsPage {
 impl LogsPage {
     pub const fn new(events: EventSender) -> Self {
         Self {
+            title: String::new(),
             logs: Vec::new(),
             queue: 0,
             index: 0,
@@ -55,9 +58,22 @@ impl LogsPage {
             return;
         }
 
+        let mut buffer = itoa::Buffer::new();
+        let len = buffer.format(self.logs.len());
+        self.title.extend([" Logs (", len, ") "]);
+
+        let block = Block::bordered()
+            .title(self.title.as_str())
+            .title_alignment(Alignment::Center)
+            .padding(Padding::horizontal(1));
+        let logs_area = block.inner(area);
+
+        block.render(area, buf);
+        self.title.clear();
+
         self.vertical_scroll =
-            utils::calculate_scroll(self.index, area.height, self.vertical_scroll);
-        self.render_logs(area, buf, colors);
+            utils::calculate_scroll(self.index, logs_area.height, self.vertical_scroll);
+        self.render_logs(logs_area, buf, colors);
     }
 
     pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) {

@@ -560,7 +560,6 @@ impl PlayQueue {
             if let Some(current_id) = current_track {
                 self.queue.push_front(current_id);
             }
-
             return Some(previous_id);
         }
 

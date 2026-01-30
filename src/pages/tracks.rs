@@ -55,8 +55,8 @@ impl TracksPage {
 
         // Render tracks table
         let mut buffer = itoa::Buffer::new();
-        self.title
-            .extend([" All tracks (", buffer.format(jb.len()), ") "]);
+        let len = buffer.format(jb.len());
+        self.title.extend([" All tracks (", len, ") "]);
 
         let block = Block::bordered()
             .title(self.title.as_str())
