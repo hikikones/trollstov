@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -101,18 +103,8 @@ impl LogsPage {
             .skip(self.vertical_scroll)
             .take(area.height as usize)
             .for_each(|(i, log)| {
-                let (label, label_width, label_style) = match log.level {
-                    LogLevel::Warning => ("Warning", 7, Style::new().fg(Color::Yellow)),
-                    LogLevel::Error => ("Error", 5, Style::new().fg(Color::Red)),
-                };
-
-                buf.set_stringn(line.x, line.y, label, label_width, label_style);
-
-                let label_width = label_width + 1;
-                let log_width = (line.width as usize).saturating_sub(label_width);
-
                 let (scroll, style) = if self.index == i {
-                    let max_scroll = log.width.saturating_sub(log_width);
+                    let max_scroll = log.width.saturating_sub(line.width as usize);
                     self.horizontal_scroll = max_scroll.min(self.horizontal_scroll);
                     (
                         self.horizontal_scroll,
@@ -122,12 +114,7 @@ impl LogsPage {
                     (0, Style::new())
                 };
 
-                let log_line = Rect {
-                    x: line.x + label_width as u16,
-                    width: log_width as u16,
-                    ..line
-                };
-                utils::print_line(log_line, buf, &log.message[scroll..], style);
+                utils::print_line(line, buf, &log.message[scroll..], style);
 
                 line.y += 1;
             });
@@ -136,24 +123,22 @@ impl LogsPage {
 
 pub struct Log {
     message: String,
-    level: LogLevel,
     width: usize,
 }
 
 impl Log {
-    pub fn new(message: impl Into<String>, level: LogLevel) -> Self {
-        let message = message.into();
+    pub fn new(message: impl ToString) -> Self {
+        let message = message.to_string();
         let width = unicode_width::UnicodeWidthStr::width(message.as_str());
-
-        Self {
-            message,
-            level,
-            width,
-        }
+        Self { message, width }
     }
 }
 
-pub enum LogLevel {
-    Warning,
-    Error,
+impl<E> From<E> for Log
+where
+    E: std::error::Error,
+{
+    fn from(value: E) -> Self {
+        Log::new(value)
+    }
 }
