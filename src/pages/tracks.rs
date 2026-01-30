@@ -115,9 +115,11 @@ impl TracksPage {
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
-                    let id = jb.get_id_from_index(self.index).unwrap();
                     let rating = AudioRating::from_char(c).unwrap();
-                    jb.set_rating(id, rating);
+                    for i in self.get_selection() {
+                        let id = jb.get_id_from_index(i).unwrap();
+                        jb.set_rating(id, rating);
+                    }
                 }
                 'q' => {
                     for i in self.get_selection() {
