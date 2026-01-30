@@ -120,12 +120,16 @@ impl TracksPage {
                     jb.set_rating(id, rating);
                 }
                 'q' => {
-                    let id = jb.get_id_from_index(self.index).unwrap();
-                    jb.enqueue_back(id);
+                    for i in self.get_selection() {
+                        let id = jb.get_id_from_index(i).unwrap();
+                        jb.enqueue_back(id);
+                    }
                 }
                 'n' => {
-                    let id = jb.get_id_from_index(self.index).unwrap();
-                    jb.enqueue_front(id);
+                    for i in self.get_selection().rev() {
+                        let id = jb.get_id_from_index(i).unwrap();
+                        jb.enqueue_front(id);
+                    }
                 }
                 's' => {
                     jb.sort(jb.get_sort().next());
@@ -142,6 +146,18 @@ impl TracksPage {
     }
 
     pub fn on_exit(&self) {}
+
+    fn get_selection(&self) -> std::ops::RangeInclusive<usize> {
+        self.selector
+            .map(|selector| {
+                if self.index < selector {
+                    self.index..=selector
+                } else {
+                    selector..=self.index
+                }
+            })
+            .unwrap_or(self.index..=self.index)
+    }
 
     fn render_tracks(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         let spacing = 2;
@@ -243,11 +259,11 @@ impl TracksPage {
             .skip(self.scroll)
             .take(table_area.height as usize)
             .for_each(|(i, (id, track))| {
-                let is_cursor = i == self.index;
+                let is_index = i == self.index;
                 let is_selected = i >= selection_start && i <= selection_end;
 
                 let mut style = Style::new();
-                if is_cursor || is_selected {
+                if is_index || is_selected {
                     style.bg = Some(colors.accent);
                     style.fg = Some(colors.on_accent);
                 }
