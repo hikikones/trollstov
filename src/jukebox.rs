@@ -33,7 +33,7 @@ pub struct Jukebox {
     events: EventSender,
     audio_file_receiver: Option<AudioFileReceiver>,
     audio_decode_handle: Option<AudioDecodeHandle>,
-    audio_write_handle: Option<AudioWriteHandle>,
+    audio_write_handles: Vec<AudioWriteHandle>,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
 }
@@ -54,7 +54,7 @@ impl Jukebox {
             events,
             audio_file_receiver: None,
             audio_decode_handle: None,
-            audio_write_handle: None,
+            audio_write_handles: Vec::new(),
             sink,
             _stream: stream,
         })
@@ -133,6 +133,8 @@ impl Jukebox {
     pub fn update(&mut self) {
         self.receive_audio_files();
 
+        let mut render = false;
+
         // Poll thread handle for audio decoding
         if let Some(handle) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
@@ -142,7 +144,7 @@ impl Jukebox {
                         self.sink.clear();
                         self.sink.append(decoded_audio);
                         self.sink.play();
-                        self.events.send(AppEvent::Render);
+                        render = true;
                     }
                     Err(err) => {
                         let log = Log::new(err);
@@ -152,20 +154,24 @@ impl Jukebox {
             }
         }
 
-        // Poll thread handle for finished tag writing
-        if let Some(handle) = self.audio_write_handle.as_ref() {
-            if handle.is_finished() {
-                let handle = self.audio_write_handle.take().unwrap();
-                match handle.join().unwrap() {
-                    Ok((id, new_rating)) => {
-                        let track = self.get_mut(id).unwrap();
-                        track.set_rating(new_rating);
-                        self.events.send(AppEvent::Render);
-                    }
-                    Err(err) => {
-                        let log = Log::new(err);
-                        self.events.send(AppEvent::Log(log));
-                    }
+        // Poll thread handles for finished tag writing
+        for _ in 0..self.audio_write_handles.len() {
+            let handle = self.audio_write_handles.pop().unwrap();
+
+            if !handle.is_finished() {
+                self.audio_write_handles.push(handle);
+                continue;
+            }
+
+            match handle.join().unwrap() {
+                Ok((id, new_rating)) => {
+                    let track = self.get_mut(id).unwrap();
+                    track.set_rating(new_rating);
+                    render = true;
+                }
+                Err(err) => {
+                    let log = Log::new(err);
+                    self.events.send(AppEvent::Log(log));
                 }
             }
         }
@@ -173,6 +179,10 @@ impl Jukebox {
         // Play next when idle and finished
         if self.sink.empty() && !self.sink.is_paused() {
             self.play_next();
+        }
+
+        if render {
+            self.events.send(AppEvent::Render);
         }
     }
 
@@ -229,10 +239,8 @@ impl Jukebox {
     }
 
     pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
-        // TODO: Write handle should be a list/queue of handles.
-        // Don't want multiple threads writing to the same file
-        // in case someone spams the rating button.
-        self.audio_write_handle = Some(self.write_rating(id, rating));
+        let handle = self.write_rating(id, rating);
+        self.audio_write_handles.push(handle);
     }
 
     fn start_play(&mut self, id: TrackId) {
@@ -345,9 +353,9 @@ impl Jukebox {
         }
     }
 
-    pub fn shutdown(mut self) {
-        // Gracefully shutdown by waiting for thread to finish writing tag
-        if let Some(handle) = self.audio_write_handle.take() {
+    pub fn shutdown(self) {
+        // Gracefully shutdown by waiting for threads to finish writing tag
+        for handle in self.audio_write_handles {
             let _ = handle.join().unwrap();
         }
     }

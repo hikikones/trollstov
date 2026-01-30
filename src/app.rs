@@ -94,7 +94,7 @@ impl App {
 
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Render initial page
-        // TODO: Show ASCII logo instead
+        // TODO: Show ASCII logo instead. Wait until jukebox.len() > 0.
         self.on_enter();
         self.render(&mut terminal)?;
 
