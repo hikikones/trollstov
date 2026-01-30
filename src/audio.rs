@@ -30,7 +30,7 @@ enum AudioFileFormat {
 }
 
 impl AudioFile {
-    pub fn read_from_path_and_extension(
+    pub fn read_from(
         path: impl AsRef<Path>,
         extension: AudioFileExtension,
     ) -> Result<Self, AudioFileReport> {
@@ -442,8 +442,8 @@ pub fn traverse_and_process_audio_files(
                 AudioFileExtension::from_path(file.path()).map(|ext| (file.into_path(), ext))
             })
             .for_each(|(path, extension)| {
-                let audio_file = AudioFile::read_from_path_and_extension(path, extension)
-                    .map(|audio_file| (audio_file, extension));
+                let audio_file =
+                    AudioFile::read_from(path, extension).map(|audio_file| (audio_file, extension));
                 let _ = sender.send(audio_file);
             });
     });
@@ -468,11 +468,9 @@ pub fn _traverse_and_process_audio_files_in_parallel(
                                 if let Some(extension) =
                                     AudioFileExtension::from_path(dir_entry.path())
                                 {
-                                    let audio_file = AudioFile::read_from_path_and_extension(
-                                        dir_entry.into_path(),
-                                        extension,
-                                    )
-                                    .map(|audio_file| (audio_file, extension));
+                                    let audio_file =
+                                        AudioFile::read_from(dir_entry.into_path(), extension)
+                                            .map(|audio_file| (audio_file, extension));
                                     let _ = sender.send(audio_file);
                                 }
                             }
