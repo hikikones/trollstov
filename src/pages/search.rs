@@ -1,6 +1,7 @@
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
+    widgets::{Block, Padding},
 };
 
 use crate::{
@@ -12,6 +13,7 @@ use crate::{
 };
 
 pub struct SearchPage {
+    title: String,
     index: usize,
     scroll: usize,
     search_input: TextInput,
@@ -25,6 +27,7 @@ pub struct SearchPage {
 impl SearchPage {
     pub fn new(colors: &Colors, events: EventSender) -> Self {
         Self {
+            title: String::new(),
             index: 0,
             scroll: 0,
             search_input: TextInput::new(colors.on_accent, colors.accent, colors.neutral)
@@ -52,8 +55,14 @@ impl SearchPage {
         }
 
         // Render search input
-        self.search_input
-            .render(area.centered_horizontally(Constraint::Percentage(60)), buf);
+        let search_input_area = Rect { height: 3, ..area };
+        let search_input_block = Block::bordered()
+            .title(" Search input ")
+            .title_alignment(Alignment::Center)
+            .padding(Padding::horizontal(1));
+        let search_line = search_input_block.inner(search_input_area);
+        search_input_block.render(search_input_area, buf);
+        self.search_input.render(search_line, buf);
 
         // Update search results
         if self.is_dirty {
@@ -61,13 +70,26 @@ impl SearchPage {
         }
 
         // Render search results
-        let area = Rect {
-            y: area.y + 2,
-            height: area.height.saturating_sub(2),
+        let mut buffer = itoa::Buffer::new();
+        let len = buffer.format(self.search_results.len());
+        self.title.extend([" Search results (", len, ") "]);
+
+        let search_results_area = Rect {
+            y: area.y + search_input_area.height + 1,
+            height: area.height.saturating_sub(search_input_area.height + 1),
             ..area
         };
-        self.scroll = utils::calculate_scroll(self.index, area.height, self.scroll);
-        self.render_search_results(area, buf, jb, colors);
+        let search_results_block = Block::bordered()
+            .title(self.title.as_str())
+            .title_alignment(Alignment::Center)
+            .padding(Padding::horizontal(1));
+        let search_results_inner = search_results_block.inner(search_results_area);
+
+        search_results_block.render(search_results_area, buf);
+        self.title.clear();
+
+        self.scroll = utils::calculate_scroll(self.index, search_results_inner.height, self.scroll);
+        self.render_search_results(search_results_inner, buf, jb, colors);
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
