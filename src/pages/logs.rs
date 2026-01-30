@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -131,14 +129,5 @@ impl Log {
         let message = message.to_string();
         let width = unicode_width::UnicodeWidthStr::width(message.as_str());
         Self { message, width }
-    }
-}
-
-impl<E> From<E> for Log
-where
-    E: std::error::Error,
-{
-    fn from(value: E) -> Self {
-        Log::new(value)
     }
 }

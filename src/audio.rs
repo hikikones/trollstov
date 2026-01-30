@@ -9,7 +9,6 @@ use std::{
 
 use lofty::{
     config::{ParseOptions, WriteOptions},
-    error::LoftyError,
     file::{AudioFile as LoftyAudioFile, TaggedFile, TaggedFileExt},
     flac::FlacFile,
     id3::v2::{Frame, FrameId, Id3v2Tag, PopularimeterFrame},
@@ -34,19 +33,47 @@ impl AudioFile {
     pub fn read_from_path_and_extension(
         path: impl AsRef<Path>,
         extension: AudioFileExtension,
-    ) -> Result<Self, AudioFileError> {
-        let mut buffer = BufReader::new(File::open(&path)?);
+    ) -> Result<Self, AudioFileReport> {
+        let file = File::open(&path).map_err(|err| {
+            AudioFileReport(format!(
+                "Could not open audio file {} due to {}",
+                path.as_ref().display(),
+                err
+            ))
+        })?;
+        let mut buffer = BufReader::new(file);
         let audio_format = match extension {
             AudioFileExtension::Flac => {
-                let flac = FlacFile::read_from(&mut buffer, ParseOptions::new())?;
+                let flac =
+                    FlacFile::read_from(&mut buffer, ParseOptions::new()).map_err(|err| {
+                        AudioFileReport(format!(
+                            "Could not read flac audio file {} due to {}",
+                            path.as_ref().display(),
+                            err
+                        ))
+                    })?;
                 AudioFileFormat::Flac(flac)
             }
             AudioFileExtension::Opus => {
-                let opus = OpusFile::read_from(&mut buffer, ParseOptions::new())?;
+                let opus =
+                    OpusFile::read_from(&mut buffer, ParseOptions::new()).map_err(|err| {
+                        AudioFileReport(format!(
+                            "Could not read opus audio file {} due to {}",
+                            path.as_ref().display(),
+                            err
+                        ))
+                    })?;
                 AudioFileFormat::Opus(opus)
             }
             AudioFileExtension::Mp3 => {
-                let mpeg = MpegFile::read_from(&mut buffer, ParseOptions::new())?;
+                let mpeg =
+                    MpegFile::read_from(&mut buffer, ParseOptions::new()).map_err(|err| {
+                        AudioFileReport(format!(
+                            "Could not read mpeg audio file {} due to {}",
+                            path.as_ref().display(),
+                            err
+                        ))
+                    })?;
                 AudioFileFormat::Mpeg(mpeg)
             }
         };
@@ -57,20 +84,20 @@ impl AudioFile {
         })
     }
 
-    pub fn metadata(&self) -> Result<AudioMetadata, AudioFileError> {
+    pub fn metadata(&self) -> Result<AudioMetadata, AudioFileReport> {
         match &self.format {
             AudioFileFormat::Flac(flac) => match flac.vorbis_comments() {
                 Some(vorbis_comments) => Ok(AudioMetadata::from_vorbis_comments(vorbis_comments)),
-                None => Err(AudioFileError::Metadata(format!(
-                    "No Vorbis tag found in {}.",
-                    self.path.to_string_lossy()
+                None => Err(AudioFileReport(format!(
+                    "Could not extract metadata from flac file {} due to missing Vorbis tag",
+                    self.path.display()
                 ))),
             },
             AudioFileFormat::Mpeg(mpeg) => match mpeg.id3v2() {
                 Some(id3v2) => Ok(AudioMetadata::from_id3v2(id3v2)),
-                None => Err(AudioFileError::Metadata(format!(
-                    "No ID3v2 tag found in {}.",
-                    self.path.to_string_lossy()
+                None => Err(AudioFileReport(format!(
+                    "Could not extract metadata from mpeg file {} due to missing ID3v2 tag",
+                    self.path.display()
                 ))),
             },
             AudioFileFormat::Opus(opus) => {
@@ -88,7 +115,7 @@ impl AudioFile {
         }
     }
 
-    pub fn write_rating(&mut self, rating: Option<AudioRating>) -> Result<(), AudioFileError> {
+    pub fn write_rating(&mut self, rating: Option<AudioRating>) -> Result<(), AudioFileReport> {
         match &mut self.format {
             AudioFileFormat::Mpeg(mpeg) => match mpeg.id3v2_mut() {
                 Some(id3v2) => {
@@ -104,11 +131,19 @@ impl AudioFile {
                             let _ = id3v2.remove(&FrameId::Valid(Cow::Borrowed("POPM")));
                         }
                     }
-                    Ok(mpeg.save_to_path(&self.path, WriteOptions::new())?)
+                    Ok(mpeg
+                        .save_to_path(&self.path, WriteOptions::new())
+                        .map_err(|err| {
+                            AudioFileReport(format!(
+                                "Could not save audio file {} due to {}",
+                                self.path.display(),
+                                err
+                            ))
+                        })?)
                 }
-                None => Err(AudioFileError::Metadata(format!(
-                    "Could not write rating to file {} due to missing ID3v2 tag.",
-                    self.path.to_string_lossy()
+                None => Err(AudioFileReport(format!(
+                    "Could not write rating to audio file {} due to missing ID3v2 tag",
+                    self.path.display()
                 ))),
             },
             AudioFileFormat::Flac(flac) => match flac.vorbis_comments_mut() {
@@ -124,11 +159,19 @@ impl AudioFile {
                             let _ = vorbis_comments.remove("RATING");
                         }
                     }
-                    Ok(flac.save_to_path(&self.path, WriteOptions::new())?)
+                    Ok(flac
+                        .save_to_path(&self.path, WriteOptions::new())
+                        .map_err(|err| {
+                            AudioFileReport(format!(
+                                "Could not save audio file {} due to {}",
+                                self.path.display(),
+                                err
+                            ))
+                        })?)
                 }
-                None => Err(AudioFileError::Metadata(format!(
-                    "Could not write rating to file {} due to missing Vorbis tag.",
-                    self.path.to_string_lossy()
+                None => Err(AudioFileReport(format!(
+                    "Could not write rating to audio file {} due to missing Vorbis tag",
+                    self.path.display()
                 ))),
             },
             AudioFileFormat::Opus(opus) => {
@@ -144,46 +187,21 @@ impl AudioFile {
                         let _ = vorbis_comments.remove("RATING");
                     }
                 }
-                Ok(opus.save_to_path(&self.path, WriteOptions::new())?)
+                Ok(opus
+                    .save_to_path(&self.path, WriteOptions::new())
+                    .map_err(|err| {
+                        AudioFileReport(format!(
+                            "Could not save audio file {} due to {}",
+                            self.path.display(),
+                            err
+                        ))
+                    })?)
             }
         }
     }
 
     pub fn path(&self) -> &Path {
         self.path.as_path()
-    }
-}
-
-#[derive(Debug)]
-pub enum AudioFileError {
-    Io(std::io::Error),
-    Lofty(LoftyError),
-    Metadata(String),
-    Unsupported(String),
-}
-
-impl std::fmt::Display for AudioFileError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AudioFileError::Io(error) => error.fmt(f),
-            AudioFileError::Lofty(error) => error.fmt(f),
-            AudioFileError::Metadata(msg) => f.write_str(msg),
-            AudioFileError::Unsupported(msg) => f.write_str(msg),
-        }
-    }
-}
-
-impl std::error::Error for AudioFileError {}
-
-impl From<std::io::Error> for AudioFileError {
-    fn from(error: std::io::Error) -> Self {
-        Self::Io(error)
-    }
-}
-
-impl From<LoftyError> for AudioFileError {
-    fn from(error: LoftyError) -> Self {
-        Self::Lofty(error)
     }
 }
 
@@ -364,8 +382,15 @@ impl AudioProperties {
 pub struct AudioPicture(TaggedFile);
 
 impl AudioPicture {
-    pub fn read(audio_file: impl AsRef<Path>) -> Result<Self, AudioFileError> {
-        let tagged_file = lofty::read_from_path(audio_file)?;
+    pub fn read(audio_file: impl AsRef<Path>) -> Result<Self, AudioFileReport> {
+        let path = audio_file.as_ref();
+        let tagged_file = lofty::read_from_path(path).map_err(|err| {
+            AudioFileReport(format!(
+                "Could not read audio file {} due to {}",
+                path.display(),
+                err
+            ))
+        })?;
         Ok(Self(tagged_file))
     }
 
@@ -404,7 +429,7 @@ impl AudioFileExtension {
 pub fn traverse_and_process_audio_files(
     root: impl AsRef<Path>,
     follow_links: bool,
-    sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileError>>,
+    sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileReport>>,
 ) {
     let root = root.as_ref().to_path_buf();
     std::thread::spawn(move || {
@@ -427,7 +452,7 @@ pub fn traverse_and_process_audio_files(
 pub fn _traverse_and_process_audio_files_in_parallel(
     root: impl AsRef<Path>,
     follow_links: bool,
-    sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileError>>,
+    sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileReport>>,
 ) {
     let root = root.as_ref().to_path_buf();
     std::thread::spawn(move || {
@@ -459,3 +484,14 @@ pub fn _traverse_and_process_audio_files_in_parallel(
             });
     });
 }
+
+#[derive(Debug)]
+pub struct AudioFileReport(String);
+
+impl std::fmt::Display for AudioFileReport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
+
+impl std::error::Error for AudioFileReport {}
