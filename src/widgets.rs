@@ -168,6 +168,80 @@ impl<'a> Shortcuts<'a> {
     }
 }
 
+pub struct List {
+    index: usize,
+    selector: Option<usize>,
+    scroll: usize,
+}
+
+impl List {
+    pub const fn new() -> Self {
+        Self {
+            index: 0,
+            selector: None,
+            scroll: 0,
+        }
+    }
+
+    pub const fn index(&self) -> usize {
+        self.index
+    }
+
+    pub fn selection(&self) -> std::ops::RangeInclusive<usize> {
+        self.selector
+            .map(|selector| {
+                if self.index < selector {
+                    self.index..=selector
+                } else {
+                    selector..=self.index
+                }
+            })
+            .unwrap_or(self.index..=self.index)
+    }
+
+    pub fn move_down(&mut self, n: usize, height: u16, len: usize, shift: bool) {
+        if shift {
+            if self.selector.is_none() {
+                self.selector = Some(self.index);
+            }
+        } else {
+            self.selector = None;
+        }
+
+        self.index = usize::min(self.index + n, len.saturating_sub(1));
+        self.selector.take_if(|s| *s == self.index);
+        self.scroll = self
+            .index
+            .saturating_sub((height as usize).saturating_sub(1));
+    }
+
+    pub fn render<T>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        items: impl ExactSizeIterator<Item = T>,
+        draw: impl Fn(Rect, &mut Buffer, T, bool, bool),
+    ) {
+        let selection_start = self.index.min(self.selector.unwrap_or(self.index));
+        let selection_end = self.selector.unwrap_or(self.index).max(self.index);
+        // self.scroll = utils::calculate_scroll(self.index, table_area.height, self.scroll);
+        let mut line = Rect { height: 1, ..area };
+
+        items
+            .enumerate()
+            .skip(self.scroll)
+            .take(area.height as usize)
+            .for_each(|(i, item)| {
+                let is_index = i == self.index;
+                let is_selected = i >= selection_start && i <= selection_end;
+
+                draw(line, buf, item, is_index, is_selected);
+
+                line.y += 1;
+            });
+    }
+}
+
 pub struct TextInput {
     input: String,
     placeholder: &'static str,
