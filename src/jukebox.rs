@@ -14,14 +14,14 @@ use rodio::decoder::Decoder;
 use crate::{
     audio::*,
     events::{AppEvent, EventSender},
-    pages::{Log, LogLevel},
+    pages::Log,
     utils,
 };
 
-type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileError>>;
-type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, JukeboxError>>;
+type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileReport>>;
+type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, AudioFileReport>>;
 type AudioWriteHandle =
-    std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileError>>;
+    std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileReport>>;
 
 pub struct Jukebox {
     music_dir: PathBuf,
@@ -145,7 +145,7 @@ impl Jukebox {
                         self.events.send(AppEvent::Render);
                     }
                     Err(err) => {
-                        let log = Log::new(err.to_string(), LogLevel::Error);
+                        let log = Log::new(err);
                         self.events.send(AppEvent::Log(log));
                     }
                 }
@@ -163,7 +163,7 @@ impl Jukebox {
                         self.events.send(AppEvent::Render);
                     }
                     Err(err) => {
-                        let log = Log::new(err.to_string(), LogLevel::Error);
+                        let log = Log::new(err);
                         self.events.send(AppEvent::Log(log));
                     }
                 }
@@ -247,9 +247,21 @@ impl Jukebox {
         let path = track.path().to_path_buf();
 
         std::thread::spawn(move || {
-            let file = File::open(path)?;
+            let file = File::open(&path).map_err(|err| {
+                AudioFileReport::new(format!(
+                    "Could not open audio file {} due to {}",
+                    path.display(),
+                    err
+                ))
+            })?;
             let buffer = BufReader::new(file);
-            let source = Decoder::new(buffer)?;
+            let source = Decoder::new(buffer).map_err(|err| {
+                AudioFileReport::new(format!(
+                    "Could not decode audio file {} due to {}",
+                    path.display(),
+                    err
+                ))
+            })?;
             Ok(source)
         })
     }
@@ -300,9 +312,9 @@ impl Jukebox {
                                 audio_file.path().to_path_buf(),
                                 extension,
                             )),
-                            AudioFileExtension::Opus => Err(AudioFileError::Unsupported(format!(
-                                "Unsupported file \"{}\".",
-                                audio_file.path().to_string_lossy()
+                            AudioFileExtension::Opus => Err(AudioFileReport::new(format!(
+                                "Unsupported audio file {} due to opus not currently supported",
+                                audio_file.path().display()
                             ))),
                         });
                     match track_res {
@@ -315,18 +327,7 @@ impl Jukebox {
                             );
                         }
                         Err(err) => {
-                            let log = match err {
-                                AudioFileError::Io(error) => {
-                                    Log::new(error.to_string(), LogLevel::Error)
-                                }
-                                AudioFileError::Lofty(error) => {
-                                    Log::new(error.to_string(), LogLevel::Error)
-                                }
-                                AudioFileError::Metadata(msg) => Log::new(msg, LogLevel::Error),
-                                AudioFileError::Unsupported(msg) => {
-                                    Log::new(msg, LogLevel::Warning)
-                                }
-                            };
+                            let log = Log::new(err);
                             self.events.send(AppEvent::Log(log));
                         }
                     }
@@ -499,51 +500,6 @@ impl TrackSort {
                 r2.cmp(&r1)
             }
         }
-    }
-}
-
-#[derive(Debug)]
-pub enum JukeboxError {
-    Io(std::io::Error),
-    Stream(rodio::StreamError),
-    Decode(rodio::decoder::DecoderError),
-    Audio(AudioFileError),
-}
-
-impl std::fmt::Display for JukeboxError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            JukeboxError::Io(error) => error.fmt(f),
-            JukeboxError::Stream(error) => error.fmt(f),
-            JukeboxError::Decode(error) => error.fmt(f),
-            JukeboxError::Audio(error) => error.fmt(f),
-        }
-    }
-}
-
-impl std::error::Error for JukeboxError {}
-
-impl From<std::io::Error> for JukeboxError {
-    fn from(error: std::io::Error) -> Self {
-        Self::Io(error)
-    }
-}
-
-impl From<rodio::StreamError> for JukeboxError {
-    fn from(error: rodio::StreamError) -> Self {
-        Self::Stream(error)
-    }
-}
-
-impl From<rodio::decoder::DecoderError> for JukeboxError {
-    fn from(error: rodio::decoder::DecoderError) -> Self {
-        Self::Decode(error)
-    }
-}
-
-impl From<AudioFileError> for JukeboxError {
-    fn from(error: AudioFileError) -> Self {
-        Self::Audio(error)
     }
 }
 

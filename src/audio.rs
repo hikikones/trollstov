@@ -488,6 +488,12 @@ pub fn _traverse_and_process_audio_files_in_parallel(
 #[derive(Debug)]
 pub struct AudioFileReport(String);
 
+impl AudioFileReport {
+    pub fn new(s: impl Into<String>) -> Self {
+        Self(s.into())
+    }
+}
+
 impl std::fmt::Display for AudioFileReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.0.as_str())
@@ -495,3 +501,15 @@ impl std::fmt::Display for AudioFileReport {
 }
 
 impl std::error::Error for AudioFileReport {}
+
+impl From<String> for AudioFileReport {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<AudioFileReport> for String {
+    fn from(value: AudioFileReport) -> Self {
+        value.0
+    }
+}
