@@ -273,6 +273,9 @@ impl PlayingPage {
                     style.fg = Some(colors.on_accent);
                 }
 
+                // TODO: Add number to tracks for those with empty metadata?
+                // Otherwise it will just render an empty line.
+
                 let track = jb.get(id).unwrap();
                 utils::print_line_iter(
                     line,

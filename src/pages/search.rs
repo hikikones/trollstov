@@ -99,6 +99,9 @@ impl SearchPage {
                     style.add_modifier.insert(Modifier::BOLD);
                 }
 
+                // TODO: Add number to tracks for those with empty metadata?
+                // Otherwise it will just render an empty line.
+
                 let track = jb.get(id).unwrap();
                 utils::print_line_iter(
                     line,
