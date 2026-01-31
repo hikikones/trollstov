@@ -212,7 +212,10 @@ impl List {
             .unwrap_or(self.index..=self.index)
     }
 
-    pub fn move_index(&mut self, lm: ListMove, shift: bool) {
+    pub fn move_index(&mut self, lm: ListMove, shift: bool) -> bool {
+        let old_index = self.index;
+        let old_selector = self.selector;
+
         if shift {
             if self.selector.is_none() {
                 self.selector = Some(self.index);
@@ -244,12 +247,44 @@ impl List {
         }
 
         self.selector.take_if(|s| *s == self.index);
+
+        old_index != self.index || old_selector != self.selector
     }
 
-    pub fn select_all(&mut self) {
+    pub fn select_all(&mut self) -> bool {
+        let old_index = self.index;
+        let old_selector = self.selector;
+
         self.index = 0;
         self.selector = Some(self.len.saturating_sub(1));
         self.selector.take_if(|s| *s == self.index);
+
+        old_index != self.index || old_selector != self.selector
+    }
+
+    pub fn input(&mut self, key_pressed: KeyCode, key_modifiers: KeyModifiers) -> bool {
+        let ctrl = key_modifiers.contains(KeyModifiers::CONTROL);
+        let shift = key_modifiers.contains(KeyModifiers::SHIFT);
+
+        match key_pressed {
+            KeyCode::Down => self.move_index(ListMove::Down, shift),
+            KeyCode::Up => self.move_index(ListMove::Up, shift),
+            KeyCode::PageDown => self.move_index(ListMove::PageDown, shift),
+            KeyCode::PageUp => self.move_index(ListMove::PageUp, shift),
+            KeyCode::End => self.move_index(ListMove::End, shift),
+            KeyCode::Home => self.move_index(ListMove::Start, shift),
+            KeyCode::Char(c) => match c {
+                'a' => {
+                    if ctrl {
+                        self.select_all()
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            },
+            _ => false,
+        }
     }
 
     pub fn render<T>(
