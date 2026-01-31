@@ -294,8 +294,10 @@ impl List {
         items: impl ExactSizeIterator<Item = T>,
         mut render_line: impl FnMut(Rect, &mut Buffer, T, bool, bool),
     ) {
-        // Make sure index is not out of bounds
-        self.index = usize::min(self.index, items.len().saturating_sub(1));
+        // Make sure index and selector is not out of bounds
+        let max_idx = items.len().saturating_sub(1);
+        self.index = self.index.min(max_idx);
+        self.selector = self.selector.map(|selector| selector.min(max_idx));
 
         // Determine scroll
         let height = area.height as usize;
