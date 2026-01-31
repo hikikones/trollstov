@@ -172,6 +172,8 @@ pub struct List {
     index: usize,
     selector: Option<usize>,
     scroll: usize,
+    len: usize,
+    height: u16,
 }
 
 impl List {
@@ -180,6 +182,8 @@ impl List {
             index: 0,
             selector: None,
             scroll: 0,
+            len: 0,
+            height: 0,
         }
     }
 
@@ -199,7 +203,7 @@ impl List {
             .unwrap_or(self.index..=self.index)
     }
 
-    pub fn move_down(&mut self, n: usize, height: u16, len: usize, shift: bool) {
+    pub fn move_down(&mut self, n: usize, shift: bool) {
         if shift {
             if self.selector.is_none() {
                 self.selector = Some(self.index);
@@ -208,34 +212,62 @@ impl List {
             self.selector = None;
         }
 
-        self.index = usize::min(self.index + n, len.saturating_sub(1));
+        self.index = usize::min(self.index + n, self.len.saturating_sub(1));
         self.selector.take_if(|s| *s == self.index);
-        self.scroll = self
-            .index
-            .saturating_sub((height as usize).saturating_sub(1));
+    }
+
+    pub fn move_up(&mut self, n: usize, shift: bool) {
+        if shift {
+            if self.selector.is_none() {
+                self.selector = Some(self.index);
+            }
+        } else {
+            self.selector = None;
+        }
+
+        self.index = self.index.saturating_sub(n);
+        self.selector.take_if(|s| *s == self.index);
     }
 
     pub fn render<T>(
-        &self,
+        &mut self,
         area: Rect,
         buf: &mut Buffer,
         items: impl ExactSizeIterator<Item = T>,
-        draw: impl Fn(Rect, &mut Buffer, T, bool, bool),
+        render_line: impl Fn(Rect, &mut Buffer, T, bool, bool),
     ) {
+        let height = area.height as usize;
+        if self.height != area.height {
+            // Fixes window resizing when going from small to big,
+            // leaving empty space when scroll stays the same
+            self.scroll = self.index.saturating_sub(height.saturating_sub(1));
+        } else if self.index >= self.scroll {
+            let height_diff = self.index - self.scroll;
+            let height = height.saturating_sub(1);
+            if height_diff > height {
+                self.scroll += height_diff - height;
+            }
+        } else if self.scroll > self.index {
+            let height_diff = self.scroll - self.index;
+            self.scroll -= height_diff;
+        }
+
+        self.len = items.len();
+        self.height = area.height;
+
         let selection_start = self.index.min(self.selector.unwrap_or(self.index));
         let selection_end = self.selector.unwrap_or(self.index).max(self.index);
-        // self.scroll = utils::calculate_scroll(self.index, table_area.height, self.scroll);
         let mut line = Rect { height: 1, ..area };
 
         items
             .enumerate()
             .skip(self.scroll)
-            .take(area.height as usize)
+            .take(height as usize)
             .for_each(|(i, item)| {
                 let is_index = i == self.index;
                 let is_selected = i >= selection_start && i <= selection_end;
 
-                draw(line, buf, item, is_index, is_selected);
+                render_line(line, buf, item, is_index, is_selected);
 
                 line.y += 1;
             });
