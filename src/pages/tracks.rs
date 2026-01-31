@@ -76,6 +76,7 @@ impl TracksPage {
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
+        let ctrl = modifiers.contains(KeyModifiers::CONTROL);
         let shift = modifiers.contains(KeyModifiers::SHIFT);
         match key {
             KeyCode::Down => {
@@ -133,6 +134,12 @@ impl TracksPage {
                 'S' => {
                     jb.sort(jb.get_sort().prev());
                     self.events.send(AppEvent::Render);
+                }
+                'a' => {
+                    if ctrl {
+                        self.list.select_all();
+                        self.events.send(AppEvent::Render);
+                    }
                 }
                 _ => {}
             },

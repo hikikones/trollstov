@@ -246,6 +246,12 @@ impl List {
         self.selector.take_if(|s| *s == self.index);
     }
 
+    pub fn select_all(&mut self) {
+        self.index = 0;
+        self.selector = Some(self.len.saturating_sub(1));
+        self.selector.take_if(|s| *s == self.index);
+    }
+
     pub fn render<T>(
         &mut self,
         area: Rect,
