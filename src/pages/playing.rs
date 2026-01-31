@@ -14,6 +14,7 @@ use crate::{
     events::{AppEvent, EventSender},
     jukebox::{Jukebox, TrackId},
     utils,
+    widgets::{List, ListMove},
 };
 
 pub struct PlayingPage {
@@ -21,9 +22,8 @@ pub struct PlayingPage {
     picker: Picker,
     image: FrontCover,
     image_handle: Option<JoinHandle<FrontCover>>,
-    index: usize,
-    scroll: usize,
     play_queue_title: String,
+    list: List,
     events: EventSender,
 }
 
@@ -34,9 +34,8 @@ impl PlayingPage {
             picker,
             image: FrontCover::None,
             image_handle: None,
-            index: 0,
-            scroll: 0,
             play_queue_title: String::new(),
+            list: List::new(),
             events,
         }
     }
@@ -91,7 +90,7 @@ impl PlayingPage {
         let [playing_area, _, queue_area] = Layout::vertical([
             Constraint::Percentage(60),
             Constraint::Length(2),
-            Constraint::Fill(0),
+            Constraint::Fill(0), // TODO: should be Min(3)?
         ])
         .areas(area);
 
@@ -116,18 +115,34 @@ impl PlayingPage {
         block.render(queue_area, buf);
         self.play_queue_title.clear();
 
-        self.scroll = utils::calculate_scroll(self.index, queue_area_inner.height, self.scroll);
         self.render_queue(queue_area_inner, buf, jb, colors);
     }
 
-    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &Jukebox) {
+    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers) {
+        let shift = modifiers.contains(KeyModifiers::SHIFT);
         match key {
             KeyCode::Down => {
-                self.index = usize::min(self.index + 1, jb.queue_len().saturating_sub(1));
+                self.list.move_index(ListMove::Down, shift);
                 self.events.send(AppEvent::Render);
             }
             KeyCode::Up => {
-                self.index = self.index.saturating_sub(1);
+                self.list.move_index(ListMove::Up, shift);
+                self.events.send(AppEvent::Render);
+            }
+            KeyCode::PageDown => {
+                self.list.move_index(ListMove::PageDown, shift);
+                self.events.send(AppEvent::Render);
+            }
+            KeyCode::PageUp => {
+                self.list.move_index(ListMove::PageUp, shift);
+                self.events.send(AppEvent::Render);
+            }
+            KeyCode::End => {
+                self.list.move_index(ListMove::End, shift);
+                self.events.send(AppEvent::Render);
+            }
+            KeyCode::Home => {
+                self.list.move_index(ListMove::Start, shift);
                 self.events.send(AppEvent::Render);
             }
             _ => {}
@@ -247,28 +262,26 @@ impl PlayingPage {
             return;
         }
 
-        let mut line_area = Rect { height: 1, ..area };
-
-        jb.queue_iter()
-            .enumerate()
-            .skip(self.scroll)
-            .take(area.height as usize)
-            .for_each(|(i, (_id, track))| {
+        self.list.render(
+            area,
+            buf,
+            jb.queue_iter(),
+            |line, buf, id, is_index, is_selected| {
                 let mut style = Style::new();
-                if self.index == i {
+                if is_index || is_selected {
                     style.bg = Some(colors.accent);
                     style.fg = Some(colors.on_accent);
                 }
 
+                let track = jb.get(id).unwrap();
                 utils::print_line_iter(
-                    line_area,
+                    line,
                     buf,
                     [track.title(), " ", track.artist(), " ", track.album()],
                     style,
                 );
-
-                line_area.y += 1;
-            });
+            },
+        );
     }
 }
 

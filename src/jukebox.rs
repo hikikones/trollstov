@@ -116,10 +116,8 @@ impl Jukebox {
         self.queue.len()
     }
 
-    pub fn queue_iter(&self) -> impl Iterator<Item = (TrackId, &Track)> {
-        self.queue
-            .iter()
-            .filter_map(|id| self.tracks.get(id).map(|track| (*id, track)))
+    pub fn queue_iter(&self) -> impl ExactSizeIterator<Item = TrackId> {
+        self.queue.iter().copied()
     }
 
     pub fn enqueue_front(&mut self, id: TrackId) {
