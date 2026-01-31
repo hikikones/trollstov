@@ -16,7 +16,6 @@ use crate::{
 pub struct TracksPage {
     title: String,
     list: List,
-    height: u16,
     events: EventSender,
 }
 
@@ -25,7 +24,6 @@ impl TracksPage {
         Self {
             title: String::new(),
             list: List::new(),
-            height: 0,
             events,
         }
     }
@@ -234,9 +232,7 @@ impl TracksPage {
         }
 
         // Render the body for the table
-        self.height = table_area.height;
         let current = jb.current_track();
-
         self.list.render(
             table_area,
             buf,
