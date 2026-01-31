@@ -272,8 +272,7 @@ impl List {
         self.len = items.len();
         self.height = area.height;
 
-        let selection_start = self.index.min(self.selector.unwrap_or(self.index));
-        let selection_end = self.selector.unwrap_or(self.index).max(self.index);
+        let selection = self.selection();
         let mut line = Rect { height: 1, ..area };
 
         items
@@ -282,7 +281,7 @@ impl List {
             .take(height as usize)
             .for_each(|(i, item)| {
                 let is_index = i == self.index;
-                let is_selected = i >= selection_start && i <= selection_end;
+                let is_selected = i >= *selection.start() && i <= *selection.end();
 
                 render_line(line, buf, item, is_index, is_selected);
 
