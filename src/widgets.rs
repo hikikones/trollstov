@@ -257,12 +257,16 @@ impl List {
         area: Rect,
         buf: &mut Buffer,
         items: impl ExactSizeIterator<Item = T>,
-        render_line: impl Fn(Rect, &mut Buffer, T, bool, bool),
+        mut render_line: impl FnMut(Rect, &mut Buffer, T, bool, bool),
     ) {
+        // Make sure index is not out of bounds
+        self.index = usize::min(self.index, items.len().saturating_sub(1));
+
+        // Determine scroll
         let height = area.height as usize;
         if self.height != area.height {
             // Fixes window resizing when going from small to big,
-            // leaving empty space when scroll stays the same
+            // leaving empty space when scroll stays the same at the end
             self.scroll = self.index.saturating_sub(height.saturating_sub(1));
         } else if self.index >= self.scroll {
             let height_diff = self.index - self.scroll;
@@ -278,6 +282,7 @@ impl List {
         self.len = items.len();
         self.height = area.height;
 
+        // Render
         let selection = self.selection();
         let mut line = Rect { height: 1, ..area };
 

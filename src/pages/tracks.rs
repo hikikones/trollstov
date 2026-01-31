@@ -67,6 +67,7 @@ impl TracksPage {
 
         // Shortcuts
         shortcuts.extend([
+            Shortcut::new("Play", "↵"),
             Shortcut::new("Sort", "(⇧)s"),
             Shortcut::new("Add to queue", "q"),
             Shortcut::new("Play next", "n"),
