@@ -13,13 +13,8 @@ use crate::{
     widgets::{List, Shortcut, Shortcuts},
 };
 
-// TODO: Add selector index for selecting multiple tracks.
-
 pub struct TracksPage {
     title: String,
-    // index: usize,
-    // scroll: usize,
-    // selector: Option<usize>,
     list: List,
     height: u16,
     events: EventSender,
@@ -29,9 +24,6 @@ impl TracksPage {
     pub const fn new(events: EventSender) -> Self {
         Self {
             title: String::new(),
-            // index: 0,
-            // scroll: 0,
-            // selector: None,
             list: List::new(),
             height: 0,
             events,
@@ -88,30 +80,10 @@ impl TracksPage {
 
         match key {
             KeyCode::Down => {
-                // if shift {
-                //     if self.selector.is_none() {
-                //         self.selector = Some(self.index);
-                //     }
-                // } else {
-                //     self.selector = None;
-                // }
-
-                // self.index = usize::min(self.index + 1, jb.len().saturating_sub(1));
-                // self.selector.take_if(|s| *s == self.index);
                 self.list.move_down(1, shift);
                 self.events.send(AppEvent::Render);
             }
             KeyCode::Up => {
-                // if shift {
-                //     if self.selector.is_none() {
-                //         self.selector = Some(self.index);
-                //     }
-                // } else {
-                //     self.selector = None;
-                // }
-
-                // self.index = self.index.saturating_sub(1);
-                // self.selector.take_if(|s| *s == self.index);
                 self.list.move_up(1, shift);
                 self.events.send(AppEvent::Render);
             }
@@ -154,18 +126,6 @@ impl TracksPage {
     }
 
     pub fn on_exit(&self) {}
-
-    // fn get_selection(&self) -> std::ops::RangeInclusive<usize> {
-    //     self.selector
-    //         .map(|selector| {
-    //             if self.index < selector {
-    //                 self.index..=selector
-    //             } else {
-    //                 selector..=self.index
-    //             }
-    //         })
-    //         .unwrap_or(self.index..=self.index)
-    // }
 
     fn render_tracks(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         let spacing = 2;
@@ -260,7 +220,6 @@ impl TracksPage {
             buf,
             jb.iter(),
             |line, buf, (id, track), is_index, is_selected| {
-                //todo
                 let mut style = Style::new();
                 if is_index || is_selected {
                     style.bg = Some(colors.accent);
@@ -284,47 +243,5 @@ impl TracksPage {
                 );
             },
         );
-
-        // let selection_start = self.index.min(self.selector.unwrap_or(self.index));
-        // let selection_end = self.selector.unwrap_or(self.index).max(self.index);
-
-        // self.scroll = utils::calculate_scroll(self.index, table_area.height, self.scroll);
-        // let current = jb.current_track();
-        // let mut row = Rect {
-        //     height: 1,
-        //     ..table_area
-        // };
-
-        // jb.iter()
-        //     .enumerate()
-        //     .skip(self.scroll)
-        //     .take(table_area.height as usize)
-        //     .for_each(|(i, (id, track))| {
-        //         let is_index = i == self.index;
-        //         let is_selected = i >= selection_start && i <= selection_end;
-
-        //         let mut style = Style::new();
-        //         if is_index || is_selected {
-        //             style.bg = Some(colors.accent);
-        //             style.fg = Some(colors.on_accent);
-        //         }
-        //         if current == Some(id) {
-        //             style.add_modifier.insert(Modifier::BOLD);
-        //         }
-
-        //         utils::print_text_segments(
-        //             row,
-        //             buf,
-        //             [
-        //                 (track.title(), info_width, spacing),
-        //                 (track.artist(), info_width, spacing),
-        //                 (track.album(), info_width, spacing),
-        //                 (track.duration_display(), time_width, spacing),
-        //                 (track.rating_display(), rating_width, 0),
-        //             ],
-        //             style,
-        //         );
-        //         row.y += 1;
-        //     });
     }
 }
