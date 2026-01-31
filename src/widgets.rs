@@ -176,6 +176,15 @@ pub struct List {
     height: u16,
 }
 
+pub enum ListMove {
+    Up,
+    Down,
+    PageUp,
+    PageDown,
+    Start,
+    End,
+}
+
 impl List {
     pub const fn new() -> Self {
         Self {
@@ -203,7 +212,7 @@ impl List {
             .unwrap_or(self.index..=self.index)
     }
 
-    pub fn move_down(&mut self, n: usize, shift: bool) {
+    pub fn move_index(&mut self, lm: ListMove, shift: bool) {
         if shift {
             if self.selector.is_none() {
                 self.selector = Some(self.index);
@@ -212,20 +221,28 @@ impl List {
             self.selector = None;
         }
 
-        self.index = usize::min(self.index + n, self.len.saturating_sub(1));
-        self.selector.take_if(|s| *s == self.index);
-    }
-
-    pub fn move_up(&mut self, n: usize, shift: bool) {
-        if shift {
-            if self.selector.is_none() {
-                self.selector = Some(self.index);
+        match lm {
+            ListMove::Up => {
+                self.index = self.index.saturating_sub(1);
             }
-        } else {
-            self.selector = None;
+            ListMove::Down => {
+                self.index = usize::min(self.index + 1, self.len.saturating_sub(1));
+            }
+            ListMove::PageUp => self.index = self.index.saturating_sub(self.height as usize),
+            ListMove::PageDown => {
+                self.index = usize::min(
+                    self.index + self.height as usize,
+                    self.len.saturating_sub(1),
+                );
+            }
+            ListMove::Start => {
+                self.index = 0;
+            }
+            ListMove::End => {
+                self.index = self.len.saturating_sub(1);
+            }
         }
 
-        self.index = self.index.saturating_sub(n);
         self.selector.take_if(|s| *s == self.index);
     }
 
