@@ -10,7 +10,7 @@ use crate::{
     events::{AppEvent, EventSender},
     jukebox::{Jukebox, TrackSort},
     utils,
-    widgets::{List, ListMove, Shortcut, Shortcuts},
+    widgets::{List, Shortcut, Shortcuts},
 };
 
 pub struct TracksPage {
@@ -75,33 +75,7 @@ impl TracksPage {
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
-        let ctrl = modifiers.contains(KeyModifiers::CONTROL);
-        let shift = modifiers.contains(KeyModifiers::SHIFT);
         match key {
-            KeyCode::Down => {
-                self.list.move_index(ListMove::Down, shift);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::Up => {
-                self.list.move_index(ListMove::Up, shift);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::PageDown => {
-                self.list.move_index(ListMove::PageDown, shift);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::PageUp => {
-                self.list.move_index(ListMove::PageUp, shift);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::End => {
-                self.list.move_index(ListMove::End, shift);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::Home => {
-                self.list.move_index(ListMove::Start, shift);
-                self.events.send(AppEvent::Render);
-            }
             KeyCode::Enter => {
                 let id = jb.get_id_from_index(self.list.index()).unwrap();
                 jb.play(id);
@@ -134,15 +108,17 @@ impl TracksPage {
                     jb.sort(jb.get_sort().prev());
                     self.events.send(AppEvent::Render);
                 }
-                'a' => {
-                    if ctrl {
-                        self.list.select_all();
+                _ => {
+                    if self.list.input(key, modifiers) {
                         self.events.send(AppEvent::Render);
                     }
                 }
-                _ => {}
             },
-            _ => {}
+            _ => {
+                if self.list.input(key, modifiers) {
+                    self.events.send(AppEvent::Render);
+                }
+            }
         }
     }
 

@@ -14,7 +14,7 @@ use crate::{
     events::{AppEvent, EventSender},
     jukebox::{Jukebox, TrackId},
     utils,
-    widgets::{List, ListMove},
+    widgets::List,
 };
 
 pub struct PlayingPage {
@@ -119,33 +119,8 @@ impl PlayingPage {
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers) {
-        let shift = modifiers.contains(KeyModifiers::SHIFT);
-        match key {
-            KeyCode::Down => {
-                self.list.move_index(ListMove::Down, shift);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::Up => {
-                self.list.move_index(ListMove::Up, shift);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::PageDown => {
-                self.list.move_index(ListMove::PageDown, shift);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::PageUp => {
-                self.list.move_index(ListMove::PageUp, shift);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::End => {
-                self.list.move_index(ListMove::End, shift);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::Home => {
-                self.list.move_index(ListMove::Start, shift);
-                self.events.send(AppEvent::Render);
-            }
-            _ => {}
+        if self.list.input(key, modifiers) {
+            self.events.send(AppEvent::Render);
         }
     }
 

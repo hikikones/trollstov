@@ -8,7 +8,7 @@ use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
     utils,
-    widgets::{List, ListMove},
+    widgets::List,
 };
 
 pub struct LogsPage {
@@ -92,33 +92,7 @@ impl LogsPage {
     }
 
     pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) {
-        let old_index = self.list.index();
-
         match key {
-            KeyCode::Down => {
-                self.list.move_index(ListMove::Down, false);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::Up => {
-                self.list.move_index(ListMove::Up, false);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::PageDown => {
-                self.list.move_index(ListMove::PageDown, false);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::PageUp => {
-                self.list.move_index(ListMove::PageUp, false);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::End => {
-                self.list.move_index(ListMove::End, false);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::Home => {
-                self.list.move_index(ListMove::Start, false);
-                self.events.send(AppEvent::Render);
-            }
             KeyCode::Right => {
                 self.horizontal_scroll += 1;
                 self.events.send(AppEvent::Render);
@@ -127,11 +101,12 @@ impl LogsPage {
                 self.horizontal_scroll = self.horizontal_scroll.saturating_sub(1);
                 self.events.send(AppEvent::Render);
             }
-            _ => {}
-        }
-
-        if self.list.index() != old_index {
-            self.horizontal_scroll = 0;
+            _ => {
+                if self.list.input(key, KeyModifiers::empty()) {
+                    self.horizontal_scroll = 0;
+                    self.events.send(AppEvent::Render);
+                }
+            }
         }
     }
 
