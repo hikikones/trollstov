@@ -322,7 +322,9 @@ impl Jukebox {
                 Ok(audio_file_res) => {
                     let track_res =
                         audio_file_res.and_then(|(audio_file, extension)| match extension {
-                            AudioFileExtension::Flac | AudioFileExtension::Mp3 => Ok(Track::new(
+                            AudioFileExtension::Flac
+                            | AudioFileExtension::Ogg
+                            | AudioFileExtension::Mp3 => Ok(Track::new(
                                 audio_file.metadata()?,
                                 audio_file.properties(),
                                 audio_file.path().to_path_buf(),
