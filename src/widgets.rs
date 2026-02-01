@@ -305,7 +305,7 @@ impl List {
             // Fixes window resizing when going from small to big,
             // leaving empty space when scroll stays the same at the end
             self.scroll = self.index.saturating_sub(height.saturating_sub(1));
-        } else if self.index >= self.scroll {
+        } else if self.index > self.scroll {
             let height_diff = self.index - self.scroll;
             let height = height.saturating_sub(1);
             if height_diff > height {
