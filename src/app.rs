@@ -155,7 +155,7 @@ impl App {
                 if ctrl {
                     self.jukebox.play_next();
                 } else if alt {
-                    self.jukebox.fast_forwards_by(Duration::from_secs(30));
+                    self.jukebox.fast_forward_by(Duration::from_secs(30));
                 } else {
                     self.on_input(key);
                 }
@@ -168,23 +168,28 @@ impl App {
                 }
             }
             KeyCode::Media(media) => match media {
-                MediaKeyCode::Play => todo!(),
-                MediaKeyCode::Pause => todo!(),
+                MediaKeyCode::Play => {
+                    self.jukebox.play();
+                }
+                MediaKeyCode::Pause => {
+                    self.jukebox.pause();
+                }
                 MediaKeyCode::PlayPause => {
                     self.jukebox.pause_or_play();
                 }
-                MediaKeyCode::Stop => todo!(),
+                MediaKeyCode::Stop => {
+                    self.jukebox.stop();
+                }
                 MediaKeyCode::TrackNext => {
                     self.jukebox.play_next();
                 }
-                MediaKeyCode::TrackPrevious => todo!(),
-                MediaKeyCode::Reverse => todo!(),
-                MediaKeyCode::FastForward => todo!(),
-                MediaKeyCode::Rewind => todo!(),
-                MediaKeyCode::Record => todo!(),
-                MediaKeyCode::LowerVolume => todo!(),
-                MediaKeyCode::RaiseVolume => todo!(),
-                MediaKeyCode::MuteVolume => todo!(),
+                MediaKeyCode::TrackPrevious => {
+                    self.jukebox.play_previous();
+                }
+                MediaKeyCode::FastForward => {
+                    self.jukebox.fast_forward_by(Duration::from_secs(30));
+                }
+                _ => {}
             },
             KeyCode::Char(c) => match c {
                 '/' => {

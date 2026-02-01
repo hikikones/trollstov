@@ -194,6 +194,14 @@ impl Jukebox {
         self.start_play(id);
     }
 
+    pub fn play(&mut self) {
+        self.sink.play();
+    }
+
+    pub fn pause(&mut self) {
+        self.sink.pause();
+    }
+
     pub fn pause_or_play(&mut self) {
         if self.sink.is_paused() {
             match self.stopped.take() {
@@ -230,7 +238,7 @@ impl Jukebox {
         }
     }
 
-    pub fn fast_forwards_by(&mut self, duration: Duration) {
+    pub fn fast_forward_by(&mut self, duration: Duration) {
         if self.sink.empty() {
             return;
         }
