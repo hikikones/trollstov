@@ -137,17 +137,7 @@ impl AudioFile {
         match &mut self.format {
             AudioFileFormat::Flac(flac) => match flac.vorbis_comments_mut() {
                 Some(vorbis_comments) => {
-                    match rating {
-                        Some(rating) => {
-                            vorbis_comments.insert(
-                                "RATING".to_string(),
-                                rating.into_vorbis_comments().to_string(),
-                            );
-                        }
-                        None => {
-                            let _ = vorbis_comments.remove("RATING");
-                        }
-                    }
+                    AudioMetadata::set_vorbis_rating(vorbis_comments, rating);
                     Ok(flac
                         .save_to_path(&self.path, WriteOptions::new())
                         .map_err(|err| {
@@ -164,18 +154,7 @@ impl AudioFile {
                 ))),
             },
             AudioFileFormat::Opus(opus) => {
-                let vorbis_comments = opus.vorbis_comments_mut();
-                match rating {
-                    Some(rating) => {
-                        vorbis_comments.insert(
-                            "RATING".to_string(),
-                            rating.into_vorbis_comments().to_string(),
-                        );
-                    }
-                    None => {
-                        let _ = vorbis_comments.remove("RATING");
-                    }
-                }
+                AudioMetadata::set_vorbis_rating(opus.vorbis_comments_mut(), rating);
                 Ok(opus
                     .save_to_path(&self.path, WriteOptions::new())
                     .map_err(|err| {
@@ -187,18 +166,7 @@ impl AudioFile {
                     })?)
             }
             AudioFileFormat::Vorbis(vorbis) => {
-                let vorbis_comments = vorbis.vorbis_comments_mut();
-                match rating {
-                    Some(rating) => {
-                        vorbis_comments.insert(
-                            "RATING".to_string(),
-                            rating.into_vorbis_comments().to_string(),
-                        );
-                    }
-                    None => {
-                        let _ = vorbis_comments.remove("RATING");
-                    }
-                }
+                AudioMetadata::set_vorbis_rating(vorbis.vorbis_comments_mut(), rating);
                 Ok(vorbis
                     .save_to_path(&self.path, WriteOptions::new())
                     .map_err(|err| {
@@ -211,18 +179,7 @@ impl AudioFile {
             }
             AudioFileFormat::Mpeg(mpeg) => match mpeg.id3v2_mut() {
                 Some(id3v2) => {
-                    match rating {
-                        Some(rating) => {
-                            id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
-                                String::new(), // todo add no@email here?
-                                rating.into_id3v2(),
-                                0,
-                            )));
-                        }
-                        None => {
-                            let _ = id3v2.remove(&FrameId::Valid(Cow::Borrowed("POPM")));
-                        }
-                    }
+                    AudioMetadata::set_id3v2_rating(id3v2, rating);
                     Ok(mpeg
                         .save_to_path(&self.path, WriteOptions::new())
                         .map_err(|err| {
@@ -321,6 +278,35 @@ impl AudioMetadata {
                     _ => None,
                 },
             ),
+        }
+    }
+
+    fn set_vorbis_rating(vorbis_comments: &mut VorbisComments, rating: Option<AudioRating>) {
+        match rating {
+            Some(rating) => {
+                vorbis_comments.insert(
+                    "RATING".to_string(),
+                    rating.into_vorbis_comments().to_string(),
+                );
+            }
+            None => {
+                let _ = vorbis_comments.remove("RATING");
+            }
+        }
+    }
+
+    fn set_id3v2_rating(id3v2: &mut Id3v2Tag, rating: Option<AudioRating>) {
+        match rating {
+            Some(rating) => {
+                id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
+                    String::new(), // todo add no@email here?
+                    rating.into_id3v2(),
+                    0,
+                )));
+            }
+            None => {
+                let _ = id3v2.remove(&FrameId::Valid(Cow::Borrowed("POPM")));
+            }
         }
     }
 }
