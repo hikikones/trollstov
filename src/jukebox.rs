@@ -100,11 +100,11 @@ impl Jukebox {
         self.sort = sort;
     }
 
-    pub const fn current_track(&self) -> Option<TrackId> {
+    pub const fn current_track_id(&self) -> Option<TrackId> {
         self.current
     }
 
-    pub fn current_audio_position(&self) -> Duration {
+    pub fn current_track_pos(&self) -> Duration {
         self.sink.get_pos()
     }
 
@@ -186,9 +186,9 @@ impl Jukebox {
         }
     }
 
-    pub fn play(&mut self, id: TrackId) {
+    pub fn play_track(&mut self, id: TrackId) {
         // TODO: If new track is same as current, simply rewind.
-        if let Some(current_id) = self.current_track() {
+        if let Some(current_id) = self.current_track_id() {
             self.queue.add_to_history(current_id);
         }
         self.start_play(id);
@@ -198,7 +198,7 @@ impl Jukebox {
         if self.sink.is_paused() {
             match self.stopped.take() {
                 Some(id) => {
-                    self.play(id);
+                    self.play_track(id);
                 }
                 None => {
                     self.sink.play();
@@ -230,12 +230,12 @@ impl Jukebox {
         }
     }
 
-    pub fn seek(&mut self, dur: Duration) {
+    pub fn fast_forwards_by(&mut self, duration: Duration) {
         if self.sink.empty() {
             return;
         }
 
-        let _ = self.sink.try_seek(self.sink.get_pos() + dur);
+        let _ = self.sink.try_seek(self.sink.get_pos() + duration);
     }
 
     pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {

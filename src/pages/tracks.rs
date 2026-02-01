@@ -78,7 +78,7 @@ impl TracksPage {
         match key {
             KeyCode::Enter => {
                 let id = jb.get_id_from_index(self.list.index()).unwrap();
-                jb.play(id);
+                jb.play_track(id);
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
@@ -209,7 +209,7 @@ impl TracksPage {
         }
 
         // Render the body for the table
-        let current = jb.current_track();
+        let current = jb.current_track_id();
         self.list.render(
             table_area,
             buf,
