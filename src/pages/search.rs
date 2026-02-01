@@ -84,7 +84,7 @@ impl SearchPage {
         search_results_block.render(search_results_area, buf);
         self.buffer.clear();
 
-        let current = jb.current_track();
+        let current = jb.current_track_id();
         self.list.render(
             search_results_inner,
             buf,
@@ -148,7 +148,7 @@ impl SearchPage {
             }
             KeyCode::Enter => {
                 if let Some((id, _)) = self.search_results.get(self.list.index()).copied() {
-                    jb.play(id);
+                    jb.play_track(id);
                 }
             }
             _ => {

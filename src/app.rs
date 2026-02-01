@@ -155,7 +155,7 @@ impl App {
                 if ctrl {
                     self.jukebox.play_next();
                 } else if alt {
-                    self.jukebox.seek(std::time::Duration::from_secs(30));
+                    self.jukebox.fast_forward_by(Duration::from_secs(30));
                 } else {
                     self.on_input(key);
                 }
@@ -168,23 +168,28 @@ impl App {
                 }
             }
             KeyCode::Media(media) => match media {
-                MediaKeyCode::Play => todo!(),
-                MediaKeyCode::Pause => todo!(),
+                MediaKeyCode::Play => {
+                    self.jukebox.play();
+                }
+                MediaKeyCode::Pause => {
+                    self.jukebox.pause();
+                }
                 MediaKeyCode::PlayPause => {
                     self.jukebox.pause_or_play();
                 }
-                MediaKeyCode::Stop => todo!(),
+                MediaKeyCode::Stop => {
+                    self.jukebox.stop();
+                }
                 MediaKeyCode::TrackNext => {
                     self.jukebox.play_next();
                 }
-                MediaKeyCode::TrackPrevious => todo!(),
-                MediaKeyCode::Reverse => todo!(),
-                MediaKeyCode::FastForward => todo!(),
-                MediaKeyCode::Rewind => todo!(),
-                MediaKeyCode::Record => todo!(),
-                MediaKeyCode::LowerVolume => todo!(),
-                MediaKeyCode::RaiseVolume => todo!(),
-                MediaKeyCode::MuteVolume => todo!(),
+                MediaKeyCode::TrackPrevious => {
+                    self.jukebox.play_previous();
+                }
+                MediaKeyCode::FastForward => {
+                    self.jukebox.fast_forward_by(Duration::from_secs(30));
+                }
+                _ => {}
             },
             KeyCode::Char(c) => match c {
                 '/' => {
@@ -323,7 +328,7 @@ impl App {
             self.shortcuts_page.clear();
 
             // Playback
-            match self.jukebox.current_track() {
+            match self.jukebox.current_track_id() {
                 Some(id) => {
                     let track = self.jukebox.get(id).unwrap();
 
@@ -341,7 +346,7 @@ impl App {
                         playback_status_area,
                         buf,
                         &mut self.text_segment,
-                        self.jukebox.current_audio_position(),
+                        self.jukebox.current_track_pos(),
                         track.duration(),
                         &self.colors,
                     );

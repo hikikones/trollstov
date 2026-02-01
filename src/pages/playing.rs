@@ -43,11 +43,11 @@ impl PlayingPage {
     pub fn on_enter(&self) {}
 
     pub fn on_update(&mut self, jb: &Jukebox) {
-        if self.current != jb.current_track() {
-            self.current = jb.current_track();
+        if self.current != jb.current_track_id() {
+            self.current = jb.current_track_id();
 
             // Track has changed, time to update image
-            match jb.current_track() {
+            match jb.current_track_id() {
                 Some(tid) => {
                     // Load image in thread and store handle
                     self.image = FrontCover::Loading;
