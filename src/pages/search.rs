@@ -9,34 +9,30 @@ use crate::{
     events::{AppEvent, EventSender},
     jukebox::{Jukebox, TrackId},
     utils,
-    widgets::TextInput,
+    widgets::{List, ListMove, TextInput},
 };
 
 pub struct SearchPage {
-    title: String,
-    index: usize,
-    scroll: usize,
     search_input: TextInput,
     search_results: Vec<(TrackId, u16)>,
     matcher: Matcher,
+    list: List,
     is_dirty: bool,
-    events: EventSender,
     buffer: String,
+    events: EventSender,
 }
 
 impl SearchPage {
     pub fn new(colors: &Colors, events: EventSender) -> Self {
         Self {
-            title: String::new(),
-            index: 0,
-            scroll: 0,
             search_input: TextInput::new(colors.on_accent, colors.accent, colors.neutral)
                 .with_placeholder("search..."),
             search_results: Vec::new(),
             matcher: Matcher::new(),
+            list: List::new(),
             is_dirty: false,
-            events,
             buffer: String::new(),
+            events,
         }
     }
 
@@ -72,7 +68,7 @@ impl SearchPage {
         // Render search results
         let mut buffer = itoa::Buffer::new();
         let len = buffer.format(self.search_results.len());
-        self.title.extend([" Search results (", len, ") "]);
+        self.buffer.extend([" Search results (", len, ") "]);
 
         let search_results_area = Rect {
             y: area.y + search_input_area.height + 1,
@@ -80,31 +76,78 @@ impl SearchPage {
             ..area
         };
         let search_results_block = Block::bordered()
-            .title(self.title.as_str())
+            .title(self.buffer.as_str())
             .title_alignment(Alignment::Center)
             .padding(Padding::horizontal(1));
         let search_results_inner = search_results_block.inner(search_results_area);
 
         search_results_block.render(search_results_area, buf);
-        self.title.clear();
+        self.buffer.clear();
 
-        self.scroll = utils::calculate_scroll(self.index, search_results_inner.height, self.scroll);
-        self.render_search_results(search_results_inner, buf, jb, colors);
+        let current = jb.current_track();
+        self.list.render(
+            search_results_inner,
+            buf,
+            self.search_results.iter().copied(),
+            |line, buf, (id, _), is_index, is_selected| {
+                let mut style = Style::new();
+                if is_index || is_selected {
+                    style.bg = Some(colors.accent);
+                    style.fg = Some(colors.on_accent);
+                }
+                if current == Some(id) {
+                    style.add_modifier.insert(Modifier::BOLD);
+                }
+
+                // TODO: Add number to tracks for those with empty metadata?
+                // Otherwise it will just render an empty line.
+
+                let track = jb.get(id).unwrap();
+                utils::print_line_iter(
+                    line,
+                    buf,
+                    [track.artist(), " ", track.album(), " ", track.title()],
+                    style,
+                );
+            },
+        );
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
+        let shift = modifiers.contains(KeyModifiers::SHIFT);
         match key {
             KeyCode::Down => {
-                self.index =
-                    usize::min(self.index + 1, self.search_results.len().saturating_sub(1));
-                self.events.send(AppEvent::Render);
+                if self.list.move_index(ListMove::Down, shift) {
+                    self.events.send(AppEvent::Render);
+                }
             }
             KeyCode::Up => {
-                self.index = self.index.saturating_sub(1);
-                self.events.send(AppEvent::Render);
+                if self.list.move_index(ListMove::Up, shift) {
+                    self.events.send(AppEvent::Render);
+                }
+            }
+            KeyCode::PageDown => {
+                if self.list.move_index(ListMove::PageDown, shift) {
+                    self.events.send(AppEvent::Render);
+                }
+            }
+            KeyCode::PageUp => {
+                if self.list.move_index(ListMove::PageUp, shift) {
+                    self.events.send(AppEvent::Render);
+                }
+            }
+            KeyCode::End => {
+                if self.list.move_index(ListMove::End, shift) {
+                    self.events.send(AppEvent::Render);
+                }
+            }
+            KeyCode::Home => {
+                if self.list.move_index(ListMove::Start, shift) {
+                    self.events.send(AppEvent::Render);
+                }
             }
             KeyCode::Enter => {
-                if let Some((id, _)) = self.search_results.get(self.index).copied() {
+                if let Some((id, _)) = self.search_results.get(self.list.index()).copied() {
                     jb.play(id);
                 }
             }
@@ -123,8 +166,6 @@ impl SearchPage {
 
     fn update_search_results(&mut self, jb: &Jukebox) {
         self.is_dirty = false;
-        self.index = 0;
-        self.scroll = 0;
         self.search_results.clear();
 
         if !self.search_input.as_str().trim().is_empty() {
@@ -140,44 +181,6 @@ impl SearchPage {
             self.search_results
                 .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
         }
-    }
-
-    fn render_search_results(
-        &mut self,
-        area: Rect,
-        buf: &mut Buffer,
-        jb: &Jukebox,
-        colors: &Colors,
-    ) {
-        let mut line_area = Rect { height: 1, ..area };
-        let current = jb.current_track();
-
-        self.search_results
-            .iter()
-            .copied()
-            .filter_map(|(id, _)| jb.get(id).map(|track| (id, track)))
-            .enumerate()
-            .skip(self.scroll)
-            .take(area.height as usize)
-            .for_each(|(i, (id, track))| {
-                let mut style = Style::new();
-                if self.index == i {
-                    style.bg = Some(colors.accent);
-                    style.fg = Some(colors.on_accent);
-                }
-                if current == Some(id) {
-                    style.add_modifier.insert(Modifier::BOLD);
-                }
-
-                utils::print_line_iter(
-                    line_area,
-                    buf,
-                    [track.artist(), " ", track.album(), " ", track.title()],
-                    style,
-                );
-
-                line_area.y += 1;
-            });
     }
 }
 

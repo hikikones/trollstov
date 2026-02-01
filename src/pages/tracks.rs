@@ -10,26 +10,20 @@ use crate::{
     events::{AppEvent, EventSender},
     jukebox::{Jukebox, TrackSort},
     utils,
-    widgets::{Shortcut, Shortcuts},
+    widgets::{List, Shortcut, Shortcuts},
 };
-
-// TODO: Add selector index for selecting multiple tracks.
 
 pub struct TracksPage {
     title: String,
-    index: usize,
-    scroll: usize,
-    selector: Option<usize>,
+    list: List,
     events: EventSender,
 }
 
 impl TracksPage {
-    pub fn new(events: EventSender) -> Self {
+    pub const fn new(events: EventSender) -> Self {
         Self {
             title: String::new(),
-            index: 0,
-            scroll: 0,
-            selector: None,
+            list: List::new(),
             events,
         }
     }
@@ -73,6 +67,7 @@ impl TracksPage {
 
         // Shortcuts
         shortcuts.extend([
+            Shortcut::new("Play", "↵"),
             Shortcut::new("Sort", "(⇧)s"),
             Shortcut::new("Add to queue", "q"),
             Shortcut::new("Play next", "n"),
@@ -80,55 +75,27 @@ impl TracksPage {
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
-        let shift = modifiers.contains(KeyModifiers::SHIFT);
-
         match key {
-            KeyCode::Down => {
-                if shift {
-                    if self.selector.is_none() {
-                        self.selector = Some(self.index);
-                    }
-                } else {
-                    self.selector = None;
-                }
-
-                self.index = usize::min(self.index + 1, jb.len().saturating_sub(1));
-                self.selector.take_if(|s| *s == self.index);
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::Up => {
-                if shift {
-                    if self.selector.is_none() {
-                        self.selector = Some(self.index);
-                    }
-                } else {
-                    self.selector = None;
-                }
-
-                self.index = self.index.saturating_sub(1);
-                self.selector.take_if(|s| *s == self.index);
-                self.events.send(AppEvent::Render);
-            }
             KeyCode::Enter => {
-                let id = jb.get_id_from_index(self.index).unwrap();
+                let id = jb.get_id_from_index(self.list.index()).unwrap();
                 jb.play(id);
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
                     let rating = AudioRating::from_char(c).unwrap();
-                    for i in self.get_selection() {
+                    for i in self.list.selection() {
                         let id = jb.get_id_from_index(i).unwrap();
                         jb.set_rating(id, rating);
                     }
                 }
                 'q' => {
-                    for i in self.get_selection() {
+                    for i in self.list.selection() {
                         let id = jb.get_id_from_index(i).unwrap();
                         jb.enqueue_back(id);
                     }
                 }
                 'n' => {
-                    for i in self.get_selection().rev() {
+                    for i in self.list.selection().rev() {
                         let id = jb.get_id_from_index(i).unwrap();
                         jb.enqueue_front(id);
                     }
@@ -141,25 +108,21 @@ impl TracksPage {
                     jb.sort(jb.get_sort().prev());
                     self.events.send(AppEvent::Render);
                 }
-                _ => {}
+                _ => {
+                    if self.list.input(key, modifiers) {
+                        self.events.send(AppEvent::Render);
+                    }
+                }
             },
-            _ => {}
+            _ => {
+                if self.list.input(key, modifiers) {
+                    self.events.send(AppEvent::Render);
+                }
+            }
         }
     }
 
     pub fn on_exit(&self) {}
-
-    fn get_selection(&self) -> std::ops::RangeInclusive<usize> {
-        self.selector
-            .map(|selector| {
-                if self.index < selector {
-                    self.index..=selector
-                } else {
-                    selector..=self.index
-                }
-            })
-            .unwrap_or(self.index..=self.index)
-    }
 
     fn render_tracks(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         let spacing = 2;
@@ -246,24 +209,12 @@ impl TracksPage {
         }
 
         // Render the body for the table
-        let selection_start = self.index.min(self.selector.unwrap_or(self.index));
-        let selection_end = self.selector.unwrap_or(self.index).max(self.index);
-
-        self.scroll = utils::calculate_scroll(self.index, table_area.height, self.scroll);
         let current = jb.current_track();
-        let mut row = Rect {
-            height: 1,
-            ..table_area
-        };
-
-        jb.iter()
-            .enumerate()
-            .skip(self.scroll)
-            .take(table_area.height as usize)
-            .for_each(|(i, (id, track))| {
-                let is_index = i == self.index;
-                let is_selected = i >= selection_start && i <= selection_end;
-
+        self.list.render(
+            table_area,
+            buf,
+            jb.iter(),
+            |line, buf, (id, track), is_index, is_selected| {
                 let mut style = Style::new();
                 if is_index || is_selected {
                     style.bg = Some(colors.accent);
@@ -274,7 +225,7 @@ impl TracksPage {
                 }
 
                 utils::print_text_segments(
-                    row,
+                    line,
                     buf,
                     [
                         (track.title(), info_width, spacing),
@@ -285,7 +236,7 @@ impl TracksPage {
                     ],
                     style,
                 );
-                row.y += 1;
-            });
+            },
+        );
     }
 }

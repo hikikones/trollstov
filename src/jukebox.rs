@@ -116,10 +116,8 @@ impl Jukebox {
         self.queue.len()
     }
 
-    pub fn queue_iter(&self) -> impl Iterator<Item = (TrackId, &Track)> {
-        self.queue
-            .iter()
-            .filter_map(|id| self.tracks.get(id).map(|track| (*id, track)))
+    pub fn queue_iter(&self) -> impl ExactSizeIterator<Item = TrackId> {
+        self.queue.iter().copied()
     }
 
     pub fn enqueue_front(&mut self, id: TrackId) {
@@ -155,6 +153,8 @@ impl Jukebox {
         }
 
         // Poll thread handles for finished tag writing
+        // TODO: Write handles should be polled one by one.
+        // Right now, multiple threads _could_ be writing to the same file.
         for _ in 0..self.audio_write_handles.len() {
             let handle = self.audio_write_handles.pop().unwrap();
 

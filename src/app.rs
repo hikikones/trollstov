@@ -386,11 +386,7 @@ impl App {
                 .pages
                 .tracks
                 .on_input(key.code, key.modifiers, &mut self.jukebox),
-            Route::NowPlaying => {
-                self.pages
-                    .playing
-                    .on_input(key.code, key.modifiers, &self.jukebox)
-            }
+            Route::NowPlaying => self.pages.playing.on_input(key.code, key.modifiers),
             Route::Search => self
                 .pages
                 .search

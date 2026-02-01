@@ -8,14 +8,14 @@ use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
     utils,
+    widgets::List,
 };
 
 pub struct LogsPage {
     title: String,
     logs: Vec<Log>,
     queue: u32,
-    index: usize,
-    vertical_scroll: usize,
+    list: List,
     horizontal_scroll: usize,
     events: EventSender,
 }
@@ -26,8 +26,7 @@ impl LogsPage {
             title: String::new(),
             logs: Vec::new(),
             queue: 0,
-            index: 0,
-            vertical_scroll: 0,
+            list: List::new(),
             horizontal_scroll: 0,
             events,
         }
@@ -71,53 +70,12 @@ impl LogsPage {
         block.render(area, buf);
         self.title.clear();
 
-        self.vertical_scroll =
-            utils::calculate_scroll(self.index, logs_area.height, self.vertical_scroll);
-        self.render_logs(logs_area, buf, colors);
-    }
-
-    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) {
-        match key {
-            KeyCode::Down => {
-                let old_index = self.index;
-                self.index = usize::min(self.index + 1, self.logs.len().saturating_sub(1));
-                if self.index != old_index {
-                    self.horizontal_scroll = 0;
-                }
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::Up => {
-                let old_index = self.index;
-                self.index = self.index.saturating_sub(1);
-                if self.index != old_index {
-                    self.horizontal_scroll = 0;
-                }
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::Right => {
-                self.horizontal_scroll += 1;
-                self.events.send(AppEvent::Render);
-            }
-            KeyCode::Left => {
-                self.horizontal_scroll = self.horizontal_scroll.saturating_sub(1);
-                self.events.send(AppEvent::Render);
-            }
-            _ => {}
-        }
-    }
-
-    pub fn on_exit(&self) {}
-
-    fn render_logs(&mut self, area: Rect, buf: &mut Buffer, colors: &Colors) {
-        let mut line = Rect { height: 1, ..area };
-
-        self.logs
-            .iter()
-            .enumerate()
-            .skip(self.vertical_scroll)
-            .take(area.height as usize)
-            .for_each(|(i, log)| {
-                let (scroll, style) = if self.index == i {
+        self.list.render(
+            logs_area,
+            buf,
+            self.logs.iter(),
+            |line, buf, log, is_index, _| {
+                let (scroll, style) = if is_index {
                     let max_scroll = log.width.saturating_sub(line.width as usize);
                     self.horizontal_scroll = max_scroll.min(self.horizontal_scroll);
                     (
@@ -129,10 +87,30 @@ impl LogsPage {
                 };
 
                 utils::print_line(line, buf, &log.message[scroll..], style);
-
-                line.y += 1;
-            });
+            },
+        );
     }
+
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) {
+        match key {
+            KeyCode::Right => {
+                self.horizontal_scroll += 1;
+                self.events.send(AppEvent::Render);
+            }
+            KeyCode::Left => {
+                self.horizontal_scroll = self.horizontal_scroll.saturating_sub(1);
+                self.events.send(AppEvent::Render);
+            }
+            _ => {
+                if self.list.input(key, KeyModifiers::empty()) {
+                    self.horizontal_scroll = 0;
+                    self.events.send(AppEvent::Render);
+                }
+            }
+        }
+    }
+
+    pub fn on_exit(&self) {}
 }
 
 pub struct Log {
