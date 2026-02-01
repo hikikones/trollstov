@@ -519,6 +519,9 @@ impl TrackSort {
     }
 }
 
+// TODO: Add max queue and history length.
+// Just truncate/remove when reaching a certain amount.
+
 struct PlayQueue {
     queue: VecDeque<TrackId>,
     history: Vec<TrackId>,
