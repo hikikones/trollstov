@@ -153,6 +153,8 @@ impl Jukebox {
         }
 
         // Poll thread handles for finished tag writing
+        // TODO: Write handles should be polled one by one.
+        // Right now, multiple threads _could_ be writing to the same file.
         for _ in 0..self.audio_write_handles.len() {
             let handle = self.audio_write_handles.pop().unwrap();
 
