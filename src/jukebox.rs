@@ -322,18 +322,16 @@ impl Jukebox {
                 Ok(audio_file_res) => {
                     let track_res =
                         audio_file_res.and_then(|(audio_file, extension)| match extension {
-                            AudioFileExtension::Flac
-                            | AudioFileExtension::Ogg
-                            | AudioFileExtension::Mp3 => Ok(Track::new(
+                            AudioFileExtension::Opus => Err(AudioFileReport::new(format!(
+                                "Unsupported audio file {} due to opus not currently supported",
+                                audio_file.path().display()
+                            ))),
+                            _ => Ok(Track::new(
                                 audio_file.metadata()?,
                                 audio_file.properties(),
                                 audio_file.path().to_path_buf(),
                                 extension,
                             )),
-                            AudioFileExtension::Opus => Err(AudioFileReport::new(format!(
-                                "Unsupported audio file {} due to opus not currently supported",
-                                audio_file.path().display()
-                            ))),
                         });
                     match track_res {
                         Ok(track) => {
