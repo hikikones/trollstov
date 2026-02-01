@@ -320,19 +320,15 @@ impl Jukebox {
         loop {
             match receiver.try_recv() {
                 Ok(audio_file_res) => {
-                    let track_res =
-                        audio_file_res.and_then(|(audio_file, extension)| match extension {
-                            AudioFileExtension::Opus => Err(AudioFileReport::new(format!(
-                                "Unsupported audio file {} due to opus not currently supported",
-                                audio_file.path().display()
-                            ))),
-                            _ => Ok(Track::new(
-                                audio_file.metadata()?,
-                                audio_file.properties(),
-                                audio_file.path().to_path_buf(),
-                                extension,
-                            )),
-                        });
+                    let track_res = audio_file_res.and_then(|(audio_file, extension)| {
+                        let track = Track::new(
+                            audio_file.metadata()?,
+                            audio_file.properties(),
+                            audio_file.path().to_path_buf(),
+                            extension,
+                        );
+                        Ok(track)
+                    });
                     match track_res {
                         Ok(track) => {
                             let last_id = self.tracks.len() as u64;
