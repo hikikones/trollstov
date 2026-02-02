@@ -205,10 +205,18 @@ impl Jukebox {
             }
         }
 
-        // Play next when idle and finished
+        // Play next when empty and idle
         let is_finished = self.sink.empty() && !self.sink.is_paused();
-        if self.state == JukeboxState::Play && is_finished {
-            self.play_next();
+        if is_finished {
+            match self.state {
+                JukeboxState::Play => {
+                    self.play_next();
+                }
+                JukeboxState::Next | JukeboxState::Previous | JukeboxState::Track => {
+                    self.state = JukeboxState::Play;
+                }
+                _ => {}
+            }
         }
 
         if render {
@@ -257,6 +265,9 @@ impl Jukebox {
     }
 
     pub fn play_next(&mut self) {
+        // TODO: Fix when next is actually current.
+        // This happens when going backwards/previous but all tracks errors out.
+        // Then going forward again will replay the current track.
         if let Some(id) = self.queue.next(self.tracks.len(), self.pending) {
             self.state = JukeboxState::Next;
             self.start_play(id);
