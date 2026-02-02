@@ -30,12 +30,22 @@ pub struct Jukebox {
     current: Option<TrackId>,
     stopped: Option<TrackId>,
     queue: PlayQueue,
-    events: EventSender,
+    state: JukeboxState,
     audio_file_receiver: Option<AudioFileReceiver>,
     audio_decode_handle: Option<AudioDecodeHandle>,
     audio_write_handles: Vec<AudioWriteHandle>,
+    events: EventSender,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum JukeboxState {
+    Play,
+    Pause,
+    Stop,
+    Next,
+    Prev,
 }
 
 impl Jukebox {
@@ -51,10 +61,11 @@ impl Jukebox {
             current: None,
             stopped: None,
             queue: PlayQueue::new(),
-            events,
+            state: JukeboxState::Stop,
             audio_file_receiver: None,
             audio_decode_handle: None,
             audio_write_handles: Vec::new(),
+            events,
             sink,
             _stream: stream,
         })
@@ -141,7 +152,10 @@ impl Jukebox {
                     Ok(decoded_audio) => {
                         self.sink.clear();
                         self.sink.append(decoded_audio);
-                        self.sink.play();
+                        if self.state != JukeboxState::Pause {
+                            self.state = JukeboxState::Play;
+                            self.sink.play();
+                        }
                         render = true;
                     }
                     Err(err) => {
@@ -177,7 +191,7 @@ impl Jukebox {
         }
 
         // Play next when idle and finished
-        if self.sink.empty() && !self.sink.is_paused() {
+        if self.state == JukeboxState::Play && self.sink.empty() && !self.sink.is_paused() {
             self.play_next();
         }
 
@@ -195,10 +209,12 @@ impl Jukebox {
     }
 
     pub fn play(&mut self) {
+        self.state = JukeboxState::Play;
         self.sink.play();
     }
 
     pub fn pause(&mut self) {
+        self.state = JukeboxState::Pause;
         self.sink.pause();
     }
 
@@ -209,11 +225,11 @@ impl Jukebox {
                     self.play_track(id);
                 }
                 None => {
-                    self.sink.play();
+                    self.play();
                 }
             }
         } else {
-            self.sink.pause();
+            self.pause();
         }
     }
 
@@ -222,18 +238,22 @@ impl Jukebox {
         if let Some(id) = self.current.take() {
             self.sink.clear();
             self.stopped = Some(id);
+            self.state = JukeboxState::Stop;
+            self.audio_decode_handle = None;
             self.events.send(AppEvent::UpdateAndRender);
         }
     }
 
     pub fn play_next(&mut self) {
         if let Some(id) = self.queue.next(self.tracks.len(), self.current) {
+            self.state = JukeboxState::Next;
             self.start_play(id);
         }
     }
 
     pub fn play_previous(&mut self) {
         if let Some(id) = self.queue.previous(self.current) {
+            self.state = JukeboxState::Prev;
             self.start_play(id);
         }
     }
