@@ -19,7 +19,8 @@ use crate::{
 };
 
 type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileReport>>;
-type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, AudioFileReport>>;
+type AudioDecodeHandle =
+    std::thread::JoinHandle<Result<(TrackId, Decoder<BufReader<File>>), AudioFileReport>>;
 type AudioWriteHandle =
     std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileReport>>;
 
@@ -28,6 +29,7 @@ pub struct Jukebox {
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
     current: Option<TrackId>,
+    current_actual: Option<TrackId>,
     stopped: Option<TrackId>,
     queue: PlayQueue,
     state: JukeboxState,
@@ -60,6 +62,7 @@ impl Jukebox {
             tracks: IndexMap::new(),
             sort: TrackSort::default(),
             current: None,
+            current_actual: None,
             stopped: None,
             queue: PlayQueue::new(),
             state: JukeboxState::Stop,
@@ -113,7 +116,7 @@ impl Jukebox {
     }
 
     pub const fn current_track_id(&self) -> Option<TrackId> {
-        self.current
+        self.current_actual
     }
 
     pub fn current_track_pos(&self) -> Duration {
@@ -149,15 +152,16 @@ impl Jukebox {
         if let Some(handle) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
                 let handle = self.audio_decode_handle.take().unwrap();
+                render = true;
                 match handle.join().unwrap() {
-                    Ok(decoded_audio) => {
+                    Ok((id, decoded_audio)) => {
                         self.sink.clear();
                         self.sink.append(decoded_audio);
                         if self.state != JukeboxState::Pause {
                             self.state = JukeboxState::Play;
                             self.sink.play();
                         }
-                        render = true;
+                        self.current_actual = Some(id);
                     }
                     Err(err) => {
                         let log = Log::new(err);
@@ -201,7 +205,8 @@ impl Jukebox {
         }
 
         // Play next when idle and finished
-        if self.state == JukeboxState::Play && self.sink.empty() && !self.sink.is_paused() {
+        let is_finished = self.sink.empty() && !self.sink.is_paused();
+        if self.state == JukeboxState::Play && is_finished {
             self.play_next();
         }
 
@@ -246,13 +251,15 @@ impl Jukebox {
 
     pub fn stop(&mut self) {
         // TODO: Should stop also clear queue and history?
-        if let Some(id) = self.current.take() {
-            self.sink.clear();
+        if let Some(id) = self.current_actual.take() {
             self.stopped = Some(id);
-            self.state = JukeboxState::Stop;
-            self.audio_decode_handle = None;
             self.events.send(AppEvent::UpdateAndRender);
         }
+
+        self.sink.clear();
+        self.current = None;
+        self.state = JukeboxState::Stop;
+        self.audio_decode_handle = None;
     }
 
     pub fn play_next(&mut self) {
@@ -309,7 +316,7 @@ impl Jukebox {
                     err
                 ))
             })?;
-            Ok(source)
+            Ok((id, source))
         })
     }
 

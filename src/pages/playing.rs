@@ -251,6 +251,10 @@ impl PlayingPage {
                 // TODO: Add number to tracks for those with empty metadata?
                 // Otherwise it will just render an empty line.
 
+                // TODO: Also show history?
+                // Show both lists in same block, separated by title
+                // Add seamless interaction between the two.
+
                 let track = jb.get(id).unwrap();
                 utils::print_line_iter(
                     line,
