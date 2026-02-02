@@ -252,7 +252,7 @@ impl PlayingPage {
                 // Otherwise it will just render an empty line.
 
                 // TODO: Also show history?
-                // Show both lists in same block, separated by title
+                // Show both lists in same block, separated by title?
                 // Add seamless interaction between the two.
 
                 let track = jb.get(id).unwrap();

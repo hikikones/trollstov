@@ -29,7 +29,7 @@ pub struct Jukebox {
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
     current: Option<TrackId>,
-    current_actual: Option<TrackId>,
+    pending: Option<TrackId>,
     queue: PlayQueue,
     state: JukeboxState,
     audio_file_receiver: Option<AudioFileReceiver>,
@@ -42,12 +42,12 @@ pub struct Jukebox {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum JukeboxState {
-    Track,
     Play,
     Pause,
     Stop,
     Next,
-    Prev,
+    Previous,
+    Track,
 }
 
 impl Jukebox {
@@ -61,7 +61,7 @@ impl Jukebox {
             tracks: IndexMap::new(),
             sort: TrackSort::default(),
             current: None,
-            current_actual: None,
+            pending: None,
             queue: PlayQueue::new(),
             state: JukeboxState::Stop,
             audio_file_receiver: None,
@@ -114,7 +114,7 @@ impl Jukebox {
     }
 
     pub const fn current_track_id(&self) -> Option<TrackId> {
-        self.current_actual
+        self.current
     }
 
     pub fn current_track_pos(&self) -> Duration {
@@ -149,8 +149,8 @@ impl Jukebox {
         // Poll thread handle for audio decoding
         if let Some(handle) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
-                let handle = self.audio_decode_handle.take().unwrap();
                 render = true;
+                let handle = self.audio_decode_handle.take().unwrap();
                 match handle.join().unwrap() {
                     Ok((id, decoded_audio)) => {
                         self.sink.clear();
@@ -159,7 +159,7 @@ impl Jukebox {
                             self.state = JukeboxState::Play;
                             self.sink.play();
                         }
-                        self.current_actual = Some(id);
+                        self.current = Some(id);
                     }
                     Err(err) => {
                         let log = Log::new(err);
@@ -168,8 +168,11 @@ impl Jukebox {
                             JukeboxState::Play | JukeboxState::Next => {
                                 self.play_next();
                             }
-                            JukeboxState::Prev => {
+                            JukeboxState::Previous => {
                                 self.play_previous();
+                            }
+                            JukeboxState::Track => {
+                                self.state = JukeboxState::Play;
                             }
                             _ => {}
                         }
@@ -242,27 +245,27 @@ impl Jukebox {
 
     pub fn stop(&mut self) {
         // TODO: Should stop also clear queue and history?
-        if let Some(id) = self.current_actual.take() {
+        if let Some(id) = self.current.take() {
             self.queue.push_front(id);
             self.events.send(AppEvent::UpdateAndRender);
         }
 
         self.sink.clear();
-        self.current = None;
+        self.pending = None;
         self.state = JukeboxState::Stop;
         self.audio_decode_handle = None;
     }
 
     pub fn play_next(&mut self) {
-        if let Some(id) = self.queue.next(self.tracks.len(), self.current) {
+        if let Some(id) = self.queue.next(self.tracks.len(), self.pending) {
             self.state = JukeboxState::Next;
             self.start_play(id);
         }
     }
 
     pub fn play_previous(&mut self) {
-        if let Some(id) = self.queue.previous(self.current) {
-            self.state = JukeboxState::Prev;
+        if let Some(id) = self.queue.previous(self.pending) {
+            self.state = JukeboxState::Previous;
             self.start_play(id);
         }
     }
@@ -281,7 +284,7 @@ impl Jukebox {
     }
 
     fn start_play(&mut self, id: TrackId) {
-        self.current = Some(id);
+        self.pending = Some(id);
         self.audio_decode_handle = Some(self.decode_audio(id));
         self.events.send(AppEvent::UpdateAndRender);
     }
