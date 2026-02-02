@@ -30,7 +30,6 @@ pub struct Jukebox {
     sort: TrackSort,
     current: Option<TrackId>,
     current_actual: Option<TrackId>,
-    stopped: Option<TrackId>,
     queue: PlayQueue,
     state: JukeboxState,
     audio_file_receiver: Option<AudioFileReceiver>,
@@ -63,7 +62,6 @@ impl Jukebox {
             sort: TrackSort::default(),
             current: None,
             current_actual: None,
-            stopped: None,
             queue: PlayQueue::new(),
             state: JukeboxState::Stop,
             audio_file_receiver: None,
@@ -236,14 +234,7 @@ impl Jukebox {
 
     pub fn pause_or_play(&mut self) {
         if self.sink.is_paused() {
-            match self.stopped.take() {
-                Some(id) => {
-                    self.play_track(id);
-                }
-                None => {
-                    self.play();
-                }
-            }
+            self.play();
         } else {
             self.pause();
         }
@@ -252,7 +243,7 @@ impl Jukebox {
     pub fn stop(&mut self) {
         // TODO: Should stop also clear queue and history?
         if let Some(id) = self.current_actual.take() {
-            self.stopped = Some(id);
+            self.queue.push_front(id);
             self.events.send(AppEvent::UpdateAndRender);
         }
 
@@ -291,7 +282,6 @@ impl Jukebox {
 
     fn start_play(&mut self, id: TrackId) {
         self.current = Some(id);
-        self.stopped = None;
         self.audio_decode_handle = Some(self.decode_audio(id));
         self.events.send(AppEvent::UpdateAndRender);
     }
