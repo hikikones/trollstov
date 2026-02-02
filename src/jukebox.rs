@@ -19,7 +19,8 @@ use crate::{
 };
 
 type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileReport>>;
-type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, AudioFileReport>>;
+type AudioDecodeHandle =
+    std::thread::JoinHandle<Result<(TrackId, Decoder<BufReader<File>>), AudioFileReport>>;
 type AudioWriteHandle =
     std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileReport>>;
 
@@ -28,14 +29,25 @@ pub struct Jukebox {
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
     current: Option<TrackId>,
-    stopped: Option<TrackId>,
+    pending: Option<TrackId>,
     queue: PlayQueue,
-    events: EventSender,
+    state: PlayState,
     audio_file_receiver: Option<AudioFileReceiver>,
     audio_decode_handle: Option<AudioDecodeHandle>,
     audio_write_handles: Vec<AudioWriteHandle>,
+    events: EventSender,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PlayState {
+    Play,
+    Pause,
+    Stop,
+    Next,
+    Previous,
+    Track,
 }
 
 impl Jukebox {
@@ -49,12 +61,13 @@ impl Jukebox {
             tracks: IndexMap::new(),
             sort: TrackSort::default(),
             current: None,
-            stopped: None,
+            pending: None,
             queue: PlayQueue::new(),
-            events,
+            state: PlayState::Stop,
             audio_file_receiver: None,
             audio_decode_handle: None,
             audio_write_handles: Vec::new(),
+            events,
             sink,
             _stream: stream,
         })
@@ -136,17 +149,33 @@ impl Jukebox {
         // Poll thread handle for audio decoding
         if let Some(handle) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
+                render = true;
                 let handle = self.audio_decode_handle.take().unwrap();
                 match handle.join().unwrap() {
-                    Ok(decoded_audio) => {
+                    Ok((id, decoded_audio)) => {
                         self.sink.clear();
                         self.sink.append(decoded_audio);
-                        self.sink.play();
-                        render = true;
+                        if self.state != PlayState::Pause {
+                            self.state = PlayState::Play;
+                            self.sink.play();
+                        }
+                        self.current = Some(id);
                     }
                     Err(err) => {
                         let log = Log::new(err);
                         self.events.send(AppEvent::Log(log));
+                        match self.state {
+                            PlayState::Play | PlayState::Next => {
+                                self.play_next();
+                            }
+                            PlayState::Previous => {
+                                self.play_previous();
+                            }
+                            PlayState::Track => {
+                                self.state = PlayState::Play;
+                            }
+                            _ => {}
+                        }
                     }
                 }
             }
@@ -176,9 +205,18 @@ impl Jukebox {
             }
         }
 
-        // Play next when idle and finished
-        if self.sink.empty() && !self.sink.is_paused() {
-            self.play_next();
+        // Play next when empty and idle
+        let is_finished = self.sink.empty() && !self.sink.is_paused();
+        if is_finished {
+            match self.state {
+                PlayState::Play => {
+                    self.play_next();
+                }
+                PlayState::Next | PlayState::Previous | PlayState::Track => {
+                    self.state = PlayState::Play;
+                }
+                _ => {}
+            }
         }
 
         if render {
@@ -191,49 +229,54 @@ impl Jukebox {
         if let Some(current_id) = self.current_track_id() {
             self.queue.add_to_history(current_id);
         }
+        self.state = PlayState::Track;
         self.start_play(id);
     }
 
     pub fn play(&mut self) {
+        self.state = PlayState::Play;
         self.sink.play();
     }
 
     pub fn pause(&mut self) {
+        self.state = PlayState::Pause;
         self.sink.pause();
     }
 
     pub fn pause_or_play(&mut self) {
         if self.sink.is_paused() {
-            match self.stopped.take() {
-                Some(id) => {
-                    self.play_track(id);
-                }
-                None => {
-                    self.sink.play();
-                }
-            }
+            self.play();
         } else {
-            self.sink.pause();
+            self.pause();
         }
     }
 
     pub fn stop(&mut self) {
         // TODO: Should stop also clear queue and history?
         if let Some(id) = self.current.take() {
-            self.sink.clear();
-            self.stopped = Some(id);
+            self.queue.push_front(id);
             self.events.send(AppEvent::UpdateAndRender);
         }
+
+        self.sink.clear();
+        self.pending = None;
+        self.state = PlayState::Stop;
+        self.audio_decode_handle = None;
     }
 
     pub fn play_next(&mut self) {
-        if let Some(id) = self.queue.next(self.tracks.len(), self.current) {
+        // TODO: Fix when next is actually current.
+        // This happens when going backwards/previous but all tracks errors out.
+        // Then going forward again will replay the current track.
+        if let Some(id) = self.queue.next(self.tracks.len(), self.pending) {
+            self.state = PlayState::Next;
             self.start_play(id);
         }
     }
 
     pub fn play_previous(&mut self) {
-        if let Some(id) = self.queue.previous(self.current) {
+        if let Some(id) = self.queue.previous(self.pending) {
+            self.state = PlayState::Previous;
             self.start_play(id);
         }
     }
@@ -252,8 +295,7 @@ impl Jukebox {
     }
 
     fn start_play(&mut self, id: TrackId) {
-        self.current = Some(id);
-        self.stopped = None;
+        self.pending = Some(id);
         self.audio_decode_handle = Some(self.decode_audio(id));
         self.events.send(AppEvent::UpdateAndRender);
     }
@@ -278,7 +320,7 @@ impl Jukebox {
                     err
                 ))
             })?;
-            Ok(source)
+            Ok((id, source))
         })
     }
 
@@ -320,19 +362,15 @@ impl Jukebox {
         loop {
             match receiver.try_recv() {
                 Ok(audio_file_res) => {
-                    let track_res =
-                        audio_file_res.and_then(|(audio_file, extension)| match extension {
-                            AudioFileExtension::Opus => Err(AudioFileReport::new(format!(
-                                "Unsupported audio file {} due to opus not currently supported",
-                                audio_file.path().display()
-                            ))),
-                            _ => Ok(Track::new(
-                                audio_file.metadata()?,
-                                audio_file.properties(),
-                                audio_file.path().to_path_buf(),
-                                extension,
-                            )),
-                        });
+                    let track_res = audio_file_res.and_then(|(audio_file, extension)| {
+                        let track = Track::new(
+                            audio_file.metadata()?,
+                            audio_file.properties(),
+                            audio_file.path().to_path_buf(),
+                            extension,
+                        );
+                        Ok(track)
+                    });
                     match track_res {
                         Ok(track) => {
                             let last_id = self.tracks.len() as u64;
@@ -521,7 +559,7 @@ impl TrackSort {
 
 // TODO: Add max queue and history length.
 // Just truncate/remove when reaching a certain amount.
-
+// TODO: Maybe use linked list?
 struct PlayQueue {
     queue: VecDeque<TrackId>,
     history: Vec<TrackId>,
