@@ -31,7 +31,7 @@ pub struct Jukebox {
     current: Option<TrackId>,
     pending: Option<TrackId>,
     queue: PlayQueue,
-    state: JukeboxState,
+    state: PlayState,
     audio_file_receiver: Option<AudioFileReceiver>,
     audio_decode_handle: Option<AudioDecodeHandle>,
     audio_write_handles: Vec<AudioWriteHandle>,
@@ -41,7 +41,7 @@ pub struct Jukebox {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum JukeboxState {
+enum PlayState {
     Play,
     Pause,
     Stop,
@@ -63,7 +63,7 @@ impl Jukebox {
             current: None,
             pending: None,
             queue: PlayQueue::new(),
-            state: JukeboxState::Stop,
+            state: PlayState::Stop,
             audio_file_receiver: None,
             audio_decode_handle: None,
             audio_write_handles: Vec::new(),
@@ -155,8 +155,8 @@ impl Jukebox {
                     Ok((id, decoded_audio)) => {
                         self.sink.clear();
                         self.sink.append(decoded_audio);
-                        if self.state != JukeboxState::Pause {
-                            self.state = JukeboxState::Play;
+                        if self.state != PlayState::Pause {
+                            self.state = PlayState::Play;
                             self.sink.play();
                         }
                         self.current = Some(id);
@@ -165,14 +165,14 @@ impl Jukebox {
                         let log = Log::new(err);
                         self.events.send(AppEvent::Log(log));
                         match self.state {
-                            JukeboxState::Play | JukeboxState::Next => {
+                            PlayState::Play | PlayState::Next => {
                                 self.play_next();
                             }
-                            JukeboxState::Previous => {
+                            PlayState::Previous => {
                                 self.play_previous();
                             }
-                            JukeboxState::Track => {
-                                self.state = JukeboxState::Play;
+                            PlayState::Track => {
+                                self.state = PlayState::Play;
                             }
                             _ => {}
                         }
@@ -209,11 +209,11 @@ impl Jukebox {
         let is_finished = self.sink.empty() && !self.sink.is_paused();
         if is_finished {
             match self.state {
-                JukeboxState::Play => {
+                PlayState::Play => {
                     self.play_next();
                 }
-                JukeboxState::Next | JukeboxState::Previous | JukeboxState::Track => {
-                    self.state = JukeboxState::Play;
+                PlayState::Next | PlayState::Previous | PlayState::Track => {
+                    self.state = PlayState::Play;
                 }
                 _ => {}
             }
@@ -229,17 +229,17 @@ impl Jukebox {
         if let Some(current_id) = self.current_track_id() {
             self.queue.add_to_history(current_id);
         }
-        self.state = JukeboxState::Track;
+        self.state = PlayState::Track;
         self.start_play(id);
     }
 
     pub fn play(&mut self) {
-        self.state = JukeboxState::Play;
+        self.state = PlayState::Play;
         self.sink.play();
     }
 
     pub fn pause(&mut self) {
-        self.state = JukeboxState::Pause;
+        self.state = PlayState::Pause;
         self.sink.pause();
     }
 
@@ -260,7 +260,7 @@ impl Jukebox {
 
         self.sink.clear();
         self.pending = None;
-        self.state = JukeboxState::Stop;
+        self.state = PlayState::Stop;
         self.audio_decode_handle = None;
     }
 
@@ -269,14 +269,14 @@ impl Jukebox {
         // This happens when going backwards/previous but all tracks errors out.
         // Then going forward again will replay the current track.
         if let Some(id) = self.queue.next(self.tracks.len(), self.pending) {
-            self.state = JukeboxState::Next;
+            self.state = PlayState::Next;
             self.start_play(id);
         }
     }
 
     pub fn play_previous(&mut self) {
         if let Some(id) = self.queue.previous(self.pending) {
-            self.state = JukeboxState::Previous;
+            self.state = PlayState::Previous;
             self.start_play(id);
         }
     }
