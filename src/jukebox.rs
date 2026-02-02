@@ -629,71 +629,224 @@ impl PlayQueue {
     }
 }
 
+struct NewPlayQueue {
+    list: Vec<TrackId>,
+    index: Option<usize>,
+}
+
+impl NewPlayQueue {
+    const fn new() -> Self {
+        Self {
+            list: Vec::new(),
+            index: None,
+        }
+    }
+
+    const fn len(&self) -> usize {
+        self.list.len()
+    }
+
+    const fn queue_len(&self) -> usize {
+        match self.index {
+            Some(index) => (self.list.len() - index).saturating_sub(1),
+            None => self.list.len(),
+        }
+    }
+
+    const fn history_len(&self) -> usize {
+        match self.index {
+            Some(index) => index,
+            None => 0,
+        }
+    }
+
+    const fn is_empty(&self) -> bool {
+        self.list.is_empty()
+    }
+
+    fn current(&self) -> Option<(TrackId, usize)> {
+        self.index
+            .and_then(|i| self.list.get(i).copied().map(|id| (id, i)))
+    }
+
+    fn iter(&self) -> std::slice::Iter<'_, TrackId> {
+        self.list.iter()
+    }
+
+    fn enqueue(&mut self, id: TrackId) {
+        self.list.push(id);
+    }
+
+    fn enqueue_next(&mut self, id: TrackId) {
+        let insert_index = self.index.map(|i| i + 1).unwrap_or_default();
+        self.list.insert(insert_index, id);
+    }
+
+    fn next(&mut self) -> Option<TrackId> {
+        match self.index {
+            Some(mut index) => {
+                let old_index = index;
+                let max_index = self.len().saturating_sub(1);
+                index = usize::min(index + 1, max_index);
+
+                if index != old_index {
+                    self.index = Some(index);
+                    self.list.get(index).copied()
+                } else {
+                    None
+                }
+            }
+            None => {
+                if self.list.is_empty() {
+                    None
+                } else {
+                    self.index = Some(0);
+                    self.list.first().copied()
+                }
+            }
+        }
+    }
+
+    fn previous(&mut self) -> Option<TrackId> {
+        match self.index {
+            Some(mut index) => {
+                let old_index = index;
+                index = index.saturating_sub(1);
+
+                if index != old_index {
+                    self.index = Some(index);
+                    self.list.get(index).copied()
+                } else {
+                    None
+                }
+            }
+            None => None,
+        }
+    }
+
+    fn clear(&mut self) {
+        self.list.clear();
+        self.index = None;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn play_queue() {
-        const TRACKS_LEN: usize = 3;
-        let mut queue = PlayQueue::new();
-        let mut current = None;
+        const TRACKS_LEN: usize = 2;
+        let mut queue = NewPlayQueue::new();
 
         for i in 0..TRACKS_LEN {
-            queue.push_back(TrackId(i as u64));
+            queue.enqueue(TrackId(i as u64));
         }
 
-        assert_eq!(current, None);
-        assert_eq!(queue.queue.len(), TRACKS_LEN);
-        assert_eq!(queue.history.len(), 0);
+        assert_eq!(queue.current(), None);
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), TRACKS_LEN);
+        assert_eq!(queue.history_len(), 0);
 
         // Next
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(0)));
-        assert_eq!(queue.queue.len(), 2);
-        assert_eq!(queue.history.len(), 0);
+        assert_eq!(queue.next(), Some(TrackId(0)));
+        assert_eq!(queue.current(), Some((TrackId(0), 0)));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), TRACKS_LEN - 1);
+        assert_eq!(queue.history_len(), 0);
 
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), 1);
-        assert_eq!(queue.history.len(), 1);
+        assert_eq!(queue.next(), Some(TrackId(1)));
+        assert_eq!(queue.current(), Some((TrackId(1), 1)));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), TRACKS_LEN - 2);
+        assert_eq!(queue.history_len(), 1);
 
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(2)));
-        assert_eq!(queue.queue.len(), 0);
-        assert_eq!(queue.history.len(), 2);
-
-        // Previous
-        current = queue.previous(current);
-        assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), 1);
-        assert_eq!(queue.history.len(), 1);
-
-        current = queue.previous(current);
-        assert_eq!(current, Some(TrackId(0)));
-        assert_eq!(queue.queue.len(), 2);
-        assert_eq!(queue.history.len(), 0);
-
-        current = queue.previous(current);
-        assert_eq!(current, None);
-        assert_eq!(queue.queue.len(), 2);
-        assert_eq!(queue.history.len(), 0);
-
-        // Next
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), 1);
-        assert_eq!(queue.history.len(), 0);
-
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(2)));
-        assert_eq!(queue.queue.len(), 0);
-        assert_eq!(queue.history.len(), 1);
+        assert_eq!(queue.next(), None);
+        assert_eq!(queue.current(), Some((TrackId(1), 1)));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), 0);
+        assert_eq!(queue.history_len(), 1);
 
         // Previous
-        current = queue.previous(current);
-        assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), 1);
-        assert_eq!(queue.history.len(), 0);
+        assert_eq!(queue.previous(), Some(TrackId(0)));
+        assert_eq!(queue.current(), Some((TrackId(0), 0)));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), 1);
+        assert_eq!(queue.history_len(), 0);
+
+        assert_eq!(queue.previous(), None);
+        assert_eq!(queue.current(), Some((TrackId(0), 0)));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), 1);
+        assert_eq!(queue.history_len(), 0);
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     #[test]
+//     fn play_queue() {
+//         const TRACKS_LEN: usize = 3;
+//         let mut queue = PlayQueue::new();
+//         let mut current = None;
+
+//         for i in 0..TRACKS_LEN {
+//             queue.push_back(TrackId(i as u64));
+//         }
+
+//         assert_eq!(current, None);
+//         assert_eq!(queue.queue.len(), TRACKS_LEN);
+//         assert_eq!(queue.history.len(), 0);
+
+//         // Next
+//         current = queue.next(TRACKS_LEN, current);
+//         assert_eq!(current, Some(TrackId(0)));
+//         assert_eq!(queue.queue.len(), 2);
+//         assert_eq!(queue.history.len(), 0);
+
+//         current = queue.next(TRACKS_LEN, current);
+//         assert_eq!(current, Some(TrackId(1)));
+//         assert_eq!(queue.queue.len(), 1);
+//         assert_eq!(queue.history.len(), 1);
+
+//         current = queue.next(TRACKS_LEN, current);
+//         assert_eq!(current, Some(TrackId(2)));
+//         assert_eq!(queue.queue.len(), 0);
+//         assert_eq!(queue.history.len(), 2);
+
+//         // Previous
+//         current = queue.previous(current);
+//         assert_eq!(current, Some(TrackId(1)));
+//         assert_eq!(queue.queue.len(), 1);
+//         assert_eq!(queue.history.len(), 1);
+
+//         current = queue.previous(current);
+//         assert_eq!(current, Some(TrackId(0)));
+//         assert_eq!(queue.queue.len(), 2);
+//         assert_eq!(queue.history.len(), 0);
+
+//         current = queue.previous(current);
+//         assert_eq!(current, None);
+//         assert_eq!(queue.queue.len(), 2);
+//         assert_eq!(queue.history.len(), 0);
+
+//         // Next
+//         current = queue.next(TRACKS_LEN, current);
+//         assert_eq!(current, Some(TrackId(1)));
+//         assert_eq!(queue.queue.len(), 1);
+//         assert_eq!(queue.history.len(), 0);
+
+//         current = queue.next(TRACKS_LEN, current);
+//         assert_eq!(current, Some(TrackId(2)));
+//         assert_eq!(queue.queue.len(), 0);
+//         assert_eq!(queue.history.len(), 1);
+
+//         // Previous
+//         current = queue.previous(current);
+//         assert_eq!(current, Some(TrackId(1)));
+//         assert_eq!(queue.queue.len(), 1);
+//         assert_eq!(queue.history.len(), 0);
+//     }
+// }
