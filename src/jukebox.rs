@@ -41,6 +41,7 @@ pub struct Jukebox {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum JukeboxState {
+    Track,
     Play,
     Pause,
     Stop,
@@ -161,6 +162,15 @@ impl Jukebox {
                     Err(err) => {
                         let log = Log::new(err);
                         self.events.send(AppEvent::Log(log));
+                        match self.state {
+                            JukeboxState::Play | JukeboxState::Next => {
+                                self.play_next();
+                            }
+                            JukeboxState::Prev => {
+                                self.play_previous();
+                            }
+                            _ => {}
+                        }
                     }
                 }
             }
@@ -205,6 +215,7 @@ impl Jukebox {
         if let Some(current_id) = self.current_track_id() {
             self.queue.add_to_history(current_id);
         }
+        self.state = JukeboxState::Track;
         self.start_play(id);
     }
 
