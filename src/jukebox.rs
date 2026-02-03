@@ -262,48 +262,18 @@ impl Jukebox {
     }
 
     pub fn play_next(&mut self) {
-        // let mut next_id = match self.current {
-        //     Some(_id) => {
-        //         // TODO: Fix when next is actually current.
-        //         // This happens when going backwards/previous but all tracks errors out.
-        //         // Then going forward again will replay the current track.
-        //         self.queue.next()
-        //     }
-        //     None => self.queue.current_or_next(),
-        // };
-
         let mut next = self.queue.current_or_next();
 
-        // TODO: Fix when next is actually current.
-        // This happens when going backwards/previous but all tracks errors out.
-        // Then going forward again will replay the current track.
         while let Some(id) = next {
-            // if next_id == self.current || self.faulty.contains(&id) {
-            //     next_id = self.queue.next();
-            // } else {
-            //     break;
-            // }
+            // TODO: Fix when next is actually current.
+            // This happens when going backwards/previous but all tracks errors out.
+            // Then going forward again will replay the current track.
             if self.faulty.contains(&id) {
                 next = self.queue.next();
             } else {
                 break;
             }
         }
-
-        // loop {
-        //     if next == self.current || next.map(|id| self.faulty.contains(&id)).unwrap_or_default()
-        //     {
-        //         next = self.queue.next();
-        //     } else {
-        //         break;
-        //     }
-        // }
-
-        // if let Some(id) = next_id
-        //     && self.faulty.contains(&id)
-        // {
-        //     next_id = self.queue.next();
-        // }
 
         match next {
             Some(id) => {
@@ -324,38 +294,6 @@ impl Jukebox {
                 self.start_play(id);
             }
         }
-
-        // loop {
-        //     match next_id {
-        //         Some(id) => {
-        //             if self.faulty.contains(&id) {
-        //                 next_id = self.queue.next();
-        //                 continue;
-        //             }
-        //             self.state = PlayState::Next;
-        //             self.start_play(id);
-        //             break;
-        //         }
-        //         None => {
-        //             if self.tracks.is_empty() {
-        //                 break;
-        //             }
-
-        //             let id = self
-        //                 .queue
-        //                 .enqueue_next(TrackId(fastrand::u64(0..self.tracks.len() as u64)))
-        //                 .next()
-        //                 .unwrap();
-        //             if self.faulty.contains(&id) {
-        //                 next_id = self.queue.next();
-        //                 continue;
-        //             }
-        //             self.state = PlayState::Next;
-        //             self.start_play(id);
-        //             break;
-        //         }
-        //     }
-        // }
     }
 
     pub fn play_previous(&mut self) {
@@ -640,8 +578,7 @@ impl TrackSort {
     }
 }
 
-// TODO: Add max queue and history length.
-// Just truncate/remove when reaching a certain amount.
+// TODO: max length?
 struct PlayQueue {
     list: Vec<TrackId>,
     index: Option<usize>,
