@@ -301,9 +301,14 @@ impl Jukebox {
     }
 
     pub fn play_previous(&mut self) {
-        if let Some(id) = self.queue.previous() {
+        while let Some(id) = self.queue.previous() {
+            if self.faulty.contains(&id) {
+                continue;
+            }
+
             self.state = PlayState::Previous;
             self.start_play(id);
+            return;
         }
     }
 
