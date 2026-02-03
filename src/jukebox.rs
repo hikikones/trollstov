@@ -262,38 +262,42 @@ impl Jukebox {
     }
 
     pub fn play_next(&mut self) {
+        if self.tracks.is_empty() {
+            return;
+        }
+
         let mut next = self.queue.current_or_next();
 
-        while let Some(id) = next {
-            // TODO: Fix when next is actually current.
-            // This happens when going backwards/previous but all tracks errors out.
-            // Then going forward again will replay the current track.
-            if self.faulty.contains(&id) {
+        loop {
+            // TODO: Comparison should be by index and not TrackId.
+            // The same track could be queued multiple times,
+            // but only the current should be skipped.
+            if next == self.current {
                 next = self.queue.next();
-            } else {
-                break;
             }
-        }
 
-        match next {
-            Some(id) => {
-                self.state = PlayState::Next;
-                self.start_play(id);
-            }
-            None => {
-                if self.tracks.is_empty() {
+            match next {
+                Some(id) => {
+                    if self.faulty.contains(&id) {
+                        next = self.queue.next();
+                        continue;
+                    }
+
+                    self.state = PlayState::Next;
+                    self.start_play(id);
                     return;
                 }
-
-                let id = self
-                    .queue
-                    .enqueue_next(TrackId(fastrand::u64(0..self.tracks.len() as u64)))
-                    .next()
-                    .unwrap();
-                self.state = PlayState::Next;
-                self.start_play(id);
+                None => {
+                    break;
+                }
             }
         }
+
+        // No tracks in the queue, enqueue a random
+        let random = fastrand::u64(0..self.tracks.len() as u64);
+        let id: TrackId = self.queue.enqueue(TrackId(random)).next().unwrap();
+        self.state = PlayState::Next;
+        self.start_play(id);
     }
 
     pub fn play_previous(&mut self) {
@@ -623,8 +627,9 @@ impl PlayQueue {
         self.list.iter()
     }
 
-    fn enqueue(&mut self, id: TrackId) {
+    fn enqueue(&mut self, id: TrackId) -> &mut Self {
         self.list.push(id);
+        self
     }
 
     fn enqueue_next(&mut self, id: TrackId) -> &mut Self {
