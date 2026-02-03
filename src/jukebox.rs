@@ -1,5 +1,6 @@
 use std::{
     cmp::Ordering,
+    collections::HashSet,
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
@@ -18,8 +19,7 @@ use crate::{
 };
 
 type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileReport>>;
-type AudioDecodeHandle =
-    std::thread::JoinHandle<Result<(TrackId, Decoder<BufReader<File>>), AudioFileReport>>;
+type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, AudioFileReport>>;
 type AudioWriteHandle =
     std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileReport>>;
 
@@ -31,8 +31,9 @@ pub struct Jukebox {
     queue: PlayQueue,
     state: PlayState,
     audio_file_receiver: Option<AudioFileReceiver>,
-    audio_decode_handle: Option<AudioDecodeHandle>,
+    audio_decode_handle: Option<(TrackId, AudioDecodeHandle)>,
     audio_write_handles: Vec<AudioWriteHandle>,
+    faulty: HashSet<TrackId>,
     events: EventSender,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
@@ -64,6 +65,7 @@ impl Jukebox {
             audio_file_receiver: None,
             audio_decode_handle: None,
             audio_write_handles: Vec::new(),
+            faulty: HashSet::new(),
             events,
             sink,
             _stream: stream,
@@ -144,12 +146,12 @@ impl Jukebox {
         let mut render = false;
 
         // Poll thread handle for audio decoding
-        if let Some(handle) = self.audio_decode_handle.as_ref() {
+        if let Some((_, handle)) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
                 render = true;
-                let handle = self.audio_decode_handle.take().unwrap();
+                let (id, handle) = self.audio_decode_handle.take().unwrap();
                 match handle.join().unwrap() {
-                    Ok((id, decoded_audio)) => {
+                    Ok(decoded_audio) => {
                         self.sink.clear();
                         self.sink.append(decoded_audio);
                         if self.state != PlayState::Pause {
@@ -161,6 +163,7 @@ impl Jukebox {
                     Err(err) => {
                         let log = Log::new(err);
                         self.events.send(AppEvent::Log(log));
+                        self.faulty.insert(id);
                         match self.state {
                             PlayState::Play | PlayState::Next => {
                                 self.play_next();
@@ -259,16 +262,50 @@ impl Jukebox {
     }
 
     pub fn play_next(&mut self) {
-        let next_id = match self.current {
-            Some(_id) => {
-                // TODO: Fix when next is actually current.
-                // This happens when going backwards/previous but all tracks errors out.
-                // Then going forward again will replay the current track.
-                self.queue.next()
+        // let mut next_id = match self.current {
+        //     Some(_id) => {
+        //         // TODO: Fix when next is actually current.
+        //         // This happens when going backwards/previous but all tracks errors out.
+        //         // Then going forward again will replay the current track.
+        //         self.queue.next()
+        //     }
+        //     None => self.queue.current_or_next(),
+        // };
+
+        let mut next = self.queue.current_or_next();
+
+        // TODO: Fix when next is actually current.
+        // This happens when going backwards/previous but all tracks errors out.
+        // Then going forward again will replay the current track.
+        while let Some(id) = next {
+            // if next_id == self.current || self.faulty.contains(&id) {
+            //     next_id = self.queue.next();
+            // } else {
+            //     break;
+            // }
+            if self.faulty.contains(&id) {
+                next = self.queue.next();
+            } else {
+                break;
             }
-            None => self.queue.current_or_next(),
-        };
-        match next_id {
+        }
+
+        // loop {
+        //     if next == self.current || next.map(|id| self.faulty.contains(&id)).unwrap_or_default()
+        //     {
+        //         next = self.queue.next();
+        //     } else {
+        //         break;
+        //     }
+        // }
+
+        // if let Some(id) = next_id
+        //     && self.faulty.contains(&id)
+        // {
+        //     next_id = self.queue.next();
+        // }
+
+        match next {
             Some(id) => {
                 self.state = PlayState::Next;
                 self.start_play(id);
@@ -287,6 +324,38 @@ impl Jukebox {
                 self.start_play(id);
             }
         }
+
+        // loop {
+        //     match next_id {
+        //         Some(id) => {
+        //             if self.faulty.contains(&id) {
+        //                 next_id = self.queue.next();
+        //                 continue;
+        //             }
+        //             self.state = PlayState::Next;
+        //             self.start_play(id);
+        //             break;
+        //         }
+        //         None => {
+        //             if self.tracks.is_empty() {
+        //                 break;
+        //             }
+
+        //             let id = self
+        //                 .queue
+        //                 .enqueue_next(TrackId(fastrand::u64(0..self.tracks.len() as u64)))
+        //                 .next()
+        //                 .unwrap();
+        //             if self.faulty.contains(&id) {
+        //                 next_id = self.queue.next();
+        //                 continue;
+        //             }
+        //             self.state = PlayState::Next;
+        //             self.start_play(id);
+        //             break;
+        //         }
+        //     }
+        // }
     }
 
     pub fn play_previous(&mut self) {
@@ -310,7 +379,7 @@ impl Jukebox {
     }
 
     fn start_play(&mut self, id: TrackId) {
-        self.audio_decode_handle = Some(self.decode_audio(id));
+        self.audio_decode_handle = Some((id, self.decode_audio(id)));
         self.events.send(AppEvent::UpdateAndRender);
     }
 
@@ -334,7 +403,7 @@ impl Jukebox {
                     err
                 ))
             })?;
-            Ok((id, source))
+            Ok(source)
         })
     }
 
