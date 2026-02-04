@@ -6,9 +6,8 @@ use ratatui::{
 
 use crate::{
     app::Colors,
-    audio::AudioRating,
     events::{AppEvent, EventSender},
-    jukebox::{Jukebox, TrackSort},
+    jukebox::{AudioRating, Jukebox, TrackSort},
     utils,
     widgets::{List, Shortcut, Shortcuts},
 };

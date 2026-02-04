@@ -3,7 +3,6 @@ use std::{
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
-    sync::mpsc,
     time::Duration,
 };
 
@@ -461,63 +460,6 @@ impl AudioFileExtension {
             }
         })
     }
-}
-
-pub fn traverse_and_process_audio_files(
-    root: impl AsRef<Path>,
-    follow_links: bool,
-    sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileReport>>,
-) {
-    let root = root.as_ref().to_path_buf();
-    std::thread::spawn(move || {
-        walkdir::WalkDir::new(root)
-            .follow_links(follow_links)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|entry| entry.file_type().is_file())
-            .filter_map(|file| {
-                AudioFileExtension::from_path(file.path()).map(|ext| (file.into_path(), ext))
-            })
-            .for_each(|(path, extension)| {
-                let audio_file =
-                    AudioFile::read_from(path, extension).map(|audio_file| (audio_file, extension));
-                let _ = sender.send(audio_file);
-            });
-    });
-}
-
-pub fn _traverse_and_process_audio_files_in_parallel(
-    root: impl AsRef<Path>,
-    follow_links: bool,
-    sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileReport>>,
-) {
-    let root = root.as_ref().to_path_buf();
-    std::thread::spawn(move || {
-        ignore::WalkBuilder::new(root)
-            .follow_links(follow_links)
-            .build_parallel()
-            .run(|| {
-                let sender = sender.clone();
-                Box::new(move |result| {
-                    if let Ok(dir_entry) = result {
-                        if let Some(file_type) = dir_entry.file_type() {
-                            if file_type.is_file() {
-                                if let Some(extension) =
-                                    AudioFileExtension::from_path(dir_entry.path())
-                                {
-                                    let audio_file =
-                                        AudioFile::read_from(dir_entry.into_path(), extension)
-                                            .map(|audio_file| (audio_file, extension));
-                                    let _ = sender.send(audio_file);
-                                }
-                            }
-                        }
-                    }
-
-                    ignore::WalkState::Continue
-                })
-            });
-    });
 }
 
 #[derive(Debug)]
