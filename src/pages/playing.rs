@@ -92,7 +92,7 @@ impl PlayingPage {
         let [playing_area, _, queue_area] = Layout::vertical([
             Constraint::Percentage(60),
             Constraint::Length(1),
-            Constraint::Fill(3),
+            Constraint::Min(3),
         ])
         .areas(area);
 
