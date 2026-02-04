@@ -120,8 +120,8 @@ impl PlayingPage {
         self.render_queue(queue_area_inner, buf, jb, colors);
     }
 
-    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers) {
-        if self.list.input(key, modifiers) {
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) {
+        if self.list.input(key, KeyModifiers::empty()) {
             self.events.send(AppEvent::Render);
         }
     }
