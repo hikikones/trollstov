@@ -237,15 +237,21 @@ impl PlayingPage {
             return;
         }
 
+        let current_track = jb.current_track();
         self.list.render(
             area,
             buf,
-            jb.queue_iter(),
-            |line, buf, id, is_index, is_selected| {
+            jb.queue_iter().enumerate(),
+            |line, buf, (i, id), is_index, is_selected| {
                 let mut style = Style::new();
                 if is_index || is_selected {
                     style.bg = Some(colors.accent);
                     style.fg = Some(colors.on_accent);
+                }
+                if let Some((_, current_index)) = current_track
+                    && current_index == i
+                {
+                    style.add_modifier.insert(Modifier::BOLD);
                 }
 
                 // TODO: Add number to tracks for those with empty metadata?

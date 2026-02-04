@@ -27,11 +27,11 @@ pub struct Jukebox {
     music_dir: PathBuf,
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
-    current: Option<TrackId>,
+    current: Option<(TrackId, usize)>,
     queue: PlayQueue,
     state: PlayState,
     audio_file_receiver: Option<AudioFileReceiver>,
-    audio_decode_handle: Option<(TrackId, AudioDecodeHandle)>,
+    audio_decode_handle: Option<(TrackId, usize, AudioDecodeHandle)>,
     audio_write_handles: Vec<AudioWriteHandle>,
     faulty: HashSet<TrackId>,
     events: EventSender,
@@ -112,8 +112,12 @@ impl Jukebox {
         self.sort = sort;
     }
 
-    pub const fn current_track_id(&self) -> Option<TrackId> {
+    pub const fn current_track(&self) -> Option<(TrackId, usize)> {
         self.current
+    }
+
+    pub fn current_track_id(&self) -> Option<TrackId> {
+        self.current.map(|(id, _)| id)
     }
 
     pub fn current_track_pos(&self) -> Duration {
@@ -146,10 +150,10 @@ impl Jukebox {
         let mut render = false;
 
         // Poll thread handle for audio decoding
-        if let Some((_, handle)) = self.audio_decode_handle.as_ref() {
+        if let Some((_, _, handle)) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
                 render = true;
-                let (id, handle) = self.audio_decode_handle.take().unwrap();
+                let (id, index, handle) = self.audio_decode_handle.take().unwrap();
                 match handle.join().unwrap() {
                     Ok(decoded_audio) => {
                         self.sink.clear();
@@ -158,7 +162,7 @@ impl Jukebox {
                             self.state = PlayState::Play;
                             self.sink.play();
                         }
-                        self.current = Some(id);
+                        self.current = Some((id, index));
                     }
                     Err(err) => {
                         let log = Log::new(err);
@@ -226,9 +230,9 @@ impl Jukebox {
 
     pub fn play_track(&mut self, id: TrackId) {
         // TODO: If new track is same as current, simply rewind.
-        let id = self.queue.enqueue_next(id).next().unwrap();
+        let (id, index) = self.queue.enqueue_next(id).next().unwrap();
         self.state = PlayState::Track;
-        self.start_play(id);
+        self.start_play(id, index);
     }
 
     pub fn play(&mut self) {
@@ -269,22 +273,19 @@ impl Jukebox {
         let mut next = self.queue.current_or_next();
 
         loop {
-            // TODO: Comparison should be by index and not TrackId.
-            // The same track could be queued multiple times,
-            // but only the current should be skipped.
             if next == self.current {
                 next = self.queue.next();
             }
 
             match next {
-                Some(id) => {
+                Some((id, index)) => {
                     if self.faulty.contains(&id) {
                         next = self.queue.next();
                         continue;
                     }
 
                     self.state = PlayState::Next;
-                    self.start_play(id);
+                    self.start_play(id, index);
                     return;
                 }
                 None => {
@@ -295,19 +296,19 @@ impl Jukebox {
 
         // No tracks in the queue, enqueue a random
         let random = fastrand::u64(0..self.tracks.len() as u64);
-        let id: TrackId = self.queue.enqueue(TrackId(random)).next().unwrap();
+        let (id, index) = self.queue.enqueue(TrackId(random)).next().unwrap();
         self.state = PlayState::Next;
-        self.start_play(id);
+        self.start_play(id, index);
     }
 
     pub fn play_previous(&mut self) {
-        while let Some(id) = self.queue.previous() {
+        while let Some((id, index)) = self.queue.previous() {
             if self.faulty.contains(&id) {
                 continue;
             }
 
             self.state = PlayState::Previous;
-            self.start_play(id);
+            self.start_play(id, index);
             return;
         }
     }
@@ -325,8 +326,8 @@ impl Jukebox {
         self.audio_write_handles.push(handle);
     }
 
-    fn start_play(&mut self, id: TrackId) {
-        self.audio_decode_handle = Some((id, self.decode_audio(id)));
+    fn start_play(&mut self, id: TrackId, index: usize) {
+        self.audio_decode_handle = Some((id, index, self.decode_audio(id)));
         self.events.send(AppEvent::UpdateAndRender);
     }
 
@@ -643,11 +644,11 @@ impl PlayQueue {
         self
     }
 
-    fn current_or_next(&mut self) -> Option<TrackId> {
-        self.current().map(|(id, _)| id).or_else(|| self.next())
+    fn current_or_next(&mut self) -> Option<(TrackId, usize)> {
+        self.current().or_else(|| self.next())
     }
 
-    fn next(&mut self) -> Option<TrackId> {
+    fn next(&mut self) -> Option<(TrackId, usize)> {
         match self.index {
             Some(mut index) => {
                 let old_index = index;
@@ -656,7 +657,7 @@ impl PlayQueue {
 
                 if index != old_index {
                     self.index = Some(index);
-                    self.list.get(index).copied()
+                    self.list.get(index).copied().zip(self.index)
                 } else {
                     None
                 }
@@ -666,13 +667,13 @@ impl PlayQueue {
                     None
                 } else {
                     self.index = Some(0);
-                    self.list.first().copied()
+                    self.list.first().copied().zip(self.index)
                 }
             }
         }
     }
 
-    fn previous(&mut self) -> Option<TrackId> {
+    fn previous(&mut self) -> Option<(TrackId, usize)> {
         match self.index {
             Some(mut index) => {
                 let old_index = index;
@@ -680,7 +681,7 @@ impl PlayQueue {
 
                 if index != old_index {
                     self.index = Some(index);
-                    self.list.get(index).copied()
+                    self.list.get(index).copied().zip(self.index)
                 } else {
                     None
                 }
@@ -714,13 +715,13 @@ mod tests {
         assert_eq!(queue.history_len(), 0);
 
         // Next
-        assert_eq!(queue.next(), Some(TrackId(0)));
+        assert_eq!(queue.next(), Some((TrackId(0), 0)));
         assert_eq!(queue.current(), Some((TrackId(0), 0)));
         assert_eq!(queue.len(), TRACKS_LEN);
         assert_eq!(queue.queue_len(), TRACKS_LEN - 1);
         assert_eq!(queue.history_len(), 0);
 
-        assert_eq!(queue.next(), Some(TrackId(1)));
+        assert_eq!(queue.next(), Some((TrackId(1), 1)));
         assert_eq!(queue.current(), Some((TrackId(1), 1)));
         assert_eq!(queue.len(), TRACKS_LEN);
         assert_eq!(queue.queue_len(), TRACKS_LEN - 2);
@@ -733,7 +734,7 @@ mod tests {
         assert_eq!(queue.history_len(), 1);
 
         // Previous
-        assert_eq!(queue.previous(), Some(TrackId(0)));
+        assert_eq!(queue.previous(), Some((TrackId(0), 0)));
         assert_eq!(queue.current(), Some((TrackId(0), 0)));
         assert_eq!(queue.len(), TRACKS_LEN);
         assert_eq!(queue.queue_len(), 1);
