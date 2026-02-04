@@ -237,7 +237,7 @@ impl PlayingPage {
             return;
         }
 
-        let current_track = jb.current_track();
+        let queue_index = jb.current_queue_index();
         self.list.render(
             area,
             buf,
@@ -248,8 +248,8 @@ impl PlayingPage {
                     style.bg = Some(colors.accent);
                     style.fg = Some(colors.on_accent);
                 }
-                if let Some((_, current_index)) = current_track
-                    && current_index == i
+                if let Some(queue_index) = queue_index
+                    && queue_index == i
                 {
                     style.add_modifier.insert(Modifier::BOLD);
                 }

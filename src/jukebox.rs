@@ -120,16 +120,28 @@ impl Jukebox {
         self.current.map(|(id, _)| id)
     }
 
+    pub fn current_queue_index(&self) -> Option<usize> {
+        self.current.map(|(_, index)| index)
+    }
+
     pub fn current_track_pos(&self) -> Duration {
         self.sink.get_pos()
     }
 
-    pub fn is_queue_empty(&self) -> bool {
+    pub const fn is_queue_empty(&self) -> bool {
         self.queue.is_empty()
     }
 
-    pub fn queue_len(&self) -> usize {
+    pub const fn queue_total(&self) -> usize {
         self.queue.len()
+    }
+
+    pub const fn queue_len(&self) -> usize {
+        self.queue.queue_len()
+    }
+
+    pub const fn history_len(&self) -> usize {
+        self.queue.history_len()
     }
 
     pub fn queue_iter(&self) -> impl ExactSizeIterator<Item = TrackId> {
@@ -593,6 +605,8 @@ struct PlayQueue {
     list: Vec<TrackId>,
     index: Option<usize>,
 }
+
+// TODO: QueueIndex(usize).
 
 impl PlayQueue {
     const fn new() -> Self {
