@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    collections::VecDeque,
+    collections::HashSet,
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
@@ -19,8 +19,7 @@ use crate::{
 };
 
 type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileReport>>;
-type AudioDecodeHandle =
-    std::thread::JoinHandle<Result<(TrackId, Decoder<BufReader<File>>), AudioFileReport>>;
+type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, AudioFileReport>>;
 type AudioWriteHandle =
     std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileReport>>;
 
@@ -28,13 +27,13 @@ pub struct Jukebox {
     music_dir: PathBuf,
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
-    current: Option<TrackId>,
-    pending: Option<TrackId>,
+    current: Option<(TrackId, QueueIndex)>,
     queue: PlayQueue,
     state: PlayState,
     audio_file_receiver: Option<AudioFileReceiver>,
-    audio_decode_handle: Option<AudioDecodeHandle>,
+    audio_decode_handle: Option<(TrackId, QueueIndex, AudioDecodeHandle)>,
     audio_write_handles: Vec<AudioWriteHandle>,
+    faulty: HashSet<TrackId>,
     events: EventSender,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
@@ -61,12 +60,12 @@ impl Jukebox {
             tracks: IndexMap::new(),
             sort: TrackSort::default(),
             current: None,
-            pending: None,
             queue: PlayQueue::new(),
             state: PlayState::Stop,
             audio_file_receiver: None,
             audio_decode_handle: None,
             audio_write_handles: Vec::new(),
+            faulty: HashSet::new(),
             events,
             sink,
             _stream: stream,
@@ -113,32 +112,48 @@ impl Jukebox {
         self.sort = sort;
     }
 
-    pub const fn current_track_id(&self) -> Option<TrackId> {
+    pub const fn current_track(&self) -> Option<(TrackId, QueueIndex)> {
         self.current
+    }
+
+    pub fn current_track_id(&self) -> Option<TrackId> {
+        self.current.map(|(id, _)| id)
+    }
+
+    pub fn current_queue_index(&self) -> Option<QueueIndex> {
+        self.current.map(|(_, index)| index)
     }
 
     pub fn current_track_pos(&self) -> Duration {
         self.sink.get_pos()
     }
 
-    pub fn is_queue_empty(&self) -> bool {
+    pub const fn is_queue_empty(&self) -> bool {
         self.queue.is_empty()
     }
 
-    pub fn queue_len(&self) -> usize {
+    pub const fn queue_total(&self) -> usize {
         self.queue.len()
     }
 
-    pub fn queue_iter(&self) -> impl ExactSizeIterator<Item = TrackId> {
-        self.queue.iter().copied()
+    pub const fn queue_len(&self) -> usize {
+        self.queue.queue_len()
     }
 
-    pub fn enqueue_front(&mut self, id: TrackId) {
-        self.queue.push_front(id);
+    pub const fn history_len(&self) -> usize {
+        self.queue.history_len()
     }
 
-    pub fn enqueue_back(&mut self, id: TrackId) {
-        self.queue.push_back(id);
+    pub fn queue_iter(&self) -> impl ExactSizeIterator<Item = (TrackId, QueueIndex)> {
+        self.queue.iter()
+    }
+
+    pub fn enqueue(&mut self, id: TrackId) {
+        self.queue.enqueue(id);
+    }
+
+    pub fn enqueue_next(&mut self, id: TrackId) {
+        self.queue.enqueue_next(id);
     }
 
     pub fn update(&mut self) {
@@ -147,23 +162,24 @@ impl Jukebox {
         let mut render = false;
 
         // Poll thread handle for audio decoding
-        if let Some(handle) = self.audio_decode_handle.as_ref() {
+        if let Some((_, _, handle)) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
                 render = true;
-                let handle = self.audio_decode_handle.take().unwrap();
+                let (id, index, handle) = self.audio_decode_handle.take().unwrap();
                 match handle.join().unwrap() {
-                    Ok((id, decoded_audio)) => {
+                    Ok(decoded_audio) => {
                         self.sink.clear();
                         self.sink.append(decoded_audio);
                         if self.state != PlayState::Pause {
                             self.state = PlayState::Play;
                             self.sink.play();
                         }
-                        self.current = Some(id);
+                        self.current = Some((id, index));
                     }
                     Err(err) => {
                         let log = Log::new(err);
                         self.events.send(AppEvent::Log(log));
+                        self.faulty.insert(id);
                         match self.state {
                             PlayState::Play | PlayState::Next => {
                                 self.play_next();
@@ -226,11 +242,9 @@ impl Jukebox {
 
     pub fn play_track(&mut self, id: TrackId) {
         // TODO: If new track is same as current, simply rewind.
-        if let Some(current_id) = self.current_track_id() {
-            self.queue.add_to_history(current_id);
-        }
+        let (id, index) = self.queue.enqueue_next(id).next().unwrap();
         self.state = PlayState::Track;
-        self.start_play(id);
+        self.start_play(id, index);
     }
 
     pub fn play(&mut self) {
@@ -253,31 +267,61 @@ impl Jukebox {
 
     pub fn stop(&mut self) {
         // TODO: Should stop also clear queue and history?
-        if let Some(id) = self.current.take() {
-            self.queue.push_front(id);
+        if self.current.is_some() {
             self.events.send(AppEvent::UpdateAndRender);
         }
 
         self.sink.clear();
-        self.pending = None;
+        self.current = None;
         self.state = PlayState::Stop;
         self.audio_decode_handle = None;
     }
 
     pub fn play_next(&mut self) {
-        // TODO: Fix when next is actually current.
-        // This happens when going backwards/previous but all tracks errors out.
-        // Then going forward again will replay the current track.
-        if let Some(id) = self.queue.next(self.tracks.len(), self.pending) {
-            self.state = PlayState::Next;
-            self.start_play(id);
+        if self.tracks.is_empty() {
+            return;
         }
+
+        let mut next = self.queue.current_or_next();
+
+        loop {
+            if next == self.current {
+                next = self.queue.next();
+            }
+
+            match next {
+                Some((id, index)) => {
+                    if self.faulty.contains(&id) {
+                        next = self.queue.next();
+                        continue;
+                    }
+
+                    self.state = PlayState::Next;
+                    self.start_play(id, index);
+                    return;
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+
+        // No tracks in the queue, enqueue a random
+        let random = fastrand::u64(0..self.tracks.len() as u64);
+        let (id, index) = self.queue.enqueue(TrackId(random)).next().unwrap();
+        self.state = PlayState::Next;
+        self.start_play(id, index);
     }
 
     pub fn play_previous(&mut self) {
-        if let Some(id) = self.queue.previous(self.pending) {
+        while let Some((id, index)) = self.queue.previous() {
+            if self.faulty.contains(&id) {
+                continue;
+            }
+
             self.state = PlayState::Previous;
-            self.start_play(id);
+            self.start_play(id, index);
+            return;
         }
     }
 
@@ -294,9 +338,8 @@ impl Jukebox {
         self.audio_write_handles.push(handle);
     }
 
-    fn start_play(&mut self, id: TrackId) {
-        self.pending = Some(id);
-        self.audio_decode_handle = Some(self.decode_audio(id));
+    fn start_play(&mut self, id: TrackId, index: QueueIndex) {
+        self.audio_decode_handle = Some((id, index, self.decode_audio(id)));
         self.events.send(AppEvent::UpdateAndRender);
     }
 
@@ -320,7 +363,7 @@ impl Jukebox {
                     err
                 ))
             })?;
-            Ok((id, source))
+            Ok(source)
         })
     }
 
@@ -557,75 +600,123 @@ impl TrackSort {
     }
 }
 
-// TODO: Add max queue and history length.
-// Just truncate/remove when reaching a certain amount.
-// TODO: Maybe use linked list?
+// TODO: max length?
 struct PlayQueue {
-    queue: VecDeque<TrackId>,
-    history: Vec<TrackId>,
+    list: Vec<TrackId>,
+    index: Option<QueueIndex>,
 }
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct QueueIndex(usize);
 
 impl PlayQueue {
     const fn new() -> Self {
         Self {
-            queue: VecDeque::new(),
-            history: Vec::new(),
+            list: Vec::new(),
+            index: None,
         }
     }
 
-    fn len(&self) -> usize {
-        self.queue.len()
+    const fn len(&self) -> usize {
+        self.list.len()
     }
 
-    fn is_empty(&self) -> bool {
-        self.queue.is_empty()
-    }
-
-    fn iter(&self) -> std::collections::vec_deque::Iter<'_, TrackId> {
-        self.queue.iter()
-    }
-
-    fn push_back(&mut self, id: TrackId) {
-        self.queue.push_back(id);
-    }
-
-    fn push_front(&mut self, id: TrackId) {
-        self.queue.push_front(id);
-    }
-
-    fn add_to_history(&mut self, id: TrackId) {
-        self.history.push(id);
-    }
-
-    fn next(&mut self, tracks_len: usize, current_track: Option<TrackId>) -> Option<TrackId> {
-        if tracks_len == 0 {
-            return None;
+    const fn queue_len(&self) -> usize {
+        match self.index {
+            Some(index) => (self.list.len() - index.0).saturating_sub(1),
+            None => self.list.len(),
         }
-
-        if let Some(id) = current_track {
-            self.history.push(id);
-        }
-
-        self.queue
-            .pop_front()
-            .unwrap_or_else(|| TrackId(fastrand::u64(0..tracks_len as u64)))
-            .into()
     }
 
-    fn previous(&mut self, current_track: Option<TrackId>) -> Option<TrackId> {
-        if let Some(previous_id) = self.history.pop() {
-            if let Some(current_id) = current_track {
-                self.queue.push_front(current_id);
+    const fn history_len(&self) -> usize {
+        match self.index {
+            Some(index) => index.0,
+            None => 0,
+        }
+    }
+
+    const fn is_empty(&self) -> bool {
+        self.list.is_empty()
+    }
+
+    fn current(&self) -> Option<(TrackId, QueueIndex)> {
+        self.index
+            .and_then(|i| self.list.get(i.0).copied().map(|id| (id, i)))
+    }
+
+    fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, QueueIndex)> {
+        self.list
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (*id, QueueIndex(i)))
+    }
+
+    fn enqueue(&mut self, id: TrackId) -> &mut Self {
+        self.list.push(id);
+        self
+    }
+
+    fn enqueue_next(&mut self, id: TrackId) -> &mut Self {
+        let insert_index = self.index.map(|i| i.0 + 1).unwrap_or_default();
+        self.list.insert(insert_index, id);
+        self
+    }
+
+    fn current_or_next(&mut self) -> Option<(TrackId, QueueIndex)> {
+        self.current().or_else(|| self.next())
+    }
+
+    fn next(&mut self) -> Option<(TrackId, QueueIndex)> {
+        match self.index {
+            Some(QueueIndex(mut index)) => {
+                let old_index = index;
+                let max_index = self.len().saturating_sub(1);
+                index = usize::min(index + 1, max_index);
+
+                if index != old_index {
+                    self.index = Some(QueueIndex(index));
+                    self.list
+                        .get(index)
+                        .copied()
+                        .map(|id| (id, QueueIndex(index)))
+                } else {
+                    None
+                }
             }
-            return Some(previous_id);
+            None => {
+                if self.list.is_empty() {
+                    None
+                } else {
+                    self.index = Some(QueueIndex(0));
+                    self.list.first().copied().map(|id| (id, QueueIndex(0)))
+                }
+            }
         }
+    }
 
-        None
+    fn previous(&mut self) -> Option<(TrackId, QueueIndex)> {
+        match self.index {
+            Some(QueueIndex(mut index)) => {
+                let old_index = index;
+                index = index.saturating_sub(1);
+
+                if index != old_index {
+                    self.index = Some(QueueIndex(index));
+                    self.list
+                        .get(index)
+                        .copied()
+                        .map(|id| (id, QueueIndex(index)))
+                } else {
+                    None
+                }
+            }
+            None => None,
+        }
     }
 
     fn clear(&mut self) {
-        self.queue.clear();
-        self.history.clear();
+        self.list.clear();
+        self.index = None;
     }
 }
 
@@ -635,65 +726,48 @@ mod tests {
 
     #[test]
     fn play_queue() {
-        const TRACKS_LEN: usize = 3;
+        const TRACKS_LEN: usize = 2;
         let mut queue = PlayQueue::new();
-        let mut current = None;
 
         for i in 0..TRACKS_LEN {
-            queue.push_back(TrackId(i as u64));
+            queue.enqueue(TrackId(i as u64));
         }
 
-        assert_eq!(current, None);
-        assert_eq!(queue.queue.len(), TRACKS_LEN);
-        assert_eq!(queue.history.len(), 0);
+        assert_eq!(queue.current(), None);
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), TRACKS_LEN);
+        assert_eq!(queue.history_len(), 0);
 
         // Next
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(0)));
-        assert_eq!(queue.queue.len(), 2);
-        assert_eq!(queue.history.len(), 0);
+        assert_eq!(queue.next(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.current(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), TRACKS_LEN - 1);
+        assert_eq!(queue.history_len(), 0);
 
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), 1);
-        assert_eq!(queue.history.len(), 1);
+        assert_eq!(queue.next(), Some((TrackId(1), QueueIndex(1))));
+        assert_eq!(queue.current(), Some((TrackId(1), QueueIndex(1))));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), TRACKS_LEN - 2);
+        assert_eq!(queue.history_len(), 1);
 
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(2)));
-        assert_eq!(queue.queue.len(), 0);
-        assert_eq!(queue.history.len(), 2);
-
-        // Previous
-        current = queue.previous(current);
-        assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), 1);
-        assert_eq!(queue.history.len(), 1);
-
-        current = queue.previous(current);
-        assert_eq!(current, Some(TrackId(0)));
-        assert_eq!(queue.queue.len(), 2);
-        assert_eq!(queue.history.len(), 0);
-
-        current = queue.previous(current);
-        assert_eq!(current, None);
-        assert_eq!(queue.queue.len(), 2);
-        assert_eq!(queue.history.len(), 0);
-
-        // Next
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), 1);
-        assert_eq!(queue.history.len(), 0);
-
-        current = queue.next(TRACKS_LEN, current);
-        assert_eq!(current, Some(TrackId(2)));
-        assert_eq!(queue.queue.len(), 0);
-        assert_eq!(queue.history.len(), 1);
+        assert_eq!(queue.next(), None);
+        assert_eq!(queue.current(), Some((TrackId(1), QueueIndex(1))));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), 0);
+        assert_eq!(queue.history_len(), 1);
 
         // Previous
-        current = queue.previous(current);
-        assert_eq!(current, Some(TrackId(1)));
-        assert_eq!(queue.queue.len(), 1);
-        assert_eq!(queue.history.len(), 0);
+        assert_eq!(queue.previous(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.current(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), 1);
+        assert_eq!(queue.history_len(), 0);
+
+        assert_eq!(queue.previous(), None);
+        assert_eq!(queue.current(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), 1);
+        assert_eq!(queue.history_len(), 0);
     }
 }

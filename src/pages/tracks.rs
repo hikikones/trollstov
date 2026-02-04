@@ -91,13 +91,13 @@ impl TracksPage {
                 'q' => {
                     for i in self.list.selection() {
                         let id = jb.get_id_from_index(i).unwrap();
-                        jb.enqueue_back(id);
+                        jb.enqueue(id);
                     }
                 }
                 'n' => {
                     for i in self.list.selection().rev() {
                         let id = jb.get_id_from_index(i).unwrap();
-                        jb.enqueue_front(id);
+                        jb.enqueue_next(id);
                     }
                 }
                 's' => {

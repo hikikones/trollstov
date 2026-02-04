@@ -17,6 +17,8 @@ use crate::{
     widgets::List,
 };
 
+// TODO: Add queue clearing.
+
 pub struct PlayingPage {
     current: Option<TrackId>,
     picker: Picker,
@@ -89,8 +91,8 @@ impl PlayingPage {
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         let [playing_area, _, queue_area] = Layout::vertical([
             Constraint::Percentage(60),
-            Constraint::Length(2),
-            Constraint::Fill(0), // TODO: should be Min(3)?
+            Constraint::Length(1),
+            Constraint::Min(3),
         ])
         .areas(area);
 
@@ -98,12 +100,12 @@ impl PlayingPage {
         self.render_track(playing_area, buf, jb, colors);
 
         // Render play queue
-        self.play_queue_title.push_str(" Play Queue ");
-        if !jb.is_queue_empty() {
-            let mut buffer = itoa::Buffer::new();
-            let len = buffer.format(jb.queue_len());
-            self.play_queue_title.extend(["(", len, ") "]);
-        }
+        self.play_queue_title.push_str(" Play History ");
+        let mut buffer = itoa::Buffer::new();
+        let hlen = buffer.format(jb.history_len());
+        self.play_queue_title.extend(["(", hlen, ")"]);
+        let qlen = buffer.format(jb.queue_len());
+        self.play_queue_title.extend([" / Queue (", qlen, ") "]);
 
         let block = Block::bordered()
             .title(self.play_queue_title.as_str())
@@ -118,8 +120,8 @@ impl PlayingPage {
         self.render_queue(queue_area_inner, buf, jb, colors);
     }
 
-    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers) {
-        if self.list.input(key, modifiers) {
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) {
+        if self.list.input(key, KeyModifiers::empty()) {
             self.events.send(AppEvent::Render);
         }
     }
@@ -132,6 +134,7 @@ impl PlayingPage {
         // Show currently playing, image or not
         match self.current {
             Some(id) => {
+                // TODO: Fix info rendering when right_area has too little height for all text
                 let [left_area, _, right_area] = Layout::horizontal([
                     Constraint::Percentage(40),
                     Constraint::Length(3),
@@ -237,29 +240,32 @@ impl PlayingPage {
             return;
         }
 
+        let current_queue_index = jb.current_queue_index();
         self.list.render(
             area,
             buf,
             jb.queue_iter(),
-            |line, buf, id, is_index, is_selected| {
+            |line, buf, (id, qi), is_index, _| {
                 let mut style = Style::new();
-                if is_index || is_selected {
-                    style.bg = Some(colors.accent);
-                    style.fg = Some(colors.on_accent);
+                if let Some(queue_index) = current_queue_index
+                    && queue_index == qi
+                {
+                    style.fg = Some(colors.accent);
                 }
-
-                // TODO: Add number to tracks for those with empty metadata?
-                // Otherwise it will just render an empty line.
-
-                // TODO: Also show history?
-                // Show both lists in same block, separated by title?
-                // Add seamless interaction between the two.
+                let symbol = if is_index { "> " } else { "" };
 
                 let track = jb.get(id).unwrap();
                 utils::print_line_iter(
                     line,
                     buf,
-                    [track.title(), " ", track.artist(), " ", track.album()],
+                    [
+                        symbol,
+                        track.title(),
+                        " ",
+                        track.artist(),
+                        " ",
+                        track.album(),
+                    ],
                     style,
                 );
             },
