@@ -134,6 +134,7 @@ impl PlayingPage {
         // Show currently playing, image or not
         match self.current {
             Some(id) => {
+                // TODO: Fix info rendering when right_area has too little height for all text
                 let [left_area, _, right_area] = Layout::horizontal([
                     Constraint::Percentage(40),
                     Constraint::Length(3),
