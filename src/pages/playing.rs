@@ -91,8 +91,8 @@ impl PlayingPage {
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         let [playing_area, _, queue_area] = Layout::vertical([
             Constraint::Percentage(60),
-            Constraint::Length(2),
-            Constraint::Fill(0), // TODO: should be Min(3)?
+            Constraint::Length(1),
+            Constraint::Fill(3),
         ])
         .areas(area);
 
@@ -100,12 +100,12 @@ impl PlayingPage {
         self.render_track(playing_area, buf, jb, colors);
 
         // Render play queue
-        self.play_queue_title.push_str(" Play Queue ");
-        if !jb.is_queue_empty() {
-            let mut buffer = itoa::Buffer::new();
-            let len = buffer.format(jb.queue_len());
-            self.play_queue_title.extend(["(", len, ") "]);
-        }
+        self.play_queue_title.push_str(" Play History ");
+        let mut buffer = itoa::Buffer::new();
+        let hlen = buffer.format(jb.history_len());
+        self.play_queue_title.extend(["(", hlen, ")"]);
+        let qlen = buffer.format(jb.queue_len());
+        self.play_queue_title.extend([" / Queue (", qlen, ") "]);
 
         let block = Block::bordered()
             .title(self.play_queue_title.as_str())
