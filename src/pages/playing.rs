@@ -245,26 +245,27 @@ impl PlayingPage {
             area,
             buf,
             jb.queue_iter(),
-            |line, buf, (id, qi), is_index, is_selected| {
+            |line, buf, (id, qi), is_index, _| {
                 let mut style = Style::new();
-                if is_index || is_selected {
-                    style.bg = Some(colors.accent);
-                    style.fg = Some(colors.on_accent);
-                }
                 if let Some(queue_index) = current_queue_index
                     && queue_index == qi
                 {
-                    style.add_modifier.insert(Modifier::BOLD);
+                    style.fg = Some(colors.accent);
                 }
-
-                // TODO: Add number to tracks for those with empty metadata?
-                // Otherwise it will just render an empty line.
+                let symbol = if is_index { "> " } else { "" };
 
                 let track = jb.get(id).unwrap();
                 utils::print_line_iter(
                     line,
                     buf,
-                    [track.title(), " ", track.artist(), " ", track.album()],
+                    [
+                        symbol,
+                        track.title(),
+                        " ",
+                        track.artist(),
+                        " ",
+                        track.album(),
+                    ],
                     style,
                 );
             },
