@@ -17,6 +17,8 @@ use crate::{
     widgets::List,
 };
 
+// TODO: Add queue clearing.
+
 pub struct PlayingPage {
     current: Option<TrackId>,
     picker: Picker,
@@ -237,19 +239,19 @@ impl PlayingPage {
             return;
         }
 
-        let queue_index = jb.current_queue_index();
+        let current_queue_index = jb.current_queue_index();
         self.list.render(
             area,
             buf,
-            jb.queue_iter().enumerate(),
-            |line, buf, (i, id), is_index, is_selected| {
+            jb.queue_iter(),
+            |line, buf, (id, qi), is_index, is_selected| {
                 let mut style = Style::new();
                 if is_index || is_selected {
                     style.bg = Some(colors.accent);
                     style.fg = Some(colors.on_accent);
                 }
-                if let Some(queue_index) = queue_index
-                    && queue_index == i
+                if let Some(queue_index) = current_queue_index
+                    && queue_index == qi
                 {
                     style.add_modifier.insert(Modifier::BOLD);
                 }
