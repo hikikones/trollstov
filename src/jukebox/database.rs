@@ -7,12 +7,6 @@ use std::{
 
 use indexmap::IndexMap;
 
-use crate::{
-    events::{AppEvent, EventSender},
-    pages::Log,
-    utils,
-};
-
 use super::{
     AudioFile, AudioFileExtension, AudioFileReport, AudioMetadata, AudioProperties, AudioRating,
 };
@@ -78,7 +72,7 @@ impl Database {
         self.sort = sort;
     }
 
-    pub fn update(&mut self, events: &EventSender) {
+    pub(super) fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) {
         let Some(receiver) = self.audio_file_receiver.as_ref() else {
             return;
         };
@@ -106,8 +100,7 @@ impl Database {
                             );
                         }
                         Err(err) => {
-                            let log = Log::new(err);
-                            events.send(AppEvent::Log(log));
+                            on_error(err);
                         }
                     }
                 }
@@ -144,7 +137,7 @@ impl Track {
         path: PathBuf,
         extension: AudioFileExtension,
     ) -> Self {
-        let duration_display = utils::format_duration(properties.duration());
+        let duration_display = crate::utils::format_duration(properties.duration());
 
         Self {
             metadata,

@@ -299,7 +299,10 @@ impl Jukebox {
     }
 
     pub(super) fn update(&mut self) {
-        self.database.update(&self.events);
+        self.database.update(|err| {
+            let log = Log::new(err);
+            self.events.send(AppEvent::Log(log));
+        });
 
         let mut render = false;
 
