@@ -12,14 +12,15 @@ use indexmap::IndexMap;
 use rodio::decoder::Decoder;
 
 use crate::{
-    audio::*,
     events::{AppEvent, EventSender},
     pages::Log,
     utils,
 };
 
+mod audio;
 mod queue;
 
+pub use audio::*;
 pub use queue::*;
 
 type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileReport>>;
