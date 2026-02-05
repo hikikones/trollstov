@@ -475,7 +475,7 @@ fn render_playback_status_active(
     let neutral_style = Style::new().fg(colors.neutral);
 
     text.push_chars(
-        &utils::format_duration_on_stack(current_duration),
+        &jukebox::utils::format_duration_on_stack(current_duration),
         neutral_style,
     );
     text.push_char(' ', neutral_style);
@@ -494,7 +494,7 @@ fn render_playback_status_active(
 
     text.push_char(' ', neutral_style);
     text.push_chars(
-        &utils::format_duration_on_stack(total_duration),
+        &jukebox::utils::format_duration_on_stack(total_duration),
         neutral_style,
     );
 
