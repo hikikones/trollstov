@@ -2,11 +2,6 @@ use std::{collections::HashSet, fs::File, io::BufReader, path::Path, time::Durat
 
 use rodio::decoder::Decoder;
 
-use crate::{
-    events::{AppEvent, EventSender},
-    pages::Log,
-};
-
 mod audio;
 mod database;
 mod queue;
@@ -27,7 +22,6 @@ pub struct Jukebox {
     audio_decode_handle: Option<(TrackId, QueueIndex, AudioDecodeHandle)>,
     audio_write_handles: Vec<AudioWriteHandle>,
     faulty: HashSet<TrackId>,
-    events: EventSender,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
 }
@@ -43,7 +37,7 @@ enum PlayState {
 }
 
 impl Jukebox {
-    pub fn new(dir: impl AsRef<Path>, events: EventSender) -> Result<Self, rodio::StreamError> {
+    pub fn new(dir: impl AsRef<Path>) -> Result<Self, rodio::StreamError> {
         let stream = rodio::OutputStreamBuilder::open_default_stream()?;
         let sink = rodio::Sink::connect_new(stream.mixer());
         sink.pause();
@@ -56,7 +50,6 @@ impl Jukebox {
             audio_decode_handle: None,
             audio_write_handles: Vec::new(),
             faulty: HashSet::new(),
-            events,
             sink,
             _stream: stream,
         })
@@ -169,10 +162,6 @@ impl Jukebox {
 
     pub fn stop(&mut self) {
         // TODO: Should stop also clear queue and history?
-        if self.current.is_some() {
-            self.events.send(AppEvent::UpdateAndRender);
-        }
-
         self.sink.clear();
         self.current = None;
         self.state = PlayState::Stop;
@@ -242,7 +231,6 @@ impl Jukebox {
 
     fn start_play(&mut self, id: TrackId, index: QueueIndex) {
         self.audio_decode_handle = Some((id, index, self.decode_audio(id)));
-        self.events.send(AppEvent::UpdateAndRender);
     }
 
     fn decode_audio(&mut self, id: TrackId) -> AudioDecodeHandle {
@@ -298,11 +286,8 @@ impl Jukebox {
         })
     }
 
-    pub(super) fn update(&mut self) {
-        self.database.update(|err| {
-            let log = Log::new(err);
-            self.events.send(AppEvent::Log(log));
-        });
+    pub(super) fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) -> bool {
+        self.database.update(&mut on_error);
 
         let mut render = false;
 
@@ -322,8 +307,7 @@ impl Jukebox {
                         self.current = Some((id, index));
                     }
                     Err(err) => {
-                        let log = Log::new(err);
-                        self.events.send(AppEvent::Log(log));
+                        on_error(err);
                         self.faulty.insert(id);
                         match self.state {
                             PlayState::Play | PlayState::Next => {
@@ -360,8 +344,7 @@ impl Jukebox {
                     render = true;
                 }
                 Err(err) => {
-                    let log = Log::new(err);
-                    self.events.send(AppEvent::Log(log));
+                    on_error(err);
                 }
             }
         }
@@ -380,9 +363,7 @@ impl Jukebox {
             }
         }
 
-        if render {
-            self.events.send(AppEvent::Render);
-        }
+        render
     }
 
     pub(super) fn shutdown(self) {

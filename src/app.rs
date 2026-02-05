@@ -11,7 +11,7 @@ use ratatui::{
 use crate::{
     events::{AppEvent, Event, EventHandler},
     jukebox::{Jukebox, Track},
-    pages::{Pages, Route},
+    pages::{Log, Pages, Route},
     terminal::Terminal,
     utils,
     widgets::{Shortcut, Shortcuts, TextSegment},
@@ -243,8 +243,15 @@ impl App {
     }
 
     fn update(&mut self) {
-        self.jukebox.update();
+        let render = self.jukebox.update(|err| {
+            let log = Log::new(err);
+            self.events.send(AppEvent::Log(log));
+        });
         self.pages.playing.on_update(&self.jukebox);
+
+        if render {
+            self.events.send(AppEvent::Render);
+        }
     }
 
     fn render<'a>(&'a mut self, terminal: &'a mut Terminal) -> std::io::Result<CompletedFrame<'a>> {
