@@ -147,6 +147,7 @@ impl App {
             KeyCode::Down => {
                 if ctrl {
                     self.jukebox.stop();
+                    self.events.send(AppEvent::UpdateAndRender);
                 } else {
                     self.on_input(key);
                 }
@@ -179,6 +180,7 @@ impl App {
                 }
                 MediaKeyCode::Stop => {
                     self.jukebox.stop();
+                    self.events.send(AppEvent::UpdateAndRender);
                 }
                 MediaKeyCode::TrackNext => {
                     self.jukebox.play_next();
