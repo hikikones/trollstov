@@ -57,9 +57,9 @@ impl LogsPage {
             return;
         }
 
-        let mut buffer = itoa::Buffer::new();
-        let len = buffer.format(self.logs.len());
-        self.title.extend([" Logs (", len, ") "]);
+        jukebox::utils::format_int(self.logs.len(), |len| {
+            self.title.extend([" Logs (", len, ") "]);
+        });
 
         let block = Block::bordered()
             .title(self.title.as_str())

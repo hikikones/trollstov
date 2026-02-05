@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use ratatui::{buffer::Buffer, layout::Rect, style::Style};
 
 /// Prints `ascii` assuming only ASCII, no newlines or

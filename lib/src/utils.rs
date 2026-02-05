@@ -1,5 +1,11 @@
 use std::time::Duration;
 
+/// Formats an integer to its string representation.
+pub fn format_int(i: impl itoa::Integer, mut f: impl FnMut(&str)) {
+    let mut buffer = itoa::Buffer::new();
+    f(buffer.format(i))
+}
+
 /// Formats the duration as `mm:ss` to a String.
 pub fn format_duration(duration: Duration) -> String {
     let mut s = String::with_capacity(5);

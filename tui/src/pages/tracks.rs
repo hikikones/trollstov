@@ -49,9 +49,9 @@ impl TracksPage {
         }
 
         // Render tracks table
-        let mut buffer = itoa::Buffer::new();
-        let len = buffer.format(jb.len());
-        self.title.extend([" All tracks (", len, ") "]);
+        jukebox::utils::format_int(jb.len(), |len| {
+            self.title.extend([" All tracks (", len, ") "]);
+        });
 
         let block = Block::bordered()
             .title(self.title.as_str())

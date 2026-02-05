@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 arboard = { version = "3.6", default-features = false }
 image = "0.25"
-itoa = "1.0"
 jukebox = { path = "../lib" }
 nucleo-matcher = "0.3"
 ratatui = "0.30"

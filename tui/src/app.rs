@@ -433,8 +433,9 @@ fn render_navigation(
         if route == Route::Logs {
             let new_logs = pages.logs.queue_len();
             if new_logs > 0 {
-                let mut buffer = itoa::Buffer::new();
-                text.extend([("(", style), (buffer.format(new_logs), style), (")", style)]);
+                jukebox::utils::format_int(new_logs, |new_logs| {
+                    text.extend([("(", style), (new_logs, style), (")", style)]);
+                });
             }
         }
         text.push_str(spacing, Style::new());
