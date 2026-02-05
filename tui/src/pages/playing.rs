@@ -1,6 +1,7 @@
 use std::thread::JoinHandle;
 
 use image::GenericImageView;
+use jukebox::{AudioPicture, Jukebox, TrackId};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -11,7 +12,6 @@ use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
-    jukebox::{AudioPicture, Jukebox, TrackId},
     utils,
     widgets::List,
 };

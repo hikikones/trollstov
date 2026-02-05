@@ -7,7 +7,7 @@ use std::{
 
 use indexmap::IndexMap;
 
-use super::{
+use crate::{
     AudioFile, AudioFileExtension, AudioFileReport, AudioMetadata, AudioProperties, AudioRating,
 };
 
@@ -137,7 +137,7 @@ impl Track {
         path: PathBuf,
         extension: AudioFileExtension,
     ) -> Self {
-        let duration_display = crate::utils::format_duration(properties.duration());
+        let duration_display = format_duration(properties.duration());
 
         Self {
             metadata,
@@ -323,4 +323,34 @@ fn _traverse_and_process_audio_files_in_parallel(
                 })
             });
     });
+}
+
+fn format_duration(duration: Duration) -> String {
+    let mut s = String::with_capacity(5);
+
+    let seconds = duration.as_secs() % 60;
+    let minutes = (duration.as_secs() - seconds) / 60;
+
+    let mut buffer = itoa::Buffer::new();
+
+    if minutes < 10 {
+        s.push('0');
+        s.push_str(buffer.format(minutes));
+    } else if minutes < 100 {
+        s.push_str(buffer.format(minutes));
+    } else {
+        s.push_str("99:99");
+        return s;
+    }
+
+    s.push(':');
+
+    if seconds < 10 {
+        s.push('0');
+        s.push_str(buffer.format(seconds));
+    } else {
+        s.push_str(buffer.format(seconds));
+    }
+
+    s
 }

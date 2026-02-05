@@ -1,11 +1,7 @@
 [package]
-name = "jukebox"
+name = "jukebox-tui"
 version = "0.1.0"
 edition = "2024"
-
-[[bin]]
-name = "tui"
-path = "tui/src/main.rs"
 
 [dependencies]
 arboard = { version = "3.6", default-features = false }
@@ -14,6 +10,7 @@ ignore = { version = "0.4", features = ["simd-accel"] }
 image = "0.25.9"
 indexmap = "2.13.0"
 itoa = "1.0"
+jukebox = { path = "../", version = "0.1" }
 lofty = "0.22"
 nucleo-matcher = "0.3"
 ratatui = "0.30"

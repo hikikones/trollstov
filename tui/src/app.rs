@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use jukebox::{Jukebox, Track};
 use ratatui::{
     CompletedFrame,
     crossterm::event::{
@@ -10,7 +11,6 @@ use ratatui::{
 
 use crate::{
     events::{AppEvent, Event, EventHandler},
-    jukebox::{Jukebox, Track},
     pages::{Log, Pages, Route},
     terminal::Terminal,
     utils,

@@ -1,3 +1,4 @@
+use jukebox::{AudioRating, Jukebox, TrackSort};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -7,7 +8,6 @@ use ratatui::{
 use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
-    jukebox::{AudioRating, Jukebox, TrackSort},
     utils,
     widgets::{List, Shortcut, Shortcuts},
 };

@@ -1,3 +1,4 @@
+use jukebox::{Jukebox, TrackId};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -7,7 +8,6 @@ use ratatui::{
 use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
-    jukebox::{Jukebox, TrackId},
     utils,
     widgets::{List, ListMove, TextInput},
 };

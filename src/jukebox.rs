@@ -2,13 +2,7 @@ use std::{collections::HashSet, fs::File, io::BufReader, path::Path, time::Durat
 
 use rodio::decoder::Decoder;
 
-mod audio;
-mod database;
-mod queue;
-
-pub use audio::*;
-pub use database::*;
-pub use queue::*;
+use crate::*;
 
 type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, AudioFileReport>>;
 type AudioWriteHandle =
@@ -286,7 +280,7 @@ impl Jukebox {
         })
     }
 
-    pub(super) fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) -> bool {
+    pub fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) -> bool {
         self.database.update(&mut on_error);
 
         let mut render = false;
@@ -366,7 +360,7 @@ impl Jukebox {
         render
     }
 
-    pub(super) fn shutdown(self) {
+    pub fn shutdown(self) {
         // Gracefully shutdown by waiting for threads to finish writing tag
         for handle in self.audio_write_handles {
             let _ = handle.join().unwrap();
