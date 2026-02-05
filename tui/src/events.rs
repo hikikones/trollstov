@@ -19,7 +19,6 @@ pub enum Event {
 pub enum AppEvent {
     Update,
     Render,
-    UpdateAndRender,
     Route(Route),
     Log(Log),
     Quit,

@@ -147,7 +147,6 @@ impl App {
             KeyCode::Down => {
                 if ctrl {
                     self.jukebox.stop();
-                    self.events.send(AppEvent::UpdateAndRender);
                 } else {
                     self.on_input(key);
                 }
@@ -180,7 +179,6 @@ impl App {
                 }
                 MediaKeyCode::Stop => {
                     self.jukebox.stop();
-                    self.events.send(AppEvent::UpdateAndRender);
                 }
                 MediaKeyCode::TrackNext => {
                     self.jukebox.play_next();
@@ -223,10 +221,6 @@ impl App {
             AppEvent::Render => {
                 self.render(terminal)?;
             }
-            AppEvent::UpdateAndRender => {
-                self.update();
-                self.render(terminal)?;
-            }
             AppEvent::Route(route) => {
                 self.on_exit();
                 self.route = route;
@@ -245,11 +239,14 @@ impl App {
     }
 
     fn update(&mut self) {
-        let render = self.jukebox.update(|err| {
+        let mut render = self.jukebox.update(|err| {
             let log = Log::new(err);
             self.events.send(AppEvent::Log(log));
         });
-        self.pages.playing.on_update(&self.jukebox);
+
+        if self.pages.playing.on_update(&self.jukebox) {
+            render = true;
+        }
 
         if render {
             self.events.send(AppEvent::Render);
