@@ -1,6 +1,7 @@
 use std::thread::JoinHandle;
 
 use image::GenericImageView;
+use jukebox::{AudioPicture, Jukebox, TrackId};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -11,7 +12,6 @@ use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
-    jukebox::{AudioPicture, Jukebox, TrackId},
     utils,
     widgets::List,
 };
@@ -99,12 +99,12 @@ impl PlayingPage {
         self.render_track(playing_area, buf, jb, colors);
 
         // Render play queue
-        self.play_queue_title.push_str(" Play History ");
-        let mut buffer = itoa::Buffer::new();
-        let hlen = buffer.format(jb.history_len());
-        self.play_queue_title.extend(["(", hlen, ")"]);
-        let qlen = buffer.format(jb.queue_len());
-        self.play_queue_title.extend([" / Queue (", qlen, ") "]);
+        jukebox::utils::format_int(jb.history_len(), |hlen| {
+            self.play_queue_title.extend([" History (", hlen, ")"]);
+        });
+        jukebox::utils::format_int(jb.queue_len(), |qlen| {
+            self.play_queue_title.extend([" / Queue (", qlen, ") "]);
+        });
 
         let block = Block::bordered()
             .title(self.play_queue_title.as_str())

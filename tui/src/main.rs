@@ -1,6 +1,5 @@
 mod app;
 mod events;
-mod jukebox;
 mod pages;
 mod terminal;
 mod utils;
@@ -15,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let picker = ratatui_image::picker::Picker::from_query_stdio()?;
 
     let events = events::EventHandler::new();
-    let jukebox = jukebox::Jukebox::new(music_dir, events.clone_sender())?;
+    let jukebox = jukebox::Jukebox::new(music_dir)?;
 
     let mut app = app::App::new(events, jukebox, picker);
     let res = app.run(terminal);

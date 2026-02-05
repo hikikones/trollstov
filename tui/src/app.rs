@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use jukebox::{Jukebox, Track};
 use ratatui::{
     CompletedFrame,
     crossterm::event::{
@@ -10,8 +11,7 @@ use ratatui::{
 
 use crate::{
     events::{AppEvent, Event, EventHandler},
-    jukebox::{Jukebox, Track},
-    pages::{Pages, Route},
+    pages::{Log, Pages, Route},
     terminal::Terminal,
     utils,
     widgets::{Shortcut, Shortcuts, TextSegment},
@@ -147,6 +147,7 @@ impl App {
             KeyCode::Down => {
                 if ctrl {
                     self.jukebox.stop();
+                    self.events.send(AppEvent::UpdateAndRender);
                 } else {
                     self.on_input(key);
                 }
@@ -179,6 +180,7 @@ impl App {
                 }
                 MediaKeyCode::Stop => {
                     self.jukebox.stop();
+                    self.events.send(AppEvent::UpdateAndRender);
                 }
                 MediaKeyCode::TrackNext => {
                     self.jukebox.play_next();
@@ -243,8 +245,15 @@ impl App {
     }
 
     fn update(&mut self) {
-        self.jukebox.update();
+        let render = self.jukebox.update(|err| {
+            let log = Log::new(err);
+            self.events.send(AppEvent::Log(log));
+        });
         self.pages.playing.on_update(&self.jukebox);
+
+        if render {
+            self.events.send(AppEvent::Render);
+        }
     }
 
     fn render<'a>(&'a mut self, terminal: &'a mut Terminal) -> std::io::Result<CompletedFrame<'a>> {
@@ -426,8 +435,9 @@ fn render_navigation(
         if route == Route::Logs {
             let new_logs = pages.logs.queue_len();
             if new_logs > 0 {
-                let mut buffer = itoa::Buffer::new();
-                text.extend([("(", style), (buffer.format(new_logs), style), (")", style)]);
+                jukebox::utils::format_int(new_logs, |new_logs| {
+                    text.extend([("(", style), (new_logs, style), (")", style)]);
+                });
             }
         }
         text.push_str(spacing, Style::new());
@@ -468,7 +478,7 @@ fn render_playback_status_active(
     let neutral_style = Style::new().fg(colors.neutral);
 
     text.push_chars(
-        &utils::format_duration_on_stack(current_duration),
+        &jukebox::utils::format_duration_on_stack(current_duration),
         neutral_style,
     );
     text.push_char(' ', neutral_style);
@@ -487,7 +497,7 @@ fn render_playback_status_active(
 
     text.push_char(' ', neutral_style);
     text.push_chars(
-        &utils::format_duration_on_stack(total_duration),
+        &jukebox::utils::format_duration_on_stack(total_duration),
         neutral_style,
     );
 

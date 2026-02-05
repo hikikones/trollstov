@@ -1,3 +1,4 @@
+use jukebox::{Jukebox, TrackId};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -7,7 +8,6 @@ use ratatui::{
 use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
-    jukebox::{Jukebox, TrackId},
     utils,
     widgets::{List, ListMove, TextInput},
 };
@@ -66,9 +66,9 @@ impl SearchPage {
         }
 
         // Render search results
-        let mut buffer = itoa::Buffer::new();
-        let len = buffer.format(self.search_results.len());
-        self.buffer.extend([" Search results (", len, ") "]);
+        jukebox::utils::format_int(self.search_results.len(), |len| {
+            self.buffer.extend([" Search results (", len, ") "]);
+        });
 
         let search_results_area = Rect {
             y: area.y + search_input_area.height + 1,

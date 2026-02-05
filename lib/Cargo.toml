@@ -1,0 +1,13 @@
+[package]
+name = "jukebox"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+fastrand = "2.3"
+ignore = { version = "0.4", features = ["simd-accel"] }
+indexmap = "2.13"
+itoa = "1.0"
+lofty = "0.22"
+rodio = "0.21"
+walkdir = "2.5"

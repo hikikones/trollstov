@@ -1,4 +1,4 @@
-use super::TrackId;
+use crate::TrackId;
 
 // TODO: max length?
 pub(super) struct PlayQueue {

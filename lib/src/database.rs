@@ -7,7 +7,7 @@ use std::{
 
 use indexmap::IndexMap;
 
-use super::{
+use crate::{
     AudioFile, AudioFileExtension, AudioFileReport, AudioMetadata, AudioProperties, AudioRating,
 };
 
