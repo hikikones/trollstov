@@ -1,3 +1,5 @@
+use std::{cmp::Ordering, collections::btree_set::Difference};
+
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
@@ -9,6 +11,7 @@ pub struct List {
     selector: Option<usize>,
     scroll: usize,
     offset: usize,
+    old_index: usize,
     len: usize,
     height: u16,
 }
@@ -30,6 +33,7 @@ impl List {
             selector: None,
             scroll: 0,
             offset: 0,
+            old_index: 0,
             len: 0,
             height: 0,
         }
@@ -37,6 +41,10 @@ impl List {
 
     pub const fn index(&self) -> usize {
         self.index
+    }
+
+    pub const fn scroll(&self) -> usize {
+        self.scroll
     }
 
     pub fn selection(&self) -> std::ops::RangeInclusive<usize> {
@@ -56,7 +64,7 @@ impl List {
     }
 
     pub fn move_index(&mut self, lm: ListMove, shift: bool) -> bool {
-        let old_index = self.index;
+        self.old_index = self.index;
         let old_selector = self.selector;
 
         if shift {
@@ -92,18 +100,18 @@ impl List {
 
         self.selector.take_if(|s| *s == self.index);
 
-        old_index != self.index || old_selector != self.selector
+        self.old_index != self.index || old_selector != self.selector
     }
 
     pub fn select_all(&mut self) -> bool {
-        let old_index = self.index;
+        self.old_index = self.index;
         let old_selector = self.selector;
 
         self.index = 0;
         self.selector = Some(self.len.saturating_sub(1));
         self.selector.take_if(|s| *s == self.index);
 
-        old_index != self.index || old_selector != self.selector
+        self.old_index != self.index || old_selector != self.selector
     }
 
     pub fn input(&mut self, key_pressed: KeyCode, key_modifiers: KeyModifiers) -> bool {
@@ -144,21 +152,55 @@ impl List {
         self.selector = self.selector.map(|selector| selector.min(max_idx));
 
         // Determine scroll
-        let height = (area.height as usize).saturating_sub(self.offset);
-        if self.height != area.height {
-            // Fixes window resizing when going from small to big,
-            // leaving empty space when scroll stays the same at the end
-            self.scroll = self.index.saturating_sub(height.saturating_sub(1));
-        } else if self.index > self.scroll {
-            let height_diff = self.index - self.scroll;
-            let height = height.saturating_sub(1);
-            if height_diff > height {
-                self.scroll += height_diff - height;
+        // let height = (area.height as usize).saturating_sub(self.offset);
+        let height = (area.height as usize).saturating_sub(0);
+        let diff = self.index.abs_diff(self.scroll);
+
+        match self.index.cmp(&self.old_index) {
+            Ordering::Greater => {
+                // Scroll down
+                // self.scroll = self.index.saturating_sub(height.saturating_sub(1));
+                if self.index > self.scroll {
+                    let diff = self.index - self.scroll;
+                    if diff >= height {
+                        self.scroll += diff - height.saturating_sub(1);
+                        // self.scroll = self.index.saturating_sub(height.saturating_sub(1));
+                    }
+                }
             }
-        } else if self.scroll > self.index {
-            let height_diff = self.scroll - self.index;
-            self.scroll -= height_diff;
+            Ordering::Less => {
+                // Scroll up
+                // self.scroll -= diff - height;
+                if self.scroll > self.index {
+                    let diff = self.scroll - self.index;
+                    self.scroll -= diff;
+                }
+                // if diff == 0 {
+                // self.scroll = self.scroll.saturating_sub(1);
+                // self.scroll = self.len + height - self.index;
+                // self.scroll = self.scroll.saturating_sub(diff);
+                // }
+            }
+            Ordering::Equal => {
+                // No scroll
+            }
         }
+
+        // let height = (area.height as usize).saturating_sub(self.offset);
+        // if self.height != area.height {
+        //     // Fixes window resizing when going from small to big,
+        //     // leaving empty space when scroll stays the same at the end
+        //     self.scroll = self.index.saturating_sub(height.saturating_sub(1));
+        // } else if self.index > self.scroll {
+        //     let height_diff = self.index - self.scroll;
+        //     let height = height.saturating_sub(1);
+        //     if height_diff > height {
+        //         self.scroll += height_diff - height;
+        //     }
+        // } else if self.scroll + self.offset > self.index {
+        //     let height_diff = (self.scroll + self.offset) - (self.index + self.offset);
+        //     self.scroll -= 1;
+        // }
 
         self.len = items.len();
         self.height = area.height;

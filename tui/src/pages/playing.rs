@@ -16,8 +16,6 @@ use crate::{
     widgets::{List, ListMove, Shortcut, Shortcuts},
 };
 
-// TODO: Add queue clearing.
-
 pub struct PlayingPage {
     current: Option<(TrackId, QueueIndex)>,
     picker: Picker,
@@ -247,13 +245,20 @@ impl PlayingPage {
                 }
             }
             None => {
-                utils::print_ascii(
-                    area,
-                    buf,
-                    "No track currently playing",
-                    neutral_style,
-                    utils::Alignment::Center,
-                );
+                Line::raw(format!(
+                    "Index: {}, Scroll: {}",
+                    self.list.index(),
+                    self.list.scroll()
+                ))
+                .centered()
+                .render(area, buf);
+                // utils::print_ascii(
+                //     area,
+                //     buf,
+                //     "No track currently playing",
+                //     neutral_style,
+                //     utils::Alignment::Center,
+                // );
             }
         }
     }
