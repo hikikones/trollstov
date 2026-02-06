@@ -73,6 +73,10 @@ impl Jukebox {
         self.database.get_id_from_index(i)
     }
 
+    pub fn get_id_from_queue(&self, i: usize) -> Option<TrackId> {
+        self.queue.get(QueueIndex(i))
+    }
+
     pub fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, &Track)> + DoubleEndedIterator {
         self.database.iter()
     }
@@ -131,7 +135,7 @@ impl Jukebox {
 
     pub fn play_queue_index(&mut self, index: usize) {
         if let Some(id) = self.queue.set_index(QueueIndex(index)) {
-            self.state = PlayState::Play;
+            self.state = PlayState::Track;
             self.start_play(id, QueueIndex(index));
         }
     }

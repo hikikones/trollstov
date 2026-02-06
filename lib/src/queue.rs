@@ -36,8 +36,8 @@ impl PlayQueue {
         self.list.is_empty()
     }
 
-    pub(super) const fn index(&self) -> Option<QueueIndex> {
-        self.index
+    pub(super) fn get(&self, index: QueueIndex) -> Option<TrackId> {
+        self.list.get(index.0).copied()
     }
 
     pub(super) fn set_index(&mut self, index: QueueIndex) -> Option<TrackId> {
@@ -137,12 +137,6 @@ pub struct QueueIndex(pub(super) usize);
 impl QueueIndex {
     pub const fn raw(self) -> usize {
         self.0
-    }
-}
-
-impl From<QueueIndex> for usize {
-    fn from(index: QueueIndex) -> Self {
-        index.0
     }
 }
 

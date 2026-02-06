@@ -122,10 +122,9 @@ impl PlayingPage {
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
-                    // TODO
-                    // let rating = AudioRating::from_char(c).unwrap();
-                    // let id = jb.get_id_from_index(i).unwrap();
-                    // jb.set_rating(id, rating);
+                    let rating = AudioRating::from_char(c).unwrap();
+                    let id = jb.get_id_from_queue(self.list.index()).unwrap();
+                    jb.set_rating(id, rating);
                 }
                 _ => {}
             },
