@@ -152,9 +152,10 @@ impl List {
         self.selector = self.selector.map(|selector| selector.min(max_idx));
 
         // Determine scroll
+        let offset = 5;
         // let height = (area.height as usize).saturating_sub(self.offset);
-        let height = (area.height as usize).saturating_sub(0);
-        let diff = self.index.abs_diff(self.scroll);
+        let height = (area.height as usize).saturating_sub(offset);
+        // let diff = self.index.abs_diff(self.scroll);
 
         match self.index.cmp(&self.old_index) {
             Ordering::Greater => {
@@ -163,7 +164,13 @@ impl List {
                 if self.index > self.scroll {
                     let diff = self.index - self.scroll;
                     if diff >= height {
-                        self.scroll += diff - height.saturating_sub(1);
+                        let max_scroll = items.len().saturating_sub(height + offset);
+                        let new_scroll = self.scroll + diff - height.saturating_sub(1);
+                        self.scroll = new_scroll.min(max_scroll);
+                        // self.scroll += diff - height.saturating_sub(1);
+                        // if self.scroll > max_scroll {
+                        //     self.scroll = max_scroll;
+                        // }
                         // self.scroll = self.index.saturating_sub(height.saturating_sub(1));
                     }
                 }
@@ -171,9 +178,10 @@ impl List {
             Ordering::Less => {
                 // Scroll up
                 // self.scroll -= diff - height;
-                if self.scroll > self.index {
-                    let diff = self.scroll - self.index;
-                    self.scroll -= diff;
+                if self.scroll + offset > self.index {
+                    let diff = self.scroll + offset - self.index;
+                    self.scroll = self.scroll.saturating_sub(diff);
+                    // self.scroll -= diff;
                 }
                 // if diff == 0 {
                 // self.scroll = self.scroll.saturating_sub(1);
