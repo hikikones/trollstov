@@ -125,6 +125,14 @@ impl Jukebox {
         self.queue.iter()
     }
 
+    pub fn queue_clear(&mut self) {
+        self.queue.clear();
+
+        if let Some((id, _)) = self.current.take() {
+            self.current = self.queue.enqueue(id).next();
+        }
+    }
+
     pub fn enqueue(&mut self, id: TrackId) {
         self.queue.enqueue(id);
     }

@@ -112,7 +112,11 @@ impl PlayingPage {
         self.render_queue(queue_area_inner, buf, jb, colors);
 
         // Shortcuts
-        shortcuts.extend([Shortcut::new("Play", "↵"), Shortcut::new("Rating", "1-5")]);
+        shortcuts.extend([
+            Shortcut::new("Play", "↵"),
+            Shortcut::new("Rating", "1-5"),
+            Shortcut::new("Clear queue", "c"),
+        ]);
     }
 
     pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) {
@@ -125,6 +129,10 @@ impl PlayingPage {
                     let rating = AudioRating::from_char(c).unwrap();
                     let id = jb.get_id_from_queue(self.list.index()).unwrap();
                     jb.set_rating(id, rating);
+                }
+                'c' => {
+                    jb.queue_clear();
+                    self.events.send(AppEvent::Render);
                 }
                 _ => {}
             },
