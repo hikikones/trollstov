@@ -1,7 +1,7 @@
 use std::thread::JoinHandle;
 
 use image::GenericImageView;
-use jukebox::{AudioPicture, Jukebox, TrackId};
+use jukebox::{AudioPicture, AudioRating, Jukebox, TrackId};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -48,10 +48,11 @@ impl PlayingPage {
 
         if self.current != jb.current_track_id() {
             self.current = jb.current_track_id();
+            // Track has changed, time to update image
             self.update_image(jb);
             render = true;
         } else if let Some(handle) = self.image_handle.as_ref() {
-            // Poll thread for finished
+            // Poll thread for finished image loading
             if handle.is_finished() {
                 let handle = self.image_handle.take().unwrap();
                 self.image = handle.join().unwrap();
@@ -63,15 +64,15 @@ impl PlayingPage {
     }
 
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
-        let [playing_area, _, queue_area] = Layout::vertical([
-            Constraint::Percentage(60),
+        let [playing_area, _, queue_area] = Layout::horizontal([
+            Constraint::Percentage(40),
             Constraint::Length(1),
-            Constraint::Min(3),
+            Constraint::Fill(0),
         ])
         .areas(area);
 
         // Render track
-        self.render_track(playing_area, buf, jb, colors);
+        self.render_cover(playing_area, buf, jb, colors);
 
         // Render play queue
         jukebox::utils::format_int(jb.history_len(), |hlen| {
@@ -102,30 +103,22 @@ impl PlayingPage {
 
     pub fn on_exit(&mut self) {}
 
-    fn render_track(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+    fn render_cover(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         let neutral_style = Style::new().fg(colors.neutral);
 
         // Show currently playing, image or not
         match self.current {
             Some(id) => {
-                // TODO: Fix info rendering when right_area has too little height for all text
-                let [left_area, _, right_area] = Layout::horizontal([
-                    Constraint::Percentage(40),
-                    Constraint::Length(3),
-                    Constraint::Fill(0),
-                ])
-                .areas(area);
-
-                const MAX_COVER_SIZE: u16 = 15;
+                const MAX_COVER_SIZE: u16 = 20;
                 let mut img_area = {
-                    let img_w = left_area.width.min(MAX_COVER_SIZE * 2);
-                    let img_h = left_area.height.min(MAX_COVER_SIZE);
+                    let img_w = area.width.min(MAX_COVER_SIZE * 2);
+                    let img_h = area.height.min(MAX_COVER_SIZE);
                     let img_r = Rect {
                         width: img_w,
                         height: img_h,
-                        ..left_area
+                        ..area
                     };
-                    utils::align(img_r, left_area, utils::Alignment::RightCenter)
+                    utils::align(img_r, area, utils::Alignment::Center)
                 };
 
                 match &mut self.image {
@@ -156,38 +149,58 @@ impl PlayingPage {
                             Rect {
                                 width: resized_img_area.width,
                                 height: resized_img_area.height,
-                                ..left_area
+                                ..area
                             },
-                            left_area,
-                            utils::Alignment::RightCenter,
+                            area,
+                            utils::Alignment::Center,
                         );
                         StatefulImage::default().render(img_area, buf, image);
                     }
                 }
 
-                let mut info_area = utils::align(
+                // Show rating as colored stars
+                let mut stars_area = utils::align(
                     Rect {
-                        height: 11,
-                        ..right_area
+                        y: img_area.y + img_area.height + 1,
+                        width: 5,
+                        height: 1,
+                        ..img_area
                     },
                     img_area,
-                    utils::Alignment::CenterVertical,
+                    utils::Alignment::CenterHorizontal,
                 );
 
+                let accent_style = Style::new().fg(colors.accent);
                 let track = jb.get(id).unwrap();
-
-                info_area.height = 1;
-
-                for (label, info) in [
-                    ("ALBUM", track.album()),
-                    ("TITLE", track.title()),
-                    ("ARTIST", track.artist()),
-                    ("RATING", track.rating_display()),
-                ] {
-                    Span::styled(label, neutral_style).render(info_area, buf);
-                    info_area.y += 1;
-                    Span::raw(info).render(info_area, buf);
-                    info_area.y += 2;
+                match track.rating() {
+                    Some(rating) => match rating {
+                        AudioRating::Awful => {
+                            Span::styled("★", accent_style).render(stars_area, buf);
+                            stars_area.x += 1;
+                            Span::styled("☆☆☆☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Bad => {
+                            Span::styled("★★", accent_style).render(stars_area, buf);
+                            stars_area.x += 2;
+                            Span::styled("☆☆☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Ok => {
+                            Span::styled("★★★", accent_style).render(stars_area, buf);
+                            stars_area.x += 3;
+                            Span::styled("☆☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Good => {
+                            Span::styled("★★★★", accent_style).render(stars_area, buf);
+                            stars_area.x += 4;
+                            Span::styled("☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Amazing => {
+                            Span::styled("★★★★★", accent_style).render(stars_area, buf);
+                        }
+                    },
+                    None => {
+                        Span::styled("☆☆☆☆☆", neutral_style).render(stars_area, buf);
+                    }
                 }
             }
             None => {
@@ -247,7 +260,6 @@ impl PlayingPage {
     }
 
     fn update_image(&mut self, jb: &Jukebox) {
-        // Track has changed, time to update image
         match jb.current_track_id() {
             Some(tid) => {
                 // Load image in thread and store handle
