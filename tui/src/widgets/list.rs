@@ -153,27 +153,34 @@ impl List {
         let scroll = self.scroll;
         let height = (area.height as usize).saturating_sub(offset);
 
-        match index.cmp(&self.old_index) {
-            Ordering::Greater => {
-                // Scroll down
-                if index > scroll {
-                    let diff = index - scroll;
-                    if diff >= height {
-                        let max_scroll = items.len().saturating_sub(height + offset);
-                        let new_scroll = scroll + diff - height.saturating_sub(1);
-                        self.scroll = new_scroll.min(max_scroll);
+        if self.height != area.height {
+            // Fixes window resizing when going from small to big,
+            // leaving empty space when scroll stays the same at the end
+            let max_scroll = items.len().saturating_sub(height + offset);
+            self.scroll = self.scroll.min(max_scroll);
+        } else {
+            match index.cmp(&self.old_index) {
+                Ordering::Greater => {
+                    // Scroll down
+                    if index > scroll {
+                        let diff = index - scroll;
+                        if diff >= height {
+                            let max_scroll = items.len().saturating_sub(height + offset);
+                            let new_scroll = scroll + diff - height.saturating_sub(1);
+                            self.scroll = new_scroll.min(max_scroll);
+                        }
                     }
                 }
-            }
-            Ordering::Less => {
-                // Scroll up
-                if scroll + offset > index {
-                    let diff = scroll + offset - index;
-                    self.scroll = scroll.saturating_sub(diff);
+                Ordering::Less => {
+                    // Scroll up
+                    if scroll + offset > index {
+                        let diff = scroll + offset - index;
+                        self.scroll = scroll.saturating_sub(diff);
+                    }
                 }
-            }
-            Ordering::Equal => {
-                // No scroll
+                Ordering::Equal => {
+                    // No scroll
+                }
             }
         }
 
