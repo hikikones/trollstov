@@ -6,9 +6,6 @@ pub(super) struct PlayQueue {
     index: Option<QueueIndex>,
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct QueueIndex(usize);
-
 impl PlayQueue {
     pub(super) const fn new() -> Self {
         Self {
@@ -117,6 +114,21 @@ impl PlayQueue {
     pub(super) fn clear(&mut self) {
         self.list.clear();
         self.index = None;
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct QueueIndex(usize);
+
+impl QueueIndex {
+    pub const fn raw(self) -> usize {
+        self.0
+    }
+}
+
+impl From<QueueIndex> for usize {
+    fn from(index: QueueIndex) -> Self {
+        index.0
     }
 }
 
