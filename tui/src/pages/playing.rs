@@ -1,7 +1,7 @@
 use std::thread::JoinHandle;
 
 use image::GenericImageView;
-use jukebox::{AudioPicture, Jukebox, TrackId};
+use jukebox::{AudioPicture, AudioRating, Jukebox, TrackId};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -48,10 +48,11 @@ impl PlayingPage {
 
         if self.current != jb.current_track_id() {
             self.current = jb.current_track_id();
+            // Track has changed, time to update image
             self.update_image(jb);
             render = true;
         } else if let Some(handle) = self.image_handle.as_ref() {
-            // Poll thread for finished
+            // Poll thread for finished image loading
             if handle.is_finished() {
                 let handle = self.image_handle.take().unwrap();
                 self.image = handle.join().unwrap();
@@ -71,7 +72,7 @@ impl PlayingPage {
         .areas(area);
 
         // Render track
-        self.render_track(playing_area, buf, jb, colors);
+        self.render_cover(playing_area, buf, jb, colors);
 
         // Render play queue
         jukebox::utils::format_int(jb.history_len(), |hlen| {
@@ -102,13 +103,13 @@ impl PlayingPage {
 
     pub fn on_exit(&mut self) {}
 
-    fn render_track(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+    fn render_cover(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         let neutral_style = Style::new().fg(colors.neutral);
 
         // Show currently playing, image or not
         match self.current {
             Some(id) => {
-                const MAX_COVER_SIZE: u16 = 24;
+                const MAX_COVER_SIZE: u16 = 20;
                 let mut img_area = {
                     let img_w = area.width.min(MAX_COVER_SIZE * 2);
                     let img_h = area.height.min(MAX_COVER_SIZE);
@@ -154,6 +155,51 @@ impl PlayingPage {
                             utils::Alignment::Center,
                         );
                         StatefulImage::default().render(img_area, buf, image);
+                    }
+                }
+
+                // Show rating as colored stars
+                let mut stars_area = utils::align(
+                    Rect {
+                        y: img_area.y + img_area.height + 1,
+                        width: 5,
+                        height: 1,
+                        ..img_area
+                    },
+                    img_area,
+                    utils::Alignment::CenterHorizontal,
+                );
+
+                let accent_style = Style::new().fg(colors.accent);
+                let track = jb.get(id).unwrap();
+                match track.rating() {
+                    Some(rating) => match rating {
+                        AudioRating::Awful => {
+                            Span::styled("★", accent_style).render(stars_area, buf);
+                            stars_area.x += 1;
+                            Span::styled("☆☆☆☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Bad => {
+                            Span::styled("★★", accent_style).render(stars_area, buf);
+                            stars_area.x += 2;
+                            Span::styled("☆☆☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Ok => {
+                            Span::styled("★★★", accent_style).render(stars_area, buf);
+                            stars_area.x += 3;
+                            Span::styled("☆☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Good => {
+                            Span::styled("★★★★", accent_style).render(stars_area, buf);
+                            stars_area.x += 4;
+                            Span::styled("☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Amazing => {
+                            Span::styled("★★★★★", accent_style).render(stars_area, buf);
+                        }
+                    },
+                    None => {
+                        Span::styled("☆☆☆☆☆", neutral_style).render(stars_area, buf);
                     }
                 }
             }
@@ -214,7 +260,6 @@ impl PlayingPage {
     }
 
     fn update_image(&mut self, jb: &Jukebox) {
-        // Track has changed, time to update image
         match jb.current_track_id() {
             Some(tid) => {
                 // Load image in thread and store handle
