@@ -245,20 +245,13 @@ impl PlayingPage {
                 }
             }
             None => {
-                Line::raw(format!(
-                    "Index: {}, Scroll: {}",
-                    self.list.index(),
-                    self.list.scroll()
-                ))
-                .centered()
-                .render(area, buf);
-                // utils::print_ascii(
-                //     area,
-                //     buf,
-                //     "No track currently playing",
-                //     neutral_style,
-                //     utils::Alignment::Center,
-                // );
+                utils::print_ascii(
+                    area,
+                    buf,
+                    "No track currently playing",
+                    neutral_style,
+                    utils::Alignment::Center,
+                );
             }
         }
     }

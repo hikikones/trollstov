@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::btree_set::Difference};
+use std::cmp::Ordering;
 
 use ratatui::{
     buffer::Buffer,
@@ -41,10 +41,6 @@ impl List {
 
     pub const fn index(&self) -> usize {
         self.index
-    }
-
-    pub const fn scroll(&self) -> usize {
-        self.scroll
     }
 
     pub fn selection(&self) -> std::ops::RangeInclusive<usize> {
@@ -152,63 +148,34 @@ impl List {
         self.selector = self.selector.map(|selector| selector.min(max_idx));
 
         // Determine scroll
-        let offset = 5;
-        // let height = (area.height as usize).saturating_sub(self.offset);
+        let offset = self.offset;
+        let index = self.index;
+        let scroll = self.scroll;
         let height = (area.height as usize).saturating_sub(offset);
-        // let diff = self.index.abs_diff(self.scroll);
 
-        match self.index.cmp(&self.old_index) {
+        match index.cmp(&self.old_index) {
             Ordering::Greater => {
                 // Scroll down
-                // self.scroll = self.index.saturating_sub(height.saturating_sub(1));
-                if self.index > self.scroll {
-                    let diff = self.index - self.scroll;
+                if index > scroll {
+                    let diff = index - scroll;
                     if diff >= height {
                         let max_scroll = items.len().saturating_sub(height + offset);
-                        let new_scroll = self.scroll + diff - height.saturating_sub(1);
+                        let new_scroll = scroll + diff - height.saturating_sub(1);
                         self.scroll = new_scroll.min(max_scroll);
-                        // self.scroll += diff - height.saturating_sub(1);
-                        // if self.scroll > max_scroll {
-                        //     self.scroll = max_scroll;
-                        // }
-                        // self.scroll = self.index.saturating_sub(height.saturating_sub(1));
                     }
                 }
             }
             Ordering::Less => {
                 // Scroll up
-                // self.scroll -= diff - height;
-                if self.scroll + offset > self.index {
-                    let diff = self.scroll + offset - self.index;
-                    self.scroll = self.scroll.saturating_sub(diff);
-                    // self.scroll -= diff;
+                if scroll + offset > index {
+                    let diff = scroll + offset - index;
+                    self.scroll = scroll.saturating_sub(diff);
                 }
-                // if diff == 0 {
-                // self.scroll = self.scroll.saturating_sub(1);
-                // self.scroll = self.len + height - self.index;
-                // self.scroll = self.scroll.saturating_sub(diff);
-                // }
             }
             Ordering::Equal => {
                 // No scroll
             }
         }
-
-        // let height = (area.height as usize).saturating_sub(self.offset);
-        // if self.height != area.height {
-        //     // Fixes window resizing when going from small to big,
-        //     // leaving empty space when scroll stays the same at the end
-        //     self.scroll = self.index.saturating_sub(height.saturating_sub(1));
-        // } else if self.index > self.scroll {
-        //     let height_diff = self.index - self.scroll;
-        //     let height = height.saturating_sub(1);
-        //     if height_diff > height {
-        //         self.scroll += height_diff - height;
-        //     }
-        // } else if self.scroll + self.offset > self.index {
-        //     let height_diff = (self.scroll + self.offset) - (self.index + self.offset);
-        //     self.scroll -= 1;
-        // }
 
         self.len = items.len();
         self.height = area.height;
