@@ -129,6 +129,13 @@ impl Jukebox {
         self.queue.enqueue_next(id);
     }
 
+    pub fn play_queue_index(&mut self, index: usize) {
+        if let Some(id) = self.queue.set_index(QueueIndex(index)) {
+            self.state = PlayState::Play;
+            self.start_play(id, QueueIndex(index));
+        }
+    }
+
     pub fn play_track(&mut self, id: TrackId) {
         // TODO: If new track is same as current, simply rewind.
         let (id, index) = self.queue.enqueue_next(id).next().unwrap();

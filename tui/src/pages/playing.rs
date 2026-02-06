@@ -13,7 +13,7 @@ use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
     utils,
-    widgets::{List, ListMove},
+    widgets::{List, ListMove, Shortcut, Shortcuts},
 };
 
 // TODO: Add queue clearing.
@@ -73,7 +73,14 @@ impl PlayingPage {
         render
     }
 
-    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+    pub fn on_render(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        jb: &Jukebox,
+        colors: &Colors,
+        shortcuts: &mut Shortcuts,
+    ) {
         let [playing_area, _, queue_area] = Layout::horizontal([
             Constraint::Percentage(40),
             Constraint::Length(1),
@@ -103,11 +110,30 @@ impl PlayingPage {
         self.play_queue_title.clear();
 
         self.render_queue(queue_area_inner, buf, jb, colors);
+
+        // Shortcuts
+        shortcuts.extend([Shortcut::new("Play", "↵"), Shortcut::new("Rating", "1-5")]);
     }
 
-    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) {
-        if self.list.input(key, KeyModifiers::empty()) {
-            self.events.send(AppEvent::Render);
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) {
+        match key {
+            KeyCode::Enter => {
+                jb.play_queue_index(self.list.index());
+            }
+            KeyCode::Char(c) => match c {
+                '1' | '2' | '3' | '4' | '5' => {
+                    // TODO
+                    // let rating = AudioRating::from_char(c).unwrap();
+                    // let id = jb.get_id_from_index(i).unwrap();
+                    // jb.set_rating(id, rating);
+                }
+                _ => {}
+            },
+            _ => {
+                if self.list.input(key, KeyModifiers::empty()) {
+                    self.events.send(AppEvent::Render);
+                }
+            }
         }
     }
 

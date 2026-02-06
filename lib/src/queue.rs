@@ -36,6 +36,20 @@ impl PlayQueue {
         self.list.is_empty()
     }
 
+    pub(super) const fn index(&self) -> Option<QueueIndex> {
+        self.index
+    }
+
+    pub(super) fn set_index(&mut self, index: QueueIndex) -> Option<TrackId> {
+        match self.list.get(index.0).copied() {
+            Some(id) => {
+                self.index = Some(index);
+                Some(id)
+            }
+            None => None,
+        }
+    }
+
     pub(super) fn current(&self) -> Option<(TrackId, QueueIndex)> {
         self.index
             .and_then(|i| self.list.get(i.0).copied().map(|id| (id, i)))
@@ -118,7 +132,7 @@ impl PlayQueue {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct QueueIndex(usize);
+pub struct QueueIndex(pub(super) usize);
 
 impl QueueIndex {
     pub const fn raw(self) -> usize {

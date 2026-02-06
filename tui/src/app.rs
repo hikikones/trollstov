@@ -317,9 +317,13 @@ impl App {
                     );
                 }
                 Route::NowPlaying => {
-                    self.pages
-                        .playing
-                        .on_render(body, buf, &self.jukebox, &self.colors);
+                    self.pages.playing.on_render(
+                        body,
+                        buf,
+                        &self.jukebox,
+                        &self.colors,
+                        &mut self.shortcuts_page,
+                    );
                 }
                 Route::Search => {
                     self.pages
@@ -397,7 +401,11 @@ impl App {
                 .pages
                 .tracks
                 .on_input(key.code, key.modifiers, &mut self.jukebox),
-            Route::NowPlaying => self.pages.playing.on_input(key.code, key.modifiers),
+            Route::NowPlaying => {
+                self.pages
+                    .playing
+                    .on_input(key.code, key.modifiers, &mut self.jukebox)
+            }
             Route::Search => self
                 .pages
                 .search
