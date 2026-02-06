@@ -63,10 +63,10 @@ impl PlayingPage {
     }
 
     pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
-        let [playing_area, _, queue_area] = Layout::vertical([
-            Constraint::Percentage(60),
+        let [playing_area, _, queue_area] = Layout::horizontal([
+            Constraint::Percentage(40),
             Constraint::Length(1),
-            Constraint::Min(3),
+            Constraint::Fill(0),
         ])
         .areas(area);
 
@@ -108,24 +108,16 @@ impl PlayingPage {
         // Show currently playing, image or not
         match self.current {
             Some(id) => {
-                // TODO: Fix info rendering when right_area has too little height for all text
-                let [left_area, _, right_area] = Layout::horizontal([
-                    Constraint::Percentage(40),
-                    Constraint::Length(3),
-                    Constraint::Fill(0),
-                ])
-                .areas(area);
-
-                const MAX_COVER_SIZE: u16 = 15;
+                const MAX_COVER_SIZE: u16 = 24;
                 let mut img_area = {
-                    let img_w = left_area.width.min(MAX_COVER_SIZE * 2);
-                    let img_h = left_area.height.min(MAX_COVER_SIZE);
+                    let img_w = area.width.min(MAX_COVER_SIZE * 2);
+                    let img_h = area.height.min(MAX_COVER_SIZE);
                     let img_r = Rect {
                         width: img_w,
                         height: img_h,
-                        ..left_area
+                        ..area
                     };
-                    utils::align(img_r, left_area, utils::Alignment::RightCenter)
+                    utils::align(img_r, area, utils::Alignment::Center)
                 };
 
                 match &mut self.image {
@@ -156,38 +148,13 @@ impl PlayingPage {
                             Rect {
                                 width: resized_img_area.width,
                                 height: resized_img_area.height,
-                                ..left_area
+                                ..area
                             },
-                            left_area,
-                            utils::Alignment::RightCenter,
+                            area,
+                            utils::Alignment::Center,
                         );
                         StatefulImage::default().render(img_area, buf, image);
                     }
-                }
-
-                let mut info_area = utils::align(
-                    Rect {
-                        height: 11,
-                        ..right_area
-                    },
-                    img_area,
-                    utils::Alignment::CenterVertical,
-                );
-
-                let track = jb.get(id).unwrap();
-
-                info_area.height = 1;
-
-                for (label, info) in [
-                    ("ALBUM", track.album()),
-                    ("TITLE", track.title()),
-                    ("ARTIST", track.artist()),
-                    ("RATING", track.rating_display()),
-                ] {
-                    Span::styled(label, neutral_style).render(info_area, buf);
-                    info_area.y += 1;
-                    Span::raw(info).render(info_area, buf);
-                    info_area.y += 2;
                 }
             }
             None => {
