@@ -1,7 +1,7 @@
 use std::thread::JoinHandle;
 
 use image::GenericImageView;
-use jukebox::{AudioPicture, AudioRating, Jukebox, TrackId};
+use jukebox::{AudioPicture, AudioRating, Jukebox, QueueIndex, TrackId};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -13,13 +13,13 @@ use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
     utils,
-    widgets::List,
+    widgets::{List, ListMove},
 };
 
 // TODO: Add queue clearing.
 
 pub struct PlayingPage {
-    current: Option<TrackId>,
+    current: Option<(TrackId, QueueIndex)>,
     picker: Picker,
     image: FrontCover,
     image_handle: Option<JoinHandle<FrontCover>>,
@@ -46,13 +46,23 @@ impl PlayingPage {
     pub fn on_update(&mut self, jb: &Jukebox) -> bool {
         let mut render = false;
 
-        if self.current != jb.current_track_id() {
-            self.current = jb.current_track_id();
-            // Track has changed, time to update image
-            self.update_image(jb);
+        if self.current != jb.current_track() {
+            if self.current.map(|(id, _)| id) != jb.current_track_id() {
+                // Track has changed, time to update image
+                self.update_image(jb);
+            }
+
+            if let Some(idx) = jb.current_queue_index() {
+                // Update scroll
+                self.list.move_index(ListMove::Custom(idx.raw()), false);
+            }
+
             render = true;
-        } else if let Some(handle) = self.image_handle.as_ref() {
-            // Poll thread for finished image loading
+            self.current = jb.current_track();
+        }
+
+        // Poll thread for finished image loading
+        if let Some(handle) = self.image_handle.as_ref() {
             if handle.is_finished() {
                 let handle = self.image_handle.take().unwrap();
                 self.image = handle.join().unwrap();
@@ -108,7 +118,7 @@ impl PlayingPage {
 
         // Show currently playing, image or not
         match self.current {
-            Some(id) => {
+            Some((id, _)) => {
                 const MAX_COVER_SIZE: u16 = 20;
                 let mut img_area = {
                     let img_w = area.width.min(MAX_COVER_SIZE * 2);
@@ -226,6 +236,8 @@ impl PlayingPage {
             );
             return;
         }
+
+        self.list.set_offset((area.height / 2) as usize);
 
         let current_queue_index = jb.current_queue_index();
         self.list.render(

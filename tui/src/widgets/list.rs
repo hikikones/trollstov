@@ -8,6 +8,7 @@ pub struct List {
     index: usize,
     selector: Option<usize>,
     scroll: usize,
+    offset: usize,
     len: usize,
     height: u16,
 }
@@ -19,6 +20,7 @@ pub enum ListMove {
     PageDown,
     Start,
     End,
+    Custom(usize),
 }
 
 impl List {
@@ -27,6 +29,7 @@ impl List {
             index: 0,
             selector: None,
             scroll: 0,
+            offset: 0,
             len: 0,
             height: 0,
         }
@@ -46,6 +49,10 @@ impl List {
                 }
             })
             .unwrap_or(self.index..=self.index)
+    }
+
+    pub const fn set_offset(&mut self, offset: usize) {
+        self.offset = offset;
     }
 
     pub fn move_index(&mut self, lm: ListMove, shift: bool) -> bool {
@@ -80,6 +87,7 @@ impl List {
             ListMove::End => {
                 self.index = self.len.saturating_sub(1);
             }
+            ListMove::Custom(i) => self.index = i,
         }
 
         self.selector.take_if(|s| *s == self.index);
@@ -136,7 +144,7 @@ impl List {
         self.selector = self.selector.map(|selector| selector.min(max_idx));
 
         // Determine scroll
-        let height = area.height as usize;
+        let height = (area.height as usize).saturating_sub(self.offset);
         if self.height != area.height {
             // Fixes window resizing when going from small to big,
             // leaving empty space when scroll stays the same at the end
@@ -162,7 +170,7 @@ impl List {
         items
             .enumerate()
             .skip(self.scroll)
-            .take(height as usize)
+            .take(area.height as usize)
             .for_each(|(i, item)| {
                 let is_index = i == self.index;
                 let is_selected = i >= *selection.start() && i <= *selection.end();
