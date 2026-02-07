@@ -10,10 +10,31 @@ pub struct List {
     index: usize,
     selector: Option<usize>,
     scroll: usize,
-    offset: usize,
+    config: ScrollConfig,
     old_index: usize,
     len: usize,
     height: u16,
+}
+
+#[derive(Default, Clone, Copy)]
+pub struct ScrollConfig {
+    pub margin_top: usize,
+    pub margin_bottom: usize,
+    pub padding_bottom: usize,
+}
+
+impl ScrollConfig {
+    pub const fn new(margin_top: usize, margin_bottom: usize, padding_bottom: usize) -> Self {
+        Self {
+            margin_top,
+            margin_bottom,
+            padding_bottom,
+        }
+    }
+
+    pub const fn all(value: usize) -> Self {
+        Self::new(value, value, value)
+    }
 }
 
 pub enum ListMove {
@@ -32,7 +53,7 @@ impl List {
             index: 0,
             selector: None,
             scroll: 0,
-            offset: 0,
+            config: ScrollConfig::new(0, 0, 0),
             old_index: 0,
             len: 0,
             height: 0,
@@ -55,8 +76,8 @@ impl List {
             .unwrap_or(self.index..=self.index)
     }
 
-    pub const fn set_offset(&mut self, offset: usize) {
-        self.offset = offset;
+    pub const fn set_config(&mut self, config: ScrollConfig) {
+        self.config = config;
     }
 
     pub fn move_index(&mut self, lm: ListMove, shift: bool) -> bool {
@@ -148,35 +169,30 @@ impl List {
         self.selector = self.selector.map(|selector| selector.min(max_idx));
 
         // Determine scroll
-        let offset = self.offset;
-        let index = self.index;
-        let scroll = self.scroll;
-        let height = (area.height as usize).saturating_sub(offset);
-
         if self.height != area.height {
-            // Fixes window resizing when going from small to big,
-            // leaving empty space when scroll stays the same at the end
-            let max_scroll = items.len().saturating_sub(height + offset);
-            self.scroll = self.scroll.min(max_scroll);
+            // Refresh scroll on window resize
+            self.scroll = scroll_down(
+                items.len(),
+                area.height,
+                self.index,
+                self.scroll,
+                self.config.margin_bottom,
+                self.config.padding_bottom,
+            )
         } else {
-            match index.cmp(&self.old_index) {
+            match self.index.cmp(&self.old_index) {
                 Ordering::Greater => {
-                    // Scroll down
-                    if index > scroll {
-                        let diff = index - scroll;
-                        if diff >= height {
-                            let max_scroll = items.len().saturating_sub(height + offset);
-                            let new_scroll = scroll + diff - height.saturating_sub(1);
-                            self.scroll = new_scroll.min(max_scroll);
-                        }
-                    }
+                    self.scroll = scroll_down(
+                        items.len(),
+                        area.height,
+                        self.index,
+                        self.scroll,
+                        self.config.margin_bottom,
+                        self.config.padding_bottom,
+                    )
                 }
                 Ordering::Less => {
-                    // Scroll up
-                    if scroll + offset > index {
-                        let diff = scroll + offset - index;
-                        self.scroll = scroll.saturating_sub(diff);
-                    }
+                    self.scroll = scroll_up(self.index, self.scroll, self.config.margin_top);
                 }
                 Ordering::Equal => {
                     // No scroll
@@ -203,5 +219,36 @@ impl List {
 
                 line.y += 1;
             });
+    }
+}
+
+fn scroll_down(
+    items: usize,
+    height: u16,
+    index: usize,
+    scroll: usize,
+    margin: usize,
+    padding: usize,
+) -> usize {
+    let height = height as usize;
+    let height_margin = height.saturating_sub(margin + 1);
+    if index > scroll + height_margin {
+        let height_diff = index - scroll;
+        let new_scroll = scroll + height_diff.saturating_sub(height_margin);
+        let total_len = items + padding;
+        let max_scroll = total_len.saturating_sub(height);
+        usize::min(new_scroll, max_scroll)
+    } else {
+        scroll
+    }
+}
+
+fn scroll_up(index: usize, scroll: usize, margin: usize) -> usize {
+    let margin = margin.saturating_sub(1);
+    if index < scroll + margin {
+        let height_diff = scroll + margin - index;
+        scroll.saturating_sub(height_diff)
+    } else {
+        scroll
     }
 }
