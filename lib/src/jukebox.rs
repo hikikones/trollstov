@@ -174,7 +174,6 @@ impl Jukebox {
     }
 
     pub fn stop(&mut self) {
-        // TODO: Should stop also clear queue and history?
         self.sink.clear();
         self.current = None;
         self.state = PlayState::Stop;

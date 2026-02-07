@@ -8,9 +8,30 @@ pub struct List {
     index: usize,
     selector: Option<usize>,
     scroll: usize,
-    offset: usize,
+    config: ScrollConfig,
     len: usize,
     height: u16,
+}
+
+#[derive(Default, Clone, Copy)]
+pub struct ScrollConfig {
+    pub margin_top: usize,
+    pub margin_bottom: usize,
+    pub padding_bottom: usize,
+}
+
+impl ScrollConfig {
+    pub const fn new(margin_top: usize, margin_bottom: usize, padding_bottom: usize) -> Self {
+        Self {
+            margin_top,
+            margin_bottom,
+            padding_bottom,
+        }
+    }
+
+    pub const fn all(value: usize) -> Self {
+        Self::new(value, value, value)
+    }
 }
 
 pub enum ListMove {
@@ -29,7 +50,7 @@ impl List {
             index: 0,
             selector: None,
             scroll: 0,
-            offset: 0,
+            config: ScrollConfig::new(0, 0, 0),
             len: 0,
             height: 0,
         }
@@ -51,8 +72,8 @@ impl List {
             .unwrap_or(self.index..=self.index)
     }
 
-    pub const fn set_offset(&mut self, offset: usize) {
-        self.offset = offset;
+    pub const fn set_config(&mut self, config: ScrollConfig) {
+        self.config = config;
     }
 
     pub fn move_index(&mut self, lm: ListMove, shift: bool) -> bool {
@@ -144,21 +165,13 @@ impl List {
         self.selector = self.selector.map(|selector| selector.min(max_idx));
 
         // Determine scroll
-        let height = (area.height as usize).saturating_sub(self.offset);
-        if self.height != area.height {
-            // Fixes window resizing when going from small to big,
-            // leaving empty space when scroll stays the same at the end
-            self.scroll = self.index.saturating_sub(height.saturating_sub(1));
-        } else if self.index > self.scroll {
-            let height_diff = self.index - self.scroll;
-            let height = height.saturating_sub(1);
-            if height_diff > height {
-                self.scroll += height_diff - height;
-            }
-        } else if self.scroll > self.index {
-            let height_diff = self.scroll - self.index;
-            self.scroll -= height_diff;
-        }
+        let scroll = if self.height != area.height {
+            // Refresh scroll on window resize
+            0
+        } else {
+            self.scroll
+        };
+        self.scroll = calculate_scroll(items.len(), area.height, self.index, scroll, self.config);
 
         self.len = items.len();
         self.height = area.height;
@@ -179,5 +192,43 @@ impl List {
 
                 line.y += 1;
             });
+    }
+}
+
+pub fn calculate_scroll(
+    total_lines: usize,
+    viewport_height: u16,
+    selected: usize,
+    offset: usize,
+    config: ScrollConfig,
+) -> usize {
+    let viewport_height = viewport_height as usize;
+    let ScrollConfig {
+        margin_top,
+        margin_bottom,
+        padding_bottom,
+    } = config;
+
+    let max_offset = total_lines
+        .saturating_sub(viewport_height)
+        .saturating_add(padding_bottom);
+
+    let available = viewport_height.saturating_sub(1);
+    let margin_top = margin_top.min(available);
+    let margin_bottom = margin_bottom.min(available - margin_top);
+
+    let top_boundary = offset + margin_top;
+    let bottom_boundary = offset + viewport_height.saturating_sub(margin_bottom + 1);
+
+    if selected < top_boundary {
+        // Scroll up
+        offset.saturating_sub(top_boundary - selected)
+    } else if selected > bottom_boundary {
+        // Scroll down
+        let delta = selected - bottom_boundary;
+        (offset + delta).min(max_offset)
+    } else {
+        // No scroll
+        offset
     }
 }

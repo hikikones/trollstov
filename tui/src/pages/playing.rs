@@ -13,10 +13,8 @@ use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
     utils,
-    widgets::{List, ListMove, Shortcut, Shortcuts},
+    widgets::{List, ListMove, ScrollConfig, Shortcut, Shortcuts},
 };
-
-// TODO: Add queue clearing.
 
 pub struct PlayingPage {
     current: Option<(TrackId, QueueIndex)>,
@@ -270,7 +268,8 @@ impl PlayingPage {
             return;
         }
 
-        self.list.set_offset((area.height / 2) as usize);
+        self.list
+            .set_config(ScrollConfig::all((area.height / 2) as usize));
 
         let current_queue_index = jb.current_queue_index();
         self.list.render(
