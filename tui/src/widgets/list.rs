@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
@@ -11,7 +9,6 @@ pub struct List {
     selector: Option<usize>,
     scroll: usize,
     config: ScrollConfig,
-    old_index: usize,
     len: usize,
     height: u16,
 }
@@ -54,7 +51,6 @@ impl List {
             selector: None,
             scroll: 0,
             config: ScrollConfig::new(0, 0, 0),
-            old_index: 0,
             len: 0,
             height: 0,
         }
@@ -81,7 +77,7 @@ impl List {
     }
 
     pub fn move_index(&mut self, lm: ListMove, shift: bool) -> bool {
-        self.old_index = self.index;
+        let old_index = self.index;
         let old_selector = self.selector;
 
         if shift {
@@ -117,18 +113,18 @@ impl List {
 
         self.selector.take_if(|s| *s == self.index);
 
-        self.old_index != self.index || old_selector != self.selector
+        old_index != self.index || old_selector != self.selector
     }
 
     pub fn select_all(&mut self) -> bool {
-        self.old_index = self.index;
+        let old_index = self.index;
         let old_selector = self.selector;
 
         self.index = 0;
         self.selector = Some(self.len.saturating_sub(1));
         self.selector.take_if(|s| *s == self.index);
 
-        self.old_index != self.index || old_selector != self.selector
+        old_index != self.index || old_selector != self.selector
     }
 
     pub fn input(&mut self, key_pressed: KeyCode, key_modifiers: KeyModifiers) -> bool {
@@ -169,36 +165,13 @@ impl List {
         self.selector = self.selector.map(|selector| selector.min(max_idx));
 
         // Determine scroll
-        if self.height != area.height {
+        let scroll = if self.height != area.height {
             // Refresh scroll on window resize
-            self.scroll = scroll_down(
-                items.len(),
-                area.height,
-                self.index,
-                self.scroll,
-                self.config.margin_bottom,
-                self.config.padding_bottom,
-            )
+            0
         } else {
-            match self.index.cmp(&self.old_index) {
-                Ordering::Greater => {
-                    self.scroll = scroll_down(
-                        items.len(),
-                        area.height,
-                        self.index,
-                        self.scroll,
-                        self.config.margin_bottom,
-                        self.config.padding_bottom,
-                    )
-                }
-                Ordering::Less => {
-                    self.scroll = scroll_up(self.index, self.scroll, self.config.margin_top);
-                }
-                Ordering::Equal => {
-                    // No scroll
-                }
-            }
-        }
+            self.scroll
+        };
+        self.scroll = calculate_scroll(items.len(), area.height, self.index, scroll, self.config);
 
         self.len = items.len();
         self.height = area.height;
@@ -222,33 +195,40 @@ impl List {
     }
 }
 
-fn scroll_down(
-    items: usize,
-    height: u16,
-    index: usize,
-    scroll: usize,
-    margin: usize,
-    padding: usize,
+pub fn calculate_scroll(
+    total_lines: usize,
+    viewport_height: u16,
+    selected: usize,
+    offset: usize,
+    config: ScrollConfig,
 ) -> usize {
-    let height = height as usize;
-    let height_margin = height.saturating_sub(margin + 1);
-    if index > scroll + height_margin {
-        let height_diff = index - scroll;
-        let new_scroll = scroll + height_diff.saturating_sub(height_margin);
-        let total_len = items + padding;
-        let max_scroll = total_len.saturating_sub(height);
-        usize::min(new_scroll, max_scroll)
-    } else {
-        scroll
-    }
-}
+    let viewport_height = viewport_height as usize;
+    let ScrollConfig {
+        margin_top,
+        margin_bottom,
+        padding_bottom,
+    } = config;
 
-fn scroll_up(index: usize, scroll: usize, margin: usize) -> usize {
-    let margin = margin.saturating_sub(1);
-    if index < scroll + margin {
-        let height_diff = scroll + margin - index;
-        scroll.saturating_sub(height_diff)
+    let max_offset = total_lines
+        .saturating_sub(viewport_height)
+        .saturating_add(padding_bottom);
+
+    let available = viewport_height.saturating_sub(1);
+    let margin_top = margin_top.min(available);
+    let margin_bottom = margin_bottom.min(available - margin_top);
+
+    let top_boundary = offset + margin_top;
+    let bottom_boundary = offset + viewport_height.saturating_sub(margin_bottom + 1);
+
+    if selected < top_boundary {
+        // Scroll up
+        offset.saturating_sub(top_boundary - selected)
+    } else if selected > bottom_boundary {
+        // Scroll down
+        let delta = selected - bottom_boundary;
+        (offset + delta).min(max_offset)
     } else {
-        scroll
+        // No scroll
+        offset
     }
 }
