@@ -249,29 +249,30 @@ impl Jukebox {
     }
 
     fn start_play(&mut self, id: TrackId, index: QueueIndex) {
-        if let Some(track) = self.database.get(id) {
-            let path = track.path().to_path_buf();
-            let handle = std::thread::spawn(move || {
-                let file = File::open(&path).map_err(|err| {
-                    AudioFileReport::new(format!(
-                        "Could not open audio file {} due to {}",
-                        path.display(),
-                        err
-                    ))
-                })?;
-                let buffer = BufReader::new(file);
-                let source = Decoder::new(buffer).map_err(|err| {
-                    AudioFileReport::new(format!(
-                        "Could not decode audio file {} due to {}",
-                        path.display(),
-                        err
-                    ))
-                })?;
-                Ok(source)
-            });
+        let Some(track) = self.database.get(id) else {
+            return;
+        };
 
-            self.audio_decode_handle = Some((id, index, handle));
-        }
+        let path = track.path().to_path_buf();
+        let handle = std::thread::spawn(move || {
+            let file = File::open(&path).map_err(|err| {
+                AudioFileReport::new(format!(
+                    "Could not open audio file {} due to {}",
+                    path.display(),
+                    err
+                ))
+            })?;
+            let buffer = BufReader::new(file);
+            let source = Decoder::new(buffer).map_err(|err| {
+                AudioFileReport::new(format!(
+                    "Could not decode audio file {} due to {}",
+                    path.display(),
+                    err
+                ))
+            })?;
+            Ok(source)
+        });
+        self.audio_decode_handle = Some((id, index, handle));
     }
 
     fn write_rating(&mut self, id: TrackId, rating: AudioRating) -> Option<AudioWriteHandle> {
