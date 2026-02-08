@@ -125,6 +125,17 @@ impl PlayQueue {
         }
     }
 
+    pub(super) fn shuffle(&mut self, start: usize, end: usize) {
+        if start >= end {
+            return;
+        }
+
+        for i in start..end {
+            let random = fastrand::usize(start..end);
+            self.list.swap(i, random);
+        }
+    }
+
     pub(super) fn clear(&mut self) {
         self.list.clear();
         self.index = None;
