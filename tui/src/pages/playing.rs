@@ -123,8 +123,8 @@ impl PlayingPage {
         shortcuts.extend([
             Shortcut::new("Play", "↵"),
             Shortcut::new("Rating", "1-5"),
-            Shortcut::new("Shuffle queue", "s"),
-            Shortcut::new("Clear queue", "c"),
+            Shortcut::new("Shuffle", "s"),
+            Shortcut::new("Clear", "c"),
         ]);
     }
 
