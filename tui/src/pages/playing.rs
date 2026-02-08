@@ -123,7 +123,8 @@ impl PlayingPage {
         shortcuts.extend([
             Shortcut::new("Play", "↵"),
             Shortcut::new("Rating", "1-5"),
-            Shortcut::new("Clear queue", "c"),
+            Shortcut::new("Shuffle", "s"),
+            Shortcut::new("Clear", "c"),
         ]);
     }
 
@@ -141,6 +142,10 @@ impl PlayingPage {
                 }
                 'c' => {
                     jb.queue_clear();
+                    self.events.send(AppEvent::Render);
+                }
+                's' => {
+                    jb.queue_shuffle();
                     self.events.send(AppEvent::Render);
                 }
                 _ => {}

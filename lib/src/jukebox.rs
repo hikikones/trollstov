@@ -133,6 +133,14 @@ impl Jukebox {
         self.queue.iter()
     }
 
+    pub fn queue_shuffle(&mut self) {
+        let start = match self.current_queue_index() {
+            Some(index) => index.0 + 1,
+            None => 0,
+        };
+        self.queue.shuffle(start, self.queue.len());
+    }
+
     pub fn queue_clear(&mut self) {
         self.queue.clear();
 

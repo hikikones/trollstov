@@ -72,8 +72,8 @@ impl App {
             Shortcut::new("Play/Pause", "^￪"),
             Shortcut::new("Next/Prev", "^⇆"),
             Shortcut::new("Stop", "^￬"),
+            Shortcut::new("Forward 30s", "⎇→"),
             Shortcut::new("Search", "/"),
-            Shortcut::new("Seek 30s", "⎇→"),
         ]);
         let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
 
