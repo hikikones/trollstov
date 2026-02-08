@@ -2,6 +2,7 @@ use ratatui::{
     buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
     layout::Rect,
+    style::{Color, Style},
 };
 
 pub struct List {
@@ -9,6 +10,8 @@ pub struct List {
     selector: Option<usize>,
     scroll: usize,
     config: ScrollConfig,
+    thumb_color: Color,
+    track_color: Color,
     len: usize,
     height: u16,
 }
@@ -51,6 +54,8 @@ impl List {
             selector: None,
             scroll: 0,
             config: ScrollConfig::new(0, 0, 0),
+            thumb_color: Color::Gray,
+            track_color: Color::DarkGray,
             len: 0,
             height: 0,
         }
@@ -154,7 +159,7 @@ impl List {
 
     pub fn render<T>(
         &mut self,
-        area: Rect,
+        mut area: Rect,
         buf: &mut Buffer,
         items: impl ExactSizeIterator<Item = T>,
         mut render_line: impl FnMut(Rect, &mut Buffer, T, bool, bool),
@@ -177,13 +182,33 @@ impl List {
         self.height = area.height;
 
         // Render
+        let height = area.height as usize;
+        let scrollable = items.len() > height;
+
+        if scrollable {
+            let scrollbar = Rect {
+                x: area.x + area.width,
+                width: 1,
+                ..area
+            };
+            area.width = area.width.saturating_sub(1);
+            render_scrollbar(
+                scrollbar,
+                buf,
+                items.len(),
+                self.scroll,
+                self.thumb_color,
+                self.track_color,
+            );
+        }
+
         let selection = self.selection();
         let mut line = Rect { height: 1, ..area };
 
         items
             .enumerate()
             .skip(self.scroll)
-            .take(area.height as usize)
+            .take(height)
             .for_each(|(i, item)| {
                 let is_index = i == self.index;
                 let is_selected = i >= *selection.start() && i <= *selection.end();
@@ -230,5 +255,39 @@ pub fn calculate_scroll(
     } else {
         // No scroll
         offset
+    }
+}
+
+fn render_scrollbar(
+    vertical_line: Rect,
+    buf: &mut Buffer,
+    total_items: usize,
+    current_scroll: usize,
+    thumb_color: Color,
+    track_color: Color,
+) {
+    let height = vertical_line.height as usize;
+    if total_items == 0 || height == 0 {
+        return;
+    }
+
+    let visible = height as f32 / total_items as f32;
+    let size = ((visible * height as f32).round() as usize).max(1);
+    let progress = current_scroll as f32 / total_items.saturating_sub(height) as f32;
+    let range = height.saturating_sub(size);
+    let start = (progress * range as f32).round() as usize;
+    let end = start + size;
+
+    let thumb_style = Style::new().fg(thumb_color);
+    let track_style = Style::new().fg(track_color);
+
+    let Rect { x, mut y, .. } = vertical_line;
+    for i in 0..height {
+        if i >= start && i < end {
+            buf.set_stringn(x, y, "┃", 1, thumb_style);
+        } else {
+            buf.set_stringn(x, y, "│", 1, track_style);
+        }
+        y += 1;
     }
 }

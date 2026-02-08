@@ -17,7 +17,6 @@ use crate::{
     widgets::{Shortcut, Shortcuts, TextSegment},
 };
 
-// TODO: Add scrolling bars to the various pages.
 // TODO: Add a playlist page for artists/albums/genres and filtering.
 
 pub struct App {
