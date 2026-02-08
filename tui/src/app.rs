@@ -91,14 +91,16 @@ impl App {
     }
 
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
-        // Render initial page
-        // TODO: Show ASCII logo instead. Wait until jukebox.len() > 0.
-        self.on_enter();
-        self.render(&mut terminal)?;
+        // Draw logo
+        terminal.draw(|frame| {
+            render_jukebox_logo(frame.area(), frame.buffer_mut());
+        })?;
 
         // Start reading events and load music
         self.events.start();
         self.jukebox.load();
+
+        self.on_enter();
 
         // Run event loop
         while self.running {
@@ -526,4 +528,33 @@ fn render_playback_status_empty(
 
     text.render(line, buf);
     text.clear();
+}
+
+fn render_jukebox_logo(area: Rect, buf: &mut Buffer) {
+    const LOGO_TEXT: &str = r#"
+                     /$$                 /$$                          
+                    | $$                | $$                          
+       /$$ /$$   /$$| $$   /$$  /$$$$$$ | $$$$$$$   /$$$$$$  /$$   /$$
+      |__/| $$  | $$| $$  /$$/ /$$__  $$| $$__  $$ /$$__  $$|  $$ /$$/
+       /$$| $$  | $$| $$$$$$/ | $$$$$$$$| $$  \ $$| $$  \ $$ \  $$$$/ 
+      | $$| $$  | $$| $$_  $$ | $$_____/| $$  | $$| $$  | $$  >$$  $$ 
+      | $$|  $$$$$$/| $$ \  $$|  $$$$$$$| $$$$$$$/|  $$$$$$/ /$$/\  $$
+      | $$ \______/ |__/  \__/ \_______/|_______/  \______/ |__/  \__/
+ /$$  | $$                                                            
+|  $$$$$$/                                                            
+ \______/                                                             
+"#;
+
+    Text::raw(LOGO_TEXT).render(
+        utils::align(
+            Rect {
+                width: 70,
+                height: 13,
+                ..area
+            },
+            area,
+            utils::Alignment::Center,
+        ),
+        buf,
+    );
 }
