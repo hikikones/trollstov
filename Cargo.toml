@@ -1,0 +1,7 @@
+[workspace]
+resolver = "3"
+members = ["lib", "tui"]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
