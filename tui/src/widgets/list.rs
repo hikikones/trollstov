@@ -10,6 +10,8 @@ pub struct List {
     selector: Option<usize>,
     scroll: usize,
     config: ScrollConfig,
+    thumb_color: Color,
+    track_color: Color,
     len: usize,
     height: u16,
 }
@@ -52,6 +54,8 @@ impl List {
             selector: None,
             scroll: 0,
             config: ScrollConfig::new(0, 0, 0),
+            thumb_color: Color::Gray,
+            track_color: Color::DarkGray,
             len: 0,
             height: 0,
         }
@@ -188,7 +192,14 @@ impl List {
                 ..area
             };
             area.width = area.width.saturating_sub(1);
-            render_scrollbar(scrollbar, buf, self.scroll, items.len());
+            render_scrollbar(
+                scrollbar,
+                buf,
+                items.len(),
+                self.scroll,
+                self.thumb_color,
+                self.track_color,
+            );
         }
 
         let selection = self.selection();
@@ -247,21 +258,28 @@ pub fn calculate_scroll(
     }
 }
 
-fn render_scrollbar(vertical_line: Rect, buf: &mut Buffer, scroll: usize, items: usize) {
+fn render_scrollbar(
+    vertical_line: Rect,
+    buf: &mut Buffer,
+    total_items: usize,
+    current_scroll: usize,
+    thumb_color: Color,
+    track_color: Color,
+) {
     let height = vertical_line.height as usize;
-    if items == 0 || height == 0 {
+    if total_items == 0 || height == 0 {
         return;
     }
 
-    let visible = height as f32 / items as f32;
+    let visible = height as f32 / total_items as f32;
     let size = ((visible * height as f32).round() as usize).max(1);
-    let progress = scroll as f32 / items.saturating_sub(height) as f32;
+    let progress = current_scroll as f32 / total_items.saturating_sub(height) as f32;
     let range = height.saturating_sub(size);
     let start = (progress * range as f32).round() as usize;
     let end = start + size;
 
-    let thumb_style = Style::new().fg(Color::Gray);
-    let track_style = Style::new().fg(Color::DarkGray);
+    let thumb_style = Style::new().fg(thumb_color);
+    let track_style = Style::new().fg(track_color);
 
     let Rect { x, mut y, .. } = vertical_line;
     for i in 0..height {
