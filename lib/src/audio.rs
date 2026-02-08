@@ -272,7 +272,7 @@ impl AudioMetadata {
             rating: id3v2.get(&FrameId::Valid(Cow::Borrowed("POPM"))).and_then(
                 |frame| match frame {
                     Frame::Popularimeter(popularimeter_frame) => {
-                        Some(AudioRating::from_id3v2(popularimeter_frame.rating))
+                        AudioRating::from_id3v2(popularimeter_frame.rating)
                     }
                     _ => None,
                 },
@@ -298,7 +298,7 @@ impl AudioMetadata {
         match rating {
             Some(rating) => {
                 id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
-                    String::new(), // todo add no@email here?
+                    String::new(),
                     rating.into_id3v2(),
                     0,
                 )));
@@ -341,13 +341,14 @@ impl AudioRating {
         }
     }
 
-    const fn from_id3v2(rating: u8) -> Self {
+    const fn from_id3v2(rating: u8) -> Option<Self> {
         match rating {
-            0..=51 => AudioRating::Awful,
-            52..=102 => AudioRating::Bad,
-            103..=153 => AudioRating::Ok,
-            154..=204 => AudioRating::Good,
-            205..=255 => AudioRating::Amazing,
+            0 => None, // Unknown
+            1..=51 => Some(AudioRating::Awful),
+            52..=102 => Some(AudioRating::Bad),
+            103..=153 => Some(AudioRating::Ok),
+            154..=204 => Some(AudioRating::Good),
+            205..=255 => Some(AudioRating::Amazing),
         }
     }
 

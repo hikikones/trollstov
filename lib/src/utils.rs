@@ -49,7 +49,7 @@ pub fn format_duration_on_stack(duration: Duration) -> [char; 5] {
     let mut chars = ['0', '0', ':', '0', '0'];
 
     if minutes < 10 {
-        chars[1] = unsafe { buffer.format(minutes).chars().next().unwrap_unchecked() };
+        chars[1] = buffer.format(minutes).chars().next().unwrap();
     } else if minutes < 100 {
         for (i, char) in buffer.format(minutes).chars().enumerate() {
             chars[i] = char;
@@ -59,7 +59,7 @@ pub fn format_duration_on_stack(duration: Duration) -> [char; 5] {
     }
 
     if seconds < 10 {
-        chars[4] = unsafe { buffer.format(seconds).chars().next().unwrap_unchecked() };
+        chars[4] = buffer.format(seconds).chars().next().unwrap();
     } else {
         for (i, char) in buffer.format(seconds).chars().enumerate() {
             chars[i + 3] = char;

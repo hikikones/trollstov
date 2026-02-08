@@ -77,27 +77,31 @@ impl TracksPage {
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
         match key {
             KeyCode::Enter => {
-                let id = jb.get_id_from_index(self.list.index()).unwrap();
-                jb.play_track(id);
+                if let Some(id) = jb.get_id_from_index(self.list.index()) {
+                    jb.play_track(id);
+                }
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
                     let rating = AudioRating::from_char(c).unwrap();
                     for i in self.list.selection() {
-                        let id = jb.get_id_from_index(i).unwrap();
-                        jb.set_rating(id, rating);
+                        if let Some(id) = jb.get_id_from_index(i) {
+                            jb.set_rating(id, rating);
+                        }
                     }
                 }
                 'q' => {
                     for i in self.list.selection() {
-                        let id = jb.get_id_from_index(i).unwrap();
-                        jb.enqueue(id);
+                        if let Some(id) = jb.get_id_from_index(i) {
+                            jb.enqueue(id);
+                        }
                     }
                 }
                 'n' => {
                     for i in self.list.selection().rev() {
-                        let id = jb.get_id_from_index(i).unwrap();
-                        jb.enqueue_next(id);
+                        if let Some(id) = jb.get_id_from_index(i) {
+                            jb.enqueue_next(id);
+                        }
                     }
                 }
                 's' => {

@@ -90,25 +90,23 @@ impl SearchPage {
             buf,
             self.search_results.iter().copied(),
             |line, buf, (id, _), is_index, is_selected| {
-                let mut style = Style::new();
-                if is_index || is_selected {
-                    style.bg = Some(colors.accent);
-                    style.fg = Some(colors.on_accent);
-                }
-                if current == Some(id) {
-                    style.add_modifier.insert(Modifier::BOLD);
-                }
+                if let Some(track) = jb.get(id) {
+                    let mut style = Style::new();
+                    if is_index || is_selected {
+                        style.bg = Some(colors.accent);
+                        style.fg = Some(colors.on_accent);
+                    }
+                    if current == Some(id) {
+                        style.add_modifier.insert(Modifier::BOLD);
+                    }
 
-                // TODO: Add number to tracks for those with empty metadata?
-                // Otherwise it will just render an empty line.
-
-                let track = jb.get(id).unwrap();
-                utils::print_line_iter(
-                    line,
-                    buf,
-                    [track.artist(), " ", track.album(), " ", track.title()],
-                    style,
-                );
+                    utils::print_line_iter(
+                        line,
+                        buf,
+                        [track.artist(), " ", track.album(), " ", track.title()],
+                        style,
+                    );
+                }
             },
         );
     }
