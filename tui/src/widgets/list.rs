@@ -273,7 +273,7 @@ fn render_scrollbar(
 
     let visible = height as f32 / total_items as f32;
     let size = ((visible * height as f32).round() as usize).max(1);
-    let progress = current_scroll as f32 / total_items.saturating_sub(height) as f32;
+    let progress = (current_scroll as f32 / total_items.saturating_sub(height) as f32).min(1.0);
     let range = height.saturating_sub(size);
     let start = (progress * range as f32).round() as usize;
     let end = start + size;
