@@ -1,4 +1,10 @@
-use std::{collections::HashSet, fs::File, io::BufReader, path::Path, time::Duration};
+use std::{
+    collections::{HashSet, VecDeque},
+    fs::File,
+    io::BufReader,
+    path::Path,
+    time::Duration,
+};
 
 use rodio::decoder::Decoder;
 
@@ -14,7 +20,8 @@ pub struct Jukebox {
     queue: PlayQueue,
     state: PlayState,
     audio_decode_handle: Option<(TrackId, QueueIndex, AudioDecodeHandle)>,
-    audio_write_handles: Vec<AudioWriteHandle>,
+    audio_write_handle: Option<AudioWriteHandle>,
+    audio_write_queue: VecDeque<(TrackId, AudioRating)>,
     faulty: HashSet<TrackId>,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
@@ -42,7 +49,8 @@ impl Jukebox {
             queue: PlayQueue::new(),
             state: PlayState::Stop,
             audio_decode_handle: None,
-            audio_write_handles: Vec::new(),
+            audio_write_handle: None,
+            audio_write_queue: VecDeque::new(),
             faulty: HashSet::new(),
             sink,
             _stream: stream,
@@ -237,8 +245,7 @@ impl Jukebox {
     }
 
     pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
-        let handle = self.write_rating(id, rating);
-        self.audio_write_handles.push(handle);
+        self.audio_write_queue.push_back((id, rating));
     }
 
     fn start_play(&mut self, id: TrackId, index: QueueIndex) {
@@ -338,25 +345,27 @@ impl Jukebox {
             }
         }
 
-        // Poll thread handles for finished tag writing
-        // TODO: Write handles should be polled one by one.
-        // Right now, multiple threads _could_ be writing to the same file.
-        for _ in 0..self.audio_write_handles.len() {
-            let handle = self.audio_write_handles.pop().unwrap();
-
-            if !handle.is_finished() {
-                self.audio_write_handles.push(handle);
-                continue;
-            }
-
-            match handle.join().unwrap() {
-                Ok((id, new_rating)) => {
-                    let track = self.get_mut(id).unwrap();
-                    track.set_rating(new_rating);
+        // Poll thread handle for finished tag writing
+        match self.audio_write_handle.as_ref() {
+            Some(handle) => {
+                if handle.is_finished() {
                     render = true;
+                    let handle = self.audio_write_handle.take().unwrap();
+                    match handle.join().unwrap() {
+                        Ok((id, new_rating)) => {
+                            let track = self.get_mut(id).unwrap();
+                            track.set_rating(new_rating);
+                        }
+                        Err(err) => {
+                            on_error(err);
+                        }
+                    }
                 }
-                Err(err) => {
-                    on_error(err);
+            }
+            None => {
+                if let Some((id, rating)) = self.audio_write_queue.pop_front() {
+                    let handle = self.write_rating(id, rating);
+                    self.audio_write_handle = Some(handle);
                 }
             }
         }
@@ -378,9 +387,9 @@ impl Jukebox {
         render
     }
 
-    pub fn shutdown(self) {
+    pub fn shutdown(mut self) {
         // Gracefully shutdown by waiting for threads to finish writing tag
-        for handle in self.audio_write_handles {
+        if let Some(handle) = self.audio_write_handle.take() {
             let _ = handle.join().unwrap();
         }
     }
