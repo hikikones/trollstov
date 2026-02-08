@@ -1,7 +1,5 @@
-use std::thread::JoinHandle;
-
 use image::GenericImageView;
-use jukebox::{AudioPicture, AudioRating, Jukebox, QueueIndex, TrackId};
+use jukebox::{AudioFileReport, AudioPicture, AudioRating, Jukebox, QueueIndex, TrackId};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -12,15 +10,18 @@ use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
+    pages::Log,
     utils,
     widgets::{List, ListMove, ScrollConfig, Shortcut, Shortcuts},
 };
+
+type AudioPictureHandle = std::thread::JoinHandle<Result<FrontCover, AudioFileReport>>;
 
 pub struct PlayingPage {
     current: Option<(TrackId, QueueIndex)>,
     picker: Picker,
     image: FrontCover,
-    image_handle: Option<JoinHandle<FrontCover>>,
+    image_handle: Option<AudioPictureHandle>,
     play_queue_title: String,
     list: List,
     events: EventSender,
@@ -62,9 +63,18 @@ impl PlayingPage {
         // Poll thread for finished image loading
         if let Some(handle) = self.image_handle.as_ref() {
             if handle.is_finished() {
-                let handle = self.image_handle.take().unwrap();
-                self.image = handle.join().unwrap();
                 render = true;
+                let handle = self.image_handle.take().unwrap();
+                match handle.join().unwrap() {
+                    Ok(image) => {
+                        self.image = image;
+                    }
+                    Err(err) => {
+                        let log = Log::new(err);
+                        self.events.send(AppEvent::Log(log));
+                        self.image = FrontCover::None;
+                    }
+                }
             }
         }
 
@@ -124,9 +134,10 @@ impl PlayingPage {
             }
             KeyCode::Char(c) => match c {
                 '1' | '2' | '3' | '4' | '5' => {
-                    let rating = AudioRating::from_char(c).unwrap();
-                    let id = jb.get_id_from_queue(self.list.index()).unwrap();
-                    jb.set_rating(id, rating);
+                    if let Some(id) = jb.get_id_from_queue(self.list.index()) {
+                        let rating = AudioRating::from_char(c).unwrap();
+                        jb.set_rating(id, rating);
+                    }
                 }
                 'c' => {
                     jb.queue_clear();
@@ -211,36 +222,37 @@ impl PlayingPage {
                     utils::Alignment::CenterHorizontal,
                 );
 
-                let accent_style = Style::new().fg(colors.accent);
-                let track = jb.get(id).unwrap();
-                match track.rating() {
-                    Some(rating) => match rating {
-                        AudioRating::Awful => {
-                            Span::styled("★", accent_style).render(stars_area, buf);
-                            stars_area.x += 1;
-                            Span::styled("☆☆☆☆", neutral_style).render(stars_area, buf);
+                if let Some(rating) = jb.get(id).map(|track| track.rating()) {
+                    let accent_style = Style::new().fg(colors.accent);
+                    match rating {
+                        Some(rating) => match rating {
+                            AudioRating::Awful => {
+                                Span::styled("★", accent_style).render(stars_area, buf);
+                                stars_area.x += 1;
+                                Span::styled("☆☆☆☆", neutral_style).render(stars_area, buf);
+                            }
+                            AudioRating::Bad => {
+                                Span::styled("★★", accent_style).render(stars_area, buf);
+                                stars_area.x += 2;
+                                Span::styled("☆☆☆", neutral_style).render(stars_area, buf);
+                            }
+                            AudioRating::Ok => {
+                                Span::styled("★★★", accent_style).render(stars_area, buf);
+                                stars_area.x += 3;
+                                Span::styled("☆☆", neutral_style).render(stars_area, buf);
+                            }
+                            AudioRating::Good => {
+                                Span::styled("★★★★", accent_style).render(stars_area, buf);
+                                stars_area.x += 4;
+                                Span::styled("☆", neutral_style).render(stars_area, buf);
+                            }
+                            AudioRating::Amazing => {
+                                Span::styled("★★★★★", accent_style).render(stars_area, buf);
+                            }
+                        },
+                        None => {
+                            Span::styled("☆☆☆☆☆", neutral_style).render(stars_area, buf);
                         }
-                        AudioRating::Bad => {
-                            Span::styled("★★", accent_style).render(stars_area, buf);
-                            stars_area.x += 2;
-                            Span::styled("☆☆☆", neutral_style).render(stars_area, buf);
-                        }
-                        AudioRating::Ok => {
-                            Span::styled("★★★", accent_style).render(stars_area, buf);
-                            stars_area.x += 3;
-                            Span::styled("☆☆", neutral_style).render(stars_area, buf);
-                        }
-                        AudioRating::Good => {
-                            Span::styled("★★★★", accent_style).render(stars_area, buf);
-                            stars_area.x += 4;
-                            Span::styled("☆", neutral_style).render(stars_area, buf);
-                        }
-                        AudioRating::Amazing => {
-                            Span::styled("★★★★★", accent_style).render(stars_area, buf);
-                        }
-                    },
-                    None => {
-                        Span::styled("☆☆☆☆☆", neutral_style).render(stars_area, buf);
                     }
                 }
             }
@@ -277,52 +289,63 @@ impl PlayingPage {
             buf,
             jb.queue_iter(),
             |line, buf, (id, qi), is_index, _| {
-                let mut style = Style::new();
-                if let Some(queue_index) = current_queue_index
-                    && queue_index == qi
-                {
-                    style.fg = Some(colors.accent);
-                }
-                let symbol = if is_index { "> " } else { "" };
+                if let Some(track) = jb.get(id) {
+                    let mut style = Style::new();
+                    if current_queue_index == Some(qi) {
+                        style.fg = Some(colors.accent);
+                    }
+                    let symbol = if is_index { "> " } else { "" };
 
-                let track = jb.get(id).unwrap();
-                utils::print_line_iter(
-                    line,
-                    buf,
-                    [
-                        symbol,
-                        track.title(),
-                        " ",
-                        track.artist(),
-                        " ",
-                        track.album(),
-                    ],
-                    style,
-                );
+                    utils::print_line_iter(
+                        line,
+                        buf,
+                        [
+                            symbol,
+                            track.title(),
+                            " ",
+                            track.artist(),
+                            " ",
+                            track.album(),
+                        ],
+                        style,
+                    );
+                }
             },
         );
     }
 
     fn update_image(&mut self, jb: &Jukebox) {
         match jb.current_track_id() {
-            Some(tid) => {
+            Some(id) => {
+                let Some(path) = jb.get(id).map(|track| track.path()) else {
+                    self.image = FrontCover::None;
+                    return;
+                };
+
                 // Load image in thread and store handle
                 self.image = FrontCover::Loading;
-                let path = jb.get(tid).unwrap().path().to_path_buf();
+
+                let path = path.to_path_buf();
                 let picker = self.picker.clone();
                 let handle = std::thread::spawn(move || {
-                    let picture = AudioPicture::read(path).unwrap();
+                    let picture = AudioPicture::read(&path)?;
                     match picture.bytes() {
                         Some(bytes) => {
                             const MAX_RES: u32 = 720;
-                            let mut dyn_img = image::load_from_memory(bytes).unwrap();
+                            let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
+                                AudioFileReport::new(format!(
+                                    "Could not resize front cover image for {} due to {}",
+                                    path.display(),
+                                    err
+                                ))
+                            })?;
                             let (w, h) = dyn_img.dimensions();
                             if w > MAX_RES || h > MAX_RES {
                                 dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
                             }
-                            FrontCover::Ready(picker.new_resize_protocol(dyn_img))
+                            Ok(FrontCover::Ready(picker.new_resize_protocol(dyn_img)))
                         }
-                        None => FrontCover::None,
+                        None => Ok(FrontCover::None),
                     }
                 });
                 self.image_handle = Some(handle);

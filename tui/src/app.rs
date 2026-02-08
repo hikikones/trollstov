@@ -19,7 +19,6 @@ use crate::{
 
 // TODO: Add scrolling bars to the various pages.
 // TODO: Add a playlist page for artists/albums/genres and filtering.
-// TODO: Handle most unwraps.
 
 pub struct App {
     running: bool,
@@ -338,10 +337,12 @@ impl App {
             self.shortcuts_page.clear();
 
             // Playback
-            match self.jukebox.current_track_id() {
-                Some(id) => {
-                    let track = self.jukebox.get(id).unwrap();
-
+            match self
+                .jukebox
+                .current_track_id()
+                .and_then(|id| self.jukebox.get(id))
+            {
+                Some(track) => {
                     // Render playback title
                     render_playback_title(
                         playback_title_area,
