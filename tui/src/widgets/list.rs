@@ -2,6 +2,7 @@ use ratatui::{
     buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
     layout::Rect,
+    style::{Color, Style},
 };
 
 pub struct List {
@@ -154,7 +155,7 @@ impl List {
 
     pub fn render<T>(
         &mut self,
-        area: Rect,
+        mut area: Rect,
         buf: &mut Buffer,
         items: impl ExactSizeIterator<Item = T>,
         mut render_line: impl FnMut(Rect, &mut Buffer, T, bool, bool),
@@ -177,13 +178,26 @@ impl List {
         self.height = area.height;
 
         // Render
+        let height = area.height as usize;
+        let scrollable = items.len() > height;
+
+        if scrollable {
+            let scroll_area = Rect {
+                x: area.x + area.width,
+                width: 1,
+                ..area
+            };
+            area.width = area.width.saturating_sub(1);
+            render_scrollbar(scroll_area, buf, self.scroll, items.len());
+        }
+
         let selection = self.selection();
         let mut line = Rect { height: 1, ..area };
 
         items
             .enumerate()
             .skip(self.scroll)
-            .take(area.height as usize)
+            .take(height)
             .for_each(|(i, item)| {
                 let is_index = i == self.index;
                 let is_selected = i >= *selection.start() && i <= *selection.end();
@@ -192,6 +206,15 @@ impl List {
 
                 line.y += 1;
             });
+
+        // if scrollable {
+        //     let scroll_area = Rect {
+        //         x: area.x + area.width + 1,
+        //         width: 1,
+        //         ..area
+        //     };
+        //     render_scrollbar(scroll_area, buf, self.index, items.len());
+        // }
     }
 }
 
@@ -231,4 +254,62 @@ pub fn calculate_scroll(
         // No scroll
         offset
     }
+}
+
+fn render_scrollbar(vertical_line: Rect, buf: &mut Buffer, index: usize, items: usize) {
+    let height = vertical_line.height as usize;
+    if items == 0 || height == 0 {
+        return;
+    }
+
+    // let size = (height / items).max(1);
+    // let max_offset = max(0, N - V);
+    // let max_offset = items.saturating_sub(height);
+
+    let visible = height as f32 / items as f32;
+    let size = ((visible * height as f32).round() as usize).max(1);
+    // let size = 4;
+    let progress = index as f32 / items.saturating_sub(height) as f32;
+
+    let scroll_range = height.saturating_sub(size);
+    let thumb_top = (progress * scroll_range as f32).round() as usize;
+
+    // let status_width = line.width / 3;
+    // let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
+    // let max_highlight_bound = if scroll == 0 {
+    //     size
+    // } else {
+    //     (height as f32 * progress) as usize
+    // };
+
+    // let max_highlight_bound = (height as f32 * progress) as usize;
+    // let start_highlight_bound = max_highlight_bound.saturating_sub(size);
+    let start_highlight_bound = (height as f32 * progress) as usize;
+    let start_highlight_bound = thumb_top;
+    // let start_highlight_bound = start_highlight_bound.saturating_sub(size);
+    let max_highlight_bound = start_highlight_bound + size;
+
+    let neutral_style = Style::new().fg(Color::White);
+    let accent_style = Style::new().fg(Color::Yellow);
+
+    let Rect { x, mut y, .. } = vertical_line;
+    for i in 0..height {
+        if i >= start_highlight_bound && i < max_highlight_bound {
+            // draw scrollbar
+            buf.set_stringn(x, y, "┃", 1, accent_style);
+        } else {
+            // draw line
+            buf.set_stringn(x, y, "│", 1, neutral_style);
+        }
+        y += 1;
+    }
+
+    // for i in 0..status_width {
+    //     let (ch, style) = if i <= max_highlight_bound {
+    //         ('━', accent_style)
+    //     } else {
+    //         ('─', neutral_style)
+    //     };
+    //     text.push_char(ch, style);
+    // }
 }
