@@ -158,7 +158,7 @@ impl Jukebox {
     }
 
     pub fn play_queue_index(&mut self, index: usize) {
-        if let Some(id) = self.queue.set_index(QueueIndex(index)) {
+        if let Some(id) = self.queue.set_index(index) {
             self.state = PlayState::Track;
             self.start_play(id, QueueIndex(index));
         }
