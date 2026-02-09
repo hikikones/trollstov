@@ -165,7 +165,6 @@ impl Jukebox {
     }
 
     pub fn play_track(&mut self, id: TrackId) {
-        // TODO: If new track is same as current, simply rewind.
         let (id, index) = self.queue.enqueue_next(id).next().unwrap();
         self.state = PlayState::Track;
         self.start_play(id, index);
@@ -177,23 +176,23 @@ impl Jukebox {
     }
 
     pub fn pause(&mut self) {
+        self.audio_decode_handle = None;
         self.state = PlayState::Pause;
         self.sink.pause();
     }
 
     pub fn pause_or_play(&mut self) {
-        if self.sink.is_paused() {
-            self.play();
-        } else {
-            self.pause();
+        match self.state {
+            PlayState::Pause | PlayState::Stop => self.play(),
+            _ => self.pause(),
         }
     }
 
     pub fn stop(&mut self) {
-        self.sink.clear();
         self.current = None;
-        self.state = PlayState::Stop;
         self.audio_decode_handle = None;
+        self.state = PlayState::Stop;
+        self.sink.clear();
     }
 
     pub fn play_next(&mut self) {

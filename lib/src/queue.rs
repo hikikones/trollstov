@@ -1,6 +1,7 @@
 use crate::TrackId;
 
-// TODO: max length?
+// TODO: Max length?
+// Should maybe batch drain from history when reaching a big amount.
 pub(super) struct PlayQueue {
     list: Vec<TrackId>,
     index: Option<usize>,
