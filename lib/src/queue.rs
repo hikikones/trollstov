@@ -137,6 +137,10 @@ impl PlayQueue {
         }
     }
 
+    pub(super) fn reset(&mut self) {
+        self.index = None;
+    }
+
     pub(super) fn clear(&mut self) {
         self.list.clear();
         self.index = None;

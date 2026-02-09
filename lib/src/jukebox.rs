@@ -246,6 +246,9 @@ impl Jukebox {
             self.start_play(id, index);
             return;
         }
+
+        // No valid previous found, update queue index
+        self.sync_queue_index();
     }
 
     pub fn fast_forward_by(&mut self, duration: Duration) {
@@ -317,6 +320,17 @@ impl Jukebox {
         })
     }
 
+    fn sync_queue_index(&mut self) {
+        match self.current {
+            Some((_, index)) => {
+                self.queue.set_index(index.0);
+            }
+            None => {
+                self.queue.reset();
+            }
+        }
+    }
+
     pub fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) -> bool {
         self.database.update(&mut on_error);
 
@@ -349,6 +363,7 @@ impl Jukebox {
                             }
                             PlayState::Track => {
                                 self.state = PlayState::Play;
+                                self.sync_queue_index();
                             }
                             _ => {}
                         }
