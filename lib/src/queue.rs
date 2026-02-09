@@ -125,7 +125,8 @@ impl PlayQueue {
         }
     }
 
-    pub(super) fn shuffle(&mut self, start: usize, end: usize) {
+    pub(super) fn shuffle(&mut self, start: usize) {
+        let end = self.list.len();
         if start >= end {
             return;
         }

@@ -138,7 +138,7 @@ impl Jukebox {
             Some(index) => index.0 + 1,
             None => 0,
         };
-        self.queue.shuffle(start, self.queue.len());
+        self.queue.shuffle(start);
     }
 
     pub fn queue_clear(&mut self) {
