@@ -176,7 +176,6 @@ impl Jukebox {
     }
 
     pub fn pause(&mut self) {
-        self.audio_decode_handle = None;
         self.state = PlayState::Pause;
         self.sink.pause();
     }
