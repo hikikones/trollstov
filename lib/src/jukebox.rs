@@ -158,14 +158,13 @@ impl Jukebox {
     }
 
     pub fn play_queue_index(&mut self, index: usize) {
-        if let Some(id) = self.queue.set_index(QueueIndex(index)) {
+        if let Some(id) = self.queue.set_index(index) {
             self.state = PlayState::Track;
             self.start_play(id, QueueIndex(index));
         }
     }
 
     pub fn play_track(&mut self, id: TrackId) {
-        // TODO: If new track is same as current, simply rewind.
         let (id, index) = self.queue.enqueue_next(id).next().unwrap();
         self.state = PlayState::Track;
         self.start_play(id, index);
@@ -182,18 +181,17 @@ impl Jukebox {
     }
 
     pub fn pause_or_play(&mut self) {
-        if self.sink.is_paused() {
-            self.play();
-        } else {
-            self.pause();
+        match self.state {
+            PlayState::Pause | PlayState::Stop => self.play(),
+            _ => self.pause(),
         }
     }
 
     pub fn stop(&mut self) {
-        self.sink.clear();
         self.current = None;
-        self.state = PlayState::Stop;
         self.audio_decode_handle = None;
+        self.state = PlayState::Stop;
+        self.sink.clear();
     }
 
     pub fn play_next(&mut self) {
@@ -246,6 +244,9 @@ impl Jukebox {
             self.start_play(id, index);
             return;
         }
+
+        // No valid previous found, update queue index
+        self.sync_queue_index();
     }
 
     pub fn fast_forward_by(&mut self, duration: Duration) {
@@ -317,6 +318,17 @@ impl Jukebox {
         })
     }
 
+    fn sync_queue_index(&mut self) {
+        match self.current {
+            Some((_, index)) => {
+                self.queue.set_index(index.0);
+            }
+            None => {
+                self.queue.reset();
+            }
+        }
+    }
+
     pub fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) -> bool {
         self.database.update(&mut on_error);
 
@@ -349,6 +361,7 @@ impl Jukebox {
                             }
                             PlayState::Track => {
                                 self.state = PlayState::Play;
+                                self.sync_queue_index();
                             }
                             _ => {}
                         }

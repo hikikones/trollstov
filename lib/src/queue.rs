@@ -1,9 +1,10 @@
 use crate::TrackId;
 
-// TODO: max length?
+// TODO: Max length?
+// Should maybe batch drain from history when reaching a big amount.
 pub(super) struct PlayQueue {
     list: Vec<TrackId>,
-    index: Option<QueueIndex>,
+    index: Option<usize>,
 }
 
 impl PlayQueue {
@@ -20,14 +21,14 @@ impl PlayQueue {
 
     pub(super) const fn queue_len(&self) -> usize {
         match self.index {
-            Some(index) => (self.list.len() - index.0).saturating_sub(1),
+            Some(index) => (self.list.len() - index).saturating_sub(1),
             None => self.list.len(),
         }
     }
 
     pub(super) const fn history_len(&self) -> usize {
         match self.index {
-            Some(index) => index.0,
+            Some(index) => index,
             None => 0,
         }
     }
@@ -40,8 +41,8 @@ impl PlayQueue {
         self.list.get(index.0).copied()
     }
 
-    pub(super) fn set_index(&mut self, index: QueueIndex) -> Option<TrackId> {
-        match self.list.get(index.0).copied() {
+    pub(super) fn set_index(&mut self, index: usize) -> Option<TrackId> {
+        match self.list.get(index).copied() {
             Some(id) => {
                 self.index = Some(index);
                 Some(id)
@@ -52,7 +53,7 @@ impl PlayQueue {
 
     pub(super) fn current(&self) -> Option<(TrackId, QueueIndex)> {
         self.index
-            .and_then(|i| self.list.get(i.0).copied().map(|id| (id, i)))
+            .and_then(|i| self.list.get(i).copied().map(|id| (id, QueueIndex(i))))
     }
 
     pub(super) fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, QueueIndex)> {
@@ -68,7 +69,7 @@ impl PlayQueue {
     }
 
     pub(super) fn enqueue_next(&mut self, id: TrackId) -> &mut Self {
-        let insert_index = self.index.map(|i| i.0 + 1).unwrap_or_default();
+        let insert_index = self.index.map(|i| i + 1).unwrap_or_default();
         self.list.insert(insert_index, id);
         self
     }
@@ -79,13 +80,13 @@ impl PlayQueue {
 
     pub(super) fn next(&mut self) -> Option<(TrackId, QueueIndex)> {
         match self.index {
-            Some(QueueIndex(mut index)) => {
+            Some(mut index) => {
                 let old_index = index;
                 let max_index = self.len().saturating_sub(1);
                 index = usize::min(index + 1, max_index);
 
                 if index != old_index {
-                    self.index = Some(QueueIndex(index));
+                    self.index = Some(index);
                     self.list
                         .get(index)
                         .copied()
@@ -98,7 +99,7 @@ impl PlayQueue {
                 if self.list.is_empty() {
                     None
                 } else {
-                    self.index = Some(QueueIndex(0));
+                    self.index = Some(0);
                     self.list.first().copied().map(|id| (id, QueueIndex(0)))
                 }
             }
@@ -107,12 +108,12 @@ impl PlayQueue {
 
     pub(super) fn previous(&mut self) -> Option<(TrackId, QueueIndex)> {
         match self.index {
-            Some(QueueIndex(mut index)) => {
+            Some(mut index) => {
                 let old_index = index;
                 index = index.saturating_sub(1);
 
                 if index != old_index {
-                    self.index = Some(QueueIndex(index));
+                    self.index = Some(index);
                     self.list
                         .get(index)
                         .copied()
@@ -135,6 +136,10 @@ impl PlayQueue {
             let random = fastrand::usize(start..end);
             self.list.swap(i, random);
         }
+    }
+
+    pub(super) const fn reset(&mut self) {
+        self.index = None;
     }
 
     pub(super) fn clear(&mut self) {
