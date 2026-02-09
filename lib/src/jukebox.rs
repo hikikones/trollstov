@@ -138,7 +138,7 @@ impl Jukebox {
             Some(index) => index.0 + 1,
             None => 0,
         };
-        self.queue.shuffle(start, self.queue.len());
+        self.queue.shuffle(start);
     }
 
     pub fn queue_clear(&mut self) {
@@ -225,9 +225,13 @@ impl Jukebox {
             }
         }
 
-        // No tracks in the queue, enqueue a random
-        let random = fastrand::u64(0..self.database.len() as u64);
-        let (id, index) = self.queue.enqueue(TrackId(random)).next().unwrap();
+        // No tracks in the queue, play a random next
+        let mut random = TrackId(fastrand::u64(0..self.database.len() as u64));
+        if self.current_track_id() == Some(random) {
+            // Do it one more time
+            random = TrackId(fastrand::u64(0..self.database.len() as u64));
+        }
+        let (id, index) = self.queue.enqueue(random).next().unwrap();
         self.state = PlayState::Next;
         self.start_play(id, index);
     }
