@@ -138,7 +138,7 @@ impl PlayQueue {
         }
     }
 
-    pub(super) fn reset(&mut self) {
+    pub(super) const fn reset(&mut self) {
         self.index = None;
     }
 
