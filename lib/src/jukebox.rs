@@ -157,6 +157,14 @@ impl Jukebox {
         self.queue.enqueue_next(id);
     }
 
+    pub fn volume(&self) -> f32 {
+        self.sink.volume()
+    }
+
+    pub fn set_volume(&mut self, value: f32) {
+        self.sink.set_volume(value);
+    }
+
     pub fn play_queue_index(&mut self, index: usize) {
         if let Some(id) = self.queue.set_index(index) {
             self.state = PlayState::Track;

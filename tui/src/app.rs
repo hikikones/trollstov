@@ -27,8 +27,9 @@ pub struct App {
     events: EventHandler,
     jukebox: Jukebox,
     text_segment: TextSegment,
-    shortcuts_app: Shortcuts<'static>,
-    shortcuts_page: Shortcuts<'static>,
+    shortcuts_page: Shortcuts,
+    shortcuts_play: Shortcuts,
+    shortcuts_app: Shortcuts,
 }
 
 pub struct Colors {
@@ -65,17 +66,20 @@ impl App {
         let colors = Colors::new();
         let pages = Pages::new(picker, events.clone_sender(), &colors);
 
-        let mut shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
-        shortcuts_app.extend([
-            Shortcut::new("Quit", "Esc"),
-            Shortcut::new("Navigate", "(⇧)Tab"),
+        let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
+        let mut shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
+        shortcuts_play.extend([
             Shortcut::new("Play/Pause", "^￪"),
             Shortcut::new("Next/Prev", "^⇆"),
             Shortcut::new("Stop", "^￬"),
             Shortcut::new("Forward 30s", "⎇→"),
+        ]);
+        let mut shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
+        shortcuts_app.extend([
+            Shortcut::new("Quit", "Esc"),
+            Shortcut::new("Navigate", "(⇧)Tab"),
             Shortcut::new("Search", "/"),
         ]);
-        let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
 
         Self {
             running: true,
@@ -85,8 +89,9 @@ impl App {
             events,
             jukebox,
             text_segment: TextSegment::new().with_alignment(Alignment::Center),
-            shortcuts_app,
             shortcuts_page,
+            shortcuts_play,
+            shortcuts_app,
         }
     }
 
@@ -140,6 +145,10 @@ impl App {
             KeyCode::Up => {
                 if ctrl {
                     self.jukebox.pause_or_play();
+                } else if alt {
+                    let new_volume = (self.jukebox.volume() + 0.1).min(2.0);
+                    self.jukebox.set_volume(new_volume);
+                    self.events.send(AppEvent::Render);
                 } else {
                     self.on_input(key);
                 }
@@ -147,6 +156,10 @@ impl App {
             KeyCode::Down => {
                 if ctrl {
                     self.jukebox.stop();
+                } else if alt {
+                    let new_volume = (self.jukebox.volume() - 0.1).max(0.0);
+                    self.jukebox.set_volume(new_volume);
+                    self.events.send(AppEvent::Render);
                 } else {
                     self.on_input(key);
                 }
@@ -156,6 +169,7 @@ impl App {
                     self.jukebox.play_next();
                 } else if alt {
                     self.jukebox.fast_forward_by(Duration::from_secs(30));
+                    self.events.send(AppEvent::Render);
                 } else {
                     self.on_input(key);
                 }
@@ -267,12 +281,14 @@ impl App {
                 _,
                 playback_title_area,
                 playback_status_area,
+                shortcuts_play_area,
                 shortcuts_app_area,
             ] = Layout::vertical([
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Fill(0),
+                Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
@@ -375,7 +391,15 @@ impl App {
             }
 
             // Shortcuts
+            let volume = (self.jukebox.volume() * 100.0).round() as u8;
+            jukebox::utils::format_int(volume, |volume| {
+                self.shortcuts_play
+                    .push_iter(["Volume ", volume, "%"], "⎇⇵");
+            });
+            self.shortcuts_play.render(shortcuts_play_area, buf);
             self.shortcuts_app.render(shortcuts_app_area, buf);
+
+            self.shortcuts_play.pop();
         })
     }
 
