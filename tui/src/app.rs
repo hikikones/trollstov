@@ -394,7 +394,7 @@ impl App {
             let volume = (self.jukebox.volume() * 100.0).round() as u8;
             jukebox::utils::format_int(volume, |volume| {
                 self.shortcuts_play
-                    .push_slices(["Volume ", volume, "%"], "⎇⇵");
+                    .push_iter(["Volume ", volume, "%"], "⎇⇵");
             });
             self.shortcuts_play.render(shortcuts_play_area, buf);
             self.shortcuts_app.render(shortcuts_app_area, buf);

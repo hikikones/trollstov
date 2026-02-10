@@ -44,7 +44,7 @@ impl Shortcuts {
         ]);
     }
 
-    pub fn push_slices<'a>(&mut self, name: impl IntoIterator<Item = &'a str>, key: &str) {
+    pub fn push_iter<'a>(&mut self, name: impl IntoIterator<Item = &'a str>, key: &str) {
         if !self.text.is_empty() {
             self.text.push_char(' ', Style::new());
         }
