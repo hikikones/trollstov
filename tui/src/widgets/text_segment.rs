@@ -64,12 +64,43 @@ impl TextSegment {
         self.total_width += unicode_width::UnicodeWidthStr::width(text);
     }
 
-    pub fn extend<'a>(
-        &mut self,
-        items: impl IntoIterator<Item = (impl AsRef<str>, impl Into<Style>)>,
-    ) {
+    pub fn extend(&mut self, items: impl IntoIterator<Item = (impl AsRef<str>, impl Into<Style>)>) {
         for (text, style) in items.into_iter() {
             self.push_str(text.as_ref(), style);
+        }
+    }
+
+    pub fn extend_as_one(
+        &mut self,
+        slices: impl IntoIterator<Item = impl AsRef<str>>,
+        style: impl Into<Style>,
+    ) {
+        let mut len = 0;
+        let mut width = 0;
+
+        for text in slices.into_iter() {
+            let text = text.as_ref();
+            if text.is_empty() {
+                continue;
+            }
+
+            len += text.len();
+            width += unicode_width::UnicodeWidthStr::width(text);
+            self.text.push_str(text);
+        }
+
+        self.segments.push((len, style.into()));
+        self.total_width += width;
+    }
+
+    pub fn pop(&mut self) {
+        if let Some((i, _)) = self.segments.pop() {
+            let start = self.text.len() - i;
+            let end = self.text.len();
+            let slice = &self.text[start..end];
+
+            self.total_width -= unicode_width::UnicodeWidthStr::width(slice);
+            self.text.truncate(start);
         }
     }
 

@@ -52,14 +52,24 @@ impl Shortcuts {
         self.text
             .extend([(key, Style::new().fg(self.key_color)), (" ", Style::new())]);
 
-        self.text
-            .extend(name.into_iter().map(|s| (s, self.name_color)));
+        self.text.extend_as_one(name, self.name_color);
     }
 
     pub fn extend<'a>(&mut self, shortcuts: impl IntoIterator<Item = Shortcut<'a>>) {
         for shortcut in shortcuts {
             self.push(shortcut);
         }
+    }
+
+    pub fn pop(&mut self) {
+        if self.text.is_empty() {
+            return;
+        }
+
+        self.text.pop();
+        self.text.pop();
+        self.text.pop();
+        self.text.pop();
     }
 
     pub fn clear(&mut self) {

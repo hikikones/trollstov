@@ -67,7 +67,13 @@ impl App {
         let pages = Pages::new(picker, events.clone_sender(), &colors);
 
         let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
-        let shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
+        let mut shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
+        shortcuts_play.extend([
+            Shortcut::new("Play/Pause", "^￪"),
+            Shortcut::new("Next/Prev", "^⇆"),
+            Shortcut::new("Stop", "^￬"),
+            Shortcut::new("Forward 30s", "⎇→"),
+        ]);
         let mut shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
         shortcuts_app.extend([
             Shortcut::new("Quit", "Esc"),
@@ -385,12 +391,6 @@ impl App {
             }
 
             // Shortcuts
-            self.shortcuts_play.extend([
-                Shortcut::new("Play/Pause", "^￪"),
-                Shortcut::new("Next/Prev", "^⇆"),
-                Shortcut::new("Stop", "^￬"),
-                Shortcut::new("Forward 30s", "⎇→"),
-            ]);
             let volume = (self.jukebox.volume() * 100.0).round() as u8;
             jukebox::utils::format_int(volume, |volume| {
                 self.shortcuts_play
@@ -399,7 +399,7 @@ impl App {
             self.shortcuts_play.render(shortcuts_play_area, buf);
             self.shortcuts_app.render(shortcuts_app_area, buf);
 
-            self.shortcuts_play.clear();
+            self.shortcuts_play.pop();
         })
     }
 
