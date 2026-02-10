@@ -56,12 +56,12 @@ impl Database {
         self.tracks.keys().nth(i).copied()
     }
 
-    pub(super) fn iter(&self) -> indexmap::map::Iter<'_, TrackId, Track> {
-        self.tracks.iter()
+    pub(super) fn get_index_from_id(&self, id: TrackId) -> Option<usize> {
+        self.tracks.get_index_of(&id)
     }
 
-    pub(super) fn ids(&self) -> indexmap::map::Keys<'_, TrackId, Track> {
-        self.tracks.keys()
+    pub(super) fn iter(&self) -> indexmap::map::Iter<'_, TrackId, Track> {
+        self.tracks.iter()
     }
 
     pub(super) const fn get_sort(&self) -> TrackSort {

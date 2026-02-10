@@ -82,12 +82,7 @@ impl Jukebox {
     }
 
     pub fn get_index_from_id(&self, id: TrackId) -> Option<usize> {
-        self.database
-            .ids()
-            .copied()
-            .enumerate()
-            .find(|(_, tid)| *tid == id)
-            .map(|(i, _)| i)
+        self.database.get_index_from_id(id)
     }
 
     pub fn get_id_from_queue(&self, i: usize) -> Option<TrackId> {
