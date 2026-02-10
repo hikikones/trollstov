@@ -139,6 +139,10 @@ impl App {
             KeyCode::Up => {
                 if ctrl {
                     self.jukebox.pause_or_play();
+                } else if alt {
+                    let new_volume = (self.jukebox.volume() + 0.1).min(2.0);
+                    self.jukebox.set_volume(new_volume);
+                    self.events.send(AppEvent::Render);
                 } else {
                     self.on_input(key);
                 }
@@ -146,6 +150,10 @@ impl App {
             KeyCode::Down => {
                 if ctrl {
                     self.jukebox.stop();
+                } else if alt {
+                    let new_volume = (self.jukebox.volume() - 0.1).max(0.0);
+                    self.jukebox.set_volume(new_volume);
+                    self.events.send(AppEvent::Render);
                 } else {
                     self.on_input(key);
                 }
@@ -155,6 +163,7 @@ impl App {
                     self.jukebox.play_next();
                 } else if alt {
                     self.jukebox.fast_forward_by(Duration::from_secs(30));
+                    self.events.send(AppEvent::Render);
                 } else {
                     self.on_input(key);
                 }
@@ -382,8 +391,10 @@ impl App {
                 Shortcut::new("Stop", "^￬"),
                 Shortcut::new("Forward 30s", "⎇→"),
             ]);
-            jukebox::utils::format_int(100, |num| {
-                self.shortcuts_play.push_slices(["Volume ", num, "%"], "⎇⇵");
+            let volume = (self.jukebox.volume() * 100.0).round() as u8;
+            jukebox::utils::format_int(volume, |volume| {
+                self.shortcuts_play
+                    .push_slices(["Volume ", volume, "%"], "⎇⇵");
             });
             self.shortcuts_play.render(shortcuts_play_area, buf);
             self.shortcuts_app.render(shortcuts_app_area, buf);
