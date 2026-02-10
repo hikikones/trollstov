@@ -81,12 +81,21 @@ impl Jukebox {
         self.database.get_id_from_index(i)
     }
 
+    pub fn get_index_from_id(&self, id: TrackId) -> Option<usize> {
+        self.database
+            .ids()
+            .copied()
+            .enumerate()
+            .find(|(_, tid)| *tid == id)
+            .map(|(i, _)| i)
+    }
+
     pub fn get_id_from_queue(&self, i: usize) -> Option<TrackId> {
         self.queue.get(QueueIndex(i))
     }
 
     pub fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, &Track)> + DoubleEndedIterator {
-        self.database.iter()
+        self.database.iter().map(|(id, track)| (*id, track))
     }
 
     pub const fn get_sort(&self) -> TrackSort {

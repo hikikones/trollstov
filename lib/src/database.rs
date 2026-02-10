@@ -56,10 +56,12 @@ impl Database {
         self.tracks.keys().nth(i).copied()
     }
 
-    pub(super) fn iter(
-        &self,
-    ) -> impl ExactSizeIterator<Item = (TrackId, &Track)> + DoubleEndedIterator {
-        self.tracks.iter().map(|(id, track)| (*id, track))
+    pub(super) fn iter(&self) -> indexmap::map::Iter<'_, TrackId, Track> {
+        self.tracks.iter()
+    }
+
+    pub(super) fn ids(&self) -> indexmap::map::Keys<'_, TrackId, Track> {
+        self.tracks.keys()
     }
 
     pub(super) const fn get_sort(&self) -> TrackSort {
