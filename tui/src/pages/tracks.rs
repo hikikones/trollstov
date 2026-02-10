@@ -9,7 +9,7 @@ use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
     utils,
-    widgets::{List, Shortcut, Shortcuts},
+    widgets::{List, ListMove, Shortcut, Shortcuts},
 };
 
 pub struct TracksPage {
@@ -105,11 +105,23 @@ impl TracksPage {
                     }
                 }
                 's' => {
+                    let id = jb.get_id_from_index(self.list.index());
                     jb.sort(jb.get_sort().next());
+                    if let Some(id) = id
+                        && let Some(i) = jb.get_index_from_id(id)
+                    {
+                        self.list.move_index(ListMove::Custom(i), false);
+                    }
                     self.events.send(AppEvent::Render);
                 }
                 'S' => {
+                    let id = jb.get_id_from_index(self.list.index());
                     jb.sort(jb.get_sort().prev());
+                    if let Some(id) = id
+                        && let Some(i) = jb.get_index_from_id(id)
+                    {
+                        self.list.move_index(ListMove::Custom(i), false);
+                    }
                     self.events.send(AppEvent::Render);
                 }
                 _ => {
