@@ -27,8 +27,9 @@ pub struct App {
     events: EventHandler,
     jukebox: Jukebox,
     text_segment: TextSegment,
-    shortcuts_app: Shortcuts<'static>,
-    shortcuts_page: Shortcuts<'static>,
+    shortcuts_page: Shortcuts,
+    shortcuts_play: Shortcuts,
+    shortcuts_app: Shortcuts,
 }
 
 pub struct Colors {
@@ -65,17 +66,14 @@ impl App {
         let colors = Colors::new();
         let pages = Pages::new(picker, events.clone_sender(), &colors);
 
+        let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
+        let shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
         let mut shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
         shortcuts_app.extend([
             Shortcut::new("Quit", "Esc"),
             Shortcut::new("Navigate", "(⇧)Tab"),
-            Shortcut::new("Play/Pause", "^￪"),
-            Shortcut::new("Next/Prev", "^⇆"),
-            Shortcut::new("Stop", "^￬"),
-            Shortcut::new("Forward 30s", "⎇→"),
             Shortcut::new("Search", "/"),
         ]);
-        let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
 
         Self {
             running: true,
@@ -85,8 +83,9 @@ impl App {
             events,
             jukebox,
             text_segment: TextSegment::new().with_alignment(Alignment::Center),
-            shortcuts_app,
             shortcuts_page,
+            shortcuts_play,
+            shortcuts_app,
         }
     }
 
@@ -267,12 +266,14 @@ impl App {
                 _,
                 playback_title_area,
                 playback_status_area,
+                shortcuts_play_area,
                 shortcuts_app_area,
             ] = Layout::vertical([
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Fill(0),
+                Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
@@ -375,7 +376,19 @@ impl App {
             }
 
             // Shortcuts
+            self.shortcuts_play.extend([
+                Shortcut::new("Play/Pause", "^￪"),
+                Shortcut::new("Next/Prev", "^⇆"),
+                Shortcut::new("Stop", "^￬"),
+                Shortcut::new("Forward 30s", "⎇→"),
+            ]);
+            jukebox::utils::format_int(100, |num| {
+                self.shortcuts_play.push_slices(["Volume ", num, "%"], "⎇⇵");
+            });
+            self.shortcuts_play.render(shortcuts_play_area, buf);
             self.shortcuts_app.render(shortcuts_app_area, buf);
+
+            self.shortcuts_play.clear();
         })
     }
 

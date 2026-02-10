@@ -1,10 +1,10 @@
 use ratatui::{
     buffer::Buffer,
-    layout::Rect,
-    style::Color,
-    text::{Line, Span},
-    widgets::Widget,
+    layout::{Alignment, Rect},
+    style::{Color, Style},
 };
+
+use crate::widgets::TextSegment;
 
 pub struct Shortcut<'a> {
     name: &'a str,
@@ -17,43 +17,56 @@ impl<'a> Shortcut<'a> {
     }
 }
 
-pub struct Shortcuts<'a> {
+pub struct Shortcuts {
     name_color: Color,
     key_color: Color,
-    line: Line<'a>,
+    text: TextSegment,
 }
 
-impl<'a> Shortcuts<'a> {
+impl Shortcuts {
     pub fn new(name_color: Color, key_color: Color) -> Self {
         Self {
             name_color,
             key_color,
-            line: Line::default().centered(),
+            text: TextSegment::new().with_alignment(Alignment::Center),
         }
     }
 
-    pub fn push(&mut self, shortcut: Shortcut<'a>) {
-        let spans = [
-            Span::raw(" "),
-            Span::styled(shortcut.key, self.key_color),
-            Span::raw(" "),
-            Span::styled(shortcut.name, self.name_color),
-            Span::raw(" "),
-        ];
-        self.line.spans.extend(spans);
+    pub fn push(&mut self, shortcut: Shortcut<'_>) {
+        if !self.text.is_empty() {
+            self.text.push_char(' ', Style::new());
+        }
+
+        self.text.extend([
+            (shortcut.key, Style::new().fg(self.key_color)),
+            (" ", Style::new()),
+            (shortcut.name, Style::new().fg(self.name_color)),
+        ]);
     }
 
-    pub fn extend(&mut self, shortcuts: impl IntoIterator<Item = Shortcut<'a>>) {
+    pub fn push_slices<'a>(&mut self, name: impl IntoIterator<Item = &'a str>, key: &str) {
+        if !self.text.is_empty() {
+            self.text.push_char(' ', Style::new());
+        }
+
+        self.text
+            .extend([(key, Style::new().fg(self.key_color)), (" ", Style::new())]);
+
+        self.text
+            .extend(name.into_iter().map(|s| (s, self.name_color)));
+    }
+
+    pub fn extend<'a>(&mut self, shortcuts: impl IntoIterator<Item = Shortcut<'a>>) {
         for shortcut in shortcuts {
             self.push(shortcut);
         }
     }
 
     pub fn clear(&mut self) {
-        self.line.spans.clear();
+        self.text.clear();
     }
 
     pub fn render(&self, area: Rect, buf: &mut Buffer) {
-        (&self.line).render(area, buf);
+        self.text.render(area, buf);
     }
 }

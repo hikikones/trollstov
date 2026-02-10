@@ -26,21 +26,21 @@ impl TextSegment {
         self
     }
 
-    pub const fn set_alignment(&mut self, alignment: Alignment) {
-        self.alignment = alignment;
+    pub const fn is_empty(&self) -> bool {
+        self.text.is_empty()
     }
 
     pub const fn width(&self) -> u16 {
         self.total_width as u16
     }
 
-    pub fn push_char(&mut self, ch: char, style: Style) {
+    pub fn push_char(&mut self, ch: char, style: impl Into<Style>) {
         self.text.push(ch);
-        self.segments.push((ch.len_utf8(), style));
+        self.segments.push((ch.len_utf8(), style.into()));
         self.total_width += unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
     }
 
-    pub fn push_chars(&mut self, chars: &[char], style: Style) {
+    pub fn push_chars(&mut self, chars: &[char], style: impl Into<Style>) {
         let mut len = 0;
         let mut width = 0;
 
@@ -50,23 +50,26 @@ impl TextSegment {
             self.text.push(ch);
         }
 
-        self.segments.push((len, style));
+        self.segments.push((len, style.into()));
         self.total_width += width;
     }
 
-    pub fn push_str(&mut self, text: &str, style: Style) {
+    pub fn push_str(&mut self, text: &str, style: impl Into<Style>) {
         if text.is_empty() {
             return;
         }
 
         self.text.push_str(text);
-        self.segments.push((text.len(), style));
+        self.segments.push((text.len(), style.into()));
         self.total_width += unicode_width::UnicodeWidthStr::width(text);
     }
 
-    pub fn extend<'a>(&mut self, items: impl IntoIterator<Item = (&'a str, Style)>) {
+    pub fn extend<'a>(
+        &mut self,
+        items: impl IntoIterator<Item = (impl AsRef<str>, impl Into<Style>)>,
+    ) {
         for (text, style) in items.into_iter() {
-            self.push_str(text, style);
+            self.push_str(text.as_ref(), style);
         }
     }
 
