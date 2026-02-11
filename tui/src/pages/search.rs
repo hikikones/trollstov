@@ -25,7 +25,11 @@ pub struct SearchPage {
 impl SearchPage {
     pub fn new(colors: &Colors, events: EventSender) -> Self {
         Self {
-            search_input: TextInput::new().with_placeholder("Search..."),
+            search_input: TextInput::new().with_placeholder("Search...").with_styles(
+                Style::new().bg(colors.accent).fg(colors.on_accent),
+                Style::new().bg(colors.accent).fg(colors.on_accent),
+                Style::new().fg(colors.neutral).italic(),
+            ),
             search_results: Vec::new(),
             matcher: Matcher::new(),
             list: List::new(),
@@ -111,10 +115,8 @@ impl SearchPage {
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
-        self.search_input.input(key, modifiers);
-        self.events.send(AppEvent::Render);
-        return;
         let shift = modifiers.contains(KeyModifiers::SHIFT);
+
         match key {
             KeyCode::Down => {
                 if self.list.move_index(ListMove::Down, shift) {
