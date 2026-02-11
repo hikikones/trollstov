@@ -200,18 +200,15 @@ pub fn calculate_scroll(
     margin_bottom: usize,
     padding_bottom: usize,
 ) -> usize {
-    let viewport_height = viewport_height as usize;
+    let height = viewport_height as usize;
+    let max_offset = (total_lines + padding_bottom).saturating_sub(height);
 
-    let max_offset = total_lines
-        .saturating_sub(viewport_height)
-        .saturating_add(padding_bottom);
-
-    let available = viewport_height.saturating_sub(1);
+    let available = height.saturating_sub(1);
     let margin_top = margin_top.min(available);
     let margin_bottom = margin_bottom.min(available - margin_top);
 
     let top_boundary = offset + margin_top;
-    let bottom_boundary = offset + viewport_height.saturating_sub(margin_bottom + 1);
+    let bottom_boundary = offset + height.saturating_sub(margin_bottom + 1);
 
     if selected < top_boundary {
         // Scroll up
