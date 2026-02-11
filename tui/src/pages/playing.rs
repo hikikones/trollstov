@@ -11,8 +11,7 @@ use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
     pages::Log,
-    utils,
-    widgets::{List, ListMove, ScrollConfig, Shortcut, Shortcuts},
+    widgets::{List, ListMove, ScrollConfig, Shortcut, Shortcuts, utils},
 };
 
 type AudioPictureHandle = std::thread::JoinHandle<Result<FrontCover, AudioFileReport>>;

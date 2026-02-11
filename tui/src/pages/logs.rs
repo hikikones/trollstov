@@ -7,8 +7,7 @@ use ratatui::{
 use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
-    utils,
-    widgets::List,
+    widgets::{List, utils},
 };
 
 pub struct LogsPage {

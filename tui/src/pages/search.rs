@@ -8,8 +8,7 @@ use ratatui::{
 use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
-    utils,
-    widgets::{List, ListMove, TextInput},
+    widgets::{List, ListMove, TextInput, utils},
 };
 
 pub struct SearchPage {

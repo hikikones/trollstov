@@ -8,8 +8,7 @@ use ratatui::{
 use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
-    utils,
-    widgets::{List, ListMove, Shortcut, Shortcuts},
+    widgets::{List, ListMove, Shortcut, Shortcuts, utils},
 };
 
 pub struct TracksPage {
