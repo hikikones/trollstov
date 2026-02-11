@@ -11,13 +11,13 @@ use unicode_segmentation::UnicodeSegmentation;
 pub struct TextInput {
     input: String,
     placeholder: &'static str,
-    cursor_fg: Color,
-    cursor_bg: Color,
-    placeholder_fg: Color,
     cursor_index: usize,
     cursor_column: usize,
     selection_start: Option<usize>,
     scroll: usize,
+    cursor_style: Style,
+    selector_style: Style,
+    placeholder_style: Style,
     spans: Vec<Span<'static>>,
 }
 
@@ -37,23 +37,30 @@ pub enum CursorDelete {
 }
 
 impl TextInput {
-    pub const fn new(cursor_fg: Color, cursor_bg: Color, placeholder_fg: Color) -> Self {
+    pub const fn new() -> Self {
         Self {
             input: String::new(),
             placeholder: "",
-            cursor_fg,
-            cursor_bg,
-            placeholder_fg,
             cursor_index: 0,
             cursor_column: 0,
             selection_start: None,
             scroll: 0,
+            cursor_style: Style::new().bg(Color::White).fg(Color::Black),
+            selector_style: Style::new().bg(Color::DarkGray).fg(Color::Gray),
+            placeholder_style: Style::new().fg(Color::DarkGray).italic(),
             spans: Vec::new(),
         }
     }
 
     pub const fn with_placeholder(mut self, s: &'static str) -> Self {
         self.placeholder = s;
+        self
+    }
+
+    pub const fn with_styles(mut self, cursor: Style, selector: Style, placeholder: Style) -> Self {
+        self.cursor_style = cursor;
+        self.selector_style = selector;
+        self.placeholder_style = placeholder;
         self
     }
 
@@ -267,8 +274,8 @@ impl TextInput {
             .selection_start
             .unwrap_or(self.cursor_index)
             .max(self.cursor_index);
-        let cursor_style = Style::new().bg(self.cursor_bg).fg(self.cursor_fg);
-        let selector_style = cursor_style;
+        let cursor_style = self.cursor_style;
+        let selector_style = self.selector_style;
 
         let mut graphemes = self.input.grapheme_indices(true);
 
@@ -299,10 +306,8 @@ impl TextInput {
         }
 
         if self.input.is_empty() {
-            self.spans.push(Span::styled(
-                self.placeholder,
-                Style::new().italic().fg(self.placeholder_fg),
-            ));
+            self.spans
+                .push(Span::styled(self.placeholder, self.placeholder_style));
         }
 
         // todo: fix scroll when left-most char has width > 1

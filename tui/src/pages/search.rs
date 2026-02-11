@@ -25,8 +25,7 @@ pub struct SearchPage {
 impl SearchPage {
     pub fn new(colors: &Colors, events: EventSender) -> Self {
         Self {
-            search_input: TextInput::new(colors.on_accent, colors.accent, colors.neutral)
-                .with_placeholder("search..."),
+            search_input: TextInput::new().with_placeholder("Search..."),
             search_results: Vec::new(),
             matcher: Matcher::new(),
             list: List::new(),
