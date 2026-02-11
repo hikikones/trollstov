@@ -11,7 +11,7 @@ use crate::{
     app::Colors,
     events::{AppEvent, EventSender},
     pages::Log,
-    widgets::{List, ListMove, ScrollConfig, Shortcut, Shortcuts, utils},
+    widgets::{List, ListMove, Shortcut, Shortcuts, utils},
 };
 
 type AudioPictureHandle = std::thread::JoinHandle<Result<FrontCover, AudioFileReport>>;
@@ -284,8 +284,10 @@ impl PlayingPage {
             return;
         }
 
+        let scrolloff = (area.height / 2) as usize;
         self.list
-            .set_config(ScrollConfig::all((area.height / 2) as usize));
+            .set_margins(scrolloff, scrolloff)
+            .set_padding(scrolloff);
 
         let current_queue_index = jb.current_queue_index();
         self.list.render(

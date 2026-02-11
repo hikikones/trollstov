@@ -8,6 +8,8 @@ use ratatui::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
+use super::utils;
+
 pub struct TextInput {
     input: String,
     placeholder: &'static str,
@@ -206,7 +208,8 @@ impl TextInput {
 
         // Get total input width and update scroll
         let total_width = unicode_width::UnicodeWidthStr::width(self.input.as_str());
-        self.scroll = calculate_scroll(total_width, area.width, self.cursor, self.scroll, 0, 0, 0);
+        self.scroll =
+            utils::calculate_scroll(total_width, area.width, self.cursor, self.scroll, 0, 0, 0);
 
         // Render
         let (selection_start, selection_end) = {
@@ -268,40 +271,5 @@ impl TextInput {
         self.cursor = range.start;
         self.input.replace_range(range, "");
         true
-    }
-}
-
-fn calculate_scroll(
-    total_lines: usize,
-    viewport_height: u16,
-    selected: usize,
-    offset: usize,
-    margin_top: usize,
-    margin_bottom: usize,
-    padding_bottom: usize,
-) -> usize {
-    let viewport_height = viewport_height as usize;
-
-    let max_offset = total_lines
-        .saturating_sub(viewport_height)
-        .saturating_add(padding_bottom);
-
-    let available = viewport_height.saturating_sub(1);
-    let margin_top = margin_top.min(available);
-    let margin_bottom = margin_bottom.min(available - margin_top);
-
-    let top_boundary = offset + margin_top;
-    let bottom_boundary = offset + viewport_height.saturating_sub(margin_bottom + 1);
-
-    if selected < top_boundary {
-        // Scroll up
-        offset.saturating_sub(top_boundary - selected)
-    } else if selected > bottom_boundary {
-        // Scroll down
-        let delta = selected - bottom_boundary;
-        (offset + delta).min(max_offset)
-    } else {
-        // No scroll
-        offset
     }
 }
