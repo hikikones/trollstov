@@ -2,7 +2,6 @@ mod app;
 mod events;
 mod pages;
 mod terminal;
-mod utils;
 mod widgets;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

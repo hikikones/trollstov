@@ -190,3 +190,35 @@ pub enum Alignment {
     CenterHorizontal,
     CenterVertical,
 }
+
+pub fn calculate_scroll(
+    total_lines: usize,
+    viewport_height: u16,
+    selected: usize,
+    offset: usize,
+    margin_top: usize,
+    margin_bottom: usize,
+    padding_bottom: usize,
+) -> usize {
+    let height = viewport_height as usize;
+    let max_offset = (total_lines + padding_bottom).saturating_sub(height);
+
+    let available = height.saturating_sub(1);
+    let margin_top = margin_top.min(available);
+    let margin_bottom = margin_bottom.min(available - margin_top);
+
+    let top_boundary = offset + margin_top;
+    let bottom_boundary = offset + height.saturating_sub(margin_bottom + 1);
+
+    if selected < top_boundary {
+        // Scroll up
+        offset.saturating_sub(top_boundary - selected)
+    } else if selected > bottom_boundary {
+        // Scroll down
+        let delta = selected - bottom_boundary;
+        (offset + delta).min(max_offset)
+    } else {
+        // No scroll
+        offset
+    }
+}

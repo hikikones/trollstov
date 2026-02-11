@@ -13,8 +13,7 @@ use crate::{
     events::{AppEvent, Event, EventHandler},
     pages::{Log, Pages, Route},
     terminal::Terminal,
-    utils,
-    widgets::{Shortcut, Shortcuts, TextSegment},
+    widgets::{Shortcut, Shortcuts, TextSegment, utils},
 };
 
 // TODO: Add a playlist page for artists/albums/genres and filtering.
