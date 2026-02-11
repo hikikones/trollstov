@@ -53,13 +53,8 @@ impl SearchPage {
         }
 
         // Render search input
-        let search_input_area = Rect { height: 3, ..area };
-        let search_input_block = Block::bordered()
-            .title(" Search input ")
-            .title_alignment(Alignment::Center)
-            .padding(Padding::horizontal(1));
-        let search_line = search_input_block.inner(search_input_area);
-        search_input_block.render(search_input_area, buf);
+        let search_line =
+            Rect { height: 1, ..area }.centered_horizontally(Constraint::Percentage(70));
         self.search_input.render(search_line, buf);
 
         // Update search results
@@ -73,8 +68,8 @@ impl SearchPage {
         });
 
         let search_results_area = Rect {
-            y: area.y + search_input_area.height + 1,
-            height: area.height.saturating_sub(search_input_area.height + 1),
+            y: area.y + search_line.height + 1,
+            height: area.height.saturating_sub(search_line.height + 1),
             ..area
         };
         let search_results_block = Block::bordered()

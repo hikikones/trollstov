@@ -198,9 +198,9 @@ impl TextInput {
         self.scroll = 0;
     }
 
-    pub fn render(&mut self, area: Rect, buf: &mut Buffer) {
+    pub fn render(&mut self, line: Rect, buf: &mut Buffer) {
         if self.input.is_empty() {
-            let Rect { x, y, .. } = area;
+            let Rect { x, y, .. } = line;
             buf.set_string(x, y, self.placeholder, self.placeholder_style);
             buf[(x, y)].set_style(self.cursor_style);
             return;
@@ -209,25 +209,24 @@ impl TextInput {
         // Get total input width and update scroll
         let total_width = unicode_width::UnicodeWidthStr::width(self.input.as_str());
         self.scroll =
-            utils::calculate_scroll(total_width, area.width, self.cursor, self.scroll, 0, 0, 0);
+            utils::calculate_scroll(total_width, line.width, self.cursor, self.scroll, 2, 2, 0);
 
         // Render
         let (selection_start, selection_end) = {
             let selection = self.try_selection().unwrap_or(self.cursor..self.cursor);
             (selection.start, selection.end)
         };
-
-        let max_width = area.width as usize;
-        let mut current_width = 0;
-        let Rect { mut x, y, .. } = area;
+        let max_width = line.width as usize;
+        let mut width = 0;
+        let Rect { mut x, y, .. } = line;
 
         for (i, g) in self.input.grapheme_indices(true) {
             let grapheme_width = unicode_width::UnicodeWidthStr::width(g);
-            current_width += grapheme_width;
+            width += grapheme_width;
 
-            if current_width > max_width + self.scroll {
+            if width > max_width + self.scroll {
                 break;
-            } else if current_width > self.scroll {
+            } else if width > self.scroll {
                 let is_cursor = i == self.cursor;
                 let is_selected = i >= selection_start && i < selection_end;
                 let style = if is_cursor {
