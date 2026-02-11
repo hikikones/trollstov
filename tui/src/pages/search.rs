@@ -111,6 +111,9 @@ impl SearchPage {
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
+        self.search_input.input(key, modifiers);
+        self.events.send(AppEvent::Render);
+        return;
         let shift = modifiers.contains(KeyModifiers::SHIFT);
         match key {
             KeyCode::Down => {

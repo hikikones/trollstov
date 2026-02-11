@@ -220,7 +220,7 @@ impl List {
     }
 }
 
-pub fn calculate_scroll(
+fn calculate_scroll(
     total_lines: usize,
     viewport_height: u16,
     selected: usize,

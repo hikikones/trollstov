@@ -277,65 +277,181 @@ impl TextInput {
         let cursor_style = self.cursor_style;
         let selector_style = self.selector_style;
 
-        let mut graphemes = self.input.grapheme_indices(true);
+        // Get total input width and update scroll
+        let total_width = unicode_width::UnicodeWidthStr::width(self.input.as_str());
+        self.scroll = calculate_scroll(
+            total_width,
+            area.width,
+            self.cursor_index,
+            self.scroll,
+            0,
+            0,
+            0,
+        );
 
-        loop {
-            let Some((i, g)) = graphemes.next() else {
-                if self.cursor_index == input_len {
-                    self.cursor_column = total_width;
-                    self.spans.push(Span::styled(" ", cursor_style));
-                }
+        // Render
+        let max_width = area.width as usize;
+        let mut current_width = 0;
+        let Rect { mut x, y, .. } = area;
+        for (i, g) in self.input.grapheme_indices(true) {
+            let grapheme_width = unicode_width::UnicodeWidthStr::width(g);
+            current_width += grapheme_width;
+
+            if current_width > max_width + self.scroll {
                 break;
-            };
-
-            let is_cursor = i == self.cursor_index;
-            let is_selected = i >= selection_start && i < selection_end;
-
-            let style = if is_cursor {
-                self.cursor_column = total_width;
-                cursor_style
-            } else if is_selected {
-                selector_style
-            } else {
-                Style::new()
-            };
-
-            let span = Span::styled(g.to_string(), style);
-            total_width += span.width();
-            self.spans.push(span);
-        }
-
-        if self.input.is_empty() {
-            self.spans
-                .push(Span::styled(self.placeholder, self.placeholder_style));
-        }
-
-        // todo: fix scroll when left-most char has width > 1
-        let line_width = area.width as usize;
-        if self.cursor_column > self.scroll {
-            let width_diff = self.cursor_column - self.scroll;
-            let line_width = line_width.saturating_sub(1);
-            if width_diff > line_width {
-                self.scroll += width_diff - line_width;
-            }
-        } else if self.scroll > self.cursor_column {
-            let width_diff = self.scroll - self.cursor_column;
-            self.scroll -= width_diff;
-        }
-
-        let mut skip_width = 0;
-        let mut input_width = 0;
-        let mut span_area = Rect { height: 1, ..area };
-
-        for span in self.spans.iter() {
-            let span_width = span.width();
-            skip_width += span_width;
-            if skip_width > self.scroll && input_width < line_width {
-                input_width += span_width;
-                span_area.width = span_width as u16;
-                (&span).render(span_area, buf);
-                span_area.x += span_width as u16;
+            } else if current_width > self.scroll {
+                let is_cursor = i == self.cursor_index;
+                let is_selected = i >= selection_start && i < selection_end;
+                let style = if is_cursor {
+                    self.cursor_style
+                } else if is_selected {
+                    self.selector_style
+                } else {
+                    Style::new()
+                };
+                (x, _) = buf.set_stringn(x, y, g, grapheme_width, style);
             }
         }
+
+        if self.cursor_index == self.input.len() {
+            buf[(x, y)].set_style(self.cursor_style);
+        }
+
+        // Find scroll index
+        // let (scroll_index, _) = {
+        //     let mut index = 0;
+        //     let mut width = 0;
+        //     let mut graphemes = self.input[..self.cursor_index].graphemes(true);
+        //     while let Some(g) = graphemes.next() {
+        //         if width >= self.scroll {
+        //             break;
+        //         }
+
+        //         index += g.len();
+        //         width += unicode_width::UnicodeWidthStr::width(g);
+        //     }
+        //     (index, width)
+        // };
+
+        // // Render
+        // buf.set_stringn(
+        //     area.x,
+        //     area.y,
+        //     &self.input[scroll_index..],
+        //     area.width as usize,
+        //     Style::new(),
+        // );
+
+        // // Update scroll value
+        // // todo: fix scroll when left-most char has width > 1
+        // let line_width = area.width as usize;
+        // if scroll_column > self.scroll {
+        //     let width_diff = scroll_column - self.scroll;
+        //     let line_width = line_width.saturating_sub(1);
+        //     if width_diff > line_width {
+        //         self.scroll += width_diff - line_width;
+        //     }
+        // } else if self.scroll > scroll_column {
+        //     let width_diff = self.scroll - scroll_column;
+        //     self.scroll -= width_diff;
+        // }
+
+        //------------------------
+
+        // let mut graphemes = self.input.grapheme_indices(true);
+
+        // loop {
+        //     let Some((i, g)) = graphemes.next() else {
+        //         if self.cursor_index == input_len {
+        //             self.cursor_column = total_width;
+        //             self.spans.push(Span::styled(" ", cursor_style));
+        //         }
+        //         break;
+        //     };
+
+        //     let is_cursor = i == self.cursor_index;
+        //     let is_selected = i >= selection_start && i < selection_end;
+
+        //     let style = if is_cursor {
+        //         self.cursor_column = total_width;
+        //         cursor_style
+        //     } else if is_selected {
+        //         selector_style
+        //     } else {
+        //         Style::new()
+        //     };
+
+        //     let span = Span::styled(g.to_string(), style);
+        //     total_width += span.width();
+        //     self.spans.push(span);
+        // }
+
+        // if self.input.is_empty() {
+        //     self.spans
+        //         .push(Span::styled(self.placeholder, self.placeholder_style));
+        // }
+
+        // // todo: fix scroll when left-most char has width > 1
+        // let line_width = area.width as usize;
+        // if self.cursor_column > self.scroll {
+        //     let width_diff = self.cursor_column - self.scroll;
+        //     let line_width = line_width.saturating_sub(1);
+        //     if width_diff > line_width {
+        //         self.scroll += width_diff - line_width;
+        //     }
+        // } else if self.scroll > self.cursor_column {
+        //     let width_diff = self.scroll - self.cursor_column;
+        //     self.scroll -= width_diff;
+        // }
+
+        // let mut skip_width = 0;
+        // let mut input_width = 0;
+        // let mut span_area = Rect { height: 1, ..area };
+
+        // for span in self.spans.iter() {
+        //     let span_width = span.width();
+        //     skip_width += span_width;
+        //     if skip_width > self.scroll && input_width < line_width {
+        //         input_width += span_width;
+        //         span_area.width = span_width as u16;
+        //         (&span).render(span_area, buf);
+        //         span_area.x += span_width as u16;
+        //     }
+        // }
+    }
+}
+
+fn calculate_scroll(
+    total_lines: usize,
+    viewport_height: u16,
+    selected: usize,
+    offset: usize,
+    margin_top: usize,
+    margin_bottom: usize,
+    padding_bottom: usize,
+) -> usize {
+    let viewport_height = viewport_height as usize;
+
+    let max_offset = total_lines
+        .saturating_sub(viewport_height)
+        .saturating_add(padding_bottom);
+
+    let available = viewport_height.saturating_sub(1);
+    let margin_top = margin_top.min(available);
+    let margin_bottom = margin_bottom.min(available - margin_top);
+
+    let top_boundary = offset + margin_top;
+    let bottom_boundary = offset + viewport_height.saturating_sub(margin_bottom + 1);
+
+    if selected < top_boundary {
+        // Scroll up
+        offset.saturating_sub(top_boundary - selected)
+    } else if selected > bottom_boundary {
+        // Scroll down
+        let delta = selected - bottom_boundary;
+        (offset + delta).min(max_offset)
+    } else {
+        // No scroll
+        offset
     }
 }
