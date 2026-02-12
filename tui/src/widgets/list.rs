@@ -211,7 +211,7 @@ impl List {
             .take(height)
             .for_each(|(i, item)| {
                 let is_index = i == self.index;
-                let is_selected = i >= *selection.start() && i <= *selection.end();
+                let is_selected = selection.contains(&i);
 
                 render_line(line, buf, item, is_index, is_selected);
 
