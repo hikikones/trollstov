@@ -14,7 +14,6 @@ use crate::{
 pub struct SearchPage {
     search_input: TextInput,
     search_results: Vec<(TrackId, u16)>,
-    matcher: Matcher,
     list: List,
     is_dirty: bool,
     buffer: String,
@@ -22,7 +21,7 @@ pub struct SearchPage {
 }
 
 impl SearchPage {
-    pub fn new(colors: &Colors, events: EventSender) -> Self {
+    pub const fn new(colors: &Colors, events: EventSender) -> Self {
         Self {
             search_input: TextInput::new().with_placeholder("Search...").with_styles(
                 Style::new().bg(colors.accent).fg(colors.on_accent),
@@ -30,7 +29,6 @@ impl SearchPage {
                 Style::new().fg(colors.neutral).italic(),
             ),
             search_results: Vec::new(),
-            matcher: Matcher::new(),
             list: List::new(),
             is_dirty: false,
             buffer: String::new(),
@@ -40,7 +38,7 @@ impl SearchPage {
 
     pub fn on_enter(&self) {}
 
-    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &mut Jukebox, colors: &Colors) {
         if jb.is_empty() {
             utils::print_ascii(
                 area,
@@ -58,9 +56,7 @@ impl SearchPage {
         self.search_input.render(search_line, buf);
 
         // Update search results
-        if self.is_dirty {
-            self.update_search_results(jb);
-        }
+        self.update_search_results(jb);
 
         // Render search results
         jukebox::utils::format_int(self.search_results.len(), |len| {
@@ -160,59 +156,21 @@ impl SearchPage {
 
     pub fn on_exit(&self) {}
 
-    fn update_search_results(&mut self, jb: &Jukebox) {
+    fn update_search_results(&mut self, jb: &mut Jukebox) {
+        if !self.is_dirty {
+            return;
+        }
+
         self.is_dirty = false;
         self.search_results.clear();
 
-        if !self.search_input.as_str().trim().is_empty() {
-            self.matcher.update(self.search_input.as_str());
-            self.search_results
-                .extend(jb.iter().filter_map(|(id, track)| {
-                    self.buffer
-                        .extend([track.artist(), " ", track.album(), " ", track.title()]);
-                    let score = self.matcher.score(&self.buffer);
-                    self.buffer.clear();
-                    score.map(|score| (id, score))
-                }));
-            self.search_results
-                .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
+        let keywords = self.search_input.as_str().trim();
+        if keywords.is_empty() {
+            return;
         }
-    }
-}
 
-pub struct Matcher {
-    matcher: nucleo_matcher::Matcher,
-    atom: nucleo_matcher::pattern::Atom,
-    buffer: Vec<char>,
-}
-
-impl Matcher {
-    pub fn new() -> Self {
-        Self {
-            matcher: nucleo_matcher::Matcher::new(nucleo_matcher::Config::DEFAULT),
-            atom: Self::create_atom(""),
-            buffer: Vec::new(),
-        }
-    }
-
-    pub fn update(&mut self, needle: &str) {
-        self.atom = Self::create_atom(needle);
-    }
-
-    pub fn score(&mut self, haystack: &str) -> Option<u16> {
-        self.atom.score(
-            nucleo_matcher::Utf32Str::new(haystack, &mut self.buffer),
-            &mut self.matcher,
-        )
-    }
-
-    fn create_atom(needle: &str) -> nucleo_matcher::pattern::Atom {
-        nucleo_matcher::pattern::Atom::new(
-            needle,
-            nucleo_matcher::pattern::CaseMatching::Smart,
-            nucleo_matcher::pattern::Normalization::Smart,
-            nucleo_matcher::pattern::AtomKind::Fuzzy,
-            true,
-        )
+        self.search_results.extend(jb.search(keywords));
+        self.search_results
+            .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
     }
 }

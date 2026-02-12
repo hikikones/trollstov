@@ -101,6 +101,10 @@ impl Jukebox {
         self.database.sort(sort);
     }
 
+    pub fn search(&mut self, keywords: &str) -> impl Iterator<Item = (TrackId, u16)> {
+        self.database.search(keywords)
+    }
+
     pub const fn current_track(&self) -> Option<(TrackId, QueueIndex)> {
         self.current
     }

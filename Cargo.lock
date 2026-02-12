@@ -1124,6 +1124,7 @@ dependencies = [
  "indexmap",
  "itoa",
  "lofty",
+ "nucleo-matcher",
  "rodio",
  "walkdir",
 ]
@@ -1134,7 +1135,6 @@ version = "0.1.0"
 dependencies = [
  "image",
  "jukebox",
- "nucleo-matcher",
  "ratatui",
  "ratatui-image",
  "seahash",
