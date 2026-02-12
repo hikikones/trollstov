@@ -7,7 +7,6 @@ license.workspace = true
 [dependencies]
 image = "0.25"
 jukebox = { path = "../lib" }
-nucleo-matcher = "0.3"
 ratatui = "0.30"
 ratatui-image = { version = "10.0", default-features = false, features = [
   "crossterm"

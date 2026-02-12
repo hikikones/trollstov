@@ -343,7 +343,7 @@ impl App {
                 Route::Search => {
                     self.pages
                         .search
-                        .on_render(body, buf, &self.jukebox, &self.colors);
+                        .on_render(body, buf, &mut self.jukebox, &self.colors);
                 }
                 Route::Logs => {
                     self.pages.logs.on_render(body, buf, &self.colors);

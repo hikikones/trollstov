@@ -17,6 +17,8 @@ pub(super) struct Database {
     music_dir: PathBuf,
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
+    matcher: Matcher,
+    buffer: String,
     audio_file_receiver: Option<AudioFileReceiver>,
 }
 
@@ -26,6 +28,8 @@ impl Database {
             music_dir: dir.as_ref().to_path_buf(),
             tracks: IndexMap::new(),
             sort: TrackSort::default(),
+            matcher: Matcher::new(),
+            buffer: String::new(),
             audio_file_receiver: None,
         }
     }
@@ -72,6 +76,17 @@ impl Database {
         self.tracks
             .sort_unstable_by(|_, track1, _, track2| sort.cmp(track1, track2));
         self.sort = sort;
+    }
+
+    pub(super) fn search(&mut self, needle: &str) -> impl Iterator<Item = (TrackId, u16)> {
+        self.matcher.update(needle);
+        self.tracks.iter().filter_map(|(id, track)| {
+            self.buffer
+                .extend([track.artist(), " ", track.album(), " ", track.title()]);
+            let score = self.matcher.score(&self.buffer);
+            self.buffer.clear();
+            score.map(|score| (*id, score))
+        })
     }
 
     pub(super) fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) {
@@ -267,6 +282,43 @@ impl TrackSort {
                 r2.cmp(&r1)
             }
         }
+    }
+}
+
+struct Matcher {
+    matcher: nucleo_matcher::Matcher,
+    atom: nucleo_matcher::pattern::Atom,
+    buffer: Vec<char>,
+}
+
+impl Matcher {
+    fn new() -> Self {
+        Self {
+            matcher: nucleo_matcher::Matcher::new(nucleo_matcher::Config::DEFAULT),
+            atom: Self::create_atom(""),
+            buffer: Vec::new(),
+        }
+    }
+
+    fn update(&mut self, needle: &str) {
+        self.atom = Self::create_atom(needle);
+    }
+
+    fn score(&mut self, haystack: &str) -> Option<u16> {
+        self.atom.score(
+            nucleo_matcher::Utf32Str::new(haystack, &mut self.buffer),
+            &mut self.matcher,
+        )
+    }
+
+    fn create_atom(needle: &str) -> nucleo_matcher::pattern::Atom {
+        nucleo_matcher::pattern::Atom::new(
+            needle,
+            nucleo_matcher::pattern::CaseMatching::Smart,
+            nucleo_matcher::pattern::Normalization::Smart,
+            nucleo_matcher::pattern::AtomKind::Fuzzy,
+            true,
+        )
     }
 }
 
