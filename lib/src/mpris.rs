@@ -4,7 +4,6 @@ use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, PlatformConfig};
 
 pub(super) struct Mpris {
     controls: MediaControls,
-    sender: mpsc::Sender<MprisEvent>,
     receiver: mpsc::Receiver<MprisEvent>,
 }
 
@@ -27,38 +26,31 @@ impl Mpris {
         let mut controls = MediaControls::new(config)?;
 
         let (sender, receiver) = mpsc::channel();
-        controls.attach({
-            let sender = sender.clone();
-            move |event: MediaControlEvent| {
-                match event {
-                    MediaControlEvent::Play => {
-                        let _ = sender.send(MprisEvent::Play);
-                    }
-                    MediaControlEvent::Pause => {
-                        let _ = sender.send(MprisEvent::Pause);
-                    }
-                    MediaControlEvent::Toggle => {
-                        let _ = sender.send(MprisEvent::Toggle);
-                    }
-                    MediaControlEvent::Next => {
-                        let _ = sender.send(MprisEvent::Next);
-                    }
-                    MediaControlEvent::Previous => {
-                        let _ = sender.send(MprisEvent::Previous);
-                    }
-                    MediaControlEvent::Stop => {
-                        let _ = sender.send(MprisEvent::Stop);
-                    }
-                    _ => {}
-                };
-            }
+        controls.attach(move |event: MediaControlEvent| {
+            match event {
+                MediaControlEvent::Play => {
+                    let _ = sender.send(MprisEvent::Play);
+                }
+                MediaControlEvent::Pause => {
+                    let _ = sender.send(MprisEvent::Pause);
+                }
+                MediaControlEvent::Toggle => {
+                    let _ = sender.send(MprisEvent::Toggle);
+                }
+                MediaControlEvent::Next => {
+                    let _ = sender.send(MprisEvent::Next);
+                }
+                MediaControlEvent::Previous => {
+                    let _ = sender.send(MprisEvent::Previous);
+                }
+                MediaControlEvent::Stop => {
+                    let _ = sender.send(MprisEvent::Stop);
+                }
+                _ => {}
+            };
         })?;
 
-        Ok(Self {
-            controls,
-            sender,
-            receiver,
-        })
+        Ok(Self { controls, receiver })
     }
 
     pub(super) fn try_recv(&self) -> Option<MprisEvent> {

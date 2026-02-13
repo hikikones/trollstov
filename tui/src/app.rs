@@ -104,6 +104,12 @@ impl App {
         self.events.start();
         self.jukebox.load();
 
+        // Establish mpris for media control
+        if let Err(err) = self.jukebox.mpris() {
+            let log = Log::new(err);
+            self.events.send(AppEvent::Log(log));
+        }
+
         self.on_enter();
 
         // Run event loop
