@@ -8,7 +8,10 @@ use std::{
 
 use rodio::decoder::Decoder;
 
-use crate::*;
+use crate::{
+    mpris::{MediaControls, MediaEvent},
+    *,
+};
 
 type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, AudioFileReport>>;
 type AudioWriteHandle =
@@ -19,6 +22,7 @@ pub struct Jukebox {
     current: Option<(TrackId, QueueIndex)>,
     queue: PlayQueue,
     state: PlayState,
+    mpris: Option<MediaControls>,
     audio_decode_handle: Option<(TrackId, QueueIndex, AudioDecodeHandle)>,
     audio_write_handle: Option<AudioWriteHandle>,
     audio_write_queue: VecDeque<(TrackId, AudioRating)>,
@@ -48,6 +52,7 @@ impl Jukebox {
             current: None,
             queue: PlayQueue::new(),
             state: PlayState::Stop,
+            mpris: None,
             audio_decode_handle: None,
             audio_write_handle: None,
             audio_write_queue: VecDeque::new(),
@@ -57,8 +62,21 @@ impl Jukebox {
         })
     }
 
-    pub fn load(&mut self) {
+    pub fn load_music(&mut self) {
         self.database.load();
+    }
+
+    pub fn attach_media_controls(&mut self) -> Result<(), AudioFileReport> {
+        let mpris = MediaControls::new().map_err(|err| {
+            AudioFileReport::new(format!(
+                "Could not provide media controls for the Media Player\
+                Remote Interfacing Specification (MPRIS) due to {}",
+                err
+            ))
+        })?;
+        self.mpris = Some(mpris);
+
+        Ok(())
     }
 
     pub fn is_empty(&self) -> bool {
@@ -356,6 +374,7 @@ impl Jukebox {
                 render = true;
                 let (id, index, handle) = self.audio_decode_handle.take().unwrap();
                 match handle.join().unwrap() {
+                    // Play successfully decoded audio and update state
                     Ok(decoded_audio) => {
                         self.sink.clear();
                         self.sink.append(decoded_audio);
@@ -364,7 +383,15 @@ impl Jukebox {
                             self.sink.play();
                         }
                         self.current = Some((id, index));
+
+                        // Update metadata for media control
+                        if let Some(mpris) = self.mpris.as_mut()
+                            && let Some(track) = self.database.get(id)
+                        {
+                            mpris.set_metadata(track.title(), track.artist());
+                        }
                     }
+                    // Failed to decode audio
                     Err(err) => {
                         on_error(err);
                         self.faulty.insert(id);
@@ -412,9 +439,19 @@ impl Jukebox {
             }
         }
 
+        // Check for media control events
+        if let Some(event) = self.mpris.as_ref().and_then(|mpris| mpris.try_recv()) {
+            match event {
+                MediaEvent::Play => self.play(),
+                MediaEvent::Pause => self.pause(),
+                MediaEvent::Toggle => self.pause_or_play(),
+                MediaEvent::Next => self.play_next(),
+                MediaEvent::Previous => self.play_previous(),
+                MediaEvent::Stop => self.stop(),
+            }
+        }
         // Play next when empty and idle
-        let is_finished = self.sink.empty() && !self.sink.is_paused();
-        if is_finished {
+        else if self.sink.empty() && !self.sink.is_paused() {
             match self.state {
                 PlayState::Play => {
                     self.play_next();
