@@ -1,5 +1,7 @@
 use std::sync::mpsc;
 
+use crate::AudioFileReport;
+
 pub(super) struct MediaControls {
     controls: souvlaki::MediaControls,
     receiver: mpsc::Receiver<MediaEvent>,
@@ -15,38 +17,52 @@ pub(super) enum MediaEvent {
 }
 
 impl MediaControls {
-    pub(super) fn new() -> Result<Self, souvlaki::Error> {
+    pub(super) fn new() -> Result<Self, AudioFileReport> {
         let config = souvlaki::PlatformConfig {
             display_name: "jukebox",
             dbus_name: "jukebox",
             hwnd: None,
         };
-        let mut controls = souvlaki::MediaControls::new(config)?;
+        let mut controls = souvlaki::MediaControls::new(config).map_err(|err| {
+            AudioFileReport::new(format!(
+                "Could not create media controls for the Media Player\
+                Remote Interfacing Specification (MPRIS) due to {}",
+                err
+            ))
+        })?;
 
         let (sender, receiver) = mpsc::channel();
-        controls.attach(move |event: souvlaki::MediaControlEvent| {
-            match event {
-                souvlaki::MediaControlEvent::Play => {
-                    let _ = sender.send(MediaEvent::Play);
-                }
-                souvlaki::MediaControlEvent::Pause => {
-                    let _ = sender.send(MediaEvent::Pause);
-                }
-                souvlaki::MediaControlEvent::Toggle => {
-                    let _ = sender.send(MediaEvent::Toggle);
-                }
-                souvlaki::MediaControlEvent::Next => {
-                    let _ = sender.send(MediaEvent::Next);
-                }
-                souvlaki::MediaControlEvent::Previous => {
-                    let _ = sender.send(MediaEvent::Previous);
-                }
-                souvlaki::MediaControlEvent::Stop => {
-                    let _ = sender.send(MediaEvent::Stop);
-                }
-                _ => {}
-            };
-        })?;
+        controls
+            .attach(move |event: souvlaki::MediaControlEvent| {
+                match event {
+                    souvlaki::MediaControlEvent::Play => {
+                        let _ = sender.send(MediaEvent::Play);
+                    }
+                    souvlaki::MediaControlEvent::Pause => {
+                        let _ = sender.send(MediaEvent::Pause);
+                    }
+                    souvlaki::MediaControlEvent::Toggle => {
+                        let _ = sender.send(MediaEvent::Toggle);
+                    }
+                    souvlaki::MediaControlEvent::Next => {
+                        let _ = sender.send(MediaEvent::Next);
+                    }
+                    souvlaki::MediaControlEvent::Previous => {
+                        let _ = sender.send(MediaEvent::Previous);
+                    }
+                    souvlaki::MediaControlEvent::Stop => {
+                        let _ = sender.send(MediaEvent::Stop);
+                    }
+                    _ => {}
+                };
+            })
+            .map_err(|err| {
+                AudioFileReport::new(format!(
+                    "Could not attach static handler for\
+                    Remote Interfacing Specification (MPRIS) due to {}",
+                    err
+                ))
+            })?;
 
         Ok(Self { controls, receiver })
     }

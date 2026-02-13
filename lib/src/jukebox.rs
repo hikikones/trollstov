@@ -67,15 +67,7 @@ impl Jukebox {
     }
 
     pub fn attach_media_controls(&mut self) -> Result<(), AudioFileReport> {
-        let mpris = MediaControls::new().map_err(|err| {
-            AudioFileReport::new(format!(
-                "Could not provide media controls for the Media Player\
-                Remote Interfacing Specification (MPRIS) due to {}",
-                err
-            ))
-        })?;
-        self.mpris = Some(mpris);
-
+        self.mpris = Some(MediaControls::new()?);
         Ok(())
     }
 
