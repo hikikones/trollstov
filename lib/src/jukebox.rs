@@ -370,6 +370,7 @@ impl Jukebox {
                 render = true;
                 let (id, index, handle) = self.audio_decode_handle.take().unwrap();
                 match handle.join().unwrap() {
+                    // Play successfully decoded audio and update state
                     Ok(decoded_audio) => {
                         self.sink.clear();
                         self.sink.append(decoded_audio);
@@ -378,7 +379,15 @@ impl Jukebox {
                             self.sink.play();
                         }
                         self.current = Some((id, index));
+
+                        // Update metadata for media control
+                        if let Some(mpris) = self.mpris.as_mut()
+                            && let Some(track) = self.database.get(id)
+                        {
+                            mpris.set_metadata(track.title(), track.artist());
+                        }
                     }
+                    // Failed to decode audio
                     Err(err) => {
                         on_error(err);
                         self.faulty.insert(id);
@@ -437,10 +446,8 @@ impl Jukebox {
                 MprisEvent::Stop => self.stop(),
             }
         }
-
         // Play next when empty and idle
-        let is_finished = self.sink.empty() && !self.sink.is_paused();
-        if is_finished {
+        else if self.sink.empty() && !self.sink.is_paused() {
             match self.state {
                 PlayState::Play => {
                     self.play_next();
