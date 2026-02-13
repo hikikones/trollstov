@@ -4,6 +4,8 @@ mod jukebox;
 mod mpris;
 mod queue;
 
+use mpris::*;
+
 pub mod utils;
 
 pub use audio::*;

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use jukebox::{Jukebox, Track};
+use jukebox::{Jukebox, JukeboxReceiver, Track};
 use ratatui::{
     CompletedFrame,
     crossterm::event::{
@@ -25,6 +25,7 @@ pub struct App {
     colors: Colors,
     events: EventHandler,
     jukebox: Jukebox,
+    receiver: JukeboxReceiver,
     text_segment: TextSegment,
     shortcuts_page: Shortcuts,
     shortcuts_play: Shortcuts,
@@ -60,6 +61,7 @@ impl App {
     pub fn new(
         events: EventHandler,
         jukebox: Jukebox,
+        receiver: JukeboxReceiver,
         picker: ratatui_image::picker::Picker,
     ) -> Self {
         let colors = Colors::new();
@@ -87,6 +89,7 @@ impl App {
             colors,
             events,
             jukebox,
+            receiver,
             text_segment: TextSegment::new().with_alignment(Alignment::Center),
             shortcuts_page,
             shortcuts_play,
