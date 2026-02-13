@@ -63,4 +63,10 @@ impl MediaControls {
             ..Default::default()
         });
     }
+
+    pub(super) fn reset_metadata(&mut self) {
+        let _ = self
+            .controls
+            .set_metadata(souvlaki::MediaMetadata::default());
+    }
 }

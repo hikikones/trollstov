@@ -226,6 +226,9 @@ impl Jukebox {
         self.audio_decode_handle = None;
         self.state = PlayState::Stop;
         self.sink.clear();
+        if let Some(mpris) = self.mpris.as_mut() {
+            mpris.reset_metadata();
+        }
     }
 
     pub fn play_next(&mut self) {
