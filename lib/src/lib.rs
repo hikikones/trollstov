@@ -1,6 +1,7 @@
 mod audio;
 mod database;
 mod jukebox;
+mod mpris;
 mod queue;
 
 pub mod utils;
