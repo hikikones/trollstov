@@ -59,6 +59,7 @@ impl MediaControls {
         let _ = self.controls.set_metadata(souvlaki::MediaMetadata {
             title: Some(title),
             artist: Some(artist),
+            // TODO: cover_url?
             ..Default::default()
         });
     }
