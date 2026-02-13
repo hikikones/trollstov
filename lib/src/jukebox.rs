@@ -31,6 +31,12 @@ pub struct Jukebox {
     _stream: rodio::OutputStream,
 }
 
+pub enum JukeboxEvent {
+    Play(TrackId),
+    Stop,
+    Error(AudioFileReport),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PlayState {
     Play,

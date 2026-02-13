@@ -58,7 +58,7 @@ impl MediaControls {
             })
             .map_err(|err| {
                 AudioFileReport::new(format!(
-                    "Could not attach static handler for\
+                    "Could not attach static handler for Media Player\
                     Remote Interfacing Specification (MPRIS) due to {}",
                     err
                 ))
