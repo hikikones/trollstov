@@ -9,7 +9,7 @@ use std::{
 use rodio::decoder::Decoder;
 
 use crate::{
-    mpris::{Mpris, MprisEvent},
+    mpris::{MediaControls, MediaEvent},
     *,
 };
 
@@ -22,7 +22,7 @@ pub struct Jukebox {
     current: Option<(TrackId, QueueIndex)>,
     queue: PlayQueue,
     state: PlayState,
-    mpris: Option<Mpris>,
+    mpris: Option<MediaControls>,
     audio_decode_handle: Option<(TrackId, QueueIndex, AudioDecodeHandle)>,
     audio_write_handle: Option<AudioWriteHandle>,
     audio_write_queue: VecDeque<(TrackId, AudioRating)>,
@@ -62,12 +62,12 @@ impl Jukebox {
         })
     }
 
-    pub fn load(&mut self) {
+    pub fn load_music(&mut self) {
         self.database.load();
     }
 
-    pub fn mpris(&mut self) -> Result<(), AudioFileReport> {
-        let mpris = Mpris::new().map_err(|err| {
+    pub fn attach_media_controls(&mut self) -> Result<(), AudioFileReport> {
+        let mpris = MediaControls::new().map_err(|err| {
             AudioFileReport::new(format!(
                 "Could not provide media controls for the Media Player\
                 Remote Interfacing Specification (MPRIS) due to {}",
@@ -438,12 +438,12 @@ impl Jukebox {
         // Check for media control events
         if let Some(event) = self.mpris.as_ref().and_then(|mpris| mpris.try_recv()) {
             match event {
-                MprisEvent::Play => self.play(),
-                MprisEvent::Pause => self.pause(),
-                MprisEvent::Toggle => self.pause_or_play(),
-                MprisEvent::Next => self.play_next(),
-                MprisEvent::Previous => self.play_previous(),
-                MprisEvent::Stop => self.stop(),
+                MediaEvent::Play => self.play(),
+                MediaEvent::Pause => self.pause(),
+                MediaEvent::Toggle => self.pause_or_play(),
+                MediaEvent::Next => self.play_next(),
+                MediaEvent::Previous => self.play_previous(),
+                MediaEvent::Stop => self.stop(),
             }
         }
         // Play next when empty and idle
