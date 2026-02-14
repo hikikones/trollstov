@@ -29,6 +29,7 @@ pub struct App {
     colors: Colors,
     events: EventHandler,
     jukebox: Jukebox,
+    mpris: bool,
     picker: Picker,
     front_cover: FrontCover,
     front_cover_handle: Option<FrontCoverHandle>,
@@ -103,6 +104,7 @@ impl App {
             colors,
             events,
             jukebox,
+            mpris: false,
             picker,
             front_cover: FrontCover::None,
             front_cover_handle: None,
@@ -124,8 +126,13 @@ impl App {
         self.jukebox.load_music();
 
         // Try to establish media controls
-        if let Err(err) = self.jukebox.attach_media_controls() {
-            self.pages.logs.enqueue(Log::new(err));
+        match self.jukebox.attach_media_controls() {
+            Ok(_) => {
+                self.mpris = true;
+            }
+            Err(err) => {
+                self.pages.logs.enqueue(Log::new(err));
+            }
         }
 
         self.on_enter();
@@ -221,30 +228,31 @@ impl App {
                 }
             }
             KeyCode::Media(media) => {
-                // TODO: Ignore when we have media controls through mpris.
-                match media {
-                    MediaKeyCode::Play => {
-                        self.jukebox.play();
+                if !self.mpris {
+                    match media {
+                        MediaKeyCode::Play => {
+                            self.jukebox.play();
+                        }
+                        MediaKeyCode::Pause => {
+                            self.jukebox.pause();
+                        }
+                        MediaKeyCode::PlayPause => {
+                            self.jukebox.pause_or_play();
+                        }
+                        MediaKeyCode::Stop => {
+                            self.jukebox.stop();
+                        }
+                        MediaKeyCode::TrackNext => {
+                            self.jukebox.play_next();
+                        }
+                        MediaKeyCode::TrackPrevious => {
+                            self.jukebox.play_previous();
+                        }
+                        MediaKeyCode::FastForward => {
+                            self.jukebox.fast_forward_by(Duration::from_secs(30));
+                        }
+                        _ => {}
                     }
-                    MediaKeyCode::Pause => {
-                        self.jukebox.pause();
-                    }
-                    MediaKeyCode::PlayPause => {
-                        self.jukebox.pause_or_play();
-                    }
-                    MediaKeyCode::Stop => {
-                        self.jukebox.stop();
-                    }
-                    MediaKeyCode::TrackNext => {
-                        self.jukebox.play_next();
-                    }
-                    MediaKeyCode::TrackPrevious => {
-                        self.jukebox.play_previous();
-                    }
-                    MediaKeyCode::FastForward => {
-                        self.jukebox.fast_forward_by(Duration::from_secs(30));
-                    }
-                    _ => {}
                 }
             }
             KeyCode::Char(c) => match c {
