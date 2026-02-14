@@ -8,10 +8,7 @@ use std::{
 
 use rodio::decoder::Decoder;
 
-use crate::{
-    mpris::{MediaControls, MediaEvent},
-    *,
-};
+use crate::*;
 
 type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, AudioFileReport>>;
 type AudioWriteHandle =
@@ -27,8 +24,18 @@ pub struct Jukebox {
     audio_write_handle: Option<AudioWriteHandle>,
     audio_write_queue: VecDeque<(TrackId, AudioRating)>,
     faulty: HashSet<TrackId>,
+    events: Vec<JukeboxEvent>,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
+}
+
+pub enum JukeboxEvent {
+    Play(TrackId),
+    Stop,
+    Rating(TrackId),
+    Error(AudioFileReport),
+    Focus,
+    Quit,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,6 +64,7 @@ impl Jukebox {
             audio_write_handle: None,
             audio_write_queue: VecDeque::new(),
             faulty: HashSet::new(),
+            events: Vec::new(),
             sink,
             _stream: stream,
         })
@@ -67,15 +75,7 @@ impl Jukebox {
     }
 
     pub fn attach_media_controls(&mut self) -> Result<(), AudioFileReport> {
-        let mpris = MediaControls::new().map_err(|err| {
-            AudioFileReport::new(format!(
-                "Could not provide media controls for the Media Player\
-                Remote Interfacing Specification (MPRIS) due to {}",
-                err
-            ))
-        })?;
-        self.mpris = Some(mpris);
-
+        self.mpris = Some(MediaControls::new()?);
         Ok(())
     }
 
@@ -222,10 +222,19 @@ impl Jukebox {
     }
 
     pub fn stop(&mut self) {
+        if self.state == PlayState::Stop {
+            return;
+        }
+
         self.current = None;
         self.audio_decode_handle = None;
         self.state = PlayState::Stop;
         self.sink.clear();
+        self.events.push(JukeboxEvent::Stop);
+
+        if let Some(mpris) = self.mpris.as_mut() {
+            mpris.reset_metadata();
+        }
     }
 
     pub fn play_next(&mut self) {
@@ -363,15 +372,14 @@ impl Jukebox {
         }
     }
 
-    pub fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) -> bool {
-        self.database.update(&mut on_error);
-
-        let mut render = false;
+    pub fn update(&mut self, mut on_event: impl FnMut(JukeboxEvent)) {
+        self.database.update(|error| {
+            self.events.push(JukeboxEvent::Error(error));
+        });
 
         // Poll thread handle for audio decoding
         if let Some((_, _, handle)) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
-                render = true;
                 let (id, index, handle) = self.audio_decode_handle.take().unwrap();
                 match handle.join().unwrap() {
                     // Play successfully decoded audio and update state
@@ -383,6 +391,7 @@ impl Jukebox {
                             self.sink.play();
                         }
                         self.current = Some((id, index));
+                        self.events.push(JukeboxEvent::Play(id));
 
                         // Update metadata for media control
                         if let Some(mpris) = self.mpris.as_mut()
@@ -393,8 +402,8 @@ impl Jukebox {
                     }
                     // Failed to decode audio
                     Err(err) => {
-                        on_error(err);
                         self.faulty.insert(id);
+                        self.events.push(JukeboxEvent::Error(err));
                         match self.state {
                             PlayState::Play | PlayState::Next => {
                                 self.play_next();
@@ -417,16 +426,16 @@ impl Jukebox {
         match self.audio_write_handle.as_ref() {
             Some(handle) => {
                 if handle.is_finished() {
-                    render = true;
                     let handle = self.audio_write_handle.take().unwrap();
                     match handle.join().unwrap() {
                         Ok((id, new_rating)) => {
                             if let Some(track) = self.database.get_mut(id) {
                                 track.set_rating(new_rating);
+                                self.events.push(JukeboxEvent::Rating(id));
                             }
                         }
                         Err(err) => {
-                            on_error(err);
+                            self.events.push(JukeboxEvent::Error(err));
                         }
                     }
                 }
@@ -448,6 +457,12 @@ impl Jukebox {
                 MediaEvent::Next => self.play_next(),
                 MediaEvent::Previous => self.play_previous(),
                 MediaEvent::Stop => self.stop(),
+                MediaEvent::Raise => {
+                    self.events.push(JukeboxEvent::Focus);
+                }
+                MediaEvent::Quit => {
+                    self.events.push(JukeboxEvent::Quit);
+                }
             }
         }
         // Play next when empty and idle
@@ -463,7 +478,9 @@ impl Jukebox {
             }
         }
 
-        render
+        for event in self.events.drain(..) {
+            on_event(event);
+        }
     }
 
     pub fn shutdown(mut self) {

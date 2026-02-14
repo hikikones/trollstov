@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use jukebox::{Jukebox, Track};
+use jukebox::{Jukebox, JukeboxEvent, Track};
 use ratatui::{
     CompletedFrame,
     crossterm::event::{
@@ -100,9 +100,11 @@ impl App {
             render_jukebox_logo(frame.area(), frame.buffer_mut());
         })?;
 
-        // Start reading events, load music and establish media controls
+        // Start reading events and load music
         self.events.start();
         self.jukebox.load_music();
+
+        // Try to establish media controls
         if let Err(err) = self.jukebox.attach_media_controls() {
             let log = Log::new(err);
             self.events.send(AppEvent::Log(log));
@@ -256,9 +258,23 @@ impl App {
     }
 
     fn update(&mut self) {
-        let mut render = self.jukebox.update(|err| {
-            let log = Log::new(err);
-            self.events.send(AppEvent::Log(log));
+        let mut render = false;
+
+        self.jukebox.update(|event| match event {
+            JukeboxEvent::Play(_) | JukeboxEvent::Stop | JukeboxEvent::Rating(_) => {
+                render = true;
+            }
+            JukeboxEvent::Error(err) => {
+                render = true;
+                let log = Log::new(err);
+                self.events.send(AppEvent::Log(log));
+            }
+            JukeboxEvent::Focus => {
+                // TODO: Focus terminal window.
+            }
+            JukeboxEvent::Quit => {
+                self.running = false;
+            }
         });
 
         if self.pages.playing.on_update(&self.jukebox) {
