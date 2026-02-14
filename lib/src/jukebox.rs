@@ -19,13 +19,13 @@ pub struct Jukebox {
     current: Option<(TrackId, QueueIndex)>,
     queue: PlayQueue,
     state: PlayState,
-    mpris: Option<MediaControls>,
     audio_decode_handle: Option<(AudioDecodeHandle, TrackId, QueueIndex, PathBuf)>,
     audio_write_handle: Option<AudioWriteHandle>,
     audio_write_queue: VecDeque<(TrackId, AudioRating)>,
     faulty: HashSet<TrackId>,
     events: Vec<JukeboxEvent>,
     device: AudioDevice,
+    mpris: Option<MediaControls>,
 }
 
 pub enum JukeboxEvent {
@@ -54,13 +54,13 @@ impl Jukebox {
             current: None,
             queue: PlayQueue::new(),
             state: PlayState::Stop,
-            mpris: None,
             audio_decode_handle: None,
             audio_write_handle: None,
             audio_write_queue: VecDeque::new(),
             faulty: HashSet::new(),
             events: Vec::new(),
             device,
+            mpris: None,
         }
     }
 
