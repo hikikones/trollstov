@@ -6,22 +6,13 @@ use std::{
 
 use ratatui::crossterm::event::{self, Event as CrosstermEvent};
 
-use crate::pages::{Log, Route};
-
 const UPDATE_FREQUENCY: f64 = 1.0 / 8.0;
 const RENDER_FREQUENCY: f64 = 1.0 / 1.0;
 
 pub enum Event {
-    Terminal(CrosstermEvent),
-    App(AppEvent),
-}
-
-pub enum AppEvent {
     Update,
     Render,
-    Route(Route),
-    Log(Log),
-    Quit,
+    Terminal(CrosstermEvent),
 }
 
 pub struct EventHandler {
@@ -43,26 +34,6 @@ impl EventHandler {
     pub fn next(&self) -> Result<Event, mpsc::RecvError> {
         Ok(self.receiver.recv()?)
     }
-
-    pub fn send(&self, app_event: AppEvent) {
-        let _ = self.sender.send(Event::App(app_event));
-    }
-
-    pub fn clone_sender(&self) -> EventSender {
-        EventSender(self.sender.clone())
-    }
-}
-
-pub struct EventSender(mpsc::Sender<Event>);
-
-impl EventSender {
-    pub fn send(&self, app_event: AppEvent) {
-        let _ = self.0.send(Event::App(app_event));
-    }
-
-    pub fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
 }
 
 struct EventThread(mpsc::Sender<Event>);
@@ -76,12 +47,12 @@ impl EventThread {
         loop {
             // Update at a fixed rate
             if update.tick() {
-                self.send(Event::App(AppEvent::Update));
+                self.send(Event::Update);
             }
 
             // Render at a fixed rate
             if render.tick() {
-                self.send(Event::App(AppEvent::Render));
+                self.send(Event::Render);
             }
 
             // Poll for crossterm events in a non-blocking manner

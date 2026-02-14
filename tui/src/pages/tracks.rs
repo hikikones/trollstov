@@ -6,23 +6,20 @@ use ratatui::{
 };
 
 use crate::{
-    app::Colors,
-    events::{AppEvent, EventSender},
+    app::{Action, Colors},
     widgets::{List, ListMove, Shortcut, Shortcuts, utils},
 };
 
 pub struct TracksPage {
     title: String,
     list: List,
-    events: EventSender,
 }
 
 impl TracksPage {
-    pub const fn new(events: EventSender) -> Self {
+    pub const fn new() -> Self {
         Self {
             title: String::new(),
             list: List::new(),
-            events,
         }
     }
 
@@ -73,7 +70,7 @@ impl TracksPage {
         ]);
     }
 
-    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
+    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) -> Action {
         match key {
             KeyCode::Enter => {
                 if let Some(id) = jb.get_id_from_index(self.list.index()) {
@@ -111,7 +108,7 @@ impl TracksPage {
                     {
                         self.list.move_index(ListMove::Custom(i), false);
                     }
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
                 'S' => {
                     let id = jb.get_id_from_index(self.list.index());
@@ -121,20 +118,22 @@ impl TracksPage {
                     {
                         self.list.move_index(ListMove::Custom(i), false);
                     }
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
                 _ => {
                     if self.list.input(key, modifiers) {
-                        self.events.send(AppEvent::Render);
+                        return Action::Render;
                     }
                 }
             },
             _ => {
                 if self.list.input(key, modifiers) {
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
             }
         }
+
+        Action::None
     }
 
     pub fn on_exit(&self) {}

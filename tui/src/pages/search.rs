@@ -6,8 +6,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::Colors,
-    events::{AppEvent, EventSender},
+    app::{Action, Colors},
     widgets::{List, ListMove, TextInput, utils},
 };
 
@@ -17,11 +16,10 @@ pub struct SearchPage {
     list: List,
     is_dirty: bool,
     buffer: String,
-    events: EventSender,
 }
 
 impl SearchPage {
-    pub const fn new(colors: &Colors, events: EventSender) -> Self {
+    pub const fn new(colors: &Colors) -> Self {
         Self {
             search_input: TextInput::new().with_placeholder("Search...").with_styles(
                 Style::new().bg(colors.accent).fg(colors.on_accent),
@@ -32,7 +30,6 @@ impl SearchPage {
             list: List::new(),
             is_dirty: false,
             buffer: String::new(),
-            events,
         }
     }
 
@@ -104,38 +101,38 @@ impl SearchPage {
         );
     }
 
-    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) {
+    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) -> Action {
         let shift = modifiers.contains(KeyModifiers::SHIFT);
 
         match key {
             KeyCode::Down => {
                 if self.list.move_index(ListMove::Down, shift) {
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
             }
             KeyCode::Up => {
                 if self.list.move_index(ListMove::Up, shift) {
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
             }
             KeyCode::PageDown => {
                 if self.list.move_index(ListMove::PageDown, shift) {
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
             }
             KeyCode::PageUp => {
                 if self.list.move_index(ListMove::PageUp, shift) {
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
             }
             KeyCode::End => {
                 if self.list.move_index(ListMove::End, shift) {
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
             }
             KeyCode::Home => {
                 if self.list.move_index(ListMove::Start, shift) {
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
             }
             KeyCode::Enter => {
@@ -148,10 +145,12 @@ impl SearchPage {
                 if self.search_input.input(key, modifiers) {
                     let hash_new = seahash::hash(self.search_input.as_str().trim().as_bytes());
                     self.is_dirty = hash_old != hash_new;
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
             }
         }
+
+        Action::None
     }
 
     pub fn on_exit(&self) {}

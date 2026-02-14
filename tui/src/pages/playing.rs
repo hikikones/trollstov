@@ -1,90 +1,39 @@
-use image::GenericImageView;
-use jukebox::{AudioFileReport, AudioPicture, AudioRating, Jukebox, QueueIndex, TrackId};
+use jukebox::{AudioRating, Jukebox, QueueIndex};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
     widgets::{Block, Padding},
 };
-use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
+use ratatui_image::StatefulImage;
 
 use crate::{
-    app::Colors,
-    events::{AppEvent, EventSender},
-    pages::Log,
+    app::{Action, Colors, FrontCover},
     widgets::{List, ListMove, Shortcut, Shortcuts, utils},
 };
 
-type AudioPictureHandle = std::thread::JoinHandle<Result<FrontCover, AudioFileReport>>;
-
 pub struct PlayingPage {
-    current: Option<(TrackId, QueueIndex)>,
-    picker: Picker,
-    image: FrontCover,
-    image_handle: Option<AudioPictureHandle>,
+    current_queue_index: Option<QueueIndex>,
     play_queue_title: String,
     list: List,
-    events: EventSender,
 }
 
 impl PlayingPage {
-    pub const fn new(picker: Picker, events: EventSender) -> Self {
+    pub const fn new() -> Self {
         Self {
-            current: None,
-            picker,
-            image: FrontCover::None,
-            image_handle: None,
+            current_queue_index: None,
             play_queue_title: String::new(),
             list: List::new(),
-            events,
         }
     }
 
     pub fn on_enter(&self) {}
-
-    pub fn on_update(&mut self, jb: &Jukebox) -> bool {
-        let mut render = false;
-
-        if self.current != jb.current_track() {
-            if self.current.map(|(id, _)| id) != jb.current_track_id() {
-                // Track has changed, time to update image
-                self.update_image(jb);
-            }
-
-            if let Some(idx) = jb.current_queue_index() {
-                // Update scroll
-                self.list.move_index(ListMove::Custom(idx.raw()), false);
-            }
-
-            render = true;
-            self.current = jb.current_track();
-        }
-
-        // Poll thread for finished image loading
-        if let Some(handle) = self.image_handle.as_ref() {
-            if handle.is_finished() {
-                render = true;
-                let handle = self.image_handle.take().unwrap();
-                match handle.join().unwrap() {
-                    Ok(image) => {
-                        self.image = image;
-                    }
-                    Err(err) => {
-                        let log = Log::new(err);
-                        self.events.send(AppEvent::Log(log));
-                        self.image = FrontCover::None;
-                    }
-                }
-            }
-        }
-
-        render
-    }
 
     pub fn on_render(
         &mut self,
         area: Rect,
         buf: &mut Buffer,
         jb: &Jukebox,
+        front_cover: &mut FrontCover,
         colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
@@ -96,7 +45,7 @@ impl PlayingPage {
         .areas(area);
 
         // Render track
-        self.render_cover(playing_area, buf, jb, colors);
+        self.render_cover(playing_area, buf, jb, front_cover, colors);
 
         // Render play queue
         jukebox::utils::format_int(jb.history_len(), |hlen| {
@@ -116,6 +65,14 @@ impl PlayingPage {
         block.render(queue_area, buf);
         self.play_queue_title.clear();
 
+        // Update scroll on new track
+        if self.current_queue_index != jb.current_queue_index() {
+            self.current_queue_index = jb.current_queue_index();
+            if let Some(idx) = jb.current_queue_index() {
+                self.list.move_index(ListMove::Custom(idx.raw()), false);
+            }
+        }
+
         self.render_queue(queue_area_inner, buf, jb, colors);
 
         // Shortcuts
@@ -127,7 +84,7 @@ impl PlayingPage {
         ]);
     }
 
-    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) {
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) -> Action {
         match key {
             KeyCode::Enter => {
                 jb.play_queue_index(self.list.index());
@@ -141,30 +98,39 @@ impl PlayingPage {
                 }
                 'c' => {
                     jb.queue_clear();
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
                 's' => {
                     jb.queue_shuffle();
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
                 _ => {}
             },
             _ => {
                 if self.list.input(key, KeyModifiers::empty()) {
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
             }
         }
+
+        Action::None
     }
 
     pub fn on_exit(&mut self) {}
 
-    fn render_cover(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+    fn render_cover(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        jb: &Jukebox,
+        front_cover: &mut FrontCover,
+        colors: &Colors,
+    ) {
         let neutral_style = Style::new().fg(colors.neutral);
 
         // Show currently playing, image or not
-        match self.current {
-            Some((id, _)) => {
+        match jb.current_track_id() {
+            Some(id) => {
                 const MAX_COVER_SIZE: u16 = 20;
                 let mut img_area = {
                     let img_w = area.width.min(MAX_COVER_SIZE * 2);
@@ -177,7 +143,7 @@ impl PlayingPage {
                     utils::align(img_r, area, utils::Alignment::Center)
                 };
 
-                match &mut self.image {
+                match front_cover {
                     FrontCover::None => {
                         Block::bordered().style(neutral_style).render(img_area, buf);
                         utils::print_ascii(
@@ -319,54 +285,4 @@ impl PlayingPage {
             },
         );
     }
-
-    fn update_image(&mut self, jb: &Jukebox) {
-        match jb.current_track_id() {
-            Some(id) => {
-                let Some(path) = jb.get(id).map(|track| track.path()) else {
-                    self.image = FrontCover::None;
-                    return;
-                };
-
-                // Load image in thread and store handle
-                self.image = FrontCover::Loading;
-
-                let path = path.to_path_buf();
-                let picker = self.picker.clone();
-                let handle = std::thread::spawn(move || {
-                    let picture = AudioPicture::read(&path)?;
-                    match picture.bytes() {
-                        Some(bytes) => {
-                            const MAX_RES: u32 = 720;
-                            let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
-                                AudioFileReport::new(format!(
-                                    "Could not load front cover image for {} due to {}",
-                                    path.display(),
-                                    err
-                                ))
-                            })?;
-                            let (w, h) = dyn_img.dimensions();
-                            if w > MAX_RES || h > MAX_RES {
-                                dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
-                            }
-                            Ok(FrontCover::Ready(picker.new_resize_protocol(dyn_img)))
-                        }
-                        None => Ok(FrontCover::None),
-                    }
-                });
-                self.image_handle = Some(handle);
-            }
-            None => {
-                // No track currently playing, remove image
-                self.image = FrontCover::None;
-                self.image_handle = None;
-            }
-        }
-    }
-}
-
-enum FrontCover {
-    None,
-    Loading,
-    Ready(StatefulProtocol),
 }

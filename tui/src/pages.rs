@@ -8,7 +8,7 @@ pub use playing::*;
 pub use search::*;
 pub use tracks::*;
 
-use crate::{app::Colors, events::EventSender};
+use crate::app::Colors;
 
 pub struct Pages {
     pub tracks: TracksPage,
@@ -18,16 +18,12 @@ pub struct Pages {
 }
 
 impl Pages {
-    pub fn new(
-        picker: ratatui_image::picker::Picker,
-        events: EventSender,
-        colors: &Colors,
-    ) -> Self {
+    pub const fn new(colors: &Colors) -> Self {
         Self {
-            tracks: TracksPage::new(events.clone()),
-            playing: PlayingPage::new(picker, events.clone()),
-            search: SearchPage::new(colors, events.clone()),
-            logs: LogsPage::new(events),
+            tracks: TracksPage::new(),
+            playing: PlayingPage::new(),
+            search: SearchPage::new(colors),
+            logs: LogsPage::new(),
         }
     }
 }
@@ -57,15 +53,6 @@ impl Route {
             Self::NowPlaying => Self::Tracks,
             Self::Search => Self::NowPlaying,
             Self::Logs => Self::Search,
-        }
-    }
-
-    pub const fn title(self) -> &'static str {
-        match self {
-            Self::Tracks => "Tracks",
-            Self::NowPlaying => "Now Playing",
-            Self::Search => "Search",
-            Self::Logs => "Logs",
         }
     }
 }
