@@ -100,9 +100,11 @@ impl App {
             render_jukebox_logo(frame.area(), frame.buffer_mut());
         })?;
 
-        // Start reading events, load music and establish media controls
+        // Start reading events and load music
         self.events.start();
         self.jukebox.load_music();
+
+        // Try to establish media controls
         if let Err(err) = self.jukebox.attach_media_controls() {
             let log = Log::new(err);
             self.events.send(AppEvent::Log(log));
