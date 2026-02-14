@@ -78,7 +78,7 @@ pub enum Action {
 }
 
 impl App {
-    pub fn new(events: EventHandler, jukebox: Jukebox, picker: Picker) -> Self {
+    pub fn new(jukebox: Jukebox, picker: Picker) -> Self {
         let colors = Colors::new();
         let pages = Pages::new(&colors);
 
@@ -102,7 +102,7 @@ impl App {
             pages,
             route: Route::default(),
             colors,
-            events,
+            events: EventHandler::new(),
             jukebox,
             mpris: false,
             picker,

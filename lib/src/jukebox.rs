@@ -25,8 +25,7 @@ pub struct Jukebox {
     audio_write_queue: VecDeque<(TrackId, AudioRating)>,
     faulty: HashSet<TrackId>,
     events: Vec<JukeboxEvent>,
-    sink: rodio::Sink,
-    _stream: rodio::OutputStream,
+    device: AudioDevice,
 }
 
 pub enum JukeboxEvent {
@@ -49,13 +48,9 @@ enum PlayState {
 }
 
 impl Jukebox {
-    pub fn new(dir: impl AsRef<Path>) -> Result<Self, rodio::StreamError> {
-        let stream = rodio::OutputStreamBuilder::open_default_stream()?;
-        let sink = rodio::Sink::connect_new(stream.mixer());
-        sink.pause();
-
-        Ok(Self {
-            database: Database::new(dir.as_ref().to_path_buf()),
+    pub fn new(device: AudioDevice, music_dir: impl AsRef<Path>) -> Self {
+        Self {
+            database: Database::new(music_dir.as_ref().to_path_buf()),
             current: None,
             queue: PlayQueue::new(),
             state: PlayState::Stop,
@@ -65,9 +60,8 @@ impl Jukebox {
             audio_write_queue: VecDeque::new(),
             faulty: HashSet::new(),
             events: Vec::new(),
-            sink,
-            _stream: stream,
-        })
+            device,
+        }
     }
 
     pub fn load_music(&mut self) {
@@ -136,7 +130,7 @@ impl Jukebox {
     }
 
     pub fn current_track_pos(&self) -> Duration {
-        self.sink.get_pos()
+        self.device.position()
     }
 
     pub const fn is_queue_empty(&self) -> bool {
@@ -184,11 +178,11 @@ impl Jukebox {
     }
 
     pub fn volume(&self) -> f32 {
-        self.sink.volume()
+        self.device.volume()
     }
 
     pub fn set_volume(&mut self, value: f32) {
-        self.sink.set_volume(value);
+        self.device.set_volume(value);
     }
 
     pub fn play_queue_index(&mut self, index: usize) {
@@ -206,12 +200,12 @@ impl Jukebox {
 
     pub fn play(&mut self) {
         self.state = PlayState::Play;
-        self.sink.play();
+        self.device.play();
     }
 
     pub fn pause(&mut self) {
         self.state = PlayState::Pause;
-        self.sink.pause();
+        self.device.pause();
     }
 
     pub fn pause_or_play(&mut self) {
@@ -229,7 +223,7 @@ impl Jukebox {
         self.current = None;
         self.audio_decode_handle = None;
         self.state = PlayState::Stop;
-        self.sink.clear();
+        self.device.clear();
         self.events.push(JukeboxEvent::Stop);
 
         if let Some(mpris) = self.mpris.as_mut() {
@@ -293,11 +287,11 @@ impl Jukebox {
     }
 
     pub fn fast_forward_by(&mut self, duration: Duration) {
-        if self.sink.empty() {
+        if self.device.is_empty() {
             return;
         }
 
-        let _ = self.sink.try_seek(self.sink.get_pos() + duration);
+        let _ = self.device.seek(self.device.position() + duration);
     }
 
     pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
@@ -384,11 +378,11 @@ impl Jukebox {
                 match handle.join().unwrap() {
                     // Play successfully decoded audio and update state
                     Ok(decoded_audio) => {
-                        self.sink.clear();
-                        self.sink.append(decoded_audio);
+                        self.device.clear();
+                        self.device.append(decoded_audio);
                         if self.state != PlayState::Pause {
                             self.state = PlayState::Play;
-                            self.sink.play();
+                            self.device.play();
                         }
                         self.current = Some((id, index));
                         self.events.push(JukeboxEvent::Play(id, path));
@@ -466,7 +460,7 @@ impl Jukebox {
             }
         }
         // Play next when empty and idle
-        else if self.sink.empty() && !self.sink.is_paused() {
+        else if self.device.is_empty() && !self.device.is_paused() {
             match self.state {
                 PlayState::Play => {
                     self.play_next();
