@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use jukebox::{Jukebox, JukeboxReceiver, Track};
+use jukebox::{Jukebox, JukeboxEvent, JukeboxReceiver, Track};
 use ratatui::{
     CompletedFrame,
     crossterm::event::{
@@ -259,9 +259,17 @@ impl App {
     }
 
     fn update(&mut self) {
-        let mut render = self.jukebox.update(|err| {
-            let log = Log::new(err);
-            self.events.send(AppEvent::Log(log));
+        let mut render = false;
+
+        self.jukebox.update(|event| {
+            render = true;
+            match event {
+                JukeboxEvent::Play(_) | JukeboxEvent::Stop | JukeboxEvent::Rating(_) => {}
+                JukeboxEvent::Error(err) => {
+                    let log = Log::new(err);
+                    self.events.send(AppEvent::Log(log));
+                }
+            }
         });
 
         if self.pages.playing.on_update(&self.jukebox) {
