@@ -1,6 +1,7 @@
 use std::time::Duration;
 
-use jukebox::{Jukebox, JukeboxEvent, Track};
+use image::GenericImageView;
+use jukebox::{AudioFileReport, AudioPicture, Jukebox, JukeboxEvent, Track};
 use ratatui::{
     CompletedFrame,
     crossterm::event::{
@@ -8,6 +9,7 @@ use ratatui::{
     },
     prelude::*,
 };
+use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
     events::{AppEvent, Event, EventHandler},
@@ -18,6 +20,8 @@ use crate::{
 
 // TODO: Add a playlist page for artists/albums/genres and filtering.
 
+type FrontCoverHandle = std::thread::JoinHandle<Result<FrontCover, AudioFileReport>>;
+
 pub struct App {
     running: bool,
     pages: Pages,
@@ -25,6 +29,9 @@ pub struct App {
     colors: Colors,
     events: EventHandler,
     jukebox: Jukebox,
+    picker: Picker,
+    front_cover: FrontCover,
+    front_cover_handle: Option<FrontCoverHandle>,
     text_segment: TextSegment,
     shortcuts_page: Shortcuts,
     shortcuts_play: Shortcuts,
@@ -56,14 +63,16 @@ impl Colors {
     }
 }
 
+pub enum FrontCover {
+    None,
+    Loading,
+    Ready(StatefulProtocol),
+}
+
 impl App {
-    pub fn new(
-        events: EventHandler,
-        jukebox: Jukebox,
-        picker: ratatui_image::picker::Picker,
-    ) -> Self {
+    pub fn new(events: EventHandler, jukebox: Jukebox, picker: Picker) -> Self {
         let colors = Colors::new();
-        let pages = Pages::new(picker, events.clone_sender(), &colors);
+        let pages = Pages::new(events.clone_sender(), &colors);
 
         let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
         let mut shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
@@ -87,6 +96,9 @@ impl App {
             colors,
             events,
             jukebox,
+            picker,
+            front_cover: FrontCover::None,
+            front_cover_handle: None,
             text_segment: TextSegment::new().with_alignment(Alignment::Center),
             shortcuts_page,
             shortcuts_play,
@@ -261,7 +273,38 @@ impl App {
         let mut render = false;
 
         self.jukebox.update(|event| match event {
-            JukeboxEvent::Play(_) | JukeboxEvent::Stop | JukeboxEvent::Rating(_) => {
+            JukeboxEvent::Play(_, path) => {
+                // Load image in thread and store handle
+                self.front_cover = FrontCover::Loading;
+                let picker = self.picker.clone();
+                let handle = std::thread::spawn(move || {
+                    let picture = AudioPicture::read(&path)?;
+                    match picture.bytes() {
+                        Some(bytes) => {
+                            const MAX_RES: u32 = 720;
+                            let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
+                                AudioFileReport::new(format!(
+                                    "Could not load front cover image for {} due to {}",
+                                    path.display(),
+                                    err
+                                ))
+                            })?;
+                            let (w, h) = dyn_img.dimensions();
+                            if w > MAX_RES || h > MAX_RES {
+                                dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
+                            }
+                            Ok(FrontCover::Ready(picker.new_resize_protocol(dyn_img)))
+                        }
+                        None => Ok(FrontCover::None),
+                    }
+                });
+                self.front_cover_handle = Some(handle);
+                render = true;
+            }
+            JukeboxEvent::Stop => {
+                render = true;
+            }
+            JukeboxEvent::Rating(_) => {
                 render = true;
             }
             JukeboxEvent::Error(err) => {
@@ -277,8 +320,22 @@ impl App {
             }
         });
 
-        if self.pages.playing.on_update(&self.jukebox) {
-            render = true;
+        // Poll thread for finished image loading
+        if let Some(handle) = self.front_cover_handle.as_ref() {
+            if handle.is_finished() {
+                render = true;
+                let handle = self.front_cover_handle.take().unwrap();
+                match handle.join().unwrap() {
+                    Ok(image) => {
+                        self.front_cover = image;
+                    }
+                    Err(err) => {
+                        let log = Log::new(err);
+                        self.events.send(AppEvent::Log(log));
+                        self.front_cover = FrontCover::None;
+                    }
+                }
+            }
         }
 
         if render {
@@ -356,6 +413,7 @@ impl App {
                         body,
                         buf,
                         &self.jukebox,
+                        &mut self.front_cover,
                         &self.colors,
                         &mut self.shortcuts_page,
                     );
@@ -469,11 +527,11 @@ fn render_navigation(
     colors: &Colors,
 ) {
     const SPACING: &str = "   ";
-    for (route, spacing) in [
-        (Route::Tracks, SPACING),
-        (Route::NowPlaying, SPACING),
-        (Route::Search, SPACING),
-        (Route::Logs, ""),
+    for (route, name, spacing) in [
+        (Route::Tracks, "Tracks", SPACING),
+        (Route::NowPlaying, "Now Playing", SPACING),
+        (Route::Search, "Search", SPACING),
+        (Route::Logs, "Logs", ""),
     ] {
         let style = if route == current_route {
             Style::new().bold().fg(colors.accent)
@@ -481,7 +539,7 @@ fn render_navigation(
             Style::new()
         };
 
-        text.push_str(route.title(), style);
+        text.push_str(name, style);
         if route == Route::Logs {
             let new_logs = pages.logs.queue_len();
             if new_logs > 0 {

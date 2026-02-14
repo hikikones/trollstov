@@ -2,7 +2,7 @@ use std::{
     collections::{HashSet, VecDeque},
     fs::File,
     io::BufReader,
-    path::Path,
+    path::{Path, PathBuf},
     time::Duration,
 };
 
@@ -20,7 +20,7 @@ pub struct Jukebox {
     queue: PlayQueue,
     state: PlayState,
     mpris: Option<MediaControls>,
-    audio_decode_handle: Option<(TrackId, QueueIndex, AudioDecodeHandle)>,
+    audio_decode_handle: Option<(AudioDecodeHandle, TrackId, QueueIndex, PathBuf)>,
     audio_write_handle: Option<AudioWriteHandle>,
     audio_write_queue: VecDeque<(TrackId, AudioRating)>,
     faulty: HashSet<TrackId>,
@@ -30,7 +30,7 @@ pub struct Jukebox {
 }
 
 pub enum JukeboxEvent {
-    Play(TrackId),
+    Play(TrackId, PathBuf),
     Stop,
     Rating(TrackId),
     Error(AudioFileReport),
@@ -328,7 +328,7 @@ impl Jukebox {
             })?;
             Ok(source)
         });
-        self.audio_decode_handle = Some((id, index, handle));
+        self.audio_decode_handle = Some((handle, id, index, track.path().to_path_buf()));
     }
 
     fn write_rating(&mut self, id: TrackId, rating: AudioRating) -> Option<AudioWriteHandle> {
@@ -378,9 +378,9 @@ impl Jukebox {
         });
 
         // Poll thread handle for audio decoding
-        if let Some((_, _, handle)) = self.audio_decode_handle.as_ref() {
+        if let Some((handle, _, _, _)) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
-                let (id, index, handle) = self.audio_decode_handle.take().unwrap();
+                let (handle, id, index, path) = self.audio_decode_handle.take().unwrap();
                 match handle.join().unwrap() {
                     // Play successfully decoded audio and update state
                     Ok(decoded_audio) => {
@@ -391,7 +391,7 @@ impl Jukebox {
                             self.sink.play();
                         }
                         self.current = Some((id, index));
-                        self.events.push(JukeboxEvent::Play(id));
+                        self.events.push(JukeboxEvent::Play(id, path));
 
                         // Update metadata for media control
                         if let Some(mpris) = self.mpris.as_mut()

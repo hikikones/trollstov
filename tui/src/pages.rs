@@ -18,14 +18,10 @@ pub struct Pages {
 }
 
 impl Pages {
-    pub fn new(
-        picker: ratatui_image::picker::Picker,
-        events: EventSender,
-        colors: &Colors,
-    ) -> Self {
+    pub fn new(events: EventSender, colors: &Colors) -> Self {
         Self {
             tracks: TracksPage::new(events.clone()),
-            playing: PlayingPage::new(picker, events.clone()),
+            playing: PlayingPage::new(events.clone()),
             search: SearchPage::new(colors, events.clone()),
             logs: LogsPage::new(events),
         }
@@ -57,15 +53,6 @@ impl Route {
             Self::NowPlaying => Self::Tracks,
             Self::Search => Self::NowPlaying,
             Self::Logs => Self::Search,
-        }
-    }
-
-    pub const fn title(self) -> &'static str {
-        match self {
-            Self::Tracks => "Tracks",
-            Self::NowPlaying => "Now Playing",
-            Self::Search => "Search",
-            Self::Logs => "Logs",
         }
     }
 }
