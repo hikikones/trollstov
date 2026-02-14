@@ -12,7 +12,7 @@ use ratatui::{
 use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
-    events::{AppEvent, Event, EventHandler},
+    events::{Event, EventHandler},
     pages::{Log, Pages, Route},
     terminal::Terminal,
     widgets::{Shortcut, Shortcuts, TextSegment, utils},
@@ -69,10 +69,17 @@ pub enum FrontCover {
     Ready(StatefulProtocol),
 }
 
+pub enum Action {
+    None,
+    Render,
+    Route(Route),
+    Quit,
+}
+
 impl App {
     pub fn new(events: EventHandler, jukebox: Jukebox, picker: Picker) -> Self {
         let colors = Colors::new();
-        let pages = Pages::new(events.clone_sender(), &colors);
+        let pages = Pages::new(&colors);
 
         let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
         let mut shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
@@ -118,23 +125,37 @@ impl App {
 
         // Try to establish media controls
         if let Err(err) = self.jukebox.attach_media_controls() {
-            let log = Log::new(err);
-            self.events.send(AppEvent::Log(log));
+            self.pages.logs.enqueue(Log::new(err));
         }
 
         self.on_enter();
 
         // Run event loop
         while self.running {
-            match self.events.next()? {
+            let action = match self.events.next()? {
+                Event::Update => self.update(),
+                Event::Render => Action::Render,
                 Event::Terminal(event) => match event {
                     CrosstermEvent::Key(key) if key.kind == KeyEventKind::Press => {
-                        self.handle_key_press(key);
+                        self.handle_key_press(key)
                     }
-                    _ => {}
+                    _ => Action::None,
                 },
-                Event::App(event) => {
-                    self.handle_app_event(event, &mut terminal)?;
+            };
+
+            match action {
+                Action::None => {}
+                Action::Render => {
+                    self.render(&mut terminal)?;
+                }
+                Action::Route(route) => {
+                    self.on_exit();
+                    self.route = route;
+                    self.on_enter();
+                    self.render(&mut terminal)?;
+                }
+                Action::Quit => {
+                    self.running = false;
                 }
             }
         }
@@ -146,18 +167,19 @@ impl App {
         self.jukebox.shutdown();
     }
 
-    fn handle_key_press(&mut self, key: KeyEvent) {
+    fn handle_key_press(&mut self, key: KeyEvent) -> Action {
         let alt = key.modifiers.contains(KeyModifiers::ALT);
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+
         match key.code {
             KeyCode::Esc => {
-                self.events.send(AppEvent::Quit);
+                return Action::Quit;
             }
             KeyCode::Tab => {
-                self.events.send(AppEvent::Route(self.route.next()));
+                return Action::Route(self.route.next());
             }
             KeyCode::BackTab => {
-                self.events.send(AppEvent::Route(self.route.prev()));
+                return Action::Route(self.route.prev());
             }
             KeyCode::Up => {
                 if ctrl {
@@ -165,9 +187,9 @@ impl App {
                 } else if alt {
                     let new_volume = (self.jukebox.volume() + 0.1).min(2.0);
                     self.jukebox.set_volume(new_volume);
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 } else {
-                    self.on_input(key);
+                    return self.on_input(key);
                 }
             }
             KeyCode::Down => {
@@ -176,9 +198,9 @@ impl App {
                 } else if alt {
                     let new_volume = (self.jukebox.volume() - 0.1).max(0.0);
                     self.jukebox.set_volume(new_volume);
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 } else {
-                    self.on_input(key);
+                    return self.on_input(key);
                 }
             }
             KeyCode::Right => {
@@ -186,90 +208,66 @@ impl App {
                     self.jukebox.play_next();
                 } else if alt {
                     self.jukebox.fast_forward_by(Duration::from_secs(30));
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 } else {
-                    self.on_input(key);
+                    return self.on_input(key);
                 }
             }
             KeyCode::Left => {
                 if ctrl {
                     self.jukebox.play_previous();
                 } else {
-                    self.on_input(key);
+                    return self.on_input(key);
                 }
             }
-            KeyCode::Media(media) => match media {
-                MediaKeyCode::Play => {
-                    self.jukebox.play();
+            KeyCode::Media(media) => {
+                // TODO: Ignore when we have media controls through mpris.
+                match media {
+                    MediaKeyCode::Play => {
+                        self.jukebox.play();
+                    }
+                    MediaKeyCode::Pause => {
+                        self.jukebox.pause();
+                    }
+                    MediaKeyCode::PlayPause => {
+                        self.jukebox.pause_or_play();
+                    }
+                    MediaKeyCode::Stop => {
+                        self.jukebox.stop();
+                    }
+                    MediaKeyCode::TrackNext => {
+                        self.jukebox.play_next();
+                    }
+                    MediaKeyCode::TrackPrevious => {
+                        self.jukebox.play_previous();
+                    }
+                    MediaKeyCode::FastForward => {
+                        self.jukebox.fast_forward_by(Duration::from_secs(30));
+                    }
+                    _ => {}
                 }
-                MediaKeyCode::Pause => {
-                    self.jukebox.pause();
-                }
-                MediaKeyCode::PlayPause => {
-                    self.jukebox.pause_or_play();
-                }
-                MediaKeyCode::Stop => {
-                    self.jukebox.stop();
-                }
-                MediaKeyCode::TrackNext => {
-                    self.jukebox.play_next();
-                }
-                MediaKeyCode::TrackPrevious => {
-                    self.jukebox.play_previous();
-                }
-                MediaKeyCode::FastForward => {
-                    self.jukebox.fast_forward_by(Duration::from_secs(30));
-                }
-                _ => {}
-            },
+            }
             KeyCode::Char(c) => match c {
                 '/' => {
                     if self.route == Route::Search {
-                        self.on_input(key);
+                        return self.on_input(key);
                     } else {
-                        self.events.send(AppEvent::Route(Route::Search));
+                        return Action::Route(Route::Search);
                     }
                 }
                 _ => {
-                    self.on_input(key);
+                    return self.on_input(key);
                 }
             },
             _ => {
-                self.on_input(key);
-            }
-        }
-    }
-
-    fn handle_app_event(
-        &mut self,
-        event: AppEvent,
-        terminal: &mut Terminal,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        match event {
-            AppEvent::Update => {
-                self.update();
-            }
-            AppEvent::Render => {
-                self.render(terminal)?;
-            }
-            AppEvent::Route(route) => {
-                self.on_exit();
-                self.route = route;
-                self.on_enter();
-                self.render(terminal)?;
-            }
-            AppEvent::Log(log) => {
-                self.pages.logs.enqueue(log);
-            }
-            AppEvent::Quit => {
-                self.running = false;
+                return self.on_input(key);
             }
         }
 
-        Ok(())
+        Action::None
     }
 
-    fn update(&mut self) {
+    fn update(&mut self) -> Action {
         let mut render = false;
 
         self.jukebox.update(|event| match event {
@@ -309,8 +307,7 @@ impl App {
             }
             JukeboxEvent::Error(err) => {
                 render = true;
-                let log = Log::new(err);
-                self.events.send(AppEvent::Log(log));
+                self.pages.logs.enqueue(Log::new(err));
             }
             JukeboxEvent::Focus => {
                 // TODO: Focus terminal window.
@@ -330,17 +327,14 @@ impl App {
                         self.front_cover = image;
                     }
                     Err(err) => {
-                        let log = Log::new(err);
-                        self.events.send(AppEvent::Log(log));
+                        self.pages.logs.enqueue(Log::new(err));
                         self.front_cover = FrontCover::None;
                     }
                 }
             }
         }
 
-        if render {
-            self.events.send(AppEvent::Render);
-        }
+        if render { Action::Render } else { Action::None }
     }
 
     fn render<'a>(&'a mut self, terminal: &'a mut Terminal) -> std::io::Result<CompletedFrame<'a>> {
@@ -498,7 +492,7 @@ impl App {
         }
     }
 
-    fn on_input(&mut self, key: KeyEvent) {
+    fn on_input(&mut self, key: KeyEvent) -> Action {
         match self.route {
             Route::Tracks => self
                 .pages

@@ -8,7 +8,7 @@ pub use playing::*;
 pub use search::*;
 pub use tracks::*;
 
-use crate::{app::Colors, events::EventSender};
+use crate::app::Colors;
 
 pub struct Pages {
     pub tracks: TracksPage,
@@ -18,12 +18,12 @@ pub struct Pages {
 }
 
 impl Pages {
-    pub fn new(events: EventSender, colors: &Colors) -> Self {
+    pub fn new(colors: &Colors) -> Self {
         Self {
-            tracks: TracksPage::new(events.clone()),
-            playing: PlayingPage::new(events.clone()),
-            search: SearchPage::new(colors, events.clone()),
-            logs: LogsPage::new(events),
+            tracks: TracksPage::new(),
+            playing: PlayingPage::new(),
+            search: SearchPage::new(colors),
+            logs: LogsPage::new(),
         }
     }
 }

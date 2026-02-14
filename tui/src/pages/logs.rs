@@ -5,8 +5,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::Colors,
-    events::{AppEvent, EventSender},
+    app::{Action, Colors},
     widgets::{List, utils},
 };
 
@@ -16,18 +15,16 @@ pub struct LogsPage {
     queue: u32,
     list: List,
     horizontal_scroll: usize,
-    events: EventSender,
 }
 
 impl LogsPage {
-    pub const fn new(events: EventSender) -> Self {
+    pub const fn new() -> Self {
         Self {
             title: String::new(),
             logs: Vec::new(),
             queue: 0,
             list: List::new(),
             horizontal_scroll: 0,
-            events,
         }
     }
 
@@ -90,23 +87,25 @@ impl LogsPage {
         );
     }
 
-    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) {
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) -> Action {
         match key {
             KeyCode::Right => {
                 self.horizontal_scroll += 1;
-                self.events.send(AppEvent::Render);
+                return Action::Render;
             }
             KeyCode::Left => {
                 self.horizontal_scroll = self.horizontal_scroll.saturating_sub(1);
-                self.events.send(AppEvent::Render);
+                return Action::Render;
             }
             _ => {
                 if self.list.input(key, KeyModifiers::empty()) {
                     self.horizontal_scroll = 0;
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
             }
         }
+
+        Action::None
     }
 
     pub fn on_exit(&self) {}

@@ -7,8 +7,7 @@ use ratatui::{
 use ratatui_image::StatefulImage;
 
 use crate::{
-    app::{Colors, FrontCover},
-    events::{AppEvent, EventSender},
+    app::{Action, Colors, FrontCover},
     widgets::{List, ListMove, Shortcut, Shortcuts, utils},
 };
 
@@ -16,16 +15,14 @@ pub struct PlayingPage {
     current_queue_index: Option<QueueIndex>,
     play_queue_title: String,
     list: List,
-    events: EventSender,
 }
 
 impl PlayingPage {
-    pub const fn new(events: EventSender) -> Self {
+    pub const fn new() -> Self {
         Self {
             current_queue_index: None,
             play_queue_title: String::new(),
             list: List::new(),
-            events,
         }
     }
 
@@ -87,7 +84,7 @@ impl PlayingPage {
         ]);
     }
 
-    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) {
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers, jb: &mut Jukebox) -> Action {
         match key {
             KeyCode::Enter => {
                 jb.play_queue_index(self.list.index());
@@ -101,20 +98,22 @@ impl PlayingPage {
                 }
                 'c' => {
                     jb.queue_clear();
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
                 's' => {
                     jb.queue_shuffle();
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
                 _ => {}
             },
             _ => {
                 if self.list.input(key, KeyModifiers::empty()) {
-                    self.events.send(AppEvent::Render);
+                    return Action::Render;
                 }
             }
         }
+
+        Action::None
     }
 
     pub fn on_exit(&mut self) {}
