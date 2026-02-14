@@ -291,7 +291,7 @@ impl Jukebox {
             return;
         }
 
-        let _ = self.device.seek(self.device.position() + duration);
+        self.device.seek(self.device.position() + duration);
     }
 
     pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
