@@ -18,7 +18,7 @@ pub struct Pages {
 }
 
 impl Pages {
-    pub fn new(colors: &Colors) -> Self {
+    pub const fn new(colors: &Colors) -> Self {
         Self {
             tracks: TracksPage::new(),
             playing: PlayingPage::new(),
