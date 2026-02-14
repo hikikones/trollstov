@@ -260,14 +260,20 @@ impl App {
     fn update(&mut self) {
         let mut render = false;
 
-        self.jukebox.update(|event| {
-            render = true;
-            match event {
-                JukeboxEvent::Play(_) | JukeboxEvent::Stop | JukeboxEvent::Rating(_) => {}
-                JukeboxEvent::Error(err) => {
-                    let log = Log::new(err);
-                    self.events.send(AppEvent::Log(log));
-                }
+        self.jukebox.update(|event| match event {
+            JukeboxEvent::Play(_) | JukeboxEvent::Stop | JukeboxEvent::Rating(_) => {
+                render = true;
+            }
+            JukeboxEvent::Error(err) => {
+                render = true;
+                let log = Log::new(err);
+                self.events.send(AppEvent::Log(log));
+            }
+            JukeboxEvent::Focus => {
+                // TODO: Focus terminal window.
+            }
+            JukeboxEvent::Quit => {
+                self.running = false;
             }
         });
 

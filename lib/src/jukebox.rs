@@ -34,6 +34,8 @@ pub enum JukeboxEvent {
     Stop,
     Rating(TrackId),
     Error(AudioFileReport),
+    Focus,
+    Quit,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -455,6 +457,12 @@ impl Jukebox {
                 MediaEvent::Next => self.play_next(),
                 MediaEvent::Previous => self.play_previous(),
                 MediaEvent::Stop => self.stop(),
+                MediaEvent::Raise => {
+                    self.events.push(JukeboxEvent::Focus);
+                }
+                MediaEvent::Quit => {
+                    self.events.push(JukeboxEvent::Quit);
+                }
             }
         }
         // Play next when empty and idle

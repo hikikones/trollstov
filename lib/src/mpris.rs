@@ -14,6 +14,8 @@ pub(super) enum MediaEvent {
     Next,
     Previous,
     Stop,
+    Raise,
+    Quit,
 }
 
 impl MediaControls {
@@ -52,6 +54,12 @@ impl MediaControls {
                     }
                     souvlaki::MediaControlEvent::Stop => {
                         let _ = sender.send(MediaEvent::Stop);
+                    }
+                    souvlaki::MediaControlEvent::Raise => {
+                        let _ = sender.send(MediaEvent::Raise);
+                    }
+                    souvlaki::MediaControlEvent::Quit => {
+                        let _ = sender.send(MediaEvent::Quit);
                     }
                     _ => {}
                 };
