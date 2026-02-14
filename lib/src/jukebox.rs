@@ -3,7 +3,6 @@ use std::{
     fs::File,
     io::BufReader,
     path::Path,
-    sync::mpsc,
     time::Duration,
 };
 
@@ -25,7 +24,6 @@ pub struct Jukebox {
     audio_write_handle: Option<AudioWriteHandle>,
     audio_write_queue: VecDeque<(TrackId, AudioRating)>,
     faulty: HashSet<TrackId>,
-    sender: JukeboxSender,
     events: Vec<JukeboxEvent>,
     sink: rodio::Sink,
     _stream: rodio::OutputStream,
@@ -36,16 +34,6 @@ pub enum JukeboxEvent {
     Stop,
     Rating(TrackId),
     Error(AudioFileReport),
-}
-
-pub struct JukeboxReceiver(mpsc::Receiver<JukeboxEvent>);
-
-struct JukeboxSender(mpsc::Sender<JukeboxEvent>);
-
-impl JukeboxSender {
-    fn send(&self, event: JukeboxEvent) {
-        let _ = self.0.send(event);
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,31 +47,25 @@ enum PlayState {
 }
 
 impl Jukebox {
-    pub fn new(dir: impl AsRef<Path>) -> Result<(Self, JukeboxReceiver), rodio::StreamError> {
+    pub fn new(dir: impl AsRef<Path>) -> Result<Self, rodio::StreamError> {
         let stream = rodio::OutputStreamBuilder::open_default_stream()?;
         let sink = rodio::Sink::connect_new(stream.mixer());
         sink.pause();
 
-        let (sender, receiver) = mpsc::channel();
-
-        Ok((
-            Self {
-                database: Database::new(dir.as_ref().to_path_buf()),
-                current: None,
-                queue: PlayQueue::new(),
-                state: PlayState::Stop,
-                mpris: None,
-                audio_decode_handle: None,
-                audio_write_handle: None,
-                audio_write_queue: VecDeque::new(),
-                faulty: HashSet::new(),
-                sender: JukeboxSender(sender),
-                events: Vec::new(),
-                sink,
-                _stream: stream,
-            },
-            JukeboxReceiver(receiver),
-        ))
+        Ok(Self {
+            database: Database::new(dir.as_ref().to_path_buf()),
+            current: None,
+            queue: PlayQueue::new(),
+            state: PlayState::Stop,
+            mpris: None,
+            audio_decode_handle: None,
+            audio_write_handle: None,
+            audio_write_queue: VecDeque::new(),
+            faulty: HashSet::new(),
+            events: Vec::new(),
+            sink,
+            _stream: stream,
+        })
     }
 
     pub fn load_music(&mut self) {
