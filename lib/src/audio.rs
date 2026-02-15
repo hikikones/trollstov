@@ -208,7 +208,6 @@ pub struct AudioMetadata {
     artist: String,
     album: String,
     rating: Option<AudioRating>,
-    // todo: tag type?
 }
 
 impl AudioMetadata {
@@ -460,6 +459,15 @@ impl AudioFileExtension {
                 None
             }
         })
+    }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            AudioFileExtension::Flac => "flac",
+            AudioFileExtension::Opus => "opus",
+            AudioFileExtension::Ogg => "ogg",
+            AudioFileExtension::Mp3 => "mp3",
+        }
     }
 }
 

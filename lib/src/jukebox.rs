@@ -304,6 +304,7 @@ impl Jukebox {
         };
 
         let path = track.path().to_path_buf();
+        let extension = track.extension();
         let handle = std::thread::spawn(move || {
             let file = File::open(&path).map_err(|err| {
                 AudioFileReport::new(format!(
@@ -313,13 +314,17 @@ impl Jukebox {
                 ))
             })?;
             let buffer = BufReader::new(file);
-            let source = Decoder::new(buffer).map_err(|err| {
-                AudioFileReport::new(format!(
-                    "Could not decode audio file {} due to {}",
-                    path.display(),
-                    err
-                ))
-            })?;
+            let source = Decoder::builder()
+                .with_data(buffer)
+                .with_hint(extension.as_str())
+                .build()
+                .map_err(|err| {
+                    AudioFileReport::new(format!(
+                        "Could not decode audio file {} due to {}",
+                        path.display(),
+                        err
+                    ))
+                })?;
             Ok(source)
         });
         self.audio_decode_handle = Some((handle, id, index, track.path().to_path_buf()));
