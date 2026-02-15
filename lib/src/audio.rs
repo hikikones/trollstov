@@ -96,7 +96,7 @@ impl AudioFile {
             AudioFileFormat::Flac(flac) => match flac.vorbis_comments() {
                 Some(vorbis_comments) => Ok(AudioMetadata::from_vorbis_comments(vorbis_comments)),
                 None => Err(AudioFileReport(format!(
-                    "Unable to extract metadata from \"{}\" due to missing Vorbis tag",
+                    "Unable to extract metadata from \"{}\" due to missing Vorbis comments",
                     self.path.display()
                 ))),
             },

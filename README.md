@@ -8,12 +8,12 @@ TODO: image
 
 </div>
 
-`jukebox` is a minimal music player for the terminal with one key feature; no external database. Your music is the database, provided your files have metadata. While this means no traditional playlists support, it lets you rate tracks directly in their metadata, so your favorite songs are always just a few keystrokes away.
+`jukebox` is a music player built around a simple idea: your music is the database. It treats your audio files — and their metadata — as the single source of truth. Your filesystem is the index, and your tags are the schema. Simply back up your music directory and you have backed up everything. Ratings are part of the metadata, so your favorite songs are always just a few keystrokes away.
 
 ## 📌 Features
 
-- Your music is the database
-- Rate tracks persistently
+- Your music is the database — your files and their metadata are the source of truth.
+- Portable rating — the rating is part of the metadata.
 
 ## ⚡ Usage
 
@@ -29,10 +29,22 @@ In addition, it comes with one optional argument.
 | ------ | ----------- |
 | `--mpris` | Add media controls through the Media Player Remote Interfacing Specification (MPRIS). |
 
+## 💡 Supported Audio Formats
+
+| Format | Metadata | Playback |
+| ------ | -------- | -------- |
+| FLAC | Vorbis Comments | Yes |
+| Opus | Vorbis Comments | No |
+| Ogg Vorbis | Vorbis Comments | Yes |
+| MP3 | ID3v2 | Yes |
+
+## ⚠️ Non-goals
+
+- Any kind of external data; be it playlists, settings or something else.
+- Supporting most audio formats.
+- Metadata editing, except for the rating.
+- Gapless playback.
+
 ## 🔖 Install
-
-todo
-
-## 🔧 Development
 
 todo
