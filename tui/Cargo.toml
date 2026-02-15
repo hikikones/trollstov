@@ -4,6 +4,11 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 
+# Rename binary
+[[bin]]
+name = "jukebox"
+path = "src/main.rs"
+
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 image = "0.25"
@@ -16,3 +21,11 @@ seahash = "4.1"
 terminal-colorsaurus = "1.0"
 unicode-segmentation = "1.12"
 unicode-width = "0.2"
+
+# Enable a small amount of optimization in the dev profile
+[profile.dev]
+opt-level = 1
+
+# Enable a large amount of optimization in the dev profile for dependencies
+[profile.dev.package."*"]
+opt-level = 3
