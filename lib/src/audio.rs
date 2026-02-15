@@ -96,7 +96,7 @@ impl AudioFile {
             AudioFileFormat::Flac(flac) => match flac.vorbis_comments() {
                 Some(vorbis_comments) => Ok(AudioMetadata::from_vorbis_comments(vorbis_comments)),
                 None => Err(AudioFileReport(format!(
-                    "Failed to extract metadata from \"{}\" due to missing Vorbis tag",
+                    "Unable to extract metadata from \"{}\" due to missing Vorbis tag",
                     self.path.display()
                 ))),
             },
@@ -111,7 +111,7 @@ impl AudioFile {
             AudioFileFormat::Mpeg(mpeg) => match mpeg.id3v2() {
                 Some(id3v2) => Ok(AudioMetadata::from_id3v2(id3v2)),
                 None => Err(AudioFileReport(format!(
-                    "Failed to extract metadata from \"{}\" due to missing ID3v2 tag",
+                    "Unable to extract metadata from \"{}\" due to missing ID3v2 tag",
                     self.path.display()
                 ))),
             },
@@ -143,7 +143,7 @@ impl AudioFile {
                         })?)
                 }
                 None => Err(AudioFileReport(format!(
-                    "Failed to write rating for \"{}\" due to missing Vorbis tag",
+                    "Unable to write rating for \"{}\" due to missing Vorbis tag",
                     self.path.display()
                 ))),
             },
@@ -185,7 +185,7 @@ impl AudioFile {
                         })?)
                 }
                 None => Err(AudioFileReport(format!(
-                    "Failed to write rating for \"{}\" due to missing ID3v2 tag",
+                    "Unable to write rating for \"{}\" due to missing ID3v2 tag",
                     self.path.display()
                 ))),
             },
