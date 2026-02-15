@@ -27,7 +27,7 @@ In addition, it comes with one optional argument.
 
 | Option | Description |
 | ------ | ----------- |
-| `--mpris` | Add media controls through the Media Player Remote Interfacing Specification (MPRIS), allowing music control with media keys and visually in your desktop environment. |
+| `--mpris` | Add media controls through the Media Player Remote Interfacing Specification (MPRIS). |
 
 ## 🔖 Install
 
