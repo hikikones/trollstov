@@ -231,6 +231,7 @@ impl App {
                 }
             }
             KeyCode::Media(media) => {
+                // Ignore when we have media controls through MPRIS
                 if !self.mpris {
                     match media {
                         MediaKeyCode::Play => {
