@@ -36,7 +36,7 @@ impl AudioFile {
         let path = path.as_ref();
         let mut file = File::open(path).map_err(|err| {
             AudioFileReport(format!(
-                "Could not open audio file {} due to {}",
+                "Failed to open \"{}\" due to {}",
                 path.display(),
                 err
             ))
@@ -45,7 +45,7 @@ impl AudioFile {
             AudioFileExtension::Flac => {
                 let flac = FlacFile::read_from(&mut file, ParseOptions::new()).map_err(|err| {
                     AudioFileReport(format!(
-                        "Could not read flac audio file {} due to {}",
+                        "Failed to read \"{}\" due to {}",
                         path.display(),
                         err
                     ))
@@ -55,7 +55,7 @@ impl AudioFile {
             AudioFileExtension::Opus => {
                 let opus = OpusFile::read_from(&mut file, ParseOptions::new()).map_err(|err| {
                     AudioFileReport(format!(
-                        "Could not read opus audio file {} due to {}",
+                        "Failed to read \"{}\" due to {}",
                         path.display(),
                         err
                     ))
@@ -66,7 +66,7 @@ impl AudioFile {
                 let ogg_vorbis =
                     VorbisFile::read_from(&mut file, ParseOptions::new()).map_err(|err| {
                         AudioFileReport(format!(
-                            "Could not read ogg vorbis audio file {} due to {}",
+                            "Failed to read \"{}\" due to {}",
                             path.display(),
                             err
                         ))
@@ -76,7 +76,7 @@ impl AudioFile {
             AudioFileExtension::Mp3 => {
                 let mpeg = MpegFile::read_from(&mut file, ParseOptions::new()).map_err(|err| {
                     AudioFileReport(format!(
-                        "Could not read mpeg audio file {} due to {}",
+                        "Failed to read \"{}\" due to {}",
                         path.display(),
                         err
                     ))
@@ -96,7 +96,7 @@ impl AudioFile {
             AudioFileFormat::Flac(flac) => match flac.vorbis_comments() {
                 Some(vorbis_comments) => Ok(AudioMetadata::from_vorbis_comments(vorbis_comments)),
                 None => Err(AudioFileReport(format!(
-                    "Could not extract metadata from flac file {} due to missing Vorbis tag",
+                    "Failed to extract metadata from \"{}\" due to missing Vorbis tag",
                     self.path.display()
                 ))),
             },
@@ -111,7 +111,7 @@ impl AudioFile {
             AudioFileFormat::Mpeg(mpeg) => match mpeg.id3v2() {
                 Some(id3v2) => Ok(AudioMetadata::from_id3v2(id3v2)),
                 None => Err(AudioFileReport(format!(
-                    "Could not extract metadata from mpeg file {} due to missing ID3v2 tag",
+                    "Failed to extract metadata from \"{}\" due to missing ID3v2 tag",
                     self.path.display()
                 ))),
             },
@@ -136,14 +136,14 @@ impl AudioFile {
                         .save_to_path(&self.path, WriteOptions::new())
                         .map_err(|err| {
                             AudioFileReport(format!(
-                                "Could not save audio file {} due to {}",
+                                "Failed to save \"{}\" due to {}",
                                 self.path.display(),
                                 err
                             ))
                         })?)
                 }
                 None => Err(AudioFileReport(format!(
-                    "Could not write rating to audio file {} due to missing Vorbis tag",
+                    "Failed to write rating for \"{}\" due to missing Vorbis tag",
                     self.path.display()
                 ))),
             },
@@ -153,7 +153,7 @@ impl AudioFile {
                     .save_to_path(&self.path, WriteOptions::new())
                     .map_err(|err| {
                         AudioFileReport(format!(
-                            "Could not save audio file {} due to {}",
+                            "Failed to save \"{}\" due to {}",
                             self.path.display(),
                             err
                         ))
@@ -165,7 +165,7 @@ impl AudioFile {
                     .save_to_path(&self.path, WriteOptions::new())
                     .map_err(|err| {
                         AudioFileReport(format!(
-                            "Could not save audio file {} due to {}",
+                            "Failed to save \"{}\" due to {}",
                             self.path.display(),
                             err
                         ))
@@ -178,14 +178,14 @@ impl AudioFile {
                         .save_to_path(&self.path, WriteOptions::new())
                         .map_err(|err| {
                             AudioFileReport(format!(
-                                "Could not save audio file {} due to {}",
+                                "Failed to save \"{}\" due to {}",
                                 self.path.display(),
                                 err
                             ))
                         })?)
                 }
                 None => Err(AudioFileReport(format!(
-                    "Could not write rating to audio file {} due to missing ID3v2 tag",
+                    "Failed to write rating for \"{}\" due to missing ID3v2 tag",
                     self.path.display()
                 ))),
             },
@@ -414,7 +414,7 @@ impl AudioPicture {
         let path = audio_file.as_ref();
         let tagged_file = lofty::read_from_path(path).map_err(|err| {
             AudioFileReport(format!(
-                "Could not read audio file {} due to {}",
+                "Failed to read \"{}\" due to {}",
                 path.display(),
                 err
             ))

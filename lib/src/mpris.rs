@@ -27,7 +27,7 @@ impl MediaControls {
         };
         let mut controls = souvlaki::MediaControls::new(config).map_err(|err| {
             AudioFileReport::new(format!(
-                "Could not create media controls for the Media Player\
+                "Failed to create media controls for the Media Player\
                 Remote Interfacing Specification (MPRIS) due to {}",
                 err
             ))
@@ -66,7 +66,7 @@ impl MediaControls {
             })
             .map_err(|err| {
                 AudioFileReport::new(format!(
-                    "Could not attach static handler for Media Player\
+                    "Failed to attach static handler for Media Player\
                     Remote Interfacing Specification (MPRIS) due to {}",
                     err
                 ))

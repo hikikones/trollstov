@@ -293,7 +293,7 @@ impl App {
                             const MAX_RES: u32 = 720;
                             let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
                                 AudioFileReport::new(format!(
-                                    "Could not load front cover image for {} due to {}",
+                                    "Failed to load front cover image for \"{}\" due to {}",
                                     path.display(),
                                     err
                                 ))

@@ -307,7 +307,7 @@ impl Jukebox {
         let handle = std::thread::spawn(move || {
             let file = File::open(&path).map_err(|err| {
                 AudioFileReport::new(format!(
-                    "Could not open audio file {} due to {}",
+                    "Failed to open \"{}\" due to {}",
                     path.display(),
                     err
                 ))
@@ -318,7 +318,7 @@ impl Jukebox {
                 .build()
                 .map_err(|err| {
                     AudioFileReport::new(format!(
-                        "Could not decode audio file {} due to {}",
+                        "Failed to decode \"{}\" due to {}",
                         path.display(),
                         err
                     ))
