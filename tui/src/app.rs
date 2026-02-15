@@ -78,7 +78,7 @@ pub enum Action {
 }
 
 impl App {
-    pub fn new(jukebox: Jukebox, picker: Picker) -> Self {
+    pub fn new(jukebox: Jukebox, picker: Picker, mpris: bool) -> Self {
         let colors = Colors::new();
         let pages = Pages::new(&colors);
 
@@ -104,7 +104,7 @@ impl App {
             colors,
             events: EventHandler::new(),
             jukebox,
-            mpris: false,
+            mpris,
             picker,
             front_cover: FrontCover::None,
             front_cover_handle: None,
@@ -126,12 +126,15 @@ impl App {
         self.jukebox.load_music();
 
         // Try to establish media controls
-        match self.jukebox.attach_media_controls() {
-            Ok(_) => {
-                self.mpris = true;
-            }
-            Err(err) => {
-                self.pages.logs.enqueue(Log::new(err));
+        if self.mpris {
+            match self.jukebox.attach_media_controls() {
+                Ok(_) => {
+                    self.mpris = true;
+                }
+                Err(err) => {
+                    self.mpris = false;
+                    self.pages.logs.enqueue(Log::new(err));
+                }
             }
         }
 

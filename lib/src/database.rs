@@ -23,9 +23,9 @@ pub(super) struct Database {
 }
 
 impl Database {
-    pub(super) fn new(dir: impl AsRef<Path>) -> Self {
+    pub(super) fn new(music_dir: PathBuf) -> Self {
         Self {
-            music_dir: dir.as_ref().to_path_buf(),
+            music_dir,
             tracks: IndexMap::new(),
             sort: TrackSort::default(),
             matcher: Matcher::new(),

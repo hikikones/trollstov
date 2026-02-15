@@ -2,7 +2,7 @@ use std::{
     collections::{HashSet, VecDeque},
     fs::File,
     io::BufReader,
-    path::{Path, PathBuf},
+    path::PathBuf,
     time::Duration,
 };
 
@@ -48,9 +48,9 @@ enum PlayState {
 }
 
 impl Jukebox {
-    pub fn new(device: AudioDevice, music_dir: impl AsRef<Path>) -> Self {
+    pub fn new(device: AudioDevice, music_dir: PathBuf) -> Self {
         Self {
-            database: Database::new(music_dir.as_ref().to_path_buf()),
+            database: Database::new(music_dir),
             current: None,
             queue: PlayQueue::new(),
             state: PlayState::Stop,
