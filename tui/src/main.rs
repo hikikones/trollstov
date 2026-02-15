@@ -40,7 +40,7 @@ struct Args {
     dir: std::path::PathBuf,
 
     /// Add media controls through the Media Player Remote Interfacing Specification (MPRIS),
-    /// allowing you to control the music from your notification bar and with media keys.
+    /// allowing music control with media keys and visually in your desktop environment.
     #[clap(long, action, verbatim_doc_comment)]
     mpris: bool,
 }
