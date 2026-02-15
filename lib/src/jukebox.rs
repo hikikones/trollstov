@@ -1,7 +1,6 @@
 use std::{
     collections::{HashSet, VecDeque},
     fs::File,
-    io::BufReader,
     path::PathBuf,
     time::Duration,
 };
@@ -10,7 +9,7 @@ use rodio::decoder::Decoder;
 
 use crate::*;
 
-type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, AudioFileReport>>;
+type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<File>, AudioFileReport>>;
 type AudioWriteHandle =
     std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileReport>>;
 
@@ -304,22 +303,26 @@ impl Jukebox {
         };
 
         let path = track.path().to_path_buf();
+        let extension = track.extension();
         let handle = std::thread::spawn(move || {
             let file = File::open(&path).map_err(|err| {
                 AudioFileReport::new(format!(
-                    "Could not open audio file {} due to {}",
+                    "Failed to open \"{}\" due to {}",
                     path.display(),
                     err
                 ))
             })?;
-            let buffer = BufReader::new(file);
-            let source = Decoder::new(buffer).map_err(|err| {
-                AudioFileReport::new(format!(
-                    "Could not decode audio file {} due to {}",
-                    path.display(),
-                    err
-                ))
-            })?;
+            let source = Decoder::builder()
+                .with_data(file)
+                .with_hint(extension.as_str())
+                .build()
+                .map_err(|err| {
+                    AudioFileReport::new(format!(
+                        "Failed to decode \"{}\" due to {}",
+                        path.display(),
+                        err
+                    ))
+                })?;
             Ok(source)
         });
         self.audio_decode_handle = Some((handle, id, index, track.path().to_path_buf()));

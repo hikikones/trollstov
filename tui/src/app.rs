@@ -18,7 +18,7 @@ use crate::{
     widgets::{Shortcut, Shortcuts, TextSegment, utils},
 };
 
-// TODO: Add a playlist page for artists/albums/genres and filtering.
+// TODO: Add a dynamic playlist page for artists/albums/genres and filtering.
 
 type FrontCoverHandle = std::thread::JoinHandle<Result<FrontCover, AudioFileReport>>;
 
@@ -231,6 +231,7 @@ impl App {
                 }
             }
             KeyCode::Media(media) => {
+                // Ignore when we have media controls through MPRIS
                 if !self.mpris {
                     match media {
                         MediaKeyCode::Play => {
@@ -293,7 +294,7 @@ impl App {
                             const MAX_RES: u32 = 720;
                             let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
                                 AudioFileReport::new(format!(
-                                    "Could not load front cover image for {} due to {}",
+                                    "Failed to load front cover image for \"{}\" due to {}",
                                     path.display(),
                                     err
                                 ))

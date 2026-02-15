@@ -1,7 +1,6 @@
 use std::{
     borrow::Cow,
     fs::File,
-    io::BufReader,
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -35,42 +34,39 @@ impl AudioFile {
         extension: AudioFileExtension,
     ) -> Result<Self, AudioFileReport> {
         let path = path.as_ref();
-        let file = File::open(path).map_err(|err| {
+        let mut file = File::open(path).map_err(|err| {
             AudioFileReport(format!(
-                "Could not open audio file {} due to {}",
+                "Failed to open \"{}\" due to {}",
                 path.display(),
                 err
             ))
         })?;
-        let mut buffer = BufReader::new(file);
         let audio_format = match extension {
             AudioFileExtension::Flac => {
-                let flac =
-                    FlacFile::read_from(&mut buffer, ParseOptions::new()).map_err(|err| {
-                        AudioFileReport(format!(
-                            "Could not read flac audio file {} due to {}",
-                            path.display(),
-                            err
-                        ))
-                    })?;
+                let flac = FlacFile::read_from(&mut file, ParseOptions::new()).map_err(|err| {
+                    AudioFileReport(format!(
+                        "Failed to read \"{}\" due to {}",
+                        path.display(),
+                        err
+                    ))
+                })?;
                 AudioFileFormat::Flac(flac)
             }
             AudioFileExtension::Opus => {
-                let opus =
-                    OpusFile::read_from(&mut buffer, ParseOptions::new()).map_err(|err| {
-                        AudioFileReport(format!(
-                            "Could not read opus audio file {} due to {}",
-                            path.display(),
-                            err
-                        ))
-                    })?;
+                let opus = OpusFile::read_from(&mut file, ParseOptions::new()).map_err(|err| {
+                    AudioFileReport(format!(
+                        "Failed to read \"{}\" due to {}",
+                        path.display(),
+                        err
+                    ))
+                })?;
                 AudioFileFormat::Opus(opus)
             }
             AudioFileExtension::Ogg => {
                 let ogg_vorbis =
-                    VorbisFile::read_from(&mut buffer, ParseOptions::new()).map_err(|err| {
+                    VorbisFile::read_from(&mut file, ParseOptions::new()).map_err(|err| {
                         AudioFileReport(format!(
-                            "Could not read ogg vorbis audio file {} due to {}",
+                            "Failed to read \"{}\" due to {}",
                             path.display(),
                             err
                         ))
@@ -78,14 +74,13 @@ impl AudioFile {
                 AudioFileFormat::Vorbis(ogg_vorbis)
             }
             AudioFileExtension::Mp3 => {
-                let mpeg =
-                    MpegFile::read_from(&mut buffer, ParseOptions::new()).map_err(|err| {
-                        AudioFileReport(format!(
-                            "Could not read mpeg audio file {} due to {}",
-                            path.display(),
-                            err
-                        ))
-                    })?;
+                let mpeg = MpegFile::read_from(&mut file, ParseOptions::new()).map_err(|err| {
+                    AudioFileReport(format!(
+                        "Failed to read \"{}\" due to {}",
+                        path.display(),
+                        err
+                    ))
+                })?;
                 AudioFileFormat::Mpeg(mpeg)
             }
         };
@@ -101,7 +96,7 @@ impl AudioFile {
             AudioFileFormat::Flac(flac) => match flac.vorbis_comments() {
                 Some(vorbis_comments) => Ok(AudioMetadata::from_vorbis_comments(vorbis_comments)),
                 None => Err(AudioFileReport(format!(
-                    "Could not extract metadata from flac file {} due to missing Vorbis tag",
+                    "Unable to extract metadata from \"{}\" due to missing Vorbis tag",
                     self.path.display()
                 ))),
             },
@@ -116,7 +111,7 @@ impl AudioFile {
             AudioFileFormat::Mpeg(mpeg) => match mpeg.id3v2() {
                 Some(id3v2) => Ok(AudioMetadata::from_id3v2(id3v2)),
                 None => Err(AudioFileReport(format!(
-                    "Could not extract metadata from mpeg file {} due to missing ID3v2 tag",
+                    "Unable to extract metadata from \"{}\" due to missing ID3v2 tag",
                     self.path.display()
                 ))),
             },
@@ -141,14 +136,14 @@ impl AudioFile {
                         .save_to_path(&self.path, WriteOptions::new())
                         .map_err(|err| {
                             AudioFileReport(format!(
-                                "Could not save audio file {} due to {}",
+                                "Failed to save \"{}\" due to {}",
                                 self.path.display(),
                                 err
                             ))
                         })?)
                 }
                 None => Err(AudioFileReport(format!(
-                    "Could not write rating to audio file {} due to missing Vorbis tag",
+                    "Unable to write rating for \"{}\" due to missing Vorbis tag",
                     self.path.display()
                 ))),
             },
@@ -158,7 +153,7 @@ impl AudioFile {
                     .save_to_path(&self.path, WriteOptions::new())
                     .map_err(|err| {
                         AudioFileReport(format!(
-                            "Could not save audio file {} due to {}",
+                            "Failed to save \"{}\" due to {}",
                             self.path.display(),
                             err
                         ))
@@ -170,7 +165,7 @@ impl AudioFile {
                     .save_to_path(&self.path, WriteOptions::new())
                     .map_err(|err| {
                         AudioFileReport(format!(
-                            "Could not save audio file {} due to {}",
+                            "Failed to save \"{}\" due to {}",
                             self.path.display(),
                             err
                         ))
@@ -183,14 +178,14 @@ impl AudioFile {
                         .save_to_path(&self.path, WriteOptions::new())
                         .map_err(|err| {
                             AudioFileReport(format!(
-                                "Could not save audio file {} due to {}",
+                                "Failed to save \"{}\" due to {}",
                                 self.path.display(),
                                 err
                             ))
                         })?)
                 }
                 None => Err(AudioFileReport(format!(
-                    "Could not write rating to audio file {} due to missing ID3v2 tag",
+                    "Unable to write rating for \"{}\" due to missing ID3v2 tag",
                     self.path.display()
                 ))),
             },
@@ -208,7 +203,6 @@ pub struct AudioMetadata {
     artist: String,
     album: String,
     rating: Option<AudioRating>,
-    // todo: tag type?
 }
 
 impl AudioMetadata {
@@ -420,7 +414,7 @@ impl AudioPicture {
         let path = audio_file.as_ref();
         let tagged_file = lofty::read_from_path(path).map_err(|err| {
             AudioFileReport(format!(
-                "Could not read audio file {} due to {}",
+                "Failed to read \"{}\" due to {}",
                 path.display(),
                 err
             ))
@@ -460,6 +454,15 @@ impl AudioFileExtension {
                 None
             }
         })
+    }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            AudioFileExtension::Flac => "flac",
+            AudioFileExtension::Opus => "opus",
+            AudioFileExtension::Ogg => "ogg",
+            AudioFileExtension::Mp3 => "mp3",
+        }
     }
 }
 
