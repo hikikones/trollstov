@@ -18,7 +18,7 @@ use crate::{
     widgets::{Shortcut, Shortcuts, TextSegment, utils},
 };
 
-// TODO: Add a playlist page for artists/albums/genres and filtering.
+// TODO: Add a dynamic playlist page for artists/albums/genres and filtering.
 
 type FrontCoverHandle = std::thread::JoinHandle<Result<FrontCover, AudioFileReport>>;
 
