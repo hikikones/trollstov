@@ -1,7 +1,6 @@
 use std::{
     collections::{HashSet, VecDeque},
     fs::File,
-    io::BufReader,
     path::PathBuf,
     time::Duration,
 };
@@ -10,7 +9,7 @@ use rodio::decoder::Decoder;
 
 use crate::*;
 
-type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<BufReader<File>>, AudioFileReport>>;
+type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<File>, AudioFileReport>>;
 type AudioWriteHandle =
     std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileReport>>;
 
@@ -313,9 +312,8 @@ impl Jukebox {
                     err
                 ))
             })?;
-            let buffer = BufReader::new(file);
             let source = Decoder::builder()
-                .with_data(buffer)
+                .with_data(file)
                 .with_hint(extension.as_str())
                 .build()
                 .map_err(|err| {

@@ -1,7 +1,6 @@
 use std::{
     borrow::Cow,
     fs::File,
-    io::BufReader,
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -35,40 +34,37 @@ impl AudioFile {
         extension: AudioFileExtension,
     ) -> Result<Self, AudioFileReport> {
         let path = path.as_ref();
-        let file = File::open(path).map_err(|err| {
+        let mut file = File::open(path).map_err(|err| {
             AudioFileReport(format!(
                 "Could not open audio file {} due to {}",
                 path.display(),
                 err
             ))
         })?;
-        let mut buffer = BufReader::new(file);
         let audio_format = match extension {
             AudioFileExtension::Flac => {
-                let flac =
-                    FlacFile::read_from(&mut buffer, ParseOptions::new()).map_err(|err| {
-                        AudioFileReport(format!(
-                            "Could not read flac audio file {} due to {}",
-                            path.display(),
-                            err
-                        ))
-                    })?;
+                let flac = FlacFile::read_from(&mut file, ParseOptions::new()).map_err(|err| {
+                    AudioFileReport(format!(
+                        "Could not read flac audio file {} due to {}",
+                        path.display(),
+                        err
+                    ))
+                })?;
                 AudioFileFormat::Flac(flac)
             }
             AudioFileExtension::Opus => {
-                let opus =
-                    OpusFile::read_from(&mut buffer, ParseOptions::new()).map_err(|err| {
-                        AudioFileReport(format!(
-                            "Could not read opus audio file {} due to {}",
-                            path.display(),
-                            err
-                        ))
-                    })?;
+                let opus = OpusFile::read_from(&mut file, ParseOptions::new()).map_err(|err| {
+                    AudioFileReport(format!(
+                        "Could not read opus audio file {} due to {}",
+                        path.display(),
+                        err
+                    ))
+                })?;
                 AudioFileFormat::Opus(opus)
             }
             AudioFileExtension::Ogg => {
                 let ogg_vorbis =
-                    VorbisFile::read_from(&mut buffer, ParseOptions::new()).map_err(|err| {
+                    VorbisFile::read_from(&mut file, ParseOptions::new()).map_err(|err| {
                         AudioFileReport(format!(
                             "Could not read ogg vorbis audio file {} due to {}",
                             path.display(),
@@ -78,14 +74,13 @@ impl AudioFile {
                 AudioFileFormat::Vorbis(ogg_vorbis)
             }
             AudioFileExtension::Mp3 => {
-                let mpeg =
-                    MpegFile::read_from(&mut buffer, ParseOptions::new()).map_err(|err| {
-                        AudioFileReport(format!(
-                            "Could not read mpeg audio file {} due to {}",
-                            path.display(),
-                            err
-                        ))
-                    })?;
+                let mpeg = MpegFile::read_from(&mut file, ParseOptions::new()).map_err(|err| {
+                    AudioFileReport(format!(
+                        "Could not read mpeg audio file {} due to {}",
+                        path.display(),
+                        err
+                    ))
+                })?;
                 AudioFileFormat::Mpeg(mpeg)
             }
         };
