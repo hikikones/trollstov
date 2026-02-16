@@ -127,7 +127,7 @@ impl AudioFile {
         }
     }
 
-    pub fn write_rating(&mut self, rating: Option<AudioRating>) -> Result<(), AudioFileReport> {
+    pub fn write_rating(&mut self, rating: AudioRating) -> Result<(), AudioFileReport> {
         match &mut self.format {
             AudioFileFormat::Flac(flac) => match flac.vorbis_comments_mut() {
                 Some(vorbis_comments) => {
@@ -202,10 +202,12 @@ pub struct AudioMetadata {
     title: String,
     artist: String,
     album: String,
-    rating: Option<AudioRating>,
+    rating: AudioRating,
 }
 
 impl AudioMetadata {
+    const POPM_FRAME_ID: FrameId<'static> = FrameId::Valid(Cow::Borrowed("POPM"));
+
     pub const fn title(&self) -> &str {
         self.title.as_str()
     }
@@ -218,11 +220,11 @@ impl AudioMetadata {
         self.album.as_str()
     }
 
-    pub const fn rating(&self) -> Option<AudioRating> {
+    pub const fn rating(&self) -> AudioRating {
         self.rating
     }
 
-    pub const fn set_rating(&mut self, rating: Option<AudioRating>) {
+    pub const fn set_rating(&mut self, rating: AudioRating) {
         self.rating = rating;
     }
 
@@ -242,7 +244,8 @@ impl AudioMetadata {
                 .unwrap_or_default(),
             rating: vorbis_comments
                 .get("RATING")
-                .and_then(|s| AudioRating::from_vorbis_comments(s)),
+                .map(AudioRating::from_vorbis_comments)
+                .unwrap_or_default(),
         }
     }
 
@@ -263,50 +266,53 @@ impl AudioMetadata {
                 .as_deref()
                 .map(str::to_owned)
                 .unwrap_or_default(),
-            rating: id3v2.get(&FrameId::Valid(Cow::Borrowed("POPM"))).and_then(
-                |frame| match frame {
+            rating: id3v2
+                .get(&Self::POPM_FRAME_ID)
+                .map(|frame| match frame {
                     Frame::Popularimeter(popularimeter_frame) => {
                         AudioRating::from_id3v2(popularimeter_frame.rating)
                     }
-                    _ => None,
-                },
-            ),
+                    _ => AudioRating::None,
+                })
+                .unwrap_or_default(),
         }
     }
 
-    fn set_vorbis_rating(vorbis_comments: &mut VorbisComments, rating: Option<AudioRating>) {
+    fn set_vorbis_rating(vorbis_comments: &mut VorbisComments, rating: AudioRating) {
         match rating {
-            Some(rating) => {
+            AudioRating::None => {
+                let _ = vorbis_comments.remove("RATING");
+            }
+            _ => {
                 vorbis_comments.insert(
                     "RATING".to_string(),
                     rating.into_vorbis_comments().to_string(),
                 );
             }
-            None => {
-                let _ = vorbis_comments.remove("RATING");
-            }
         }
     }
 
-    fn set_id3v2_rating(id3v2: &mut Id3v2Tag, rating: Option<AudioRating>) {
+    fn set_id3v2_rating(id3v2: &mut Id3v2Tag, rating: AudioRating) {
         match rating {
-            Some(rating) => {
+            AudioRating::None => {
+                let _ = id3v2.remove(&Self::POPM_FRAME_ID);
+            }
+            _ => {
                 id3v2.insert(Frame::Popularimeter(PopularimeterFrame::new(
                     String::new(),
                     rating.into_id3v2(),
                     0,
                 )));
             }
-            None => {
-                let _ = id3v2.remove(&FrameId::Valid(Cow::Borrowed("POPM")));
-            }
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum AudioRating {
+    #[default]
+    None = 0,
     Awful = 1,
     Bad = 2,
     Ok = 3,
@@ -315,49 +321,56 @@ pub enum AudioRating {
 }
 
 impl AudioRating {
-    fn from_vorbis_comments(value: &str) -> Option<Self> {
-        value.parse::<u8>().ok().map(|num| match num {
-            0..=20 => Self::Awful,
-            21..=40 => Self::Bad,
-            41..=60 => Self::Ok,
-            61..=80 => Self::Good,
-            81..=255 => Self::Amazing,
-        })
+    fn from_vorbis_comments(value: &str) -> Self {
+        value
+            .parse::<u8>()
+            .map(|num| match num {
+                0 => Self::None,
+                ..=20 => Self::Awful,
+                ..=40 => Self::Bad,
+                ..=60 => Self::Ok,
+                ..=80 => Self::Good,
+                ..=255 => Self::Amazing,
+            })
+            .unwrap_or(Self::None)
     }
 
     const fn into_vorbis_comments(&self) -> &str {
         match self {
-            AudioRating::Awful => "20",
-            AudioRating::Bad => "40",
-            AudioRating::Ok => "60",
-            AudioRating::Good => "80",
-            AudioRating::Amazing => "100",
+            Self::None => "0",
+            Self::Awful => "20",
+            Self::Bad => "40",
+            Self::Ok => "60",
+            Self::Good => "80",
+            Self::Amazing => "100",
         }
     }
 
-    const fn from_id3v2(rating: u8) -> Option<Self> {
+    const fn from_id3v2(rating: u8) -> Self {
         match rating {
-            0 => None, // Unknown
-            1..=51 => Some(AudioRating::Awful),
-            52..=102 => Some(AudioRating::Bad),
-            103..=153 => Some(AudioRating::Ok),
-            154..=204 => Some(AudioRating::Good),
-            205..=255 => Some(AudioRating::Amazing),
+            0 => Self::None,
+            ..=51 => Self::Awful,
+            ..=102 => Self::Bad,
+            ..=153 => Self::Ok,
+            ..=204 => Self::Good,
+            ..=255 => Self::Amazing,
         }
     }
 
     const fn into_id3v2(&self) -> u8 {
         match self {
-            AudioRating::Awful => 50,
-            AudioRating::Bad => 100,
-            AudioRating::Ok => 150,
-            AudioRating::Good => 200,
-            AudioRating::Amazing => 250,
+            Self::None => 0,
+            Self::Awful => 51,
+            Self::Bad => 102,
+            Self::Ok => 153,
+            Self::Good => 204,
+            Self::Amazing => 255,
         }
     }
 
     pub const fn from_char(c: char) -> Option<Self> {
         match c {
+            '0' => Some(Self::None),
             '1' => Some(Self::Awful),
             '2' => Some(Self::Bad),
             '3' => Some(Self::Ok),

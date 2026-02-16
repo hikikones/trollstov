@@ -10,8 +10,7 @@ use rodio::decoder::Decoder;
 use crate::*;
 
 type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<File>, AudioFileReport>>;
-type AudioWriteHandle =
-    std::thread::JoinHandle<Result<(TrackId, Option<AudioRating>), AudioFileReport>>;
+type AudioWriteHandle = std::thread::JoinHandle<Result<(TrackId, AudioRating), AudioFileReport>>;
 
 pub struct Jukebox {
     database: Database,
@@ -330,33 +329,22 @@ impl Jukebox {
     }
 
     fn write_rating(&mut self, id: TrackId, rating: AudioRating) -> Option<AudioWriteHandle> {
-        self.database.get(id).map(|track| {
-            let path = track.path().to_path_buf();
-            let extension = track.extension();
-            let current_rating = track.rating();
+        let Some(track) = self.database.get(id) else {
+            return None;
+        };
 
-            let new_rating = match current_rating {
-                Some(current_rating) => {
-                    if current_rating != rating {
-                        // Replace rating when they differ
-                        Some(rating)
-                    } else {
-                        // Remove rating when they are the same
-                        None
-                    }
-                }
-                None => {
-                    // Insert new rating
-                    Some(rating)
-                }
-            };
+        if track.rating() == rating {
+            return None;
+        }
 
-            std::thread::spawn(move || {
-                let mut audio_file = AudioFile::read_from(path, extension)?;
-                audio_file.write_rating(new_rating)?;
-                Ok((id, new_rating))
-            })
-        })
+        let path = track.path().to_path_buf();
+        let extension = track.extension();
+        let handle = std::thread::spawn(move || {
+            let mut audio_file = AudioFile::read_from(path, extension)?;
+            audio_file.write_rating(rating)?;
+            Ok((id, rating))
+        });
+        Some(handle)
     }
 
     fn sync_queue_index(&mut self) {

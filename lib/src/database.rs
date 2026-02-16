@@ -177,24 +177,22 @@ impl Track {
         self.metadata.album()
     }
 
-    pub const fn rating(&self) -> Option<AudioRating> {
+    pub const fn rating(&self) -> AudioRating {
         self.metadata.rating()
     }
 
     pub const fn rating_display(&self) -> &str {
         match self.metadata.rating() {
-            Some(rating) => match rating {
-                AudioRating::Awful => "★",
-                AudioRating::Bad => "★★",
-                AudioRating::Ok => "★★★",
-                AudioRating::Good => "★★★★",
-                AudioRating::Amazing => "★★★★★",
-            },
-            None => "",
+            AudioRating::None => "",
+            AudioRating::Awful => "★",
+            AudioRating::Bad => "★★",
+            AudioRating::Ok => "★★★",
+            AudioRating::Good => "★★★★",
+            AudioRating::Amazing => "★★★★★",
         }
     }
 
-    pub const fn set_rating(&mut self, rating: Option<AudioRating>) {
+    pub const fn set_rating(&mut self, rating: AudioRating) {
         self.metadata.set_rating(rating);
     }
 
@@ -271,16 +269,8 @@ impl TrackSort {
             Self::AlbumDescending => t2.album().cmp(t1.album()),
             Self::TimeAscending => t1.duration().cmp(&t2.duration()),
             Self::TimeDescending => t2.duration().cmp(&t1.duration()),
-            Self::RatingAscending => {
-                let r1 = t1.rating().map(|r| r as u8).unwrap_or(0);
-                let r2 = t2.rating().map(|r| r as u8).unwrap_or(0);
-                r1.cmp(&r2)
-            }
-            Self::RatingDescending => {
-                let r1 = t1.rating().map(|r| r as u8).unwrap_or(0);
-                let r2 = t2.rating().map(|r| r as u8).unwrap_or(0);
-                r2.cmp(&r1)
-            }
+            Self::RatingAscending => t1.rating().cmp(&t2.rating()),
+            Self::RatingDescending => t2.rating().cmp(&t1.rating()),
         }
     }
 }
