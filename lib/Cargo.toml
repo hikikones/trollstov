@@ -9,7 +9,7 @@ fastrand = "2.3"
 ignore = { version = "0.4", features = ["simd-accel"] }
 indexmap = "2.13"
 itoa = "1.0"
-lofty = "0.22"
+lofty = "0.23"
 nucleo-matcher = "0.3"
 rodio = "0.21"
 souvlaki = "0.8"
