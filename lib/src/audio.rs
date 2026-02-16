@@ -332,7 +332,7 @@ impl AudioRating {
                 ..=80 => Self::Good,
                 ..=255 => Self::Amazing,
             })
-            .unwrap_or(Self::None)
+            .unwrap_or_default()
     }
 
     const fn into_vorbis_comments(&self) -> &str {
