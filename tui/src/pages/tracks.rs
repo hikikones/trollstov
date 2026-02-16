@@ -65,7 +65,7 @@ impl TracksPage {
             Shortcut::new("Play", "↵"),
             Shortcut::new("Add to queue", "q"),
             Shortcut::new("Play next", "n"),
-            Shortcut::new("Rating", "1-5"),
+            Shortcut::new("Rating", "0-5"),
             Shortcut::new("Sort", "(⇧)s"),
         ]);
     }
@@ -78,7 +78,7 @@ impl TracksPage {
                 }
             }
             KeyCode::Char(c) => match c {
-                '1' | '2' | '3' | '4' | '5' => {
+                '0' | '1' | '2' | '3' | '4' | '5' => {
                     let rating = AudioRating::from_char(c).unwrap();
                     for i in self.list.selection() {
                         if let Some(id) = jb.get_id_from_index(i) {

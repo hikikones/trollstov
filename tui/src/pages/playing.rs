@@ -78,7 +78,7 @@ impl PlayingPage {
         // Shortcuts
         shortcuts.extend([
             Shortcut::new("Play", "↵"),
-            Shortcut::new("Rating", "1-5"),
+            Shortcut::new("Rating", "0-5"),
             Shortcut::new("Shuffle", "s"),
             Shortcut::new("Clear", "c"),
         ]);
@@ -90,7 +90,7 @@ impl PlayingPage {
                 jb.play_queue_index(self.list.index());
             }
             KeyCode::Char(c) => match c {
-                '1' | '2' | '3' | '4' | '5' => {
+                '0' | '1' | '2' | '3' | '4' | '5' => {
                     if let Some(id) = jb.get_id_from_queue(self.list.index()) {
                         let rating = AudioRating::from_char(c).unwrap();
                         jb.set_rating(id, rating);
@@ -195,33 +195,31 @@ impl PlayingPage {
                 if let Some(rating) = jb.get(id).map(|track| track.rating()) {
                     let accent_style = Style::new().fg(colors.accent);
                     match rating {
-                        Some(rating) => match rating {
-                            AudioRating::Awful => {
-                                Span::styled("★", accent_style).render(stars_area, buf);
-                                stars_area.x += 1;
-                                Span::styled("☆☆☆☆", neutral_style).render(stars_area, buf);
-                            }
-                            AudioRating::Bad => {
-                                Span::styled("★★", accent_style).render(stars_area, buf);
-                                stars_area.x += 2;
-                                Span::styled("☆☆☆", neutral_style).render(stars_area, buf);
-                            }
-                            AudioRating::Ok => {
-                                Span::styled("★★★", accent_style).render(stars_area, buf);
-                                stars_area.x += 3;
-                                Span::styled("☆☆", neutral_style).render(stars_area, buf);
-                            }
-                            AudioRating::Good => {
-                                Span::styled("★★★★", accent_style).render(stars_area, buf);
-                                stars_area.x += 4;
-                                Span::styled("☆", neutral_style).render(stars_area, buf);
-                            }
-                            AudioRating::Amazing => {
-                                Span::styled("★★★★★", accent_style).render(stars_area, buf);
-                            }
-                        },
-                        None => {
+                        AudioRating::None => {
                             Span::styled("☆☆☆☆☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Awful => {
+                            Span::styled("★", accent_style).render(stars_area, buf);
+                            stars_area.x += 1;
+                            Span::styled("☆☆☆☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Bad => {
+                            Span::styled("★★", accent_style).render(stars_area, buf);
+                            stars_area.x += 2;
+                            Span::styled("☆☆☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Ok => {
+                            Span::styled("★★★", accent_style).render(stars_area, buf);
+                            stars_area.x += 3;
+                            Span::styled("☆☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Good => {
+                            Span::styled("★★★★", accent_style).render(stars_area, buf);
+                            stars_area.x += 4;
+                            Span::styled("☆", neutral_style).render(stars_area, buf);
+                        }
+                        AudioRating::Amazing => {
+                            Span::styled("★★★★★", accent_style).render(stars_area, buf);
                         }
                     }
                 }
