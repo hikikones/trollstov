@@ -119,7 +119,8 @@ impl App {
         // Draw logo
         terminal.draw(|frame| {
             // render_jukebox_logo(frame.area(), frame.buffer_mut());
-            LogoWidget::render(frame.area(), frame.buffer_mut());
+            // LogoWidget::render(frame.area(), frame.buffer_mut());
+            frame.render_widget(LogoWidget, frame.area());
         })?;
 
         // Start reading events and load music

@@ -1,9 +1,41 @@
+#![allow(unused)]
+
 use ratatui::{buffer::Buffer, layout::Rect, style::Color, text::Text, widgets::Widget};
 
 pub struct LogoWidget;
 
-impl LogoWidget {
-    pub fn render(area: Rect, buf: &mut Buffer) {
+impl Widget for LogoWidget {
+    fn render(self, area: Rect, buf: &mut Buffer)
+    where
+        Self: Sized,
+    {
+        let logo = Logo::from_rect(area);
+        let ascii = logo.ascii();
+        let color = Color::DarkGray;
+        let (width, height) = logo.dim();
+
+        Text::styled(ascii, color).render(
+            super::utils::align(
+                Rect {
+                    width: width,
+                    height: height,
+                    ..area
+                },
+                area,
+                super::utils::Alignment::Center,
+            ),
+            buf,
+        );
+    }
+}
+
+pub struct LogoSunWidget;
+
+impl Widget for LogoSunWidget {
+    fn render(self, area: Rect, buf: &mut Buffer)
+    where
+        Self: Sized,
+    {
         let sun_color = Color::LightYellow;
         let ray_color = Color::Yellow;
 
