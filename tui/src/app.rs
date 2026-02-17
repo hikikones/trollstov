@@ -430,7 +430,9 @@ impl App {
                         .on_render(body, buf, &mut self.jukebox, &self.colors);
                 }
                 Route::Logs => {
-                    self.pages.logs.on_render(body, buf, &self.colors);
+                    self.pages
+                        .logs
+                        .on_render(body, buf, &self.colors, &mut self.shortcuts_page);
                 }
             }
             self.shortcuts_page.render(shortcuts_page_area, buf);

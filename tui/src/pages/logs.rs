@@ -6,7 +6,7 @@ use ratatui::{
 
 use crate::{
     app::{Action, Colors},
-    widgets::{List, utils},
+    widgets::{List, ListMove, Shortcut, Shortcuts, utils},
 };
 
 pub struct LogsPage {
@@ -41,7 +41,13 @@ impl LogsPage {
         self.queue = 0;
     }
 
-    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, colors: &Colors) {
+    pub fn on_render(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        colors: &Colors,
+        shortcuts: &mut Shortcuts,
+    ) {
         if self.logs.is_empty() {
             utils::print_ascii(
                 area,
@@ -85,6 +91,9 @@ impl LogsPage {
                 utils::print_line(line, buf, &log.message[scroll..], style);
             },
         );
+
+        // Shortcuts
+        shortcuts.push(Shortcut::new("Clear", "c"));
     }
 
     pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) -> Action {
@@ -97,6 +106,17 @@ impl LogsPage {
                 self.horizontal_scroll = self.horizontal_scroll.saturating_sub(1);
                 return Action::Render;
             }
+            KeyCode::Char(c) => match c {
+                'c' => {
+                    if !self.logs.is_empty() {
+                        self.logs.clear();
+                        self.horizontal_scroll = 0;
+                        self.list.move_index(ListMove::Custom(0), false);
+                        return Action::Render;
+                    }
+                }
+                _ => {}
+            },
             _ => {
                 if self.list.input(key, KeyModifiers::empty()) {
                     self.horizontal_scroll = 0;
