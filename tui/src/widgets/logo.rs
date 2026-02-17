@@ -20,14 +20,14 @@ impl LogoWidget {
             let inner_r = (radius + ray_offset) as f32;
             let outer_r = (radius + ray_offset + ray_length) as f32;
 
-            let x0 = cx as f32 + inner_r * angle.cos() * 2.0;
-            let y0 = cy as f32 + inner_r * angle.sin();
+            let x1 = cx as f32 + inner_r * angle.cos() * 2.0;
+            let y1 = cy as f32 + inner_r * angle.sin();
 
-            let x1 = cx as f32 + outer_r * angle.cos() * 2.0;
-            let y1 = cy as f32 + outer_r * angle.sin();
+            let x2 = cx as f32 + outer_r * angle.cos() * 2.0;
+            let y2 = cy as f32 + outer_r * angle.sin();
 
-            let p1 = (x0.round() as u16, y0.round() as u16);
-            let p2 = (x1.round() as u16, y1.round() as u16);
+            let p1 = (x1.round() as u16, y1.round() as u16);
+            let p2 = (x2.round() as u16, y2.round() as u16);
 
             draw_line(p1, p2, color, buf);
         }
@@ -43,28 +43,31 @@ impl LogoWidget {
 }
 
 pub fn draw_circle(buf: &mut Buffer, cx: u16, cy: u16, radius: u16, color: Color) {
-    let mut x = radius as i32;
+    let mut x = radius as i16;
     let mut y = 0;
     let mut err = 0;
 
+    let cx = cx as i16;
+    let cy = cy as i16;
+
     while x >= y {
         let points = [
-            (cx as i32 + x * 2, cy as i32 + y),
-            (cx as i32 + x * 2 - 1, cy as i32 + y),
-            (cx as i32 + y * 2, cy as i32 + x),
-            (cx as i32 + y * 2 - 1, cy as i32 + x),
-            (cx as i32 - y * 2, cy as i32 + x),
-            (cx as i32 - y * 2 + 1, cy as i32 + x),
-            (cx as i32 - x * 2, cy as i32 + y),
-            (cx as i32 - x * 2 + 1, cy as i32 + y),
-            (cx as i32 - x * 2, cy as i32 - y),
-            (cx as i32 - x * 2 + 1, cy as i32 - y),
-            (cx as i32 - y * 2, cy as i32 - x),
-            (cx as i32 - y * 2 + 1, cy as i32 - x),
-            (cx as i32 + y * 2, cy as i32 - x),
-            (cx as i32 + y * 2 - 1, cy as i32 - x),
-            (cx as i32 + x * 2, cy as i32 - y),
-            (cx as i32 + x * 2 - 1, cy as i32 - y),
+            (cx + x * 2, cy + y),
+            (cx + x * 2 - 1, cy + y),
+            (cx + y * 2, cy + x),
+            (cx + y * 2 - 1, cy + x),
+            (cx - y * 2, cy + x),
+            (cx - y * 2 + 1, cy + x),
+            (cx - x * 2, cy + y),
+            (cx - x * 2 + 1, cy + y),
+            (cx - x * 2, cy - y),
+            (cx - x * 2 + 1, cy - y),
+            (cx - y * 2, cy - x),
+            (cx - y * 2 + 1, cy - x),
+            (cx + y * 2, cy - x),
+            (cx + y * 2 - 1, cy - x),
+            (cx + x * 2, cy - y),
+            (cx + x * 2 - 1, cy - y),
         ];
 
         for (px, py) in points {
@@ -88,8 +91,8 @@ pub fn draw_circle(buf: &mut Buffer, cx: u16, cy: u16, radius: u16, color: Color
 }
 
 fn draw_line(p1: (u16, u16), p2: (u16, u16), color: Color, buf: &mut Buffer) {
-    let (mut x1, mut y1) = (p1.0 as i32, p1.1 as i32);
-    let (x2, y2) = (p2.0 as i32, p2.1 as i32);
+    let (mut x1, mut y1) = (p1.0 as i16, p1.1 as i16);
+    let (x2, y2) = (p2.0 as i16, p2.1 as i16);
 
     let dx = (x2 - x1).abs();
     let sx = if x1 < x2 { 1 } else { -1 };
