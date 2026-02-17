@@ -19,10 +19,10 @@ pub(super) enum MediaEvent {
 }
 
 impl MediaControls {
-    pub(super) fn new() -> Result<Self, AudioFileReport> {
+    pub(super) fn new(name: &str) -> Result<Self, AudioFileReport> {
         let config = souvlaki::PlatformConfig {
-            display_name: "jukebox",
-            dbus_name: "jukebox",
+            display_name: name,
+            dbus_name: name,
             hwnd: None,
         };
         let mut controls = souvlaki::MediaControls::new(config).map_err(|err| {

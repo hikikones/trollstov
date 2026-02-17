@@ -1,6 +1,6 @@
 <div align="center">
 
-# jukebox
+# solbyte
 
 A simple music player for the terminal
 
@@ -8,7 +8,7 @@ TODO: image
 
 </div>
 
-`jukebox` is a music player built around a simple idea: your music is the database. It treats your audio files — and their metadata — as the single source of truth. Your filesystem is the index, and your tags are the schema. Simply back up your music directory and you have backed up everything. Ratings are part of the metadata, so your favorite songs are always just a few keystrokes away.
+`solbyte` is a music player built around a simple idea: your music is the database. It treats your audio files — and their metadata — as the single source of truth. Your filesystem is the index, and your tags are the schema. Simply back up your music directory and you have backed up everything. Ratings are part of the metadata, so your favorite songs are always just a few keystrokes away.
 
 ## 📌 Features
 
@@ -17,10 +17,10 @@ TODO: image
 
 ## ⚡ Usage
 
-The `jukebox` command takes one mandatory argument, which is the path to your music directory.
+The `solbyte` command takes one mandatory argument, which is the path to your music directory.
 
 ```
-jukebox /path/to/my/music
+solbyte /path/to/my/music
 ```
 
 In addition, it comes with one optional argument.

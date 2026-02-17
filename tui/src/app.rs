@@ -127,7 +127,7 @@ impl App {
 
         // Try to establish media controls
         if self.mpris {
-            match self.jukebox.attach_media_controls() {
+            match self.jukebox.attach_media_controls("solbyte") {
                 Ok(_) => {
                     self.mpris = true;
                 }
@@ -383,7 +383,7 @@ impl App {
             utils::print_ascii(
                 title_area,
                 buf,
-                "jukebox",
+                "solbyte",
                 Style::new().fg(self.colors.neutral),
                 utils::Alignment::CenterHorizontal,
             );
