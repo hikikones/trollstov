@@ -8,7 +8,7 @@ impl LogoWidget {
         let radius = 10;
         let color = Color::Yellow;
 
-        draw_circle(buf, cx, cy, radius, color);
+        draw_circle(buf, cx, cy, radius, color, true);
 
         let ray_count = 12;
         let ray_length = radius / 2;
@@ -42,40 +42,44 @@ impl LogoWidget {
     }
 }
 
-pub fn draw_circle(buf: &mut Buffer, cx: u16, cy: u16, radius: u16, color: Color) {
+fn draw_circle(buf: &mut Buffer, cx: u16, cy: u16, radius: u16, color: Color, top_half_only: bool) {
     let mut x = radius as i16;
     let mut y = 0;
     let mut err = 0;
 
     let cx = cx as i16;
     let cy = cy as i16;
+    let x_scale = 2;
 
     while x >= y {
         let points = [
-            (cx + x * 2, cy + y),
-            (cx + x * 2 - 1, cy + y),
-            (cx + y * 2, cy + x),
-            (cx + y * 2 - 1, cy + x),
-            (cx - y * 2, cy + x),
-            (cx - y * 2 + 1, cy + x),
-            (cx - x * 2, cy + y),
-            (cx - x * 2 + 1, cy + y),
-            (cx - x * 2, cy - y),
-            (cx - x * 2 + 1, cy - y),
-            (cx - y * 2, cy - x),
-            (cx - y * 2 + 1, cy - x),
-            (cx + y * 2, cy - x),
-            (cx + y * 2 - 1, cy - x),
-            (cx + x * 2, cy - y),
-            (cx + x * 2 - 1, cy - y),
+            (cx + x * x_scale, cy + y),
+            (cx + x * x_scale - 1, cy + y),
+            (cx + y * x_scale, cy + x),
+            (cx + y * x_scale - 1, cy + x),
+            (cx - y * x_scale, cy + x),
+            (cx - y * x_scale + 1, cy + x),
+            (cx - x * x_scale, cy + y),
+            (cx - x * x_scale + 1, cy + y),
+            (cx - x * x_scale, cy - y),
+            (cx - x * x_scale + 1, cy - y),
+            (cx - y * x_scale, cy - x),
+            (cx - y * x_scale + 1, cy - x),
+            (cx + y * x_scale, cy - x),
+            (cx + y * x_scale - 1, cy - x),
+            (cx + x * x_scale, cy - y),
+            (cx + x * x_scale - 1, cy - y),
         ];
 
         for (px, py) in points {
-            if px >= 0
-                && py >= 0
-                && let Some(cell) = buf.cell_mut((px as u16, py as u16))
-            {
-                cell.set_bg(color);
+            if px >= 0 && py >= 0 {
+                if top_half_only && py > cy {
+                    continue;
+                }
+
+                if let Some(cell) = buf.cell_mut((px as u16, py as u16)) {
+                    cell.set_bg(color);
+                }
             }
         }
 
