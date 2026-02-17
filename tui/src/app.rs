@@ -118,26 +118,36 @@ impl App {
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Draw logo
         terminal.draw(|frame| {
-            // render_jukebox_logo(frame.area(), frame.buffer_mut());
-            // LogoWidget::render(frame.area(), frame.buffer_mut());
             frame.render_widget(LogoWidget, frame.area());
         })?;
 
         // Start reading events and load music
         self.events.start();
+        self.jukebox.load_music();
 
+        // Try to establish media controls
+        if self.mpris {
+            match self.jukebox.attach_media_controls() {
+                Ok(_) => {
+                    self.mpris = true;
+                }
+                Err(err) => {
+                    self.mpris = false;
+                    self.pages.logs.enqueue(Log::new(err));
+                }
+            }
+        }
+
+        self.on_enter();
+
+        // Run event loop
         while self.running {
             let action = match self.events.next()? {
-                Event::Update => Action::None,
-                Event::Render => Action::None,
+                Event::Update => self.update(),
+                Event::Render => Action::Render,
                 Event::Terminal(event) => match event {
                     CrosstermEvent::Key(key) if key.kind == KeyEventKind::Press => {
-                        // self.handle_key_press(key)
-                        if key.code == KeyCode::Char('q') {
-                            Action::Quit
-                        } else {
-                            Action::None
-                        }
+                        self.handle_key_press(key)
                     }
                     _ => Action::None,
                 },
@@ -159,53 +169,6 @@ impl App {
                 }
             }
         }
-
-        // self.jukebox.load_music();
-
-        // // Try to establish media controls
-        // if self.mpris {
-        //     match self.jukebox.attach_media_controls() {
-        //         Ok(_) => {
-        //             self.mpris = true;
-        //         }
-        //         Err(err) => {
-        //             self.mpris = false;
-        //             self.pages.logs.enqueue(Log::new(err));
-        //         }
-        //     }
-        // }
-
-        // self.on_enter();
-
-        // // Run event loop
-        // while self.running {
-        //     let action = match self.events.next()? {
-        //         Event::Update => self.update(),
-        //         Event::Render => Action::Render,
-        //         Event::Terminal(event) => match event {
-        //             CrosstermEvent::Key(key) if key.kind == KeyEventKind::Press => {
-        //                 self.handle_key_press(key)
-        //             }
-        //             _ => Action::None,
-        //         },
-        //     };
-
-        //     match action {
-        //         Action::None => {}
-        //         Action::Render => {
-        //             self.render(&mut terminal)?;
-        //         }
-        //         Action::Route(route) => {
-        //             self.on_exit();
-        //             self.route = route;
-        //             self.on_enter();
-        //             self.render(&mut terminal)?;
-        //         }
-        //         Action::Quit => {
-        //             self.running = false;
-        //         }
-        //     }
-        // }
 
         Ok(())
     }
@@ -672,33 +635,4 @@ fn render_playback_status_empty(
 
     text.render(line, buf);
     text.clear();
-}
-
-fn render_jukebox_logo(area: Rect, buf: &mut Buffer) {
-    const LOGO_TEXT: &str = r#"
-                     /$$                 /$$                          
-                    | $$                | $$                          
-       /$$ /$$   /$$| $$   /$$  /$$$$$$ | $$$$$$$   /$$$$$$  /$$   /$$
-      |__/| $$  | $$| $$  /$$/ /$$__  $$| $$__  $$ /$$__  $$|  $$ /$$/
-       /$$| $$  | $$| $$$$$$/ | $$$$$$$$| $$  \ $$| $$  \ $$ \  $$$$/ 
-      | $$| $$  | $$| $$_  $$ | $$_____/| $$  | $$| $$  | $$  >$$  $$ 
-      | $$|  $$$$$$/| $$ \  $$|  $$$$$$$| $$$$$$$/|  $$$$$$/ /$$/\  $$
-      | $$ \______/ |__/  \__/ \_______/|_______/  \______/ |__/  \__/
- /$$  | $$                                                            
-|  $$$$$$/                                                            
- \______/                                                             
-"#;
-
-    Text::raw(LOGO_TEXT).render(
-        utils::align(
-            Rect {
-                width: 70,
-                height: 13,
-                ..area
-            },
-            area,
-            utils::Alignment::Center,
-        ),
-        buf,
-    );
 }
