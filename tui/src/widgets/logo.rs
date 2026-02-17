@@ -213,9 +213,13 @@ impl Logo {
 "#;
 
     const fn from_rect(area: Rect) -> Self {
-        if area.width > Self::LOGO_BIG_WIDTH && area.height > Self::LOGO_BIG_HEIGHT {
+        if area.width > Self::LOGO_BIG_WIDTH + Self::LOGO_BIG_WIDTH / 2
+            && area.height > Self::LOGO_BIG_HEIGHT * 2
+        {
             Self::Big
-        } else if area.width > Self::LOGO_MEDIUM_WIDTH && area.height > Self::LOGO_MEDIUM_HEIGHT {
+        } else if area.width > Self::LOGO_MEDIUM_WIDTH + Self::LOGO_MEDIUM_WIDTH / 2
+            && area.height > Self::LOGO_MEDIUM_HEIGHT * 2
+        {
             Self::Medium
         } else {
             Self::Small
@@ -224,7 +228,7 @@ impl Logo {
 
     const fn radius(&self) -> u16 {
         match self {
-            Logo::Big => 12,
+            Logo::Big => 10,
             Logo::Medium => 6,
             Logo::Small => 2,
         }
