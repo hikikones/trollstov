@@ -15,7 +15,7 @@ use crate::{
     events::{Event, EventHandler},
     pages::{Log, Pages, Route},
     terminal::Terminal,
-    widgets::{Shortcut, Shortcuts, TextSegment, utils},
+    widgets::{LogoWidget, Shortcut, Shortcuts, TextSegment, utils},
 };
 
 // TODO: Add a dynamic playlist page for artists/albums/genres and filtering.
@@ -118,36 +118,25 @@ impl App {
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Draw logo
         terminal.draw(|frame| {
-            render_jukebox_logo(frame.area(), frame.buffer_mut());
+            // render_jukebox_logo(frame.area(), frame.buffer_mut());
+            LogoWidget::render(frame.area(), frame.buffer_mut());
         })?;
 
         // Start reading events and load music
         self.events.start();
-        self.jukebox.load_music();
 
-        // Try to establish media controls
-        if self.mpris {
-            match self.jukebox.attach_media_controls() {
-                Ok(_) => {
-                    self.mpris = true;
-                }
-                Err(err) => {
-                    self.mpris = false;
-                    self.pages.logs.enqueue(Log::new(err));
-                }
-            }
-        }
-
-        self.on_enter();
-
-        // Run event loop
         while self.running {
             let action = match self.events.next()? {
-                Event::Update => self.update(),
-                Event::Render => Action::Render,
+                Event::Update => Action::None,
+                Event::Render => Action::None,
                 Event::Terminal(event) => match event {
                     CrosstermEvent::Key(key) if key.kind == KeyEventKind::Press => {
-                        self.handle_key_press(key)
+                        // self.handle_key_press(key)
+                        if key.code == KeyCode::Char('q') {
+                            Action::Quit
+                        } else {
+                            Action::None
+                        }
                     }
                     _ => Action::None,
                 },
@@ -169,6 +158,53 @@ impl App {
                 }
             }
         }
+
+        // self.jukebox.load_music();
+
+        // // Try to establish media controls
+        // if self.mpris {
+        //     match self.jukebox.attach_media_controls() {
+        //         Ok(_) => {
+        //             self.mpris = true;
+        //         }
+        //         Err(err) => {
+        //             self.mpris = false;
+        //             self.pages.logs.enqueue(Log::new(err));
+        //         }
+        //     }
+        // }
+
+        // self.on_enter();
+
+        // // Run event loop
+        // while self.running {
+        //     let action = match self.events.next()? {
+        //         Event::Update => self.update(),
+        //         Event::Render => Action::Render,
+        //         Event::Terminal(event) => match event {
+        //             CrosstermEvent::Key(key) if key.kind == KeyEventKind::Press => {
+        //                 self.handle_key_press(key)
+        //             }
+        //             _ => Action::None,
+        //         },
+        //     };
+
+        //     match action {
+        //         Action::None => {}
+        //         Action::Render => {
+        //             self.render(&mut terminal)?;
+        //         }
+        //         Action::Route(route) => {
+        //             self.on_exit();
+        //             self.route = route;
+        //             self.on_enter();
+        //             self.render(&mut terminal)?;
+        //         }
+        //         Action::Quit => {
+        //             self.running = false;
+        //         }
+        //     }
+        // }
 
         Ok(())
     }
