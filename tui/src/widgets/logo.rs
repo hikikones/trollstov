@@ -1,25 +1,29 @@
-use ratatui::{buffer::Buffer, layout::Rect, style::Color};
+use ratatui::{buffer::Buffer, layout::Rect, style::Color, text::Text, widgets::Widget};
 
 pub struct LogoWidget;
 
 impl LogoWidget {
     pub fn render(area: Rect, buf: &mut Buffer) {
-        let center = (area.width / 2, area.height / 2);
-        let radius = 10;
-        let color = Color::Yellow;
+        let sun_color = Color::LightYellow;
+        let ray_color = Color::Yellow;
 
+        let logo = Logo::from_rect(area);
+        let radius = logo.radius();
+
+        // Draw top half circle
+        let center = (area.width / 2, area.height / 2);
         circle_points(center, radius, |p| {
             if p.1 < center.1
                 && let Some(cell) = buf.cell_mut(p)
             {
-                cell.set_bg(color);
+                cell.set_bg(sun_color);
             }
         });
 
+        // Draw rays
         let ray_count = 14;
         let ray_length = radius / 2;
         let ray_offset = radius / 4;
-
         ray_lines(
             center,
             radius,
@@ -30,19 +34,37 @@ impl LogoWidget {
                 if p2.1 < center.1 {
                     line_points(p1, p2, |p| {
                         if let Some(cell) = buf.cell_mut(p) {
-                            cell.set_bg(color);
+                            cell.set_bg(ray_color);
                         }
                     });
                 }
             },
         );
 
-        super::utils::print_ascii(
-            area,
+        // Draw sunset line
+        let start = center.0.saturating_sub(radius * 3 + ray_length);
+        let end = center.0 + (radius * 3 + ray_length);
+        line_points((start, center.1), (end, center.1), |p| {
+            if let Some(cell) = buf.cell_mut(p) {
+                cell.set_bg(ray_color);
+            }
+        });
+
+        // Draw title
+        let ascii = logo.ascii();
+        let (width, height) = logo.dim();
+        Text::styled(ascii, ray_color).render(
+            super::utils::align(
+                Rect {
+                    width: width,
+                    height: height,
+                    y: center.1 + 1,
+                    ..area
+                },
+                area,
+                super::utils::Alignment::CenterHorizontal,
+            ),
             buf,
-            "SOLBYTE",
-            color.into(),
-            super::utils::Alignment::Center,
         );
     }
 }
@@ -150,6 +172,77 @@ fn line_points(p1: (u16, u16), p2: (u16, u16), mut f: impl FnMut((u16, u16))) {
         if e2 <= dx {
             err += dx;
             y1 += sy;
+        }
+    }
+}
+
+enum Logo {
+    Big,
+    Medium,
+    Small,
+}
+
+impl Logo {
+    const LOGO_SMALL_WIDTH: u16 = 7;
+    const LOGO_SMALL_HEIGHT: u16 = 1;
+    const LOGO_SMALL: &str = "SOLBYTE";
+
+    const LOGO_MEDIUM_WIDTH: u16 = 34;
+    const LOGO_MEDIUM_HEIGHT: u16 = 10;
+    const LOGO_MEDIUM: &str = r#"
+           _ _           _       
+          | | |         | |      
+ ___  ___ | | |__  _   _| |_ ___ 
+/ __|/ _ \| | '_ \| | | | __/ _ \
+\__ \ (_) | | |_) | |_| | ||  __/
+|___/\___/|_|_.__/ \__, |\__\___|
+                    __/ |        
+                   |___/         
+"#;
+
+    const LOGO_BIG_WIDTH: u16 = 78;
+    const LOGO_BIG_HEIGHT: u16 = 11;
+    const LOGO_BIG: &str = r#"
+ ::::::::   ::::::::  :::        :::::::::  :::   ::: ::::::::::: :::::::::: 
+:+:    :+: :+:    :+: :+:        :+:    :+: :+:   :+:     :+:     :+:        
++:+        +:+    +:+ +:+        +:+    +:+  +:+ +:+      +:+     +:+        
++#++:++#++ +#+    +:+ +#+        +#++:++#+    +#++:       +#+     +#++:++#   
+       +#+ +#+    +#+ +#+        +#+    +#+    +#+        +#+     +#+        
+#+#    #+# #+#    #+# #+#        #+#    #+#    #+#        #+#     #+#        
+ ########   ########  ########## #########     ###        ###     ########## 
+"#;
+
+    const fn from_rect(area: Rect) -> Self {
+        if area.width > Self::LOGO_BIG_WIDTH && area.height > Self::LOGO_BIG_HEIGHT {
+            Self::Big
+        } else if area.width > Self::LOGO_MEDIUM_WIDTH && area.height > Self::LOGO_MEDIUM_HEIGHT {
+            Self::Medium
+        } else {
+            Self::Small
+        }
+    }
+
+    const fn radius(&self) -> u16 {
+        match self {
+            Logo::Big => 12,
+            Logo::Medium => 6,
+            Logo::Small => 2,
+        }
+    }
+
+    const fn dim(&self) -> (u16, u16) {
+        match self {
+            Logo::Big => (Self::LOGO_BIG_WIDTH, Self::LOGO_BIG_HEIGHT),
+            Logo::Medium => (Self::LOGO_MEDIUM_WIDTH, Self::LOGO_MEDIUM_HEIGHT),
+            Logo::Small => (Self::LOGO_SMALL_WIDTH, Self::LOGO_SMALL_HEIGHT),
+        }
+    }
+
+    const fn ascii(&self) -> &'static str {
+        match self {
+            Logo::Big => Self::LOGO_BIG,
+            Logo::Medium => Self::LOGO_MEDIUM,
+            Logo::Small => Self::LOGO_SMALL,
         }
     }
 }
