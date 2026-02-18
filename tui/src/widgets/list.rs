@@ -149,6 +149,12 @@ impl List {
         }
     }
 
+    pub const fn reset(&mut self) {
+        self.index = 0;
+        self.scroll = 0;
+        self.selector = None;
+    }
+
     pub fn render<T>(
         &mut self,
         mut area: Rect,
