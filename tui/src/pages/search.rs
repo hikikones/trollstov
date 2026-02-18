@@ -7,10 +7,12 @@ use ratatui::{
 
 use crate::{
     app::{Action, Colors},
-    widgets::{List, ListMove, TextInput, utils},
+    pages::Route,
+    widgets::{List, Shortcut, Shortcuts, TextInput, utils},
 };
 
 pub struct SearchPage {
+    state: State,
     search_input: TextInput,
     search_results: Vec<(TrackId, u16)>,
     list: List,
@@ -18,10 +20,17 @@ pub struct SearchPage {
     buffer: String,
 }
 
+enum State {
+    Search,
+    Browse,
+}
+
 impl SearchPage {
     pub const fn new(colors: &Colors) -> Self {
         Self {
+            state: State::Search,
             search_input: TextInput::new().with_placeholder("Search...").with_styles(
+                Style::new(),
                 Style::new().bg(colors.accent).fg(colors.on_accent),
                 Style::new().bg(colors.accent).fg(colors.on_accent),
                 Style::new().fg(colors.neutral).italic(),
@@ -33,9 +42,20 @@ impl SearchPage {
         }
     }
 
+    pub const fn set_search(&mut self) {
+        self.state = State::Search;
+    }
+
     pub fn on_enter(&self) {}
 
-    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &mut Jukebox, colors: &Colors) {
+    pub fn on_render(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        jb: &mut Jukebox,
+        colors: &Colors,
+        shortcuts: &mut Shortcuts,
+    ) {
         if jb.is_empty() {
             utils::print_ascii(
                 area,
@@ -46,6 +66,40 @@ impl SearchPage {
             );
             return;
         }
+
+        // Determine colors and shortcuts for search input and results
+        let border_style = {
+            let neutral = Style::new().fg(colors.neutral);
+            match self.state {
+                State::Search => {
+                    self.search_input.set_styles(
+                        Style::new(),
+                        Style::new().bg(colors.accent).fg(colors.on_accent),
+                        Style::new().bg(colors.accent).fg(colors.on_accent),
+                        neutral,
+                    );
+                    shortcuts.extend([
+                        Shortcut::new("Browse", "↵"),
+                        Shortcut::new("Select all", "^a"),
+                    ]);
+
+                    neutral
+                }
+                State::Browse => {
+                    self.search_input
+                        .set_styles(neutral, neutral, neutral, neutral);
+                    shortcuts.extend([
+                        Shortcut::new("Play", "↵"),
+                        Shortcut::new("Add to queue", "q"),
+                        Shortcut::new("Play next", "n"),
+                        Shortcut::new("Goto", "g"),
+                        Shortcut::new("Search", "s"),
+                    ]);
+
+                    Style::new().fg(colors.accent)
+                }
+            }
+        };
 
         // Render search input
         let search_line =
@@ -68,6 +122,7 @@ impl SearchPage {
         let search_results_block = Block::bordered()
             .title(self.buffer.as_str())
             .title_alignment(Alignment::Center)
+            .border_style(border_style)
             .padding(Padding::horizontal(1));
         let search_results_inner = search_results_block.inner(search_results_area);
 
@@ -82,12 +137,14 @@ impl SearchPage {
             |line, buf, (id, _), is_index, is_selected| {
                 if let Some(track) = jb.get(id) {
                     let mut style = Style::new();
-                    if is_index || is_selected {
-                        style.bg = Some(colors.accent);
-                        style.fg = Some(colors.on_accent);
-                    }
-                    if current == Some(id) {
-                        style.add_modifier.insert(Modifier::BOLD);
+                    if matches!(self.state, State::Browse) {
+                        if is_index || is_selected {
+                            style.bg = Some(colors.accent);
+                            style.fg = Some(colors.on_accent);
+                        }
+                        if current == Some(id) {
+                            style.add_modifier.insert(Modifier::BOLD);
+                        }
                     }
 
                     utils::print_line_iter(
@@ -102,52 +159,82 @@ impl SearchPage {
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) -> Action {
-        let shift = modifiers.contains(KeyModifiers::SHIFT);
+        if jb.is_empty() {
+            return Action::None;
+        }
 
-        match key {
-            KeyCode::Down => {
-                if self.list.move_index(ListMove::Down, shift) {
-                    return Action::Render;
+        match self.state {
+            State::Search => match key {
+                KeyCode::Enter | KeyCode::Down => {
+                    if !self.search_results.is_empty() {
+                        self.list.reset();
+                        self.state = State::Browse;
+                        return Action::Render;
+                    }
                 }
-            }
-            KeyCode::Up => {
-                if self.list.move_index(ListMove::Up, shift) {
-                    return Action::Render;
+                KeyCode::Up => {}
+                _ => {
+                    let hash_old = seahash::hash(self.search_input.as_str().trim().as_bytes());
+                    if self.search_input.input(key, modifiers) {
+                        let hash_new = seahash::hash(self.search_input.as_str().trim().as_bytes());
+                        self.is_dirty = hash_old != hash_new;
+                        return Action::Render;
+                    }
                 }
-            }
-            KeyCode::PageDown => {
-                if self.list.move_index(ListMove::PageDown, shift) {
-                    return Action::Render;
+            },
+            State::Browse => match key {
+                KeyCode::Enter => {
+                    if let Some((id, _)) = self.search_results.get(self.list.index()).copied() {
+                        jb.play_track(id);
+                    }
                 }
-            }
-            KeyCode::PageUp => {
-                if self.list.move_index(ListMove::PageUp, shift) {
-                    return Action::Render;
+                KeyCode::Up => {
+                    if self.list.index() == 0 {
+                        self.state = State::Search;
+                        return Action::Render;
+                    } else if self.list.input(key, modifiers) {
+                        return Action::Render;
+                    }
                 }
-            }
-            KeyCode::End => {
-                if self.list.move_index(ListMove::End, shift) {
-                    return Action::Render;
+                KeyCode::Char(c) => match c {
+                    'q' => {
+                        self.list
+                            .selection()
+                            .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id))
+                            .for_each(|id| {
+                                jb.enqueue(id);
+                            });
+                    }
+                    'n' => {
+                        self.list
+                            .selection()
+                            .rev()
+                            .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id))
+                            .for_each(|id| {
+                                jb.enqueue_next(id);
+                            });
+                    }
+                    'g' => {
+                        let index = self.list.index();
+                        let id = self.search_results.get(index).map(|(id, _)| *id);
+                        return Action::Route(Route::Tracks(id));
+                    }
+                    's' | '/' => {
+                        self.state = State::Search;
+                        return Action::Render;
+                    }
+                    _ => {
+                        if self.list.input(key, modifiers) {
+                            return Action::Render;
+                        }
+                    }
+                },
+                _ => {
+                    if self.list.input(key, modifiers) {
+                        return Action::Render;
+                    }
                 }
-            }
-            KeyCode::Home => {
-                if self.list.move_index(ListMove::Start, shift) {
-                    return Action::Render;
-                }
-            }
-            KeyCode::Enter => {
-                if let Some((id, _)) = self.search_results.get(self.list.index()).copied() {
-                    jb.play_track(id);
-                }
-            }
-            _ => {
-                let hash_old = seahash::hash(self.search_input.as_str().trim().as_bytes());
-                if self.search_input.input(key, modifiers) {
-                    let hash_new = seahash::hash(self.search_input.as_str().trim().as_bytes());
-                    self.is_dirty = hash_old != hash_new;
-                    return Action::Render;
-                }
-            }
+            },
         }
 
         Action::None

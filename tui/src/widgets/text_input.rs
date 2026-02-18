@@ -16,6 +16,7 @@ pub struct TextInput {
     cursor: usize,
     selector: Option<usize>,
     scroll: usize,
+    normal_style: Style,
     cursor_style: Style,
     selector_style: Style,
     placeholder_style: Style,
@@ -43,6 +44,7 @@ impl TextInput {
             cursor: 0,
             selector: None,
             scroll: 0,
+            normal_style: Style::new(),
             cursor_style: Style::new().bg(Color::White).fg(Color::Black),
             selector_style: Style::new().bg(Color::DarkGray).fg(Color::Gray),
             placeholder_style: Style::new().fg(Color::DarkGray).italic(),
@@ -54,11 +56,28 @@ impl TextInput {
         self
     }
 
-    pub const fn with_styles(mut self, cursor: Style, selector: Style, placeholder: Style) -> Self {
+    pub const fn with_styles(
+        mut self,
+        normal: Style,
+        cursor: Style,
+        selector: Style,
+        placeholder: Style,
+    ) -> Self {
+        self.set_styles(normal, cursor, selector, placeholder);
+        self
+    }
+
+    pub const fn set_styles(
+        &mut self,
+        normal: Style,
+        cursor: Style,
+        selector: Style,
+        placeholder: Style,
+    ) {
+        self.normal_style = normal;
         self.cursor_style = cursor;
         self.selector_style = selector;
         self.placeholder_style = placeholder;
-        self
     }
 
     pub const fn as_str(&self) -> &str {
@@ -231,7 +250,7 @@ impl TextInput {
                 } else if is_selected {
                     self.selector_style
                 } else {
-                    Style::new()
+                    self.normal_style
                 };
                 (x, _) = buf.set_stringn(x, y, g, grapheme_width, style);
             }
