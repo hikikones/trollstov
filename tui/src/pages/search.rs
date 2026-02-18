@@ -7,6 +7,7 @@ use ratatui::{
 
 use crate::{
     app::{Action, Colors},
+    pages::Route,
     widgets::{List, Shortcut, Shortcuts, TextInput, utils},
 };
 
@@ -214,7 +215,9 @@ impl SearchPage {
                             });
                     }
                     'g' => {
-                        // TODO goto
+                        let index = self.list.index();
+                        let id = self.search_results.get(index).map(|(id, _)| *id);
+                        return Action::Route(Route::Tracks(id));
                     }
                     's' | '/' => {
                         self.state = State::Search;

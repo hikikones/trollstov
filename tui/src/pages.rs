@@ -3,6 +3,7 @@ mod playing;
 mod search;
 mod tracks;
 
+use jukebox::TrackId;
 pub use logs::*;
 pub use playing::*;
 pub use search::*;
@@ -28,10 +29,9 @@ impl Pages {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Route {
-    #[default]
-    Tracks,
+    Tracks(Option<TrackId>),
     NowPlaying,
     Search,
     Logs,
@@ -40,19 +40,25 @@ pub enum Route {
 impl Route {
     pub const fn next(self) -> Self {
         match self {
-            Self::Tracks => Self::NowPlaying,
+            Self::Tracks(_) => Self::NowPlaying,
             Self::NowPlaying => Self::Search,
             Self::Search => Self::Logs,
-            Self::Logs => Self::Tracks,
+            Self::Logs => Self::Tracks(None),
         }
     }
 
     pub const fn prev(self) -> Self {
         match self {
-            Self::Tracks => Self::Logs,
-            Self::NowPlaying => Self::Tracks,
+            Self::Tracks(_) => Self::Logs,
+            Self::NowPlaying => Self::Tracks(None),
             Self::Search => Self::NowPlaying,
             Self::Logs => Self::Search,
         }
+    }
+}
+
+impl Default for Route {
+    fn default() -> Self {
+        Self::Tracks(None)
     }
 }

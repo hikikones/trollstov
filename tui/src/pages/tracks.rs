@@ -1,4 +1,4 @@
-use jukebox::{AudioRating, Jukebox, TrackSort};
+use jukebox::{AudioRating, Jukebox, TrackId, TrackSort};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -23,7 +23,13 @@ impl TracksPage {
         }
     }
 
-    pub fn on_enter(&self) {}
+    pub fn on_enter(&mut self, id: Option<TrackId>, jb: &Jukebox) {
+        if let Some(id) = id
+            && let Some(index) = jb.get_index_from_id(id)
+        {
+            self.list.move_index(ListMove::Custom(index), false);
+        };
+    }
 
     pub fn on_render(
         &mut self,

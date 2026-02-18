@@ -406,7 +406,7 @@ impl App {
                 .centered_horizontally(Constraint::Length(MAX_WIDTH + MARGIN))
                 .inner(Margin::new(MARGIN, MARGIN));
             match self.route {
-                Route::Tracks => {
+                Route::Tracks(_) => {
                     self.pages.tracks.on_render(
                         body,
                         buf,
@@ -495,7 +495,7 @@ impl App {
 
     fn on_enter(&mut self) {
         match self.route {
-            Route::Tracks => self.pages.tracks.on_enter(),
+            Route::Tracks(id) => self.pages.tracks.on_enter(id, &self.jukebox),
             Route::NowPlaying => self.pages.playing.on_enter(),
             Route::Search => self.pages.search.on_enter(),
             Route::Logs => self.pages.logs.on_enter(),
@@ -504,7 +504,7 @@ impl App {
 
     fn on_exit(&mut self) {
         match self.route {
-            Route::Tracks => self.pages.tracks.on_exit(),
+            Route::Tracks(_) => self.pages.tracks.on_exit(),
             Route::NowPlaying => self.pages.playing.on_exit(),
             Route::Search => self.pages.search.on_exit(),
             Route::Logs => self.pages.logs.on_exit(),
@@ -513,10 +513,11 @@ impl App {
 
     fn on_input(&mut self, key: KeyEvent) -> Action {
         match self.route {
-            Route::Tracks => self
-                .pages
-                .tracks
-                .on_input(key.code, key.modifiers, &mut self.jukebox),
+            Route::Tracks(_) => {
+                self.pages
+                    .tracks
+                    .on_input(key.code, key.modifiers, &mut self.jukebox)
+            }
             Route::NowPlaying => {
                 self.pages
                     .playing
@@ -541,12 +542,13 @@ fn render_navigation(
 ) {
     const SPACING: &str = "   ";
     for (route, name, spacing) in [
-        (Route::Tracks, "Tracks", SPACING),
+        (Route::Tracks(None), "Tracks", SPACING),
         (Route::NowPlaying, "Now Playing", SPACING),
         (Route::Search, "Search", SPACING),
         (Route::Logs, "Logs", ""),
     ] {
-        let style = if route == current_route {
+        let is_current = std::mem::discriminant(&route) == std::mem::discriminant(&current_route);
+        let style = if is_current {
             Style::new().bold().fg(colors.accent)
         } else {
             Style::new()
