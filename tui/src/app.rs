@@ -264,6 +264,7 @@ impl App {
                     if self.route == Route::Search {
                         return self.on_input(key);
                     } else {
+                        self.pages.search.set_search();
                         return Action::Route(Route::Search);
                     }
                 }

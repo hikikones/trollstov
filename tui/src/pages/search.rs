@@ -41,6 +41,10 @@ impl SearchPage {
         }
     }
 
+    pub const fn set_search(&mut self) {
+        self.state = State::Search;
+    }
+
     pub fn on_enter(&self) {}
 
     pub fn on_render(
