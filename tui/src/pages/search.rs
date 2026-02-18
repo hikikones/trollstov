@@ -7,10 +7,11 @@ use ratatui::{
 
 use crate::{
     app::{Action, Colors},
-    widgets::{List, ListMove, TextInput, utils},
+    widgets::{List, ListMove, Shortcut, Shortcuts, TextInput, utils},
 };
 
 pub struct SearchPage {
+    state: State,
     search_input: TextInput,
     search_results: Vec<(TrackId, u16)>,
     list: List,
@@ -18,9 +19,15 @@ pub struct SearchPage {
     buffer: String,
 }
 
+enum State {
+    Search,
+    Browse,
+}
+
 impl SearchPage {
     pub const fn new(colors: &Colors) -> Self {
         Self {
+            state: State::Search,
             search_input: TextInput::new().with_placeholder("Search...").with_styles(
                 Style::new().bg(colors.accent).fg(colors.on_accent),
                 Style::new().bg(colors.accent).fg(colors.on_accent),
@@ -35,7 +42,14 @@ impl SearchPage {
 
     pub fn on_enter(&self) {}
 
-    pub fn on_render(&mut self, area: Rect, buf: &mut Buffer, jb: &mut Jukebox, colors: &Colors) {
+    pub fn on_render(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        jb: &mut Jukebox,
+        colors: &Colors,
+        shortcuts: &mut Shortcuts,
+    ) {
         if jb.is_empty() {
             utils::print_ascii(
                 area,
@@ -99,6 +113,14 @@ impl SearchPage {
                 }
             },
         );
+
+        // Shortcuts TODO
+        shortcuts.extend([
+            Shortcut::new("Play", "↵"),
+            Shortcut::new("Add to queue", "q"),
+            Shortcut::new("Play next", "n"),
+            Shortcut::new("Goto", "g"),
+        ]);
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) -> Action {

@@ -425,9 +425,13 @@ impl App {
                     );
                 }
                 Route::Search => {
-                    self.pages
-                        .search
-                        .on_render(body, buf, &mut self.jukebox, &self.colors);
+                    self.pages.search.on_render(
+                        body,
+                        buf,
+                        &mut self.jukebox,
+                        &self.colors,
+                        &mut self.shortcuts_page,
+                    );
                 }
                 Route::Logs => {
                     self.pages
