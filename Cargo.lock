@@ -2707,21 +2707,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
-name = "solbyte"
-version = "0.1.0"
-dependencies = [
- "clap",
- "image",
- "jukebox",
- "ratatui",
- "ratatui-image",
- "seahash",
- "terminal-colorsaurus",
- "unicode-segmentation",
- "unicode-width",
-]
-
-[[package]]
 name = "souvlaki"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3145,6 +3130,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "247eaa3197818b831697600aadf81514e577e0cba5eab10f7e064e78ae154df1"
 dependencies = [
  "winnow",
+]
+
+[[package]]
+name = "trollstov"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "image",
+ "jukebox",
+ "ratatui",
+ "ratatui-image",
+ "seahash",
+ "terminal-colorsaurus",
+ "unicode-segmentation",
+ "unicode-width",
 ]
 
 [[package]]
