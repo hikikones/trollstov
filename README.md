@@ -21,7 +21,7 @@ The name is a norwegian word play for a substance with magical properties. You h
 
 The `trollstov` command takes one mandatory argument, which is the path to your music directory.
 
-```
+```sh
 trollstov /path/to/my/music
 ```
 
