@@ -2,7 +2,7 @@
 
 # trollstov
 
-A simple music player for the terminal
+Your music is the database
 
 TODO: image
 
@@ -14,7 +14,7 @@ The name is a norwegian word play for a substance with magical properties. You h
 
 ## 📌 Features
 
-- Your music is the database — your files and their metadata are the source of truth.
+- Your music is the database — your files and their metadata are all you need.
 - Portable rating — the rating is part of the metadata.
 
 ## ⚡ Usage
@@ -42,7 +42,6 @@ In addition, it comes with one optional argument.
 
 ## ⚠️ Non-goals
 
-- Any kind of external data; be it playlists, settings or something else.
 - Supporting most audio formats.
 - Metadata editing, except for the rating.
 - Gapless playback.
