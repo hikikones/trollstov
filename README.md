@@ -1,26 +1,28 @@
 <div align="center">
 
-# jukebox
+# trollstov
 
-A simple music player for the terminal
+Your music is the database
 
 TODO: image
 
 </div>
 
-`jukebox` is a music player built around a simple idea: your music is the database. It treats your audio files — and their metadata — as the single source of truth. Your filesystem is the index, and your tags are the schema. Simply back up your music directory and you have backed up everything. Ratings are part of the metadata, so your favorite songs are always just a few keystrokes away.
+`trollstov` is a music player for the terminal that is built around a simple idea: your music is the database. It treats your audio files — and their metadata — as the single source of truth. Your filesystem is the index, and your tags are the schema. Simply back up your music directory and you have backed up everything. Ratings are part of the metadata, so your favorite songs are always just a few keystrokes away.
+
+The name is a norwegian word play for a substance with magical properties. You have "troll", a creature from Norse mythology, and "stov" which is actually "støv", meaning "dust" in english. Hence, you get "troll dust".
 
 ## 📌 Features
 
-- Your music is the database — your files and their metadata are the source of truth.
+- Your music is the database — your files and their metadata are all you need.
 - Portable rating — the rating is part of the metadata.
 
 ## ⚡ Usage
 
-The `jukebox` command takes one mandatory argument, which is the path to your music directory.
+The `trollstov` command takes one mandatory argument, which is the path to your music directory.
 
-```
-jukebox /path/to/my/music
+```sh
+trollstov /path/to/my/music
 ```
 
 In addition, it comes with one optional argument.
@@ -40,7 +42,6 @@ In addition, it comes with one optional argument.
 
 ## ⚠️ Non-goals
 
-- Any kind of external data; be it playlists, settings or something else.
 - Supporting most audio formats.
 - Metadata editing, except for the rating.
 - Gapless playback.

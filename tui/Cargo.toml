@@ -1,13 +1,9 @@
 [package]
-name = "jukebox-tui"
+name = "trollstov"
 version = "0.1.0"
 edition.workspace = true
+description = "A simple music player for the terminal where your music is the database."
 license.workspace = true
-
-# Rename binary
-[[bin]]
-name = "jukebox"
-path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }

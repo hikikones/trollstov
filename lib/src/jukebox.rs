@@ -66,8 +66,8 @@ impl Jukebox {
         self.database.load();
     }
 
-    pub fn attach_media_controls(&mut self) -> Result<(), AudioFileReport> {
-        self.mpris = Some(MediaControls::new()?);
+    pub fn attach_media_controls(&mut self, name: &str) -> Result<(), AudioFileReport> {
+        self.mpris = Some(MediaControls::new(name)?);
         Ok(())
     }
 

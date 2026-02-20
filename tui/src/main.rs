@@ -31,16 +31,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     res
 }
 
-/// A simple music player for the terminal.
 #[derive(Debug, clap::Parser)]
-#[command(version, verbatim_doc_comment)]
+#[command(version, about)]
 struct Args {
     /// The directory for your music.
-    #[arg(value_name = "MUSIC_DIR", value_hint = clap::ValueHint::DirPath, verbatim_doc_comment)]
+    #[arg(value_name = "MUSIC_DIR", value_hint = clap::ValueHint::DirPath)]
     dir: std::path::PathBuf,
 
     /// Add media controls through the Media Player Remote Interfacing Specification (MPRIS),
     /// allowing music control with media keys and visually in your desktop environment.
-    #[clap(long, action, verbatim_doc_comment)]
+    #[clap(long, action)]
     mpris: bool,
 }

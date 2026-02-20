@@ -15,7 +15,7 @@ use crate::{
     events::{Event, EventHandler},
     pages::{Log, Pages, Route},
     terminal::Terminal,
-    widgets::{Shortcut, Shortcuts, TextSegment, utils},
+    widgets::{LogoWidget, Shortcut, Shortcuts, TextSegment, utils},
 };
 
 // TODO: Add a dynamic playlist page for artists/albums/genres and filtering.
@@ -118,7 +118,7 @@ impl App {
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Draw logo
         terminal.draw(|frame| {
-            render_jukebox_logo(frame.area(), frame.buffer_mut());
+            frame.render_widget(LogoWidget, frame.area());
         })?;
 
         // Start reading events and load music
@@ -127,7 +127,7 @@ impl App {
 
         // Try to establish media controls
         if self.mpris {
-            match self.jukebox.attach_media_controls() {
+            match self.jukebox.attach_media_controls("trollstov") {
                 Ok(_) => {
                     self.mpris = true;
                 }
@@ -384,7 +384,7 @@ impl App {
             utils::print_ascii(
                 title_area,
                 buf,
-                "jukebox",
+                "trollstov",
                 Style::new().fg(self.colors.neutral),
                 utils::Alignment::CenterHorizontal,
             );
@@ -644,33 +644,4 @@ fn render_playback_status_empty(
 
     text.render(line, buf);
     text.clear();
-}
-
-fn render_jukebox_logo(area: Rect, buf: &mut Buffer) {
-    const LOGO_TEXT: &str = r#"
-                     /$$                 /$$                          
-                    | $$                | $$                          
-       /$$ /$$   /$$| $$   /$$  /$$$$$$ | $$$$$$$   /$$$$$$  /$$   /$$
-      |__/| $$  | $$| $$  /$$/ /$$__  $$| $$__  $$ /$$__  $$|  $$ /$$/
-       /$$| $$  | $$| $$$$$$/ | $$$$$$$$| $$  \ $$| $$  \ $$ \  $$$$/ 
-      | $$| $$  | $$| $$_  $$ | $$_____/| $$  | $$| $$  | $$  >$$  $$ 
-      | $$|  $$$$$$/| $$ \  $$|  $$$$$$$| $$$$$$$/|  $$$$$$/ /$$/\  $$
-      | $$ \______/ |__/  \__/ \_______/|_______/  \______/ |__/  \__/
- /$$  | $$                                                            
-|  $$$$$$/                                                            
- \______/                                                             
-"#;
-
-    Text::raw(LOGO_TEXT).render(
-        utils::align(
-            Rect {
-                width: 70,
-                height: 13,
-                ..area
-            },
-            area,
-            utils::Alignment::Center,
-        ),
-        buf,
-    );
 }

@@ -1350,21 +1350,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "jukebox-tui"
-version = "0.1.0"
-dependencies = [
- "clap",
- "image",
- "jukebox",
- "ratatui",
- "ratatui-image",
- "seahash",
- "terminal-colorsaurus",
- "unicode-segmentation",
- "unicode-width",
-]
-
-[[package]]
 name = "kasuari"
 version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3145,6 +3130,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "247eaa3197818b831697600aadf81514e577e0cba5eab10f7e064e78ae154df1"
 dependencies = [
  "winnow",
+]
+
+[[package]]
+name = "trollstov"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "image",
+ "jukebox",
+ "ratatui",
+ "ratatui-image",
+ "seahash",
+ "terminal-colorsaurus",
+ "unicode-segmentation",
+ "unicode-width",
 ]
 
 [[package]]
