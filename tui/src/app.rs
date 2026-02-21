@@ -378,8 +378,7 @@ impl App {
                         body_area,
                         shortcuts_page_area,
                         _,
-                        playback_title_area,
-                        playback_status_area,
+                        playback_area,
                         shortcuts_play_area,
                         shortcuts_app_area,
                     ] = Layout::vertical([
@@ -387,8 +386,7 @@ impl App {
                         Constraint::Min(5),
                         Constraint::Length(1),
                         Constraint::Length(1),
-                        Constraint::Length(1),
-                        Constraint::Length(1),
+                        Constraint::Length(2),
                         Constraint::Length(1),
                         Constraint::Length(1),
                     ])
@@ -410,41 +408,16 @@ impl App {
                     self.shortcuts_page.render(shortcuts_page_area, buf);
 
                     // Playback
-                    match self
-                        .jukebox
-                        .current_track_id()
-                        .and_then(|id| self.jukebox.get(id))
-                    {
-                        Some(track) => {
-                            // Render playback title
-                            render_playback_title(
-                                playback_title_area,
-                                buf,
-                                &mut self.text_segment,
-                                track,
-                                &self.colors,
-                            );
-
-                            // Render active playback status
-                            render_playback_status_active(
-                                playback_status_area,
-                                buf,
-                                &mut self.text_segment,
-                                self.jukebox.current_track_pos(),
-                                track.duration(),
-                                &self.colors,
-                            );
-                        }
-                        None => {
-                            // Render empty playback status
-                            render_playback_status_empty(
-                                playback_status_area,
-                                buf,
-                                &mut self.text_segment,
-                                &self.colors,
-                            );
-                        }
-                    }
+                    render_playback(
+                        playback_area,
+                        buf,
+                        &mut self.text_segment,
+                        self.jukebox.current_track_pos(),
+                        self.jukebox
+                            .current_track_id()
+                            .and_then(|id| self.jukebox.get(id)),
+                        &self.colors,
+                    );
 
                     // Shortcuts
                     play_shortcuts(&mut self.shortcuts_play, self.jukebox.volume());
@@ -460,8 +433,7 @@ impl App {
                         body_area,
                         shortcuts_page_area,
                         _,
-                        playback_title_area,
-                        playback_status_area,
+                        playback_area,
                         shortcuts_app_area,
                     ] = Layout::vertical([
                         Constraint::Length(1),
@@ -470,8 +442,7 @@ impl App {
                         Constraint::Min(5),
                         Constraint::Length(1),
                         Constraint::Length(1),
-                        Constraint::Length(1),
-                        Constraint::Length(1),
+                        Constraint::Length(2),
                         Constraint::Length(1),
                     ])
                     .areas(area);
@@ -504,41 +475,16 @@ impl App {
                     self.shortcuts_page.render(shortcuts_page_area, buf);
 
                     // Playback
-                    match self
-                        .jukebox
-                        .current_track_id()
-                        .and_then(|id| self.jukebox.get(id))
-                    {
-                        Some(track) => {
-                            // Render playback title
-                            render_playback_title(
-                                playback_title_area,
-                                buf,
-                                &mut self.text_segment,
-                                track,
-                                &self.colors,
-                            );
-
-                            // Render active playback status
-                            render_playback_status_active(
-                                playback_status_area,
-                                buf,
-                                &mut self.text_segment,
-                                self.jukebox.current_track_pos(),
-                                track.duration(),
-                                &self.colors,
-                            );
-                        }
-                        None => {
-                            // Render empty playback status
-                            render_playback_status_empty(
-                                playback_status_area,
-                                buf,
-                                &mut self.text_segment,
-                                &self.colors,
-                            );
-                        }
-                    }
+                    render_playback(
+                        playback_area,
+                        buf,
+                        &mut self.text_segment,
+                        self.jukebox.current_track_pos(),
+                        self.jukebox
+                            .current_track_id()
+                            .and_then(|id| self.jukebox.get(id)),
+                        &self.colors,
+                    );
 
                     // Shortcuts
                     app_shortcuts(&mut self.shortcuts_app);
@@ -664,79 +610,93 @@ fn render_navigation(
     text.clear();
 }
 
-fn render_playback_title(
-    line: Rect,
+fn render_playback(
+    area: Rect,
     buf: &mut Buffer,
     text: &mut TextSegment,
-    track: &Track,
+    audio_position: Duration,
+    track: Option<&Track>,
     colors: &Colors,
 ) {
-    let neutral_style = Style::new().fg(colors.neutral);
+    let accent = Style::new().fg(colors.accent);
+    let neutral = Style::new().fg(colors.neutral);
 
-    text.push_str(track.artist(), neutral_style);
-    if !(track.artist().is_empty() || track.title().is_empty()) {
-        text.push_str(" - ", neutral_style);
+    let title_line = Rect { height: 1, ..area };
+    let status_line = Rect {
+        y: area.y + 1,
+        ..title_line
+    };
+
+    let status_width = status_line.width / 3;
+    let progress_ch = '─';
+    let progress_highlight_ch = '━';
+
+    match track {
+        Some(track) => {
+            // Title
+            text.push_str(track.artist(), neutral);
+            if !(track.artist().is_empty() || track.title().is_empty()) {
+                text.push_str(" - ", neutral);
+            }
+            text.push_str(track.title(), neutral);
+
+            text.render(title_line, buf);
+            text.clear();
+
+            // Status
+            let extension = track.extension();
+            let properties = track.properties();
+
+            text.push_str(extension.as_upper_case(), neutral);
+
+            if let Some(bit_depth) = properties.bit_depth()
+                && let Some(sample_rate) = properties.sample_rate()
+            {
+                jukebox::utils::format_int(bit_depth, |bit_depth| {
+                    text.extend_as_one([" ", bit_depth, "bit/"], neutral);
+                });
+                jukebox::utils::format_int(sample_rate, |sample_rate| {
+                    text.extend_as_one([sample_rate, "kHz"], neutral);
+                });
+            }
+
+            text.push_str("   ", Style::new());
+            text.push_chars(
+                &jukebox::utils::format_duration_on_stack(audio_position),
+                neutral,
+            );
+            text.push_char(' ', Style::new());
+
+            let progress = audio_position.as_secs_f32() / properties.duration().as_secs_f32();
+            let max_highlight_bound = (status_width as f32 * progress) as u16;
+            for i in 0..status_width {
+                let (ch, style) = if i <= max_highlight_bound {
+                    (progress_highlight_ch, accent)
+                } else {
+                    (progress_ch, neutral)
+                };
+                text.push_char(ch, style);
+            }
+
+            text.push_char(' ', Style::new());
+            text.push_chars(
+                &jukebox::utils::format_duration_on_stack(properties.duration()),
+                neutral,
+            );
+            jukebox::utils::format_int(properties.bit_rate(), |bit_rate| {
+                text.extend_as_one(["   ", bit_rate, "kbps"], neutral);
+            });
+        }
+        None => {
+            text.push_str("00:00 ", neutral);
+            for _ in 0..status_width {
+                text.push_char(progress_highlight_ch, neutral);
+            }
+            text.push_str(" 00:00", neutral);
+        }
     }
-    text.push_str(track.title(), neutral_style);
 
-    text.render(line, buf);
-    text.clear();
-}
-
-fn render_playback_status_active(
-    line: Rect,
-    buf: &mut Buffer,
-    text: &mut TextSegment,
-    current_duration: Duration,
-    total_duration: Duration,
-    colors: &Colors,
-) {
-    let accent_style = Style::new().fg(colors.accent);
-    let neutral_style = Style::new().fg(colors.neutral);
-
-    text.push_chars(
-        &jukebox::utils::format_duration_on_stack(current_duration),
-        neutral_style,
-    );
-    text.push_char(' ', neutral_style);
-
-    let status_width = line.width / 3;
-    let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
-    let max_highlight_bound = (status_width as f32 * progress) as u16;
-    for i in 0..status_width {
-        let (ch, style) = if i <= max_highlight_bound {
-            ('━', accent_style)
-        } else {
-            ('─', neutral_style)
-        };
-        text.push_char(ch, style);
-    }
-
-    text.push_char(' ', neutral_style);
-    text.push_chars(
-        &jukebox::utils::format_duration_on_stack(total_duration),
-        neutral_style,
-    );
-
-    text.render(line, buf);
-    text.clear();
-}
-
-fn render_playback_status_empty(
-    line: Rect,
-    buf: &mut Buffer,
-    text: &mut TextSegment,
-    colors: &Colors,
-) {
-    let style = Style::new().fg(colors.neutral);
-    text.push_str("00:00 ", style);
-    let status_width = line.width / 3;
-    for _ in 0..status_width {
-        text.push_char('─', style);
-    }
-    text.push_str(" 00:00", style);
-
-    text.render(line, buf);
+    text.render(status_line, buf);
     text.clear();
 }
 
