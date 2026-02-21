@@ -131,10 +131,7 @@ impl PlayingPage {
                 {
                     Some(rating) => {
                         let cover_area = self.render_cover(
-                            Rect {
-                                height: playing_area.height.saturating_sub(1),
-                                ..playing_area
-                            },
+                            playing_area.inner(Margin::new(0, 1)),
                             buf,
                             front_cover,
                             colors,
