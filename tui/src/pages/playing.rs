@@ -244,7 +244,7 @@ impl PlayingPage {
     ) -> Rect {
         let neutral_style = Style::new().fg(colors.neutral);
 
-        const MAX_COVER_SIZE: u16 = 20;
+        const MAX_COVER_SIZE: u16 = 24;
         let mut img_area = {
             let img_w = area.width.min(MAX_COVER_SIZE * 2);
             let img_h = area.height.min(MAX_COVER_SIZE);

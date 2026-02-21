@@ -75,8 +75,8 @@ pub enum ScreenSize {
 impl ScreenSize {
     const fn from_rect(area: Rect) -> ScreenSize {
         match (area.width, area.height) {
-            (w, h) if w < 80 || h < 24 => ScreenSize::Small,
-            (w, h) if w < 120 || h < 40 => ScreenSize::Medium,
+            (w, h) if w < 80 || h < 20 => ScreenSize::Small,
+            (w, h) if w < 120 || h < 30 => ScreenSize::Medium,
             _ => ScreenSize::Large,
         }
     }
@@ -300,7 +300,7 @@ impl App {
                     let picture = AudioPicture::read(&path)?;
                     match picture.bytes() {
                         Some(bytes) => {
-                            const MAX_RES: u32 = 720;
+                            const MAX_RES: u32 = 1080;
                             let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
                                 AudioFileReport::new(format!(
                                     "Failed to load front cover image for \"{}\" due to {}",
