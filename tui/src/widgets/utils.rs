@@ -3,7 +3,7 @@ use ratatui::{buffer::Buffer, layout::Rect, style::Style};
 /// Prints `ascii` assuming only ASCII, no newlines or
 /// control characters for simple layout calculation.
 pub fn print_ascii(
-    area: Rect,
+    line: Rect,
     buf: &mut Buffer,
     ascii: impl AsRef<str>,
     style: Style,
@@ -18,11 +18,11 @@ pub fn print_ascii(
         ..
     } = align(
         Rect {
-            width: ascii.len() as u16,
+            width: line.width.min(ascii.len() as u16),
             height: 1,
-            ..area
+            ..line
         },
-        area,
+        line,
         alignment,
     );
 
@@ -31,7 +31,11 @@ pub fn print_ascii(
             break;
         }
 
-        buf[(x, y)].set_char(ch).set_style(style);
+        let Some(cell) = buf.cell_mut((x, y)) else {
+            break;
+        };
+
+        cell.set_char(ch).set_style(style);
 
         x += 1;
         width -= 1;

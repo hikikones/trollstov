@@ -66,9 +66,10 @@ impl PlayingPage {
         self.play_queue_title.clear();
 
         // Update scroll on new track
-        if self.current_queue_index != jb.current_queue_index() {
-            self.current_queue_index = jb.current_queue_index();
-            if let Some(idx) = jb.current_queue_index() {
+        let current_queue_index = jb.current_queue_index();
+        if self.current_queue_index != current_queue_index {
+            self.current_queue_index = current_queue_index;
+            if let Some(idx) = current_queue_index {
                 self.list.move_index(ListMove::Custom(idx.raw()), false);
             }
         }
