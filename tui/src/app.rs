@@ -634,20 +634,10 @@ fn render_playback(
     match track {
         Some(track) => {
             // Title
-            text.push_str(track.artist(), neutral);
-            if !(track.artist().is_empty() || track.title().is_empty()) {
-                text.push_str(" - ", neutral);
-            }
-            text.push_str(track.title(), neutral);
-
-            text.render(title_line, buf);
-            text.clear();
-
-            // Status
             let extension = track.extension();
             let properties = track.properties();
 
-            text.push_str(extension.as_upper_case(), neutral);
+            text.extend_as_one(["[", extension.as_upper_case()], neutral);
 
             if let Some(bit_depth) = properties.bit_depth()
                 && let Some(sample_rate) = properties.sample_rate()
@@ -660,7 +650,20 @@ fn render_playback(
                 });
             }
 
-            text.push_str("   ", Style::new());
+            jukebox::utils::format_int(properties.bit_rate(), |bit_rate| {
+                text.extend_as_one([" ", bit_rate, "kbps] "], neutral);
+            });
+
+            text.push_str(track.artist(), neutral);
+            if !(track.artist().is_empty() || track.title().is_empty()) {
+                text.push_str(" - ", neutral);
+            }
+            text.push_str(track.title(), neutral);
+
+            text.render(title_line, buf);
+            text.clear();
+
+            // Status
             text.push_chars(
                 &jukebox::utils::format_duration_on_stack(audio_position),
                 neutral,
@@ -683,9 +686,6 @@ fn render_playback(
                 &jukebox::utils::format_duration_on_stack(properties.duration()),
                 neutral,
             );
-            jukebox::utils::format_int(properties.bit_rate(), |bit_rate| {
-                text.extend_as_one(["   ", bit_rate, "kbps"], neutral);
-            });
         }
         None => {
             text.push_str("00:00 ", neutral);
