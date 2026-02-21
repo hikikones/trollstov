@@ -64,6 +64,22 @@ impl Colors {
     }
 }
 
+pub enum ScreenSize {
+    Small,
+    Medium,
+    Large,
+}
+
+impl ScreenSize {
+    const fn from_rect(area: Rect) -> ScreenSize {
+        match (area.width, area.height) {
+            (w, h) if w < 80 || h < 24 => ScreenSize::Small,
+            (w, h) if w < 120 || h < 40 => ScreenSize::Medium,
+            _ => ScreenSize::Large,
+        }
+    }
+}
+
 pub enum FrontCover {
     None,
     Loading,
@@ -354,6 +370,9 @@ impl App {
         terminal.draw(|frame| {
             let area = frame.area();
             let buf = frame.buffer_mut();
+
+            let size = ScreenSize::from_rect(area);
+            // TODO
 
             let [
                 title_area,
