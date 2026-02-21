@@ -158,7 +158,6 @@ impl PlayingPage {
                     }
                 }
 
-                // Update scroll on new track
                 self.update_scroll_on_new_track(jb);
 
                 // Render play queue
