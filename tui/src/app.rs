@@ -99,19 +99,8 @@ impl App {
         let pages = Pages::new(&colors);
 
         let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
-        let mut shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
-        shortcuts_play.extend([
-            Shortcut::new("Play/Pause", "^￪"),
-            Shortcut::new("Next/Prev", "^⇆"),
-            Shortcut::new("Stop", "^￬"),
-            Shortcut::new("Forward 30s", "⎇→"),
-        ]);
-        let mut shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
-        shortcuts_app.extend([
-            Shortcut::new("Quit", "Esc"),
-            Shortcut::new("Navigate", "(⇧)Tab"),
-            Shortcut::new("Search", "/"),
-        ]);
+        let shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
+        let shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
 
         Self {
             running: true,
@@ -372,6 +361,8 @@ impl App {
             let buf = frame.buffer_mut();
 
             self.shortcuts_page.clear();
+            self.shortcuts_play.clear();
+            self.shortcuts_app.clear();
 
             const MARGIN: u16 = 1;
             let size = ScreenSize::from_rect(area);
@@ -456,15 +447,10 @@ impl App {
                     }
 
                     // Shortcuts
-                    let volume = (self.jukebox.volume() * 100.0).round() as u8;
-                    jukebox::utils::format_int(volume, |volume| {
-                        self.shortcuts_play
-                            .push_iter(["Volume ", volume, "%"], "⎇⇵");
-                    });
+                    play_shortcuts(&mut self.shortcuts_play, self.jukebox.volume());
+                    app_shortcuts(&mut self.shortcuts_app);
                     self.shortcuts_play.render(shortcuts_play_area, buf);
                     self.shortcuts_app.render(shortcuts_app_area, buf);
-
-                    self.shortcuts_play.pop();
                 }
                 ScreenSize::Large => {
                     let [
@@ -476,14 +462,12 @@ impl App {
                         _,
                         playback_title_area,
                         playback_status_area,
-                        shortcuts_play_area,
                         shortcuts_app_area,
                     ] = Layout::vertical([
                         Constraint::Length(1),
                         Constraint::Length(1),
                         Constraint::Length(1),
                         Constraint::Min(5),
-                        Constraint::Length(1),
                         Constraint::Length(1),
                         Constraint::Length(1),
                         Constraint::Length(1),
@@ -557,15 +541,9 @@ impl App {
                     }
 
                     // Shortcuts
-                    let volume = (self.jukebox.volume() * 100.0).round() as u8;
-                    jukebox::utils::format_int(volume, |volume| {
-                        self.shortcuts_play
-                            .push_iter(["Volume ", volume, "%"], "⎇⇵");
-                    });
-                    self.shortcuts_play.render(shortcuts_play_area, buf);
+                    app_shortcuts(&mut self.shortcuts_app);
+                    play_shortcuts(&mut self.shortcuts_app, self.jukebox.volume());
                     self.shortcuts_app.render(shortcuts_app_area, buf);
-
-                    self.shortcuts_play.pop();
                 }
             }
         })
@@ -760,4 +738,26 @@ fn render_playback_status_empty(
 
     text.render(line, buf);
     text.clear();
+}
+
+fn play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
+    shortcuts.extend([
+        Shortcut::new("Play/Pause", "^￪"),
+        Shortcut::new("Next/Prev", "^⇆"),
+        Shortcut::new("Stop", "^￬"),
+        Shortcut::new("Forward 30s", "⎇→"),
+    ]);
+
+    let volume = (volume * 100.0).round() as u8;
+    jukebox::utils::format_int(volume, |volume| {
+        shortcuts.push_iter(["Volume ", volume, "%"], "⎇⇵");
+    });
+}
+
+fn app_shortcuts(shortcuts: &mut Shortcuts) {
+    shortcuts.extend([
+        Shortcut::new("Quit", "Esc"),
+        Shortcut::new("Navigate", "(⇧)Tab"),
+        Shortcut::new("Search", "/"),
+    ]);
 }

@@ -389,14 +389,17 @@ impl AudioProperties {
         self.duration
     }
 
+    /// Audio bit rate in kbps.
     pub const fn bit_rate(&self) -> u32 {
         self.bit_rate
     }
 
+    /// Bits per sample, usually 16 or 24 bit.
     pub const fn bit_depth(&self) -> Option<u8> {
         self.bit_depth
     }
 
+    /// Sample rate in kHz.
     pub const fn sample_rate(&self) -> Option<u32> {
         self.sample_rate
     }
@@ -430,7 +433,7 @@ impl AudioProperties {
             duration,
             bit_rate,
             bit_depth,
-            sample_rate,
+            sample_rate: sample_rate.map(|sr| sr / 1000),
         }
     }
 }
