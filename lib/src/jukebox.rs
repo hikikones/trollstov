@@ -313,7 +313,7 @@ impl Jukebox {
             })?;
             let source = Decoder::builder()
                 .with_data(file)
-                .with_hint(extension.as_str())
+                .with_hint(extension.as_lower_case())
                 .with_gapless(false)
                 .build()
                 .map_err(|err| {
