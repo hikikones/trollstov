@@ -15,7 +15,7 @@ use crate::{
     events::{Event, EventHandler},
     pages::{Log, Pages, Route},
     terminal::Terminal,
-    widgets::{LogoWidget, Shortcut, Shortcuts, TextSegment, utils},
+    widgets::{Shortcut, Shortcuts, TextSegment, utils},
 };
 
 // TODO: Add a dynamic playlist page for artists/albums/genres and filtering.
@@ -126,8 +126,10 @@ impl App {
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Draw logo
         terminal.draw(|frame| {
-            frame.render_widget(LogoWidget, frame.area());
+            frame.render_widget(crate::widgets::LogoWidget, frame.area());
         })?;
+
+        std::thread::sleep(Duration::from_secs(3));
 
         // Start reading events and load music
         self.events.start();

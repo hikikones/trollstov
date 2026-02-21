@@ -209,21 +209,23 @@ fn line_points(p1: (u16, u16), p2: (u16, u16), mut f: impl FnMut((u16, u16))) {
 }
 
 enum Logo {
-    Big,
-    Medium,
+    Tiny,
     Small,
+    Medium,
+    Large,
 }
 
 impl Logo {
-    const LOGO_SMALL_WIDTH: u16 = 37;
-    const LOGO_SMALL_HEIGHT: u16 = 8;
+    const LOGO_TINY_WIDTH: u16 = 9;
+    const LOGO_TINY_HEIGHT: u16 = 1;
+    const LOGO_TINY: &str = "TROLLSTOV";
+
+    const LOGO_SMALL_WIDTH: u16 = 28;
+    const LOGO_SMALL_HEIGHT: u16 = 5;
     const LOGO_SMALL: &str = r#"
- _             _ _     _             
-| |           | | |   | |            
-| |_ _ __ ___ | | |___| |_ _____   __
-| __| '__/ _ \| | / __| __/ _ \ \ / /
-| |_| | | (_) | | \__ \ || (_) \ V / 
- \__|_|  \___/|_|_|___/\__\___/ \_/  
+┌┬┐┬─┐┌─┐┬  ┬  ┌─┐┌┬┐┌─┐┬  ┬
+ │ ├┬┘│ ││  │  └─┐ │ │ │└┐┌┘
+ ┴ ┴└─└─┘┴─┘┴─┘└─┘ ┴ └─┘ └┘ 
 "#;
 
     const LOGO_MEDIUM_WIDTH: u16 = 66;
@@ -248,40 +250,45 @@ impl Logo {
 "#;
 
     const fn from_rect(area: Rect) -> Self {
-        if area.width > Self::LOGO_BIG_WIDTH + Self::LOGO_BIG_WIDTH / 2
-            && area.height > Self::LOGO_BIG_HEIGHT * 2
-        {
-            Self::Big
-        } else if area.width > Self::LOGO_MEDIUM_WIDTH + Self::LOGO_MEDIUM_WIDTH / 2
-            && area.height > Self::LOGO_MEDIUM_HEIGHT * 2
+        if area.width > Self::LOGO_BIG_WIDTH + 12 && area.height > Self::LOGO_BIG_HEIGHT + 3 {
+            Self::Large
+        } else if area.width > Self::LOGO_MEDIUM_WIDTH + 8
+            && area.height > Self::LOGO_MEDIUM_HEIGHT + 2
         {
             Self::Medium
-        } else {
+        } else if area.width > Self::LOGO_SMALL_WIDTH + 4
+            && area.height > Self::LOGO_SMALL_HEIGHT + 1
+        {
             Self::Small
+        } else {
+            Self::Tiny
         }
     }
 
     const fn radius(&self) -> u16 {
         match self {
-            Logo::Big => 10,
-            Logo::Medium => 6,
-            Logo::Small => 2,
+            Self::Tiny => 1,
+            Self::Small => 2,
+            Self::Medium => 4,
+            Self::Large => 8,
         }
     }
 
     const fn dim(&self) -> (u16, u16) {
         match self {
-            Logo::Big => (Self::LOGO_BIG_WIDTH, Self::LOGO_BIG_HEIGHT),
-            Logo::Medium => (Self::LOGO_MEDIUM_WIDTH, Self::LOGO_MEDIUM_HEIGHT),
-            Logo::Small => (Self::LOGO_SMALL_WIDTH, Self::LOGO_SMALL_HEIGHT),
+            Self::Tiny => (Self::LOGO_TINY_WIDTH, Self::LOGO_TINY_HEIGHT),
+            Self::Small => (Self::LOGO_SMALL_WIDTH, Self::LOGO_SMALL_HEIGHT),
+            Self::Medium => (Self::LOGO_MEDIUM_WIDTH, Self::LOGO_MEDIUM_HEIGHT),
+            Self::Large => (Self::LOGO_BIG_WIDTH, Self::LOGO_BIG_HEIGHT),
         }
     }
 
     const fn ascii(&self) -> &'static str {
         match self {
-            Logo::Big => Self::LOGO_BIG,
-            Logo::Medium => Self::LOGO_MEDIUM,
-            Logo::Small => Self::LOGO_SMALL,
+            Self::Tiny => Self::LOGO_TINY,
+            Self::Small => Self::LOGO_SMALL,
+            Self::Medium => Self::LOGO_MEDIUM,
+            Self::Large => Self::LOGO_BIG,
         }
     }
 }
