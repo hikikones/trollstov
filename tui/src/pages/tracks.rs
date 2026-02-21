@@ -146,12 +146,19 @@ impl TracksPage {
 
     fn render_tracks(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
         let spacing = 2;
-        let time_width = 6 + spacing;
-        let rating_width = 7;
-        let remaining_width = area.width.saturating_sub(time_width + rating_width);
-        let title_width = (0.35 * remaining_width as f32).round() as u16;
+        let time_width = 5 + spacing;
+        let rating_width = 6;
+        let scrollbar_width = if jb.len() > area.height as usize {
+            1
+        } else {
+            0
+        };
+        let remaining_width = area
+            .width
+            .saturating_sub(time_width + rating_width + scrollbar_width);
+        let title_width = (0.35 * remaining_width as f32).floor() as u16;
         let album_width = title_width;
-        let artist_width = (0.30 * remaining_width as f32).round() as u16;
+        let artist_width = remaining_width - title_width * 2;
 
         let header_area = Rect { height: 1, ..area };
         let table_area = Rect {
