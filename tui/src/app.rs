@@ -31,6 +31,7 @@ pub struct App {
     jukebox: Jukebox,
     mpris: bool,
     picker: Picker,
+    screen_size: ScreenSize,
     front_cover: FrontCover,
     front_cover_handle: Option<FrontCoverHandle>,
     text_segment: TextSegment,
@@ -64,6 +65,7 @@ impl Colors {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScreenSize {
     Small,
     Medium,
@@ -111,6 +113,7 @@ impl App {
             jukebox,
             mpris,
             picker,
+            screen_size: ScreenSize::Large,
             front_cover: FrontCover::None,
             front_cover_handle: None,
             text_segment: TextSegment::new().with_alignment(Alignment::Center),
@@ -363,16 +366,17 @@ impl App {
             self.shortcuts_page.clear();
             self.shortcuts_play.clear();
             self.shortcuts_app.clear();
+            self.screen_size = ScreenSize::from_rect(area);
 
             const MARGIN: u16 = 1;
-            let size = ScreenSize::from_rect(area);
 
-            match size {
+            match self.screen_size {
                 ScreenSize::Small => {
                     // Body
                     self.on_render(area, buf);
                 }
                 ScreenSize::Medium => {
+                    // Layout
                     let [
                         nav_area,
                         body_area,
@@ -420,12 +424,13 @@ impl App {
                     );
 
                     // Shortcuts
-                    play_shortcuts(&mut self.shortcuts_play, self.jukebox.volume());
-                    app_shortcuts(&mut self.shortcuts_app);
+                    fill_play_shortcuts(&mut self.shortcuts_play, self.jukebox.volume());
+                    fill_app_shortcuts(&mut self.shortcuts_app);
                     self.shortcuts_play.render(shortcuts_play_area, buf);
                     self.shortcuts_app.render(shortcuts_app_area, buf);
                 }
                 ScreenSize::Large => {
+                    // Layout
                     let [
                         title_area,
                         _,
@@ -487,8 +492,8 @@ impl App {
                     );
 
                     // Shortcuts
-                    app_shortcuts(&mut self.shortcuts_app);
-                    play_shortcuts(&mut self.shortcuts_app, self.jukebox.volume());
+                    fill_app_shortcuts(&mut self.shortcuts_app);
+                    fill_play_shortcuts(&mut self.shortcuts_app, self.jukebox.volume());
                     self.shortcuts_app.render(shortcuts_app_area, buf);
                 }
             }
@@ -511,6 +516,7 @@ impl App {
                     body,
                     buf,
                     &self.jukebox,
+                    self.screen_size,
                     &mut self.front_cover,
                     &self.colors,
                     &mut self.shortcuts_page,
@@ -558,11 +564,12 @@ impl App {
                     .tracks
                     .on_input(key.code, key.modifiers, &mut self.jukebox)
             }
-            Route::NowPlaying => {
-                self.pages
-                    .playing
-                    .on_input(key.code, key.modifiers, &mut self.jukebox)
-            }
+            Route::NowPlaying => self.pages.playing.on_input(
+                key.code,
+                key.modifiers,
+                &mut self.jukebox,
+                self.screen_size,
+            ),
             Route::Search => self
                 .pages
                 .search
@@ -700,7 +707,7 @@ fn render_playback(
     text.clear();
 }
 
-fn play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
+fn fill_play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
     shortcuts.extend([
         Shortcut::new("Play/Pause", "^￪"),
         Shortcut::new("Next/Prev", "^⇆"),
@@ -714,7 +721,7 @@ fn play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
     });
 }
 
-fn app_shortcuts(shortcuts: &mut Shortcuts) {
+fn fill_app_shortcuts(shortcuts: &mut Shortcuts) {
     shortcuts.extend([
         Shortcut::new("Quit", "Esc"),
         Shortcut::new("Navigate", "(⇧)Tab"),

@@ -6,10 +6,11 @@ pub fn print_ascii(
     line: Rect,
     buf: &mut Buffer,
     ascii: impl AsRef<str>,
-    style: Style,
+    style: impl Into<Style>,
     alignment: Alignment,
 ) {
     let ascii = ascii.as_ref();
+    let style = style.into();
 
     let Rect {
         mut x,

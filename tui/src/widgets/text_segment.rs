@@ -30,6 +30,10 @@ impl TextSegment {
         self.text.is_empty()
     }
 
+    pub const fn as_str(&self) -> &str {
+        self.text.as_str()
+    }
+
     pub const fn width(&self) -> u16 {
         self.total_width as u16
     }
