@@ -149,7 +149,9 @@ impl TracksPage {
         let time_width = 6 + spacing;
         let rating_width = 7;
         let remaining_width = area.width.saturating_sub(time_width + rating_width);
-        let info_width = remaining_width / 3;
+        let title_width = (0.35 * remaining_width as f32).round() as u16;
+        let album_width = title_width;
+        let artist_width = (0.30 * remaining_width as f32).round() as u16;
 
         let header_area = Rect { height: 1, ..area };
         let table_area = Rect {
@@ -170,7 +172,7 @@ impl TracksPage {
                 } else {
                     "Title"
                 },
-                info_width,
+                title_width,
                 spacing,
             ),
             (
@@ -181,7 +183,7 @@ impl TracksPage {
                 } else {
                     "Artist"
                 },
-                info_width,
+                artist_width,
                 spacing,
             ),
             (
@@ -192,7 +194,7 @@ impl TracksPage {
                 } else {
                     "Album"
                 },
-                info_width,
+                album_width,
                 spacing,
             ),
             (
@@ -248,9 +250,9 @@ impl TracksPage {
                     line,
                     buf,
                     [
-                        (track.title(), info_width, spacing),
-                        (track.artist(), info_width, spacing),
-                        (track.album(), info_width, spacing),
+                        (track.title(), title_width, spacing),
+                        (track.artist(), artist_width, spacing),
+                        (track.album(), album_width, spacing),
                         (track.duration_display(), time_width, spacing),
                         (track.rating_display(), rating_width, 0),
                     ],
