@@ -129,8 +129,6 @@ impl App {
             frame.render_widget(crate::widgets::LogoWidget, frame.area());
         })?;
 
-        std::thread::sleep(Duration::from_secs(3));
-
         // Start reading events and load music
         self.events.start();
         self.jukebox.load_music();
