@@ -627,7 +627,7 @@ fn render_playback(
         ..title_line
     };
 
-    let status_width = status_line.width / 3;
+    let status_width = status_line.width / 2;
     let progress_ch = '─';
     let progress_highlight_ch = '━';
 
