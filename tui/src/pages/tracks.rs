@@ -162,7 +162,7 @@ impl TracksPage {
             .saturating_sub(time_width + rating_width + scrollbar_width);
         let title_width = (0.35 * remaining_width as f32).floor() as u16;
         let album_width = title_width;
-        let artist_width = remaining_width - title_width * 2;
+        let artist_width = remaining_width - title_width - album_width;
 
         let header_area = Rect { height: 1, ..area };
         let table_area = Rect {

@@ -57,7 +57,12 @@ pub fn print_line(line: Rect, buf: &mut Buffer, text: impl AsRef<str>, style: St
     let (end_x, _) = buf.set_stringn(x, y, text, width as usize, style);
     let remaining = width - (end_x - x);
     for i in 0..remaining {
-        buf[(end_x + i, y)].set_style(style);
+        match buf.cell_mut((end_x + i, y)) {
+            Some(cell) => {
+                cell.set_style(style);
+            }
+            None => return,
+        }
     }
 }
 
@@ -89,7 +94,12 @@ pub fn print_line_iter(
     }
 
     for i in 0..width {
-        buf[(x + i, y)].set_style(style);
+        match buf.cell_mut((x + i, y)) {
+            Some(cell) => {
+                cell.set_style(style);
+            }
+            None => return,
+        }
     }
 }
 
@@ -111,7 +121,12 @@ pub fn print_text_segments(
         let (next_x, _) = buf.set_stringn(x, y, text, text_width as usize, style);
         let remaining = width - (next_x - x);
         for i in 0..remaining {
-            buf[(next_x + i, y)].set_style(style);
+            match buf.cell_mut((next_x + i, y)) {
+                Some(cell) => {
+                    cell.set_style(style);
+                }
+                None => return,
+            }
         }
         x = next_x + remaining;
     }
