@@ -75,8 +75,8 @@ pub enum ScreenSize {
 impl ScreenSize {
     const fn from_rect(area: Rect) -> ScreenSize {
         match (area.width, area.height) {
-            (w, h) if w < 80 || h < 20 => ScreenSize::Small,
-            (w, h) if w < 120 || h < 30 => ScreenSize::Medium,
+            (w, h) if w < 68 || h < 20 => ScreenSize::Small,
+            (w, h) if w < 108 || h < 30 => ScreenSize::Medium,
             _ => ScreenSize::Large,
         }
     }
