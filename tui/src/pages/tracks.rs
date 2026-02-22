@@ -150,8 +150,9 @@ impl TracksPage {
         }
 
         let spacing = 2;
-        let time_width = 5 + spacing;
-        let rating_width = 6;
+        let shrink_point = (0.20 * area.width as f32).floor() as u16;
+        let time_width = shrink_point.min(5 + spacing);
+        let rating_width = shrink_point.min(6);
         let scrollbar_width = if jb.len() > area.height as usize {
             1
         } else {
