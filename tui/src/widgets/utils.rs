@@ -3,14 +3,18 @@ use ratatui::{buffer::Buffer, layout::Rect, style::Style};
 /// Prints `ascii` assuming only ASCII, no newlines or
 /// control characters for simple layout calculation.
 pub fn print_ascii(
-    area: Rect,
+    line: Rect,
     buf: &mut Buffer,
     ascii: impl AsRef<str>,
-    style: Style,
+    style: impl Into<Style>,
     alignment: Alignment,
 ) {
-    let ascii = ascii.as_ref();
+    if line.is_empty() {
+        return;
+    }
 
+    let ascii = ascii.as_ref();
+    let style = style.into();
     let Rect {
         mut x,
         y,
@@ -18,11 +22,11 @@ pub fn print_ascii(
         ..
     } = align(
         Rect {
-            width: ascii.len() as u16,
+            width: line.width.min(ascii.len() as u16),
             height: 1,
-            ..area
+            ..line
         },
-        area,
+        line,
         alignment,
     );
 
@@ -31,7 +35,11 @@ pub fn print_ascii(
             break;
         }
 
-        buf[(x, y)].set_char(ch).set_style(style);
+        let Some(cell) = buf.cell_mut((x, y)) else {
+            break;
+        };
+
+        cell.set_char(ch).set_style(style);
 
         x += 1;
         width -= 1;
@@ -39,12 +47,22 @@ pub fn print_ascii(
 }
 
 /// Prints `text` and fills remaining empty cells with the given style.
-pub fn print_line(line: Rect, buf: &mut Buffer, text: impl AsRef<str>, style: Style) {
+pub fn print_line(line: Rect, buf: &mut Buffer, text: impl AsRef<str>, style: impl Into<Style>) {
+    if line.is_empty() {
+        return;
+    }
+
+    let style = style.into();
     let Rect { x, y, width, .. } = line;
     let (end_x, _) = buf.set_stringn(x, y, text, width as usize, style);
     let remaining = width - (end_x - x);
     for i in 0..remaining {
-        buf[(end_x + i, y)].set_style(style);
+        match buf.cell_mut((end_x + i, y)) {
+            Some(cell) => {
+                cell.set_style(style);
+            }
+            None => return,
+        }
     }
 }
 
@@ -53,8 +71,13 @@ pub fn print_line_iter(
     line: Rect,
     buf: &mut Buffer,
     texts: impl IntoIterator<Item = impl AsRef<str>>,
-    style: Style,
+    style: impl Into<Style>,
 ) {
+    if line.is_empty() {
+        return;
+    }
+
+    let style = style.into();
     let Rect {
         mut x,
         y,
@@ -72,7 +95,12 @@ pub fn print_line_iter(
     }
 
     for i in 0..width {
-        buf[(x + i, y)].set_style(style);
+        match buf.cell_mut((x + i, y)) {
+            Some(cell) => {
+                cell.set_style(style);
+            }
+            None => return,
+        }
     }
 }
 
@@ -82,15 +110,26 @@ pub fn print_text_segments(
     line: Rect,
     buf: &mut Buffer,
     segments: impl IntoIterator<Item = (impl AsRef<str>, u16, u16)>,
-    style: Style,
+    style: impl Into<Style>,
 ) {
+    if line.is_empty() {
+        return;
+    }
+
+    let style = style.into();
     let Rect { mut x, y, .. } = line;
+
     for (text, width, spacing) in segments {
         let text_width = width.saturating_sub(spacing);
         let (next_x, _) = buf.set_stringn(x, y, text, text_width as usize, style);
         let remaining = width - (next_x - x);
         for i in 0..remaining {
-            buf[(next_x + i, y)].set_style(style);
+            match buf.cell_mut((next_x + i, y)) {
+                Some(cell) => {
+                    cell.set_style(style);
+                }
+                None => return,
+            }
         }
         x = next_x + remaining;
     }

@@ -30,6 +30,10 @@ impl TextSegment {
         self.text.is_empty()
     }
 
+    pub const fn as_str(&self) -> &str {
+        self.text.as_str()
+    }
+
     pub const fn width(&self) -> u16 {
         self.total_width as u16
     }
@@ -93,7 +97,7 @@ impl TextSegment {
         self.total_width += width;
     }
 
-    pub fn pop(&mut self) {
+    pub fn _pop(&mut self) {
         if let Some((i, _)) = self.segments.pop() {
             let start = self.text.len() - i;
             let end = self.text.len();
@@ -111,6 +115,10 @@ impl TextSegment {
     }
 
     pub fn render(&self, line: Rect, buf: &mut Buffer) {
+        if line.is_empty() {
+            return;
+        }
+
         let line = match self.alignment {
             Alignment::Left => line,
             Alignment::Center => Rect {

@@ -119,12 +119,7 @@ impl AudioFile {
     }
 
     pub fn properties(&self) -> AudioProperties {
-        match &self.format {
-            AudioFileFormat::Flac(flac) => AudioProperties::from_flac(flac),
-            AudioFileFormat::Opus(opus) => AudioProperties::from_opus(opus),
-            AudioFileFormat::Vorbis(vorbis) => AudioProperties::from_vorbis(vorbis),
-            AudioFileFormat::Mpeg(mpeg) => AudioProperties::from_mpeg(mpeg),
-        }
+        AudioProperties::from_audio_file(self)
     }
 
     pub fn write_rating(&mut self, rating: AudioRating) -> Result<(), AudioFileReport> {
@@ -384,6 +379,9 @@ impl AudioRating {
 #[derive(Debug)]
 pub struct AudioProperties {
     duration: Duration,
+    bit_rate: u32,
+    bit_depth: Option<u8>,
+    sample_rate: Option<u32>,
 }
 
 impl AudioProperties {
@@ -391,31 +389,51 @@ impl AudioProperties {
         self.duration
     }
 
-    fn from_flac(flac_file: &FlacFile) -> Self {
-        let properties = flac_file.properties();
-        Self {
-            duration: properties.duration(),
-        }
+    /// Audio bit rate in kbps.
+    pub const fn bit_rate(&self) -> u32 {
+        self.bit_rate
     }
 
-    fn from_opus(opus_file: &OpusFile) -> Self {
-        let properties = opus_file.properties();
-        Self {
-            duration: properties.duration(),
-        }
+    /// Bits per sample, usually 16 or 24 bit.
+    pub const fn bit_depth(&self) -> Option<u8> {
+        self.bit_depth
     }
 
-    fn from_vorbis(vorbis_file: &VorbisFile) -> Self {
-        let properties = vorbis_file.properties();
-        Self {
-            duration: properties.duration(),
-        }
+    /// Sample rate in kHz.
+    pub const fn sample_rate(&self) -> Option<u32> {
+        self.sample_rate
     }
 
-    fn from_mpeg(mpeg_file: &MpegFile) -> Self {
-        let properties = mpeg_file.properties();
+    fn from_audio_file(file: &AudioFile) -> Self {
+        let (duration, bit_rate, bit_depth, sample_rate) = match &file.format {
+            AudioFileFormat::Flac(flac) => {
+                let p = flac.properties();
+                (
+                    p.duration(),
+                    p.audio_bitrate(),
+                    Some(p.bit_depth()),
+                    Some(p.sample_rate()),
+                )
+            }
+            AudioFileFormat::Opus(opus) => {
+                let p = opus.properties();
+                (p.duration(), p.audio_bitrate(), None, None)
+            }
+            AudioFileFormat::Vorbis(vorbis) => {
+                let p = vorbis.properties();
+                (p.duration(), p.audio_bitrate(), None, Some(p.sample_rate()))
+            }
+            AudioFileFormat::Mpeg(mpeg) => {
+                let p = mpeg.properties();
+                (p.duration(), p.audio_bitrate(), None, Some(p.sample_rate()))
+            }
+        };
+
         Self {
-            duration: properties.duration(),
+            duration,
+            bit_rate,
+            bit_depth,
+            sample_rate: sample_rate.map(|sr| sr / 1000),
         }
     }
 }
@@ -469,12 +487,21 @@ impl AudioFileExtension {
         })
     }
 
-    pub const fn as_str(self) -> &'static str {
+    pub const fn as_lower_case(self) -> &'static str {
         match self {
-            AudioFileExtension::Flac => "flac",
-            AudioFileExtension::Opus => "opus",
-            AudioFileExtension::Ogg => "ogg",
-            AudioFileExtension::Mp3 => "mp3",
+            Self::Flac => "flac",
+            Self::Opus => "opus",
+            Self::Ogg => "ogg",
+            Self::Mp3 => "mp3",
+        }
+    }
+
+    pub const fn as_upper_case(self) -> &'static str {
+        match self {
+            Self::Flac => "FLAC",
+            Self::Opus => "OPUS",
+            Self::Ogg => "OGG",
+            Self::Mp3 => "MP3",
         }
     }
 }

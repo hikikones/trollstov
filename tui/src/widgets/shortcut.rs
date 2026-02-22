@@ -61,15 +61,15 @@ impl Shortcuts {
         }
     }
 
-    pub fn pop(&mut self) {
+    pub fn _pop(&mut self) {
         if self.text.is_empty() {
             return;
         }
 
-        self.text.pop();
-        self.text.pop();
-        self.text.pop();
-        self.text.pop();
+        self.text._pop();
+        self.text._pop();
+        self.text._pop();
+        self.text._pop();
     }
 
     pub fn clear(&mut self) {

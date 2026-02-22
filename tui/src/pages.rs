@@ -3,7 +3,6 @@ mod playing;
 mod search;
 mod tracks;
 
-use jukebox::TrackId;
 pub use logs::*;
 pub use playing::*;
 pub use search::*;
@@ -31,7 +30,7 @@ impl Pages {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Route {
-    Tracks(Option<TrackId>),
+    Tracks(Option<jukebox::TrackId>),
     NowPlaying,
     Search,
     Logs,

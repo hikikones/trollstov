@@ -15,7 +15,7 @@ use crate::{
     events::{Event, EventHandler},
     pages::{Log, Pages, Route},
     terminal::Terminal,
-    widgets::{LogoWidget, Shortcut, Shortcuts, TextSegment, utils},
+    widgets::{Shortcut, Shortcuts, TextSegment, utils},
 };
 
 // TODO: Add a dynamic playlist page for artists/albums/genres and filtering.
@@ -31,6 +31,7 @@ pub struct App {
     jukebox: Jukebox,
     mpris: bool,
     picker: Picker,
+    screen_size: ScreenSize,
     front_cover: FrontCover,
     front_cover_handle: Option<FrontCoverHandle>,
     text_segment: TextSegment,
@@ -64,6 +65,23 @@ impl Colors {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScreenSize {
+    Small,
+    Medium,
+    Large,
+}
+
+impl ScreenSize {
+    const fn from_rect(area: Rect) -> ScreenSize {
+        match (area.width, area.height) {
+            (w, h) if w < 68 || h < 20 => ScreenSize::Small,
+            (w, h) if w < 108 || h < 30 => ScreenSize::Medium,
+            _ => ScreenSize::Large,
+        }
+    }
+}
+
 pub enum FrontCover {
     None,
     Loading,
@@ -83,19 +101,8 @@ impl App {
         let pages = Pages::new(&colors);
 
         let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
-        let mut shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
-        shortcuts_play.extend([
-            Shortcut::new("Play/Pause", "^￪"),
-            Shortcut::new("Next/Prev", "^⇆"),
-            Shortcut::new("Stop", "^￬"),
-            Shortcut::new("Forward 30s", "⎇→"),
-        ]);
-        let mut shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
-        shortcuts_app.extend([
-            Shortcut::new("Quit", "Esc"),
-            Shortcut::new("Navigate", "(⇧)Tab"),
-            Shortcut::new("Search", "/"),
-        ]);
+        let shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
+        let shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
 
         Self {
             running: true,
@@ -106,6 +113,7 @@ impl App {
             jukebox,
             mpris,
             picker,
+            screen_size: ScreenSize::Large,
             front_cover: FrontCover::None,
             front_cover_handle: None,
             text_segment: TextSegment::new().with_alignment(Alignment::Center),
@@ -118,7 +126,7 @@ impl App {
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Draw logo
         terminal.draw(|frame| {
-            frame.render_widget(LogoWidget, frame.area());
+            frame.render_widget(crate::widgets::LogoWidget, frame.area());
         })?;
 
         // Start reading events and load music
@@ -292,7 +300,7 @@ impl App {
                     let picture = AudioPicture::read(&path)?;
                     match picture.bytes() {
                         Some(bytes) => {
-                            const MAX_RES: u32 = 720;
+                            const MAX_RES: u32 = 1080;
                             let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
                                 AudioFileReport::new(format!(
                                     "Failed to load front cover image for \"{}\" due to {}",
@@ -355,142 +363,180 @@ impl App {
             let area = frame.area();
             let buf = frame.buffer_mut();
 
-            let [
-                title_area,
-                _,
-                nav_area,
-                body_area,
-                shortcuts_page_area,
-                _,
-                playback_title_area,
-                playback_status_area,
-                shortcuts_play_area,
-                shortcuts_app_area,
-            ] = Layout::vertical([
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Fill(0),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-            ])
-            .areas(area);
-
-            // Title
-            utils::print_ascii(
-                title_area,
-                buf,
-                "trollstov",
-                Style::new().fg(self.colors.neutral),
-                utils::Alignment::CenterHorizontal,
-            );
-
-            // Navigation
-            render_navigation(
-                nav_area,
-                buf,
-                &mut self.text_segment,
-                self.route,
-                &self.pages,
-                &self.colors,
-            );
-
-            // Body
-            const MAX_WIDTH: u16 = 128;
-            const MARGIN: u16 = 1;
-            let body = body_area
-                .centered_horizontally(Constraint::Length(MAX_WIDTH + MARGIN))
-                .inner(Margin::new(MARGIN, MARGIN));
-            match self.route {
-                Route::Tracks(_) => {
-                    self.pages.tracks.on_render(
-                        body,
-                        buf,
-                        &self.jukebox,
-                        &self.colors,
-                        &mut self.shortcuts_page,
-                    );
-                }
-                Route::NowPlaying => {
-                    self.pages.playing.on_render(
-                        body,
-                        buf,
-                        &self.jukebox,
-                        &mut self.front_cover,
-                        &self.colors,
-                        &mut self.shortcuts_page,
-                    );
-                }
-                Route::Search => {
-                    self.pages.search.on_render(
-                        body,
-                        buf,
-                        &mut self.jukebox,
-                        &self.colors,
-                        &mut self.shortcuts_page,
-                    );
-                }
-                Route::Logs => {
-                    self.pages
-                        .logs
-                        .on_render(body, buf, &self.colors, &mut self.shortcuts_page);
-                }
-            }
-            self.shortcuts_page.render(shortcuts_page_area, buf);
             self.shortcuts_page.clear();
+            self.shortcuts_play.clear();
+            self.shortcuts_app.clear();
+            self.screen_size = ScreenSize::from_rect(area);
 
-            // Playback
-            match self
-                .jukebox
-                .current_track_id()
-                .and_then(|id| self.jukebox.get(id))
-            {
-                Some(track) => {
-                    // Render playback title
-                    render_playback_title(
-                        playback_title_area,
+            const MARGIN: u16 = 1;
+
+            match self.screen_size {
+                ScreenSize::Small => {
+                    // Body
+                    self.on_render(area, buf);
+                }
+                ScreenSize::Medium => {
+                    // Layout
+                    let [
+                        nav_area,
+                        body_area,
+                        shortcuts_page_area,
+                        _,
+                        playback_area,
+                        shortcuts_play_area,
+                        shortcuts_app_area,
+                    ] = Layout::vertical([
+                        Constraint::Length(1),
+                        Constraint::Min(5),
+                        Constraint::Length(1),
+                        Constraint::Length(1),
+                        Constraint::Length(2),
+                        Constraint::Length(1),
+                        Constraint::Length(1),
+                    ])
+                    .areas(area);
+
+                    // Navigation
+                    render_navigation(
+                        nav_area,
                         buf,
                         &mut self.text_segment,
-                        track,
+                        self.route,
+                        &self.pages,
                         &self.colors,
                     );
 
-                    // Render active playback status
-                    render_playback_status_active(
-                        playback_status_area,
+                    // Body
+                    let body = body_area.inner(Margin::new(MARGIN, MARGIN));
+                    self.on_render(body, buf);
+                    self.shortcuts_page.render(shortcuts_page_area, buf);
+
+                    // Playback
+                    render_playback(
+                        playback_area,
                         buf,
                         &mut self.text_segment,
                         self.jukebox.current_track_pos(),
-                        track.duration(),
+                        self.jukebox
+                            .current_track_id()
+                            .and_then(|id| self.jukebox.get(id)),
                         &self.colors,
                     );
+
+                    // Shortcuts
+                    fill_play_shortcuts(&mut self.shortcuts_play, self.jukebox.volume());
+                    fill_app_shortcuts(&mut self.shortcuts_app);
+                    self.shortcuts_play.render(shortcuts_play_area, buf);
+                    self.shortcuts_app.render(shortcuts_app_area, buf);
                 }
-                None => {
-                    // Render empty playback status
-                    render_playback_status_empty(
-                        playback_status_area,
+                ScreenSize::Large => {
+                    // Layout
+                    let [
+                        title_area,
+                        _,
+                        nav_area,
+                        body_area,
+                        shortcuts_page_area,
+                        _,
+                        playback_area,
+                        shortcuts_app_area,
+                    ] = Layout::vertical([
+                        Constraint::Length(1),
+                        Constraint::Length(1),
+                        Constraint::Length(1),
+                        Constraint::Min(5),
+                        Constraint::Length(1),
+                        Constraint::Length(1),
+                        Constraint::Length(2),
+                        Constraint::Length(1),
+                    ])
+                    .areas(area);
+
+                    // Title
+                    utils::print_ascii(
+                        title_area,
+                        buf,
+                        "trollstov",
+                        Style::new().fg(self.colors.neutral),
+                        utils::Alignment::CenterHorizontal,
+                    );
+
+                    // Navigation
+                    render_navigation(
+                        nav_area,
                         buf,
                         &mut self.text_segment,
+                        self.route,
+                        &self.pages,
                         &self.colors,
                     );
+
+                    // Body
+                    const MAX_WIDTH: u16 = 160;
+                    let body = body_area
+                        .centered_horizontally(Constraint::Length(MAX_WIDTH + MARGIN))
+                        .inner(Margin::new(MARGIN, MARGIN));
+                    self.on_render(body, buf);
+                    self.shortcuts_page.render(shortcuts_page_area, buf);
+
+                    // Playback
+                    render_playback(
+                        playback_area,
+                        buf,
+                        &mut self.text_segment,
+                        self.jukebox.current_track_pos(),
+                        self.jukebox
+                            .current_track_id()
+                            .and_then(|id| self.jukebox.get(id)),
+                        &self.colors,
+                    );
+
+                    // Shortcuts
+                    fill_app_shortcuts(&mut self.shortcuts_app);
+                    fill_play_shortcuts(&mut self.shortcuts_app, self.jukebox.volume());
+                    self.shortcuts_app.render(shortcuts_app_area, buf);
                 }
             }
-
-            // Shortcuts
-            let volume = (self.jukebox.volume() * 100.0).round() as u8;
-            jukebox::utils::format_int(volume, |volume| {
-                self.shortcuts_play
-                    .push_iter(["Volume ", volume, "%"], "⎇⇵");
-            });
-            self.shortcuts_play.render(shortcuts_play_area, buf);
-            self.shortcuts_app.render(shortcuts_app_area, buf);
-
-            self.shortcuts_play.pop();
         })
+    }
+
+    fn on_render(&mut self, body: Rect, buf: &mut Buffer) {
+        match self.route {
+            Route::Tracks(_) => {
+                self.pages.tracks.on_render(
+                    body,
+                    buf,
+                    &self.jukebox,
+                    &self.colors,
+                    &mut self.shortcuts_page,
+                );
+            }
+            Route::NowPlaying => {
+                self.pages.playing.on_render(
+                    body,
+                    buf,
+                    &self.jukebox,
+                    self.screen_size,
+                    &mut self.front_cover,
+                    &self.colors,
+                    &mut self.shortcuts_page,
+                );
+            }
+            Route::Search => {
+                self.pages.search.on_render(
+                    body,
+                    buf,
+                    &mut self.jukebox,
+                    &self.colors,
+                    &mut self.shortcuts_page,
+                );
+            }
+            Route::Logs => {
+                self.pages
+                    .logs
+                    .on_render(body, buf, &self.colors, &mut self.shortcuts_page);
+            }
+        }
     }
 
     fn on_enter(&mut self) {
@@ -518,11 +564,12 @@ impl App {
                     .tracks
                     .on_input(key.code, key.modifiers, &mut self.jukebox)
             }
-            Route::NowPlaying => {
-                self.pages
-                    .playing
-                    .on_input(key.code, key.modifiers, &mut self.jukebox)
-            }
+            Route::NowPlaying => self.pages.playing.on_input(
+                key.code,
+                key.modifiers,
+                &mut self.jukebox,
+                self.screen_size,
+            ),
             Route::Search => self
                 .pages
                 .search
@@ -570,78 +617,114 @@ fn render_navigation(
     text.clear();
 }
 
-fn render_playback_title(
-    line: Rect,
+fn render_playback(
+    area: Rect,
     buf: &mut Buffer,
     text: &mut TextSegment,
-    track: &Track,
+    audio_position: Duration,
+    track: Option<&Track>,
     colors: &Colors,
 ) {
-    let neutral_style = Style::new().fg(colors.neutral);
+    let accent = Style::new().fg(colors.accent);
+    let neutral = Style::new().fg(colors.neutral);
 
-    text.push_str(track.artist(), neutral_style);
-    if !(track.artist().is_empty() || track.title().is_empty()) {
-        text.push_str(" - ", neutral_style);
+    let title_line = Rect { height: 1, ..area };
+    let status_line = Rect {
+        y: area.y + 1,
+        ..title_line
+    };
+
+    let status_width = (0.64 * status_line.width as f32).ceil() as u16;
+    let progress_ch = '─';
+    let progress_highlight_ch = '━';
+
+    match track {
+        Some(track) => {
+            // Title
+            let extension = track.extension();
+            let properties = track.properties();
+
+            text.extend_as_one(["[", extension.as_upper_case()], neutral);
+
+            if let Some(bit_depth) = properties.bit_depth()
+                && let Some(sample_rate) = properties.sample_rate()
+            {
+                jukebox::utils::format_int(bit_depth, |bit_depth| {
+                    text.extend_as_one([" ", bit_depth, "bit/"], neutral);
+                });
+                jukebox::utils::format_int(sample_rate, |sample_rate| {
+                    text.extend_as_one([sample_rate, "kHz"], neutral);
+                });
+            }
+
+            jukebox::utils::format_int(properties.bit_rate(), |bit_rate| {
+                text.extend_as_one([" ", bit_rate, "kbps] "], neutral);
+            });
+
+            text.push_str(track.artist(), neutral);
+            if !(track.artist().is_empty() || track.title().is_empty()) {
+                text.push_str(" - ", neutral);
+            }
+            text.push_str(track.title(), neutral);
+
+            text.render(title_line, buf);
+            text.clear();
+
+            // Status
+            text.push_chars(
+                &jukebox::utils::format_duration_on_stack(audio_position),
+                neutral,
+            );
+            text.push_char(' ', Style::new());
+
+            let progress = audio_position.as_secs_f32() / properties.duration().as_secs_f32();
+            let max_highlight_bound = (status_width as f32 * progress) as u16;
+            for i in 0..status_width {
+                let (ch, style) = if i <= max_highlight_bound {
+                    (progress_highlight_ch, accent)
+                } else {
+                    (progress_ch, neutral)
+                };
+                text.push_char(ch, style);
+            }
+
+            text.push_char(' ', Style::new());
+            text.push_chars(
+                &jukebox::utils::format_duration_on_stack(properties.duration()),
+                neutral,
+            );
+        }
+        None => {
+            text.push_str("00:00 ", neutral);
+            for _ in 0..status_width {
+                text.push_char(progress_highlight_ch, neutral);
+            }
+            text.push_str(" 00:00", neutral);
+        }
     }
-    text.push_str(track.title(), neutral_style);
 
-    text.render(line, buf);
+    text.render(status_line, buf);
     text.clear();
 }
 
-fn render_playback_status_active(
-    line: Rect,
-    buf: &mut Buffer,
-    text: &mut TextSegment,
-    current_duration: Duration,
-    total_duration: Duration,
-    colors: &Colors,
-) {
-    let accent_style = Style::new().fg(colors.accent);
-    let neutral_style = Style::new().fg(colors.neutral);
+fn fill_play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
+    shortcuts.extend([
+        Shortcut::new("Play/Pause", "^￪"),
+        Shortcut::new("Next/Prev", "^⇆"),
+        Shortcut::new("Stop", "^￬"),
+        Shortcut::new("Forward 30s", "⎇→"),
+    ]);
 
-    text.push_chars(
-        &jukebox::utils::format_duration_on_stack(current_duration),
-        neutral_style,
-    );
-    text.push_char(' ', neutral_style);
-
-    let status_width = line.width / 3;
-    let progress = current_duration.as_secs_f32() / total_duration.as_secs_f32();
-    let max_highlight_bound = (status_width as f32 * progress) as u16;
-    for i in 0..status_width {
-        let (ch, style) = if i <= max_highlight_bound {
-            ('━', accent_style)
-        } else {
-            ('─', neutral_style)
-        };
-        text.push_char(ch, style);
-    }
-
-    text.push_char(' ', neutral_style);
-    text.push_chars(
-        &jukebox::utils::format_duration_on_stack(total_duration),
-        neutral_style,
-    );
-
-    text.render(line, buf);
-    text.clear();
+    let volume = (volume * 100.0).round() as u8;
+    jukebox::utils::format_int(volume, |volume| {
+        shortcuts.push_iter(["Volume ", volume, "%"], "⎇⇵");
+    });
 }
 
-fn render_playback_status_empty(
-    line: Rect,
-    buf: &mut Buffer,
-    text: &mut TextSegment,
-    colors: &Colors,
-) {
-    let style = Style::new().fg(colors.neutral);
-    text.push_str("00:00 ", style);
-    let status_width = line.width / 3;
-    for _ in 0..status_width {
-        text.push_char('─', style);
-    }
-    text.push_str(" 00:00", style);
-
-    text.render(line, buf);
-    text.clear();
+fn fill_app_shortcuts(shortcuts: &mut Shortcuts) {
+    shortcuts.extend([
+        Shortcut::new("Quit", "Esc"),
+        Shortcut::new("Navigate", "(⇧)Tab"),
+        Shortcut::new("Search", "/"),
+    ]);
 }

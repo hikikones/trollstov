@@ -211,6 +211,10 @@ impl Track {
     pub const fn extension(&self) -> AudioFileExtension {
         self.extension
     }
+
+    pub const fn properties(&self) -> &AudioProperties {
+        &self.properties
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
