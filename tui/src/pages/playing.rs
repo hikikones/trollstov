@@ -171,7 +171,7 @@ impl PlayingPage {
             }
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
-                    if let Some(id) = jb.get_id_from_queue(self.list.index()) {
+                    if let Some(id) = jb.current_track_id() {
                         let rating = AudioRating::from_char(c).unwrap();
                         jb.set_rating(id, rating);
                     }
