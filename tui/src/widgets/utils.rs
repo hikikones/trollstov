@@ -9,6 +9,10 @@ pub fn print_ascii(
     style: impl Into<Style>,
     alignment: Alignment,
 ) {
+    if line.is_empty() {
+        return;
+    }
+
     let ascii = ascii.as_ref();
     let style = style.into();
 
@@ -45,6 +49,10 @@ pub fn print_ascii(
 
 /// Prints `text` and fills remaining empty cells with the given style.
 pub fn print_line(line: Rect, buf: &mut Buffer, text: impl AsRef<str>, style: Style) {
+    if line.is_empty() {
+        return;
+    }
+
     let Rect { x, y, width, .. } = line;
     let (end_x, _) = buf.set_stringn(x, y, text, width as usize, style);
     let remaining = width - (end_x - x);
@@ -60,6 +68,10 @@ pub fn print_line_iter(
     texts: impl IntoIterator<Item = impl AsRef<str>>,
     style: Style,
 ) {
+    if line.is_empty() {
+        return;
+    }
+
     let Rect {
         mut x,
         y,
@@ -89,6 +101,10 @@ pub fn print_text_segments(
     segments: impl IntoIterator<Item = (impl AsRef<str>, u16, u16)>,
     style: Style,
 ) {
+    if line.is_empty() {
+        return;
+    }
+
     let Rect { mut x, y, .. } = line;
     for (text, width, spacing) in segments {
         let text_width = width.saturating_sub(spacing);

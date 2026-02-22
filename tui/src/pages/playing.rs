@@ -45,6 +45,8 @@ impl PlayingPage {
         colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
+        self.update_scroll_on_new_track(jb);
+
         match screen_size {
             ScreenSize::Small => {
                 match self.view_mode {
@@ -65,25 +67,10 @@ impl PlayingPage {
                             .and_then(|id| jb.get(id).map(|track| track.rating()))
                         {
                             Some(rating) => {
-                                let area = area.inner(Margin::new(1, 1));
-                                let cover_area = self.render_cover(
-                                    Rect {
-                                        height: area.height.saturating_sub(1),
-                                        ..area
-                                    },
-                                    buf,
-                                    front_cover,
-                                    colors,
-                                );
+                                let cover_area = area.inner(Margin::new(1, 1));
+                                self.render_cover(cover_area, buf, front_cover, colors);
                                 fill_stars(&mut self.text, rating, colors);
-                                self.text.render(
-                                    Rect {
-                                        y: cover_area.y + cover_area.height,
-                                        height: 1,
-                                        ..cover_area
-                                    },
-                                    buf,
-                                );
+                                self.text.render(area, buf);
                                 self.text.clear();
                             }
                             None => {
@@ -108,7 +95,6 @@ impl PlayingPage {
                 self.text.render(
                     Rect {
                         y: area.y + area.height.saturating_sub(1),
-                        height: 1,
                         ..area
                     },
                     buf,
@@ -157,8 +143,6 @@ impl PlayingPage {
                         );
                     }
                 }
-
-                self.update_scroll_on_new_track(jb);
 
                 // Render play queue
                 self.render_queue(queue_area, buf, jb, colors);

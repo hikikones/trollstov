@@ -145,6 +145,10 @@ impl TracksPage {
     pub fn on_exit(&self) {}
 
     fn render_tracks(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+        if area.is_empty() {
+            return;
+        }
+
         let spacing = 2;
         let time_width = 5 + spacing;
         let rating_width = 6;
