@@ -67,10 +67,20 @@ impl PlayingPage {
                             .and_then(|id| jb.get(id).map(|track| track.rating()))
                         {
                             Some(rating) => {
-                                let cover_area = area.inner(Margin::new(1, 1));
-                                self.render_cover(cover_area, buf, front_cover, colors);
+                                let cover_area = self.render_cover(
+                                    area.inner(Margin::new(1, 1)),
+                                    buf,
+                                    front_cover,
+                                    colors,
+                                );
                                 fill_stars(&mut self.text, rating, colors);
-                                self.text.render(area, buf);
+                                self.text.render(
+                                    Rect {
+                                        y: cover_area.y / 2,
+                                        ..area
+                                    },
+                                    buf,
+                                );
                                 self.text.clear();
                             }
                             None => {
