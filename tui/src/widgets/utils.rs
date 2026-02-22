@@ -15,7 +15,6 @@ pub fn print_ascii(
 
     let ascii = ascii.as_ref();
     let style = style.into();
-
     let Rect {
         mut x,
         y,
@@ -48,11 +47,12 @@ pub fn print_ascii(
 }
 
 /// Prints `text` and fills remaining empty cells with the given style.
-pub fn print_line(line: Rect, buf: &mut Buffer, text: impl AsRef<str>, style: Style) {
+pub fn print_line(line: Rect, buf: &mut Buffer, text: impl AsRef<str>, style: impl Into<Style>) {
     if line.is_empty() {
         return;
     }
 
+    let style = style.into();
     let Rect { x, y, width, .. } = line;
     let (end_x, _) = buf.set_stringn(x, y, text, width as usize, style);
     let remaining = width - (end_x - x);
@@ -71,12 +71,13 @@ pub fn print_line_iter(
     line: Rect,
     buf: &mut Buffer,
     texts: impl IntoIterator<Item = impl AsRef<str>>,
-    style: Style,
+    style: impl Into<Style>,
 ) {
     if line.is_empty() {
         return;
     }
 
+    let style = style.into();
     let Rect {
         mut x,
         y,
@@ -109,13 +110,15 @@ pub fn print_text_segments(
     line: Rect,
     buf: &mut Buffer,
     segments: impl IntoIterator<Item = (impl AsRef<str>, u16, u16)>,
-    style: Style,
+    style: impl Into<Style>,
 ) {
     if line.is_empty() {
         return;
     }
 
+    let style = style.into();
     let Rect { mut x, y, .. } = line;
+
     for (text, width, spacing) in segments {
         let text_width = width.saturating_sub(spacing);
         let (next_x, _) = buf.set_stringn(x, y, text, text_width as usize, style);
