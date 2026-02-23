@@ -5,7 +5,8 @@ use ratatui::{
 };
 
 use crate::{
-    app::{Action, Colors},
+    app::Action,
+    colors::Colors,
     widgets::{List, ListMove, Shortcut, Shortcuts, utils},
 };
 

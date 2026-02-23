@@ -7,7 +7,8 @@ use ratatui::{
 use ratatui_image::StatefulImage;
 
 use crate::{
-    app::{Action, Colors, FrontCover, ScreenSize},
+    app::{Action, FrontCover, ScreenSize},
+    colors::Colors,
     widgets::{List, ListMove, Shortcut, Shortcuts, TextSegment, utils},
 };
 

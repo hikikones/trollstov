@@ -6,7 +6,8 @@ use ratatui::{
 };
 
 use crate::{
-    app::{Action, Colors},
+    app::Action,
+    colors::Colors,
     pages::Route,
     widgets::{List, Shortcut, Shortcuts, TextInput, utils},
 };

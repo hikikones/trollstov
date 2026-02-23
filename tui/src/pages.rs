@@ -8,7 +8,7 @@ pub use playing::*;
 pub use search::*;
 pub use tracks::*;
 
-use crate::app::Colors;
+use crate::colors::Colors;
 
 pub struct Pages {
     pub tracks: TracksPage,
