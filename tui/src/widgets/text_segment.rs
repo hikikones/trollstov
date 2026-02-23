@@ -68,6 +68,21 @@ impl TextSegment {
         self.total_width += unicode_width::UnicodeWidthStr::width(text);
     }
 
+    pub fn repeat_char(&mut self, ch: char, n: usize, style: impl Into<Style>) {
+        if n == 0 {
+            return;
+        }
+
+        for _ in 0..n {
+            self.text.push(ch);
+        }
+
+        let width = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
+        let len = ch.len_utf8() * n;
+        self.segments.push((len, style.into()));
+        self.total_width += width * n;
+    }
+
     pub fn extend(&mut self, items: impl IntoIterator<Item = (impl AsRef<str>, impl Into<Style>)>) {
         for (text, style) in items.into_iter() {
             self.push_str(text.as_ref(), style);
