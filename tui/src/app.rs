@@ -44,6 +44,7 @@ pub struct Colors {
     pub accent: Color,
     pub on_accent: Color,
     pub neutral: Color,
+    pub on_neutral: Color,
 }
 
 impl Colors {
@@ -55,11 +56,13 @@ impl Colors {
                 accent: Color::Yellow,
                 on_accent: Color::Black,
                 neutral: Color::DarkGray,
+                on_neutral: Color::Gray,
             },
             terminal_colorsaurus::ThemeMode::Light => Self {
                 accent: Color::LightBlue,
                 on_accent: Color::Black,
                 neutral: Color::DarkGray,
+                on_neutral: Color::Gray,
             },
         }
     }

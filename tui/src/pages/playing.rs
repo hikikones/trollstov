@@ -301,7 +301,7 @@ impl PlayingPage {
         let block = Block::bordered()
             .title(self.text.as_str())
             .title_alignment(Alignment::Center)
-            .style(Style::new().fg(colors.neutral))
+            .style(colors.neutral)
             .padding(Padding::horizontal(1));
         let queue_inner_area = block.inner(area);
 
@@ -313,7 +313,7 @@ impl PlayingPage {
                 queue_inner_area,
                 buf,
                 "No tracks in the queue",
-                Style::new().fg(colors.neutral),
+                colors.neutral,
                 utils::Alignment::Center,
             );
             return;
