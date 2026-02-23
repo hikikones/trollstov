@@ -36,7 +36,7 @@ impl SearchPage {
                 Style::new().fg(colors.neutral).italic(),
             ),
             search_results: Vec::new(),
-            list: List::new(),
+            list: List::new().with_colors(colors.accent, colors.neutral),
             is_dirty: false,
             buffer: String::new(),
         }

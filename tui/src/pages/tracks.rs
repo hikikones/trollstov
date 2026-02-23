@@ -16,10 +16,10 @@ pub struct TracksPage {
 }
 
 impl TracksPage {
-    pub const fn new() -> Self {
+    pub const fn new(colors: &Colors) -> Self {
         Self {
             title: String::new(),
-            list: List::new(),
+            list: List::new().with_colors(colors.accent, colors.neutral),
         }
     }
 

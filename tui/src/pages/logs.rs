@@ -18,12 +18,12 @@ pub struct LogsPage {
 }
 
 impl LogsPage {
-    pub const fn new() -> Self {
+    pub const fn new(colors: &Colors) -> Self {
         Self {
             title: String::new(),
             logs: Vec::new(),
             queue: 0,
-            list: List::new(),
+            list: List::new().with_colors(colors.accent, colors.neutral),
             horizontal_scroll: 0,
         }
     }

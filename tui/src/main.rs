@@ -1,3 +1,5 @@
+use ratatui::style::Color;
+
 mod app;
 mod events;
 mod pages;
@@ -42,4 +44,7 @@ struct Args {
     /// allowing music control with media keys and visually in your desktop environment.
     #[clap(long, action)]
     mpris: bool,
+
+    #[clap(long)]
+    accent_color: Option<Color>, // TODO
 }

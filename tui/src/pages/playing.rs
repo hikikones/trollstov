@@ -24,11 +24,11 @@ enum ViewMode {
 }
 
 impl PlayingPage {
-    pub const fn new() -> Self {
+    pub const fn new(colors: &Colors) -> Self {
         Self {
             current_queue_index: None,
             text: TextSegment::new().with_alignment(Alignment::Center),
-            list: List::new(),
+            list: List::new().with_colors(colors.accent, colors.neutral),
             view_mode: ViewMode::Queue,
         }
     }
