@@ -641,13 +641,10 @@ fn render_playback(
     match track {
         Some(track) => {
             // Title
-            let extension = track.extension();
-            let properties = track.properties();
+            text.extend_as_one(["[", track.extension().as_upper_case()], neutral);
 
-            text.extend_as_one(["[", extension.as_upper_case()], neutral);
-
-            if let Some(bit_depth) = properties.bit_depth()
-                && let Some(sample_rate) = properties.sample_rate()
+            if let Some(bit_depth) = track.bit_depth()
+                && let Some(sample_rate) = track.sample_rate()
             {
                 jukebox::utils::format_int(bit_depth, |bit_depth| {
                     text.extend_as_one([" ", bit_depth, "bit/"], neutral);
@@ -657,7 +654,7 @@ fn render_playback(
                 });
             }
 
-            jukebox::utils::format_int(properties.bit_rate(), |bit_rate| {
+            jukebox::utils::format_int(track.bit_rate(), |bit_rate| {
                 text.extend_as_one([" ", bit_rate, "kbps] "], neutral);
             });
 
@@ -677,7 +674,7 @@ fn render_playback(
             );
             text.push_char(' ', Style::new());
 
-            let progress = audio_position.as_secs_f32() / properties.duration().as_secs_f32();
+            let progress = audio_position.as_secs_f32() / track.duration().as_secs_f32();
             let max_highlight_bound = (status_width as f32 * progress) as u16;
             for i in 0..status_width {
                 let (ch, style) = if i <= max_highlight_bound {
@@ -690,14 +687,14 @@ fn render_playback(
 
             text.push_char(' ', Style::new());
             text.push_chars(
-                &jukebox::utils::format_duration_on_stack(properties.duration()),
+                &jukebox::utils::format_duration_on_stack(track.duration()),
                 neutral,
             );
         }
         None => {
             text.push_str("00:00 ", neutral);
             for _ in 0..status_width {
-                text.push_char(progress_highlight_ch, neutral);
+                text.push_char(progress_ch, neutral);
             }
             text.push_str(" 00:00", neutral);
         }

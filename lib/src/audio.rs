@@ -194,34 +194,14 @@ impl AudioFile {
 
 #[derive(Debug)]
 pub struct AudioMetadata {
-    title: String,
-    artist: String,
-    album: String,
-    rating: AudioRating,
+    pub(crate) title: String,
+    pub(crate) artist: String,
+    pub(crate) album: String,
+    pub(crate) rating: AudioRating,
 }
 
 impl AudioMetadata {
     const POPM_FRAME_ID: FrameId<'static> = FrameId::Valid(Cow::Borrowed("POPM"));
-
-    pub const fn title(&self) -> &str {
-        self.title.as_str()
-    }
-
-    pub const fn artist(&self) -> &str {
-        self.artist.as_str()
-    }
-
-    pub const fn album(&self) -> &str {
-        self.album.as_str()
-    }
-
-    pub const fn rating(&self) -> AudioRating {
-        self.rating
-    }
-
-    pub const fn set_rating(&mut self, rating: AudioRating) {
-        self.rating = rating;
-    }
 
     fn from_vorbis_comments(vorbis_comments: &VorbisComments) -> Self {
         Self {
@@ -378,32 +358,13 @@ impl AudioRating {
 
 #[derive(Debug)]
 pub struct AudioProperties {
-    duration: Duration,
-    bit_rate: u32,
-    bit_depth: Option<u8>,
-    sample_rate: Option<u32>,
+    pub(crate) duration: Duration,
+    pub(crate) bit_rate_kbps: u32,
+    pub(crate) bit_depth: Option<u8>,
+    pub(crate) sample_rate_khz: Option<u32>,
 }
 
 impl AudioProperties {
-    pub const fn duration(&self) -> Duration {
-        self.duration
-    }
-
-    /// Audio bit rate in kbps.
-    pub const fn bit_rate(&self) -> u32 {
-        self.bit_rate
-    }
-
-    /// Bits per sample, usually 16 or 24 bit.
-    pub const fn bit_depth(&self) -> Option<u8> {
-        self.bit_depth
-    }
-
-    /// Sample rate in kHz.
-    pub const fn sample_rate(&self) -> Option<u32> {
-        self.sample_rate
-    }
-
     fn from_audio_file(file: &AudioFile) -> Self {
         let (duration, bit_rate, bit_depth, sample_rate) = match &file.format {
             AudioFileFormat::Flac(flac) => {
@@ -431,9 +392,9 @@ impl AudioProperties {
 
         Self {
             duration,
-            bit_rate,
+            bit_rate_kbps: bit_rate,
             bit_depth,
-            sample_rate: sample_rate.map(|sr| sr / 1000),
+            sample_rate_khz: sample_rate.map(|sr| sr / 1000),
         }
     }
 }

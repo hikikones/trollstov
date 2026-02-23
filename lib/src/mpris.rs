@@ -2,12 +2,12 @@ use std::sync::mpsc;
 
 use crate::AudioFileReport;
 
-pub(super) struct MediaControls {
+pub(crate) struct MediaControls {
     controls: souvlaki::MediaControls,
     receiver: mpsc::Receiver<MediaEvent>,
 }
 
-pub(super) enum MediaEvent {
+pub(crate) enum MediaEvent {
     Play,
     Pause,
     Toggle,
@@ -19,7 +19,7 @@ pub(super) enum MediaEvent {
 }
 
 impl MediaControls {
-    pub(super) fn new(name: &str) -> Result<Self, AudioFileReport> {
+    pub(crate) fn new(name: &str) -> Result<Self, AudioFileReport> {
         let config = souvlaki::PlatformConfig {
             display_name: name,
             dbus_name: name,
@@ -75,11 +75,11 @@ impl MediaControls {
         Ok(Self { controls, receiver })
     }
 
-    pub(super) fn try_recv(&self) -> Option<MediaEvent> {
+    pub(crate) fn try_recv(&self) -> Option<MediaEvent> {
         self.receiver.try_recv().ok()
     }
 
-    pub(super) fn set_metadata(&mut self, title: &str, artist: &str) {
+    pub(crate) fn set_metadata(&mut self, title: &str, artist: &str) {
         let _ = self.controls.set_metadata(souvlaki::MediaMetadata {
             title: Some(title),
             artist: Some(artist),
@@ -88,7 +88,7 @@ impl MediaControls {
         });
     }
 
-    pub(super) fn reset_metadata(&mut self) {
+    pub(crate) fn reset_metadata(&mut self) {
         let _ = self
             .controls
             .set_metadata(souvlaki::MediaMetadata::default());
