@@ -259,19 +259,29 @@ fn render_scrollbar(
         Some(track_color) => {
             let track_style = Style::new().fg(track_color);
             for i in 0..height {
-                let (symbol, style) = if i >= start && i < end {
-                    ("┃", thumb_style)
-                } else {
-                    ("│", track_style)
-                };
-                buf.set_stringn(x, y, symbol, 1, style);
+                match buf.cell_mut((x, y)) {
+                    Some(cell) => {
+                        let (symbol, style) = if i >= start && i < end {
+                            ("┃", thumb_style)
+                        } else {
+                            ("│", track_style)
+                        };
+                        cell.set_symbol(symbol).set_style(style);
+                    }
+                    None => return,
+                }
                 y += 1;
             }
         }
         None => {
             for i in 0..height {
-                if i >= start && i < end {
-                    buf.set_stringn(x, y, "│", 1, thumb_style);
+                match buf.cell_mut((x, y)) {
+                    Some(cell) => {
+                        if i >= start && i < end {
+                            cell.set_symbol("│").set_style(thumb_style);
+                        }
+                    }
+                    None => return,
                 }
                 y += 1;
             }

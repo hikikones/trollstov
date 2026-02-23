@@ -19,7 +19,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let jukebox = jukebox::Jukebox::new(audio_device, args.dir);
     let colors = colors::Colors::new()
         .accent(args.accent_color)
-        .neutral(args.neutral_color);
+        .on_accent(args.on_accent_color)
+        .neutral(args.neutral_color)
+        .on_neutral(args.on_neutral_color);
 
     let mut app = app::App::new(jukebox, colors, picker, args.mpris);
     let res = app.run(terminal);
@@ -49,11 +51,19 @@ struct Args {
     #[clap(long, action)]
     mpris: bool,
 
-    /// The accent color of the application.
+    /// The accent color of the application. See ANSI colors for options.
     #[clap(long)]
     accent_color: Option<Color>,
 
-    /// The neutral color of the application.
+    /// The color on top of an accent. See ANSI colors for options.
+    #[clap(long)]
+    on_accent_color: Option<Color>,
+
+    /// The neutral color of the application. See ANSI colors for options.
     #[clap(long)]
     neutral_color: Option<Color>,
+
+    /// The color on top of a neutral. See ANSI colors for options.
+    #[clap(long)]
+    on_neutral_color: Option<Color>,
 }
