@@ -2,46 +2,46 @@ use crate::TrackId;
 
 // TODO: Max length?
 // Should maybe batch drain from history when reaching a big amount.
-pub(super) struct PlayQueue {
+pub(crate) struct PlayQueue {
     list: Vec<TrackId>,
     index: Option<usize>,
 }
 
 impl PlayQueue {
-    pub(super) const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self {
             list: Vec::new(),
             index: None,
         }
     }
 
-    pub(super) const fn len(&self) -> usize {
+    pub(crate) const fn len(&self) -> usize {
         self.list.len()
     }
 
-    pub(super) const fn queue_len(&self) -> usize {
+    pub(crate) const fn queue_len(&self) -> usize {
         match self.index {
             Some(index) => (self.list.len() - index).saturating_sub(1),
             None => self.list.len(),
         }
     }
 
-    pub(super) const fn history_len(&self) -> usize {
+    pub(crate) const fn history_len(&self) -> usize {
         match self.index {
             Some(index) => index,
             None => 0,
         }
     }
 
-    pub(super) const fn is_empty(&self) -> bool {
+    pub(crate) const fn is_empty(&self) -> bool {
         self.list.is_empty()
     }
 
-    pub(super) fn get(&self, index: QueueIndex) -> Option<TrackId> {
+    pub(crate) fn get(&self, index: QueueIndex) -> Option<TrackId> {
         self.list.get(index.0).copied()
     }
 
-    pub(super) fn set_index(&mut self, index: usize) -> Option<TrackId> {
+    pub(crate) fn set_index(&mut self, index: usize) -> Option<TrackId> {
         match self.list.get(index).copied() {
             Some(id) => {
                 self.index = Some(index);
@@ -51,34 +51,34 @@ impl PlayQueue {
         }
     }
 
-    pub(super) fn current(&self) -> Option<(TrackId, QueueIndex)> {
+    pub(crate) fn current(&self) -> Option<(TrackId, QueueIndex)> {
         self.index
             .and_then(|i| self.list.get(i).copied().map(|id| (id, QueueIndex(i))))
     }
 
-    pub(super) fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, QueueIndex)> {
+    pub(crate) fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, QueueIndex)> {
         self.list
             .iter()
             .enumerate()
             .map(|(i, id)| (*id, QueueIndex(i)))
     }
 
-    pub(super) fn enqueue(&mut self, id: TrackId) -> &mut Self {
+    pub(crate) fn enqueue(&mut self, id: TrackId) -> &mut Self {
         self.list.push(id);
         self
     }
 
-    pub(super) fn enqueue_next(&mut self, id: TrackId) -> &mut Self {
+    pub(crate) fn enqueue_next(&mut self, id: TrackId) -> &mut Self {
         let insert_index = self.index.map(|i| i + 1).unwrap_or_default();
         self.list.insert(insert_index, id);
         self
     }
 
-    pub(super) fn current_or_next(&mut self) -> Option<(TrackId, QueueIndex)> {
+    pub(crate) fn current_or_next(&mut self) -> Option<(TrackId, QueueIndex)> {
         self.current().or_else(|| self.next())
     }
 
-    pub(super) fn next(&mut self) -> Option<(TrackId, QueueIndex)> {
+    pub(crate) fn next(&mut self) -> Option<(TrackId, QueueIndex)> {
         match self.index {
             Some(mut index) => {
                 let old_index = index;
@@ -106,7 +106,7 @@ impl PlayQueue {
         }
     }
 
-    pub(super) fn previous(&mut self) -> Option<(TrackId, QueueIndex)> {
+    pub(crate) fn previous(&mut self) -> Option<(TrackId, QueueIndex)> {
         match self.index {
             Some(mut index) => {
                 let old_index = index;
@@ -126,7 +126,7 @@ impl PlayQueue {
         }
     }
 
-    pub(super) fn shuffle(&mut self, start: usize) {
+    pub(crate) fn shuffle(&mut self, start: usize) {
         let end = self.list.len();
         if start >= end {
             return;
@@ -138,18 +138,18 @@ impl PlayQueue {
         }
     }
 
-    pub(super) const fn reset(&mut self) {
+    pub(crate) const fn reset(&mut self) {
         self.index = None;
     }
 
-    pub(super) fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.list.clear();
         self.index = None;
     }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct QueueIndex(pub(super) usize);
+pub struct QueueIndex(pub(crate) usize);
 
 impl QueueIndex {
     pub const fn raw(self) -> usize {

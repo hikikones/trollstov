@@ -13,7 +13,7 @@ use crate::{
 
 type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileReport>>;
 
-pub(super) struct Database {
+pub(crate) struct Database {
     music_dir: PathBuf,
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
@@ -23,7 +23,7 @@ pub(super) struct Database {
 }
 
 impl Database {
-    pub(super) fn new(music_dir: PathBuf) -> Self {
+    pub(crate) fn new(music_dir: PathBuf) -> Self {
         Self {
             music_dir,
             tracks: IndexMap::new(),
@@ -34,51 +34,51 @@ impl Database {
         }
     }
 
-    pub(super) fn load(&mut self) {
+    pub(crate) fn load(&mut self) {
         let (sender, receiver) = mpsc::channel();
         traverse_and_process_audio_files(self.music_dir.as_path(), true, sender);
         self.audio_file_receiver = Some(receiver);
     }
 
-    pub(super) fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.tracks.is_empty()
     }
 
-    pub(super) fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.tracks.len()
     }
 
-    pub(super) fn get(&self, id: TrackId) -> Option<&Track> {
+    pub(crate) fn get(&self, id: TrackId) -> Option<&Track> {
         self.tracks.get(&id)
     }
 
-    pub(super) fn get_mut(&mut self, id: TrackId) -> Option<&mut Track> {
+    pub(crate) fn get_mut(&mut self, id: TrackId) -> Option<&mut Track> {
         self.tracks.get_mut(&id)
     }
 
-    pub(super) fn get_id_from_index(&self, i: usize) -> Option<TrackId> {
+    pub(crate) fn get_id_from_index(&self, i: usize) -> Option<TrackId> {
         self.tracks.keys().nth(i).copied()
     }
 
-    pub(super) fn get_index_from_id(&self, id: TrackId) -> Option<usize> {
+    pub(crate) fn get_index_from_id(&self, id: TrackId) -> Option<usize> {
         self.tracks.get_index_of(&id)
     }
 
-    pub(super) fn iter(&self) -> indexmap::map::Iter<'_, TrackId, Track> {
+    pub(crate) fn iter(&self) -> indexmap::map::Iter<'_, TrackId, Track> {
         self.tracks.iter()
     }
 
-    pub(super) const fn get_sort(&self) -> TrackSort {
+    pub(crate) const fn get_sort(&self) -> TrackSort {
         self.sort
     }
 
-    pub(super) fn sort(&mut self, sort: TrackSort) {
+    pub(crate) fn sort(&mut self, sort: TrackSort) {
         self.tracks
             .sort_unstable_by(|_, track1, _, track2| sort.cmp(track1, track2));
         self.sort = sort;
     }
 
-    pub(super) fn search(&mut self, needle: &str) -> impl Iterator<Item = (TrackId, u16)> {
+    pub(crate) fn search(&mut self, needle: &str) -> impl Iterator<Item = (TrackId, u16)> {
         self.matcher.update(needle);
         self.tracks.iter().filter_map(|(id, track)| {
             self.buffer
@@ -89,7 +89,7 @@ impl Database {
         })
     }
 
-    pub(super) fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) {
+    pub(crate) fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) {
         let Some(receiver) = self.audio_file_receiver.as_ref() else {
             return;
         };
@@ -136,7 +136,7 @@ impl Database {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TrackId(pub(super) u64);
+pub struct TrackId(pub(crate) u64);
 
 #[derive(Debug)]
 pub struct Track {
@@ -154,7 +154,7 @@ impl Track {
         path: PathBuf,
         extension: AudioFileExtension,
     ) -> Self {
-        let duration_display = crate::utils::format_duration(properties.duration());
+        let duration_display = crate::utils::format_duration(properties.duration);
 
         Self {
             metadata,
@@ -166,23 +166,23 @@ impl Track {
     }
 
     pub const fn title(&self) -> &str {
-        self.metadata.title()
+        self.metadata.title.as_str()
     }
 
     pub const fn artist(&self) -> &str {
-        self.metadata.artist()
+        self.metadata.artist.as_str()
     }
 
     pub const fn album(&self) -> &str {
-        self.metadata.album()
+        self.metadata.album.as_str()
     }
 
     pub const fn rating(&self) -> AudioRating {
-        self.metadata.rating()
+        self.metadata.rating
     }
 
     pub const fn rating_display(&self) -> &str {
-        match self.metadata.rating() {
+        match self.metadata.rating {
             AudioRating::None => "",
             AudioRating::Awful => "★",
             AudioRating::Bad => "★★",
@@ -193,11 +193,11 @@ impl Track {
     }
 
     pub const fn set_rating(&mut self, rating: AudioRating) {
-        self.metadata.set_rating(rating);
+        self.metadata.rating = rating;
     }
 
     pub const fn duration(&self) -> Duration {
-        self.properties.duration()
+        self.properties.duration
     }
 
     pub const fn duration_display(&self) -> &str {
@@ -212,8 +212,19 @@ impl Track {
         self.extension
     }
 
-    pub const fn properties(&self) -> &AudioProperties {
-        &self.properties
+    /// Audio bit rate in kbps.
+    pub const fn bit_rate(&self) -> u32 {
+        self.properties.bit_rate_kbps
+    }
+
+    /// Bits per sample, usually 16 or 24 bit.
+    pub const fn bit_depth(&self) -> Option<u8> {
+        self.properties.bit_depth
+    }
+
+    /// Sample rate in kHz.
+    pub const fn sample_rate(&self) -> Option<u32> {
+        self.properties.sample_rate_khz
     }
 }
 
