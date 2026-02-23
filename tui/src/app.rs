@@ -693,9 +693,7 @@ fn render_playback(
         }
         None => {
             text.push_str("00:00 ", neutral);
-            for _ in 0..status_width {
-                text.push_char(progress_ch, neutral);
-            }
+            text.repeat_char(progress_ch, status_width as usize, neutral);
             text.push_str(" 00:00", neutral);
         }
     }
