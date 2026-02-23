@@ -19,7 +19,7 @@ impl TracksPage {
     pub const fn new(colors: &Colors) -> Self {
         Self {
             title: String::new(),
-            list: List::new().with_colors(colors.accent, colors.neutral),
+            list: List::new().with_colors(colors.neutral, None),
         }
     }
 

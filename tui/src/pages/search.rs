@@ -33,10 +33,10 @@ impl SearchPage {
                 Style::new(),
                 Style::new().bg(colors.accent).fg(colors.on_accent),
                 Style::new().bg(colors.accent).fg(colors.on_accent),
-                Style::new().fg(colors.neutral).italic(),
+                Style::new().fg(colors.neutral),
             ),
             search_results: Vec::new(),
-            list: List::new().with_colors(colors.accent, colors.neutral),
+            list: List::new().with_colors(colors.neutral, None),
             is_dirty: false,
             buffer: String::new(),
         }

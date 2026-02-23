@@ -28,7 +28,7 @@ impl PlayingPage {
         Self {
             current_queue_index: None,
             text: TextSegment::new().with_alignment(Alignment::Center),
-            list: List::new().with_colors(colors.accent, colors.neutral),
+            list: List::new().with_colors(colors.neutral, None),
             view_mode: ViewMode::Queue,
         }
     }

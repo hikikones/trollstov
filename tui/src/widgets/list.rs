@@ -15,7 +15,7 @@ pub struct List {
     margin_bottom: usize,
     padding_bottom: usize,
     thumb_color: Color,
-    track_color: Color,
+    track_color: Option<Color>,
     len: usize,
     height: u16,
 }
@@ -40,13 +40,13 @@ impl List {
             margin_bottom: 0,
             padding_bottom: 0,
             thumb_color: Color::Gray,
-            track_color: Color::DarkGray,
+            track_color: Some(Color::DarkGray),
             len: 0,
             height: 0,
         }
     }
 
-    pub const fn with_colors(mut self, thumb: Color, track: Color) -> Self {
+    pub const fn with_colors(mut self, thumb: Color, track: Option<Color>) -> Self {
         self.thumb_color = thumb;
         self.track_color = track;
         self
@@ -238,7 +238,7 @@ fn render_scrollbar(
     total_items: usize,
     current_scroll: usize,
     thumb_color: Color,
-    track_color: Color,
+    track_color: Option<Color>,
 ) {
     let height = vertical_line.height as usize;
     if total_items == 0 || height == 0 {
@@ -253,15 +253,28 @@ fn render_scrollbar(
     let end = start + size;
 
     let thumb_style = Style::new().fg(thumb_color);
-    let track_style = Style::new().fg(track_color);
-
     let Rect { x, mut y, .. } = vertical_line;
-    for i in 0..height {
-        if i >= start && i < end {
-            buf.set_stringn(x, y, "┃", 1, thumb_style);
-        } else {
-            buf.set_stringn(x, y, "│", 1, track_style);
+
+    match track_color {
+        Some(track_color) => {
+            let track_style = Style::new().fg(track_color);
+            for i in 0..height {
+                let (symbol, style) = if i >= start && i < end {
+                    ("┃", thumb_style)
+                } else {
+                    ("│", track_style)
+                };
+                buf.set_stringn(x, y, symbol, 1, style);
+                y += 1;
+            }
         }
-        y += 1;
+        None => {
+            for i in 0..height {
+                if i >= start && i < end {
+                    buf.set_stringn(x, y, "│", 1, thumb_style);
+                }
+                y += 1;
+            }
+        }
     }
 }

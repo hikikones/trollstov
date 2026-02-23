@@ -23,7 +23,7 @@ impl LogsPage {
             title: String::new(),
             logs: Vec::new(),
             queue: 0,
-            list: List::new().with_colors(colors.accent, colors.neutral),
+            list: List::new().with_colors(colors.neutral, None),
             horizontal_scroll: 0,
         }
     }
