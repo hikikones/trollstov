@@ -58,16 +58,6 @@ impl TextSegment {
         self.total_width += width;
     }
 
-    pub fn push_str(&mut self, text: &str, style: impl Into<Style>) {
-        if text.is_empty() {
-            return;
-        }
-
-        self.text.push_str(text);
-        self.segments.push((text.len(), style.into()));
-        self.total_width += unicode_width::UnicodeWidthStr::width(text);
-    }
-
     pub fn repeat_char(&mut self, ch: char, n: usize, style: impl Into<Style>) {
         if n == 0 {
             return;
@@ -81,6 +71,16 @@ impl TextSegment {
         let len = ch.len_utf8() * n;
         self.segments.push((len, style.into()));
         self.total_width += width * n;
+    }
+
+    pub fn push_str(&mut self, text: &str, style: impl Into<Style>) {
+        if text.is_empty() {
+            return;
+        }
+
+        self.text.push_str(text);
+        self.segments.push((text.len(), style.into()));
+        self.total_width += unicode_width::UnicodeWidthStr::width(text);
     }
 
     pub fn extend(&mut self, items: impl IntoIterator<Item = (impl AsRef<str>, impl Into<Style>)>) {
