@@ -40,6 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 #[derive(Debug, clap::Parser)]
 #[command(
+    styles = CLAP_STYLING,
     version,
     about,
     long_about = "
@@ -55,7 +56,7 @@ you define by name, hex code or indexed value.
 
 See ANSI colors for options: https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
 
-EXAMPLES
+EXAMPLES:
     # Run using mpris with different accent colors:
     trollstov --mpris /path/to/my/music --accent-color cyan --on-accent-color \"#000000\""
 )]
@@ -85,3 +86,12 @@ struct Args {
     #[clap(long, value_name = "COLOR")]
     on_neutral_color: Option<Color>,
 }
+
+const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()
+    .header(clap_cargo::style::HEADER)
+    .usage(clap_cargo::style::USAGE)
+    .literal(clap_cargo::style::LITERAL)
+    .placeholder(clap_cargo::style::PLACEHOLDER)
+    .error(clap_cargo::style::ERROR)
+    .valid(clap_cargo::style::VALID)
+    .invalid(clap_cargo::style::INVALID);
