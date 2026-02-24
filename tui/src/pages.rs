@@ -8,7 +8,7 @@ pub use playing::*;
 pub use search::*;
 pub use tracks::*;
 
-use crate::app::Colors;
+use crate::colors::Colors;
 
 pub struct Pages {
     pub tracks: TracksPage,
@@ -20,10 +20,10 @@ pub struct Pages {
 impl Pages {
     pub const fn new(colors: &Colors) -> Self {
         Self {
-            tracks: TracksPage::new(),
-            playing: PlayingPage::new(),
+            tracks: TracksPage::new(colors),
+            playing: PlayingPage::new(colors),
             search: SearchPage::new(colors),
-            logs: LogsPage::new(),
+            logs: LogsPage::new(colors),
         }
     }
 }

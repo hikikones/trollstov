@@ -12,6 +12,7 @@ use ratatui::{
 use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
+    colors::Colors,
     events::{Event, EventHandler},
     pages::{Log, Pages, Route},
     terminal::Terminal,
@@ -38,31 +39,6 @@ pub struct App {
     shortcuts_page: Shortcuts,
     shortcuts_play: Shortcuts,
     shortcuts_app: Shortcuts,
-}
-
-pub struct Colors {
-    pub accent: Color,
-    pub on_accent: Color,
-    pub neutral: Color,
-}
-
-impl Colors {
-    pub fn new() -> Self {
-        match terminal_colorsaurus::theme_mode(terminal_colorsaurus::QueryOptions::default())
-            .unwrap_or(terminal_colorsaurus::ThemeMode::Dark)
-        {
-            terminal_colorsaurus::ThemeMode::Dark => Self {
-                accent: Color::Yellow,
-                on_accent: Color::Black,
-                neutral: Color::DarkGray,
-            },
-            terminal_colorsaurus::ThemeMode::Light => Self {
-                accent: Color::LightBlue,
-                on_accent: Color::Black,
-                neutral: Color::DarkGray,
-            },
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,8 +72,7 @@ pub enum Action {
 }
 
 impl App {
-    pub fn new(jukebox: Jukebox, picker: Picker, mpris: bool) -> Self {
-        let colors = Colors::new();
+    pub fn new(jukebox: Jukebox, colors: Colors, picker: Picker, mpris: bool) -> Self {
         let pages = Pages::new(&colors);
 
         let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);

@@ -7,7 +7,8 @@ use ratatui::{
 use ratatui_image::StatefulImage;
 
 use crate::{
-    app::{Action, Colors, FrontCover, ScreenSize},
+    app::{Action, FrontCover, ScreenSize},
+    colors::Colors,
     widgets::{List, ListMove, Shortcut, Shortcuts, TextSegment, utils},
 };
 
@@ -24,11 +25,11 @@ enum ViewMode {
 }
 
 impl PlayingPage {
-    pub const fn new() -> Self {
+    pub const fn new(colors: &Colors) -> Self {
         Self {
             current_queue_index: None,
             text: TextSegment::new().with_alignment(Alignment::Center),
-            list: List::new(),
+            list: List::new().with_colors(colors.neutral, None),
             view_mode: ViewMode::Queue,
         }
     }
@@ -301,7 +302,7 @@ impl PlayingPage {
         let block = Block::bordered()
             .title(self.text.as_str())
             .title_alignment(Alignment::Center)
-            .style(Style::new().fg(colors.neutral))
+            .style(colors.neutral)
             .padding(Padding::horizontal(1));
         let queue_inner_area = block.inner(area);
 
@@ -313,7 +314,7 @@ impl PlayingPage {
                 queue_inner_area,
                 buf,
                 "No tracks in the queue",
-                Style::new().fg(colors.neutral),
+                colors.neutral,
                 utils::Alignment::Center,
             );
             return;

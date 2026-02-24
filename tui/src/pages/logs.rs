@@ -5,7 +5,8 @@ use ratatui::{
 };
 
 use crate::{
-    app::{Action, Colors},
+    app::Action,
+    colors::Colors,
     widgets::{List, ListMove, Shortcut, Shortcuts, utils},
 };
 
@@ -18,12 +19,12 @@ pub struct LogsPage {
 }
 
 impl LogsPage {
-    pub const fn new() -> Self {
+    pub const fn new(colors: &Colors) -> Self {
         Self {
             title: String::new(),
             logs: Vec::new(),
             queue: 0,
-            list: List::new(),
+            list: List::new().with_colors(colors.neutral, None),
             horizontal_scroll: 0,
         }
     }
@@ -53,7 +54,7 @@ impl LogsPage {
                 area,
                 buf,
                 "No logs to report",
-                Style::new().fg(colors.neutral),
+                colors.neutral,
                 utils::Alignment::Center,
             );
             return;

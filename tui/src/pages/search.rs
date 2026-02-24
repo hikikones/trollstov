@@ -6,7 +6,8 @@ use ratatui::{
 };
 
 use crate::{
-    app::{Action, Colors},
+    app::Action,
+    colors::Colors,
     pages::Route,
     widgets::{List, Shortcut, Shortcuts, TextInput, utils},
 };
@@ -32,11 +33,11 @@ impl SearchPage {
             search_input: TextInput::new().with_placeholder("Search...").with_styles(
                 Style::new(),
                 Style::new().bg(colors.accent).fg(colors.on_accent),
-                Style::new().bg(colors.accent).fg(colors.on_accent),
-                Style::new().fg(colors.neutral).italic(),
+                Style::new().bg(colors.neutral).fg(colors.on_neutral),
+                Style::new().fg(colors.neutral),
             ),
             search_results: Vec::new(),
-            list: List::new(),
+            list: List::new().with_colors(colors.neutral, None),
             is_dirty: false,
             buffer: String::new(),
         }
@@ -61,7 +62,7 @@ impl SearchPage {
                 area,
                 buf,
                 "No tracks to search for",
-                Style::new().fg(colors.neutral),
+                colors.neutral,
                 utils::Alignment::Center,
             );
             return;
@@ -75,7 +76,7 @@ impl SearchPage {
                     self.search_input.set_styles(
                         Style::new(),
                         Style::new().bg(colors.accent).fg(colors.on_accent),
-                        Style::new().bg(colors.accent).fg(colors.on_accent),
+                        Style::new().bg(colors.neutral).fg(colors.on_neutral),
                         neutral,
                     );
                     shortcuts.extend([
@@ -103,7 +104,7 @@ impl SearchPage {
 
         // Render search input
         let search_line =
-            Rect { height: 1, ..area }.centered_horizontally(Constraint::Percentage(70));
+            Rect { height: 1, ..area }.centered_horizontally(Constraint::Percentage(64));
         self.search_input.render(search_line, buf);
 
         // Update search results
@@ -138,9 +139,12 @@ impl SearchPage {
                 if let Some(track) = jb.get(id) {
                     let mut style = Style::new();
                     if matches!(self.state, State::Browse) {
-                        if is_index || is_selected {
+                        if is_index {
                             style.bg = Some(colors.accent);
                             style.fg = Some(colors.on_accent);
+                        } else if is_selected {
+                            style.bg = Some(colors.neutral);
+                            style.fg = Some(colors.on_neutral);
                         }
                         if current == Some(id) {
                             style.add_modifier.insert(Modifier::BOLD);
