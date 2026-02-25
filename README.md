@@ -52,4 +52,8 @@ In addition, it comes with a few optional arguments that is mostly colors you de
 
 ## 🔖 Install
 
-todo
+The application is only available on GitHub for now, but will come to crates.io at a later time.
+
+```sh
+cargo install --git https://github.com/hikikones/trollstov --tag v0.1.0
+```
