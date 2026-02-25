@@ -33,7 +33,7 @@ In addition, it comes with a few optional arguments that is mostly colors you de
 | `--accent-color` | The accent color of the application. |
 | `--on-accent-color` | The color on top of an accent. |
 | `--neutral-color` | The neutral color of the application. |
-| `--on-neutral-color` | The color on top of a netrual. |
+| `--on-neutral-color` | The color on top of a neutral. |
 
 ## 💡 Supported Audio Formats
 
