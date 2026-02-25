@@ -343,16 +343,16 @@ impl PlayingPage {
 
                     let symbol = if item == ListItem::Selected { "> " } else { "" };
 
-                    utils::print_line_iter(
+                    utils::print_line_iter_with_styles(
                         line,
                         buf,
                         [
-                            symbol,
-                            track.title(),
-                            " ",
-                            track.artist(),
-                            " ",
-                            track.album(),
+                            (symbol, style.not_crossed_out()),
+                            (track.title(), style),
+                            (" ", style),
+                            (track.artist(), style),
+                            (" ", style),
+                            (track.album(), style),
                         ],
                         style,
                     );
