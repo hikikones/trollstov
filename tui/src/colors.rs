@@ -58,16 +58,16 @@ impl Colors {
     }
 }
 
-fn readable_fg(mut color: Color) -> Option<Color> {
-    if color == Color::Reset {
+fn readable_fg(mut bg: Color) -> Option<Color> {
+    if bg == Color::Reset {
         return None;
     }
 
-    if let Color::Indexed(i) = color {
-        color = indexed_to_color(i);
+    if let Color::Indexed(i) = bg {
+        bg = indexed_to_color(i);
     }
 
-    let readable_color = match color {
+    let readable_fg = match bg {
         Color::Black => Color::White,
         Color::Red => Color::White,
         Color::Green => Color::Black,
@@ -90,7 +90,7 @@ fn readable_fg(mut color: Color) -> Option<Color> {
         }
     };
 
-    Some(readable_color)
+    Some(readable_fg)
 }
 
 fn indexed_to_color(i: u8) -> Color {
