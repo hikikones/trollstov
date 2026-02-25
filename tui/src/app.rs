@@ -571,7 +571,7 @@ fn render_navigation(
     ] {
         let is_current = std::mem::discriminant(&route) == std::mem::discriminant(&current_route);
         let style = if is_current {
-            Style::new().bold().fg(colors.accent)
+            Style::new().fg(colors.accent).bold()
         } else {
             Style::new()
         };

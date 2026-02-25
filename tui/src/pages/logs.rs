@@ -83,7 +83,7 @@ impl LogsPage {
                     self.horizontal_scroll = max_scroll.min(self.horizontal_scroll);
                     (
                         self.horizontal_scroll,
-                        Style::new().bg(colors.accent).fg(colors.on_accent).bold(),
+                        Style::new().bg(colors.accent).fg(colors.on_accent),
                     )
                 } else {
                     (0, Style::new())
