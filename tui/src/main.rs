@@ -36,6 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     res
 }
+
 #[derive(Debug, clap::Parser)]
 #[command(
     styles = CLAP_STYLING,

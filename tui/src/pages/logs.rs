@@ -7,7 +7,7 @@ use ratatui::{
 use crate::{
     app::Action,
     colors::Colors,
-    widgets::{List, ListMove, Shortcut, Shortcuts, utils},
+    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
 pub struct LogsPage {
@@ -73,12 +73,9 @@ impl LogsPage {
         block.render(area, buf);
         self.title.clear();
 
-        self.list.render(
-            logs_area,
-            buf,
-            self.logs.iter(),
-            |line, buf, log, is_index, _| {
-                let (scroll, style) = if is_index {
+        self.list
+            .render(logs_area, buf, self.logs.iter(), |line, buf, log, item| {
+                let (scroll, style) = if item == ListItem::Selected {
                     let max_scroll = log.width.saturating_sub(line.width as usize);
                     self.horizontal_scroll = max_scroll.min(self.horizontal_scroll);
                     (
@@ -90,8 +87,7 @@ impl LogsPage {
                 };
 
                 utils::print_line(line, buf, &log.message[scroll..], style);
-            },
-        );
+            });
 
         // Shortcuts
         shortcuts.push(Shortcut::new("Clear", "c"));

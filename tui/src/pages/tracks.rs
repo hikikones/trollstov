@@ -8,7 +8,7 @@ use ratatui::{
 use crate::{
     app::Action,
     colors::Colors,
-    widgets::{List, ListMove, Shortcut, Shortcuts, utils},
+    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
 pub struct TracksPage {
@@ -249,15 +249,13 @@ impl TracksPage {
             table_area,
             buf,
             jb.iter(),
-            |line, buf, (id, track), is_index, is_selected| {
-                let mut style = Style::new();
-                if is_index {
-                    style.bg = Some(colors.accent);
-                    style.fg = Some(colors.on_accent);
-                } else if is_selected {
-                    style.bg = Some(colors.neutral);
-                    style.fg = Some(colors.on_neutral);
-                }
+            |line, buf, (id, track), item| {
+                let mut style = match item {
+                    ListItem::Selected => Style::new().bg(colors.accent).fg(colors.on_accent),
+                    ListItem::Selection => Style::new().bg(colors.neutral).fg(colors.on_neutral),
+                    ListItem::Normal => Style::new(),
+                };
+
                 if current == Some(id) {
                     style.add_modifier.insert(Modifier::BOLD);
                 }

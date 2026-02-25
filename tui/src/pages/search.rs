@@ -9,7 +9,7 @@ use crate::{
     app::Action,
     colors::Colors,
     pages::Route,
-    widgets::{List, Shortcut, Shortcuts, TextInput, utils},
+    widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, utils},
 };
 
 pub struct SearchPage {
@@ -135,17 +135,22 @@ impl SearchPage {
             search_results_inner,
             buf,
             self.search_results.iter().copied(),
-            |line, buf, (id, _), is_index, is_selected| {
+            |line, buf, (id, _), item| {
                 if let Some(track) = jb.get(id) {
                     let mut style = Style::new();
                     if matches!(self.state, State::Browse) {
-                        if is_index {
-                            style.bg = Some(colors.accent);
-                            style.fg = Some(colors.on_accent);
-                        } else if is_selected {
-                            style.bg = Some(colors.neutral);
-                            style.fg = Some(colors.on_neutral);
+                        match item {
+                            ListItem::Selected => {
+                                style.bg = Some(colors.accent);
+                                style.fg = Some(colors.on_accent);
+                            }
+                            ListItem::Selection => {
+                                style.bg = Some(colors.neutral);
+                                style.fg = Some(colors.on_neutral);
+                            }
+                            ListItem::Normal => {}
                         }
+
                         if current == Some(id) {
                             style.add_modifier.insert(Modifier::BOLD);
                         }
