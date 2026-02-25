@@ -333,9 +333,14 @@ impl PlayingPage {
             |line, buf, (id, qi), item| {
                 if let Some(track) = jb.get(id) {
                     let mut style = Style::new();
+
                     if current_queue_index == Some(qi) {
                         style.fg = Some(colors.accent);
                     }
+                    if jb.is_faulty(id) {
+                        style.add_modifier.insert(Modifier::CROSSED_OUT);
+                    }
+
                     let symbol = if item == ListItem::Selected { "> " } else { "" };
 
                     utils::print_line_iter(

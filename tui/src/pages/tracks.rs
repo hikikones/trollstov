@@ -259,6 +259,9 @@ impl TracksPage {
                 if current == Some(id) {
                     style.add_modifier.insert(Modifier::BOLD);
                 }
+                if jb.is_faulty(id) {
+                    style.add_modifier.insert(Modifier::CROSSED_OUT);
+                }
 
                 utils::print_text_segments(
                     line,
