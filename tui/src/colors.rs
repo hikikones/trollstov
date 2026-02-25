@@ -147,10 +147,10 @@ fn relative_luminance_color(r: u8, g: u8, b: u8) -> Color {
     let g = srgb_to_linear(g);
     let b = srgb_to_linear(b);
 
-    let rl = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    let l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
-    let contrast_black = (rl + 0.05) / 0.05;
-    let contrast_white = (1.05) / (rl + 0.05);
+    let contrast_black = (l + 0.05) / 0.05;
+    let contrast_white = (1.05) / (l + 0.05);
 
     if contrast_black > contrast_white {
         Color::Black
