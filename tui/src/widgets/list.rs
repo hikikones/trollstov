@@ -30,6 +30,13 @@ pub enum ListMove {
     Custom(usize),
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ListItem {
+    Selected,
+    Selection,
+    Normal,
+}
+
 impl List {
     pub const fn new() -> Self {
         Self {
@@ -166,7 +173,7 @@ impl List {
         mut area: Rect,
         buf: &mut Buffer,
         items: impl ExactSizeIterator<Item = T>,
-        mut render_line: impl FnMut(Rect, &mut Buffer, T, bool, bool),
+        mut render_line: impl FnMut(Rect, &mut Buffer, T, ListItem),
     ) {
         // Make sure index and selector is not out of bounds
         let max_idx = items.len().saturating_sub(1);
@@ -222,10 +229,15 @@ impl List {
             .skip(self.scroll)
             .take(height)
             .for_each(|(i, item)| {
-                let is_index = i == self.index;
-                let is_selected = selection.contains(&i);
+                let list_item = if i == self.index {
+                    ListItem::Selected
+                } else if selection.contains(&i) {
+                    ListItem::Selection
+                } else {
+                    ListItem::Normal
+                };
 
-                render_line(line, buf, item, is_index, is_selected);
+                render_line(line, buf, item, list_item);
 
                 line.y += 1;
             });

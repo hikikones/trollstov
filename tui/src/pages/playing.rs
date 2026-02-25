@@ -9,7 +9,7 @@ use ratatui_image::StatefulImage;
 use crate::{
     app::{Action, FrontCover, ScreenSize},
     colors::Colors,
-    widgets::{List, ListMove, Shortcut, Shortcuts, TextSegment, utils},
+    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment, utils},
 };
 
 pub struct PlayingPage {
@@ -330,13 +330,13 @@ impl PlayingPage {
             queue_inner_area,
             buf,
             jb.queue_iter(),
-            |line, buf, (id, qi), is_index, _| {
+            |line, buf, (id, qi), item| {
                 if let Some(track) = jb.get(id) {
                     let mut style = Style::new();
                     if current_queue_index == Some(qi) {
                         style.fg = Some(colors.accent);
                     }
-                    let symbol = if is_index { "> " } else { "" };
+                    let symbol = if item == ListItem::Selected { "> " } else { "" };
 
                     utils::print_line_iter(
                         line,

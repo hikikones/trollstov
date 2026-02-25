@@ -1,5 +1,3 @@
-use ratatui::style::Color;
-
 mod app;
 mod colors;
 mod events;
@@ -38,6 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     res
 }
+
 #[derive(Debug, clap::Parser)]
 #[command(
     styles = CLAP_STYLING,
@@ -72,19 +71,19 @@ struct Args {
 
     /// The accent color of the application.
     #[clap(long, value_name = "COLOR")]
-    accent_color: Option<Color>,
+    accent_color: Option<ratatui::style::Color>,
 
     /// The color on top of an accent.
     #[clap(long, value_name = "COLOR")]
-    on_accent_color: Option<Color>,
+    on_accent_color: Option<ratatui::style::Color>,
 
     /// The neutral color of the application.
     #[clap(long, value_name = "COLOR")]
-    neutral_color: Option<Color>,
+    neutral_color: Option<ratatui::style::Color>,
 
     /// The color on top of a neutral.
     #[clap(long, value_name = "COLOR")]
-    on_neutral_color: Option<Color>,
+    on_neutral_color: Option<ratatui::style::Color>,
 }
 
 const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()
