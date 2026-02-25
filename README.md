@@ -33,16 +33,18 @@ In addition, it comes with a few optional arguments that is mostly colors you de
 | `--accent-color` | The accent color of the application. |
 | `--on-accent-color` | The color on top of an accent. |
 | `--neutral-color` | The neutral color of the application. |
-| `--on-neutral-color` | The color on top of a netrual. |
+| `--on-neutral-color` | The color on top of a neutral. |
 
 ## 💡 Supported Audio Formats
 
 | Format | Metadata | Playback |
 | ------ | -------- | -------- |
 | FLAC | Vorbis Comments | Yes |
-| Opus | Vorbis Comments | No |
+| Opus | Vorbis Comments | [No][1] |
 | Ogg Vorbis | Vorbis Comments | Yes |
 | MP3 | ID3v2 | Yes |
+
+[1]: https://github.com/pdeljanov/Symphonia/issues/8
 
 ## ⚠️ Non-goals
 
@@ -52,4 +54,8 @@ In addition, it comes with a few optional arguments that is mostly colors you de
 
 ## 🔖 Install
 
-todo
+The application is only available on GitHub for now, but will come to crates.io at a later time.
+
+```sh
+cargo install --git https://github.com/hikikones/trollstov --tag v0.1.0
+```

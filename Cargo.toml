@@ -8,3 +8,10 @@ license = "MIT"
 
 [profile.dev]
 opt-level = 1
+
+[profile.release]
+opt-level = 3
+strip = true
+lto = true
+panic = "abort"
+codegen-units = 1
