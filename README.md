@@ -40,9 +40,11 @@ In addition, it comes with a few optional arguments that is mostly colors you de
 | Format | Metadata | Playback |
 | ------ | -------- | -------- |
 | FLAC | Vorbis Comments | Yes |
-| Opus | Vorbis Comments | No |
+| Opus | Vorbis Comments | [No][1] |
 | Ogg Vorbis | Vorbis Comments | Yes |
 | MP3 | ID3v2 | Yes |
+
+[1]: https://github.com/pdeljanov/Symphonia/issues/8
 
 ## ⚠️ Non-goals
 
