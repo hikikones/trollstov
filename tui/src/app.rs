@@ -509,6 +509,11 @@ impl App {
                     &mut self.shortcuts_page,
                 );
             }
+            Route::Settings => {
+                self.pages
+                    .settings
+                    .on_render(body, buf, &self.colors, &mut self.shortcuts_page);
+            }
             Route::Logs => {
                 self.pages
                     .logs
@@ -522,6 +527,7 @@ impl App {
             Route::Tracks(id) => self.pages.tracks.on_enter(id, &self.jukebox),
             Route::NowPlaying => self.pages.playing.on_enter(),
             Route::Search => self.pages.search.on_enter(),
+            Route::Settings => self.pages.settings.on_enter(),
             Route::Logs => self.pages.logs.on_enter(),
         }
     }
@@ -531,6 +537,7 @@ impl App {
             Route::Tracks(_) => self.pages.tracks.on_exit(),
             Route::NowPlaying => self.pages.playing.on_exit(),
             Route::Search => self.pages.search.on_exit(),
+            Route::Settings => self.pages.settings.on_exit(),
             Route::Logs => self.pages.logs.on_exit(),
         }
     }
@@ -552,6 +559,7 @@ impl App {
                 .pages
                 .search
                 .on_input(key.code, key.modifiers, &mut self.jukebox),
+            Route::Settings => self.pages.settings.on_input(key.code, key.modifiers),
             Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
         }
     }
@@ -570,6 +578,7 @@ fn render_navigation(
         (Route::Tracks(None), "Tracks", SPACING),
         (Route::NowPlaying, "Now Playing", SPACING),
         (Route::Search, "Search", SPACING),
+        (Route::Settings, "Settings", SPACING),
         (Route::Logs, "Logs", ""),
     ] {
         let is_current = std::mem::discriminant(&route) == std::mem::discriminant(&current_route);

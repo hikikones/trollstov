@@ -1,11 +1,13 @@
 mod logs;
 mod playing;
 mod search;
+mod settings;
 mod tracks;
 
 pub use logs::*;
 pub use playing::*;
 pub use search::*;
+pub use settings::*;
 pub use tracks::*;
 
 use crate::colors::Colors;
@@ -14,6 +16,7 @@ pub struct Pages {
     pub tracks: TracksPage,
     pub playing: PlayingPage,
     pub search: SearchPage,
+    pub settings: SettingsPage,
     pub logs: LogsPage,
 }
 
@@ -23,6 +26,7 @@ impl Pages {
             tracks: TracksPage::new(colors),
             playing: PlayingPage::new(colors),
             search: SearchPage::new(colors),
+            settings: SettingsPage::new(colors),
             logs: LogsPage::new(colors),
         }
     }
@@ -33,6 +37,7 @@ pub enum Route {
     Tracks(Option<jukebox::TrackId>),
     NowPlaying,
     Search,
+    Settings,
     Logs,
 }
 
@@ -41,7 +46,8 @@ impl Route {
         match self {
             Self::Tracks(_) => Self::NowPlaying,
             Self::NowPlaying => Self::Search,
-            Self::Search => Self::Logs,
+            Self::Search => Self::Settings,
+            Self::Settings => Self::Logs,
             Self::Logs => Self::Tracks(None),
         }
     }
@@ -51,7 +57,8 @@ impl Route {
             Self::Tracks(_) => Self::Logs,
             Self::NowPlaying => Self::Tracks(None),
             Self::Search => Self::NowPlaying,
-            Self::Logs => Self::Search,
+            Self::Settings => Self::Search,
+            Self::Logs => Self::Settings,
         }
     }
 }
