@@ -113,11 +113,7 @@ pub fn print_line_iter_with_styles(
     buf: &mut Buffer,
     texts: impl IntoIterator<Item = (impl AsRef<str>, impl Into<Style>)>,
     fill_style: impl Into<Style>,
-) {
-    if line.is_empty() {
-        return;
-    }
-
+) -> Rect {
     let Rect {
         mut x,
         y,
@@ -126,12 +122,12 @@ pub fn print_line_iter_with_styles(
     } = line;
 
     for (text, style) in texts {
-        let (next_x, _) = buf.set_stringn(x, y, text, width as usize, style);
-        width -= next_x - x;
-        x = next_x;
         if width == 0 {
             break;
         }
+        let (next_x, _) = buf.set_stringn(x, y, text, width as usize, style);
+        width -= next_x - x;
+        x = next_x;
     }
 
     let style = fill_style.into();
@@ -140,8 +136,15 @@ pub fn print_line_iter_with_styles(
             Some(cell) => {
                 cell.set_style(style);
             }
-            None => return,
+            None => break,
         }
+    }
+
+    Rect {
+        x,
+        y,
+        width,
+        height: line.height,
     }
 }
 
@@ -151,9 +154,9 @@ pub fn _print_line_iter(
     buf: &mut Buffer,
     texts: impl IntoIterator<Item = impl AsRef<str>>,
     style: impl Into<Style>,
-) {
+) -> Rect {
     let style = style.into();
-    print_line_iter_with_styles(line, buf, texts.into_iter().map(|s| (s, style)), style);
+    print_line_iter_with_styles(line, buf, texts.into_iter().map(|s| (s, style)), style)
 }
 
 /// Prints a collection of text segments with widths, spacing and styles.
