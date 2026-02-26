@@ -154,16 +154,23 @@ impl SearchPage {
                         if current == Some(id) {
                             style.add_modifier.insert(Modifier::BOLD);
                         }
-                        if jb.is_faulty(id) {
-                            style.add_modifier.insert(Modifier::CROSSED_OUT);
-                        }
                     }
 
-                    utils::print_line_iter(
+                    if jb.is_faulty(id) {
+                        style.add_modifier.insert(Modifier::CROSSED_OUT);
+                    }
+
+                    utils::print_line_iter_with_styles(
                         line,
                         buf,
-                        [track.artist(), " ", track.album(), " ", track.title()],
-                        style,
+                        [
+                            (track.title(), style),
+                            (" ", style),
+                            (track.artist(), style),
+                            (" ", style),
+                            (track.album(), style),
+                        ],
+                        style.not_crossed_out(),
                     );
                 }
             },

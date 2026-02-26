@@ -263,17 +263,27 @@ impl TracksPage {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);
                 }
 
-                utils::print_text_segments(
+                utils::print_text_segments_with_styles(
                     line,
                     buf,
                     [
-                        (track.title(), title_width, spacing),
-                        (track.artist(), artist_width, spacing),
-                        (track.album(), album_width, spacing),
-                        (track.duration_display(), time_width, spacing),
-                        (track.rating_display(), rating_width, 0),
+                        (track.title(), title_width, spacing, style),
+                        (track.artist(), artist_width, spacing, style),
+                        (track.album(), album_width, spacing, style),
+                        (
+                            track.duration_display(),
+                            time_width,
+                            spacing,
+                            style.not_crossed_out(),
+                        ),
+                        (
+                            track.rating_display(),
+                            rating_width,
+                            0,
+                            style.not_crossed_out(),
+                        ),
                     ],
-                    style,
+                    style.not_crossed_out(),
                 );
             },
         );

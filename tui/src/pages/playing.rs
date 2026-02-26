@@ -354,7 +354,7 @@ impl PlayingPage {
                             (" ", style),
                             (track.album(), style),
                         ],
-                        style,
+                        style.not_crossed_out(),
                     );
                 }
             },
