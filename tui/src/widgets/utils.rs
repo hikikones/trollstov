@@ -9,10 +9,6 @@ pub fn print_ascii(
     style: impl Into<Style>,
     alignment: Alignment,
 ) {
-    if line.is_empty() {
-        return;
-    }
-
     let ascii = ascii.as_ref();
     let style = style.into();
     let Rect {
@@ -43,6 +39,50 @@ pub fn print_ascii(
 
         x += 1;
         width -= 1;
+    }
+}
+
+/// Prints `ascii` collection assuming only ASCII, no newlines or
+/// control characters for simple layout calculation.
+pub fn print_ascii_iter(
+    line: Rect,
+    buf: &mut Buffer,
+    ascii: &[&str],
+    style: impl Into<Style>,
+    alignment: Alignment,
+) {
+    let ascii_width = ascii.iter().map(|s| s.len() as u16).sum::<u16>();
+    let style = style.into();
+    let Rect {
+        mut x,
+        y,
+        mut width,
+        ..
+    } = align(
+        Rect {
+            width: line.width.min(ascii_width),
+            height: 1,
+            ..line
+        },
+        line,
+        alignment,
+    );
+
+    for ascii in ascii {
+        for ch in ascii.chars() {
+            if width == 0 {
+                return;
+            }
+
+            let Some(cell) = buf.cell_mut((x, y)) else {
+                return;
+            };
+
+            cell.set_char(ch).set_style(style);
+
+            x += 1;
+            width -= 1;
+        }
     }
 }
 

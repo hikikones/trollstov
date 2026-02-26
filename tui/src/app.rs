@@ -21,6 +21,9 @@ use crate::{
 
 // TODO: Add a dynamic playlist page for artists/albums/genres and filtering.
 
+const APP_NAME: &str = env!("CARGO_PKG_NAME");
+const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 type FrontCoverHandle = std::thread::JoinHandle<Result<FrontCover, AudioFileReport>>;
 
 pub struct App {
@@ -110,7 +113,7 @@ impl App {
 
         // Try to establish media controls
         if self.mpris {
-            match self.jukebox.attach_media_controls("trollstov") {
+            match self.jukebox.attach_media_controls(APP_NAME) {
                 Ok(_) => {
                     self.mpris = true;
                 }
@@ -428,11 +431,11 @@ impl App {
                     .areas(area);
 
                     // Title
-                    utils::print_ascii(
+                    utils::print_ascii_iter(
                         title_area,
                         buf,
-                        "trollstov",
-                        Style::new().fg(self.colors.neutral),
+                        &[APP_NAME, " ", APP_VERSION],
+                        self.colors.neutral,
                         utils::Alignment::CenterHorizontal,
                     );
 
