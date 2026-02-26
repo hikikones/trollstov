@@ -69,7 +69,7 @@ impl SearchPage {
         }
 
         // Determine colors and shortcuts for search input and results
-        let border_style = {
+        let (block_style, border_style) = {
             let neutral = Style::new().fg(colors.neutral);
             match self.state {
                 State::Search => {
@@ -84,7 +84,7 @@ impl SearchPage {
                         Shortcut::new("Select all", "^a"),
                     ]);
 
-                    neutral
+                    (neutral, neutral)
                 }
                 State::Browse => {
                     self.search_input
@@ -97,7 +97,7 @@ impl SearchPage {
                         Shortcut::new("Search", "s"),
                     ]);
 
-                    Style::new().fg(colors.accent)
+                    (Style::new(), Style::new().fg(colors.accent))
                 }
             }
         };
@@ -123,6 +123,7 @@ impl SearchPage {
         let search_results_block = Block::bordered()
             .title(self.buffer.as_str())
             .title_alignment(Alignment::Center)
+            .style(block_style)
             .border_style(border_style)
             .padding(Padding::horizontal(1));
         let search_results_inner = search_results_block.inner(search_results_area);
@@ -150,12 +151,11 @@ impl SearchPage {
                             }
                             ListItem::Normal => {}
                         }
-
-                        if current == Some(id) {
-                            style.add_modifier.insert(Modifier::BOLD);
-                        }
                     }
 
+                    if current == Some(id) {
+                        style.add_modifier.insert(Modifier::BOLD);
+                    }
                     if jb.is_faulty(id) {
                         style.add_modifier.insert(Modifier::CROSSED_OUT);
                     }
