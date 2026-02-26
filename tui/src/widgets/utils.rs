@@ -66,18 +66,18 @@ pub fn print_line(line: Rect, buf: &mut Buffer, text: impl AsRef<str>, style: im
     }
 }
 
-/// Prints a collection of text slices and fills remaining empty cells with the given style.
-pub fn print_line_iter(
+/// Prints a collection of text slices and styles.
+/// Fills remaining empty cells with the given fill style.
+pub fn print_line_iter_with_styles(
     line: Rect,
     buf: &mut Buffer,
-    texts: impl IntoIterator<Item = impl AsRef<str>>,
-    style: impl Into<Style>,
+    texts: impl IntoIterator<Item = (impl AsRef<str>, impl Into<Style>)>,
+    fill_style: impl Into<Style>,
 ) {
     if line.is_empty() {
         return;
     }
 
-    let style = style.into();
     let Rect {
         mut x,
         y,
@@ -85,7 +85,7 @@ pub fn print_line_iter(
         ..
     } = line;
 
-    for text in texts {
+    for (text, style) in texts {
         let (next_x, _) = buf.set_stringn(x, y, text, width as usize, style);
         width -= next_x - x;
         x = next_x;
@@ -94,6 +94,7 @@ pub fn print_line_iter(
         }
     }
 
+    let style = fill_style.into();
     for i in 0..width {
         match buf.cell_mut((x + i, y)) {
             Some(cell) => {
@@ -104,35 +105,63 @@ pub fn print_line_iter(
     }
 }
 
-/// Prints a collection of text segments with widths and spacing.
-/// Fills remaining empty cells with the given style.
-pub fn print_text_segments(
+/// Prints a collection of text slices and fills remaining empty cells with the given style.
+pub fn _print_line_iter(
     line: Rect,
     buf: &mut Buffer,
-    segments: impl IntoIterator<Item = (impl AsRef<str>, u16, u16)>,
+    texts: impl IntoIterator<Item = impl AsRef<str>>,
     style: impl Into<Style>,
+) {
+    let style = style.into();
+    print_line_iter_with_styles(line, buf, texts.into_iter().map(|s| (s, style)), style);
+}
+
+/// Prints a collection of text segments with widths, spacing and styles.
+/// Fills remaining empty cells with the given fill style.
+pub fn print_text_segments_with_styles(
+    line: Rect,
+    buf: &mut Buffer,
+    segments: impl IntoIterator<Item = (impl AsRef<str>, u16, u16, impl Into<Style>)>,
+    fill_style: impl Into<Style>,
 ) {
     if line.is_empty() {
         return;
     }
 
-    let style = style.into();
+    let fill_style = fill_style.into();
     let Rect { mut x, y, .. } = line;
 
-    for (text, width, spacing) in segments {
+    for (text, width, spacing, style) in segments {
         let text_width = width.saturating_sub(spacing);
         let (next_x, _) = buf.set_stringn(x, y, text, text_width as usize, style);
         let remaining = width - (next_x - x);
         for i in 0..remaining {
             match buf.cell_mut((next_x + i, y)) {
                 Some(cell) => {
-                    cell.set_style(style);
+                    cell.set_style(fill_style);
                 }
                 None => return,
             }
         }
         x = next_x + remaining;
     }
+}
+
+/// Prints a collection of text segments with widths and spacing.
+/// Fills remaining empty cells with the given style.
+pub fn _print_text_segments(
+    line: Rect,
+    buf: &mut Buffer,
+    segments: impl IntoIterator<Item = (impl AsRef<str>, u16, u16)>,
+    style: impl Into<Style>,
+) {
+    let style = style.into();
+    print_text_segments_with_styles(
+        line,
+        buf,
+        segments.into_iter().map(|(s, w, g)| (s, w, g, style)),
+        style,
+    );
 }
 
 /// Aligns the inner [Rect] inside the outer [Rect].

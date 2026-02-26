@@ -333,23 +333,28 @@ impl PlayingPage {
             |line, buf, (id, qi), item| {
                 if let Some(track) = jb.get(id) {
                     let mut style = Style::new();
+
                     if current_queue_index == Some(qi) {
                         style.fg = Some(colors.accent);
                     }
+                    if jb.is_faulty(id) {
+                        style.add_modifier.insert(Modifier::CROSSED_OUT);
+                    }
+
                     let symbol = if item == ListItem::Selected { "> " } else { "" };
 
-                    utils::print_line_iter(
+                    utils::print_line_iter_with_styles(
                         line,
                         buf,
                         [
-                            symbol,
-                            track.title(),
-                            " ",
-                            track.artist(),
-                            " ",
-                            track.album(),
+                            (symbol, style.not_crossed_out()),
+                            (track.title(), style),
+                            (" ", style),
+                            (track.artist(), style),
+                            (" ", style),
+                            (track.album(), style),
                         ],
-                        style,
+                        style.not_crossed_out(),
                     );
                 }
             },

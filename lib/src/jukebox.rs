@@ -75,6 +75,10 @@ impl Jukebox {
         self.database.is_empty()
     }
 
+    pub fn is_faulty(&self, id: TrackId) -> bool {
+        self.faulty.contains(&id)
+    }
+
     pub fn len(&self) -> usize {
         self.database.len()
     }
