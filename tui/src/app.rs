@@ -434,7 +434,7 @@ impl App {
                     utils::print_ascii_iter(
                         title_area,
                         buf,
-                        &[APP_NAME, " ", APP_VERSION],
+                        &[APP_NAME, " v", APP_VERSION],
                         self.colors.neutral,
                         utils::Alignment::CenterHorizontal,
                     );
