@@ -90,9 +90,13 @@ impl SettingsPage {
             },
         );
 
-        // Shortcuts
-        shortcuts.extend([Shortcut::new("Rating", "0-5")]);
-
+        match SETTINGS[self.list.index()] {
+            Setting::SkipRating => {
+                shortcuts.extend([Shortcut::new("Rating", "0-5")]);
+            }
+            Setting::Ignore => {}
+            Setting::Test => {}
+        }
         shortcuts.push(Shortcut::new("Save", "^s"));
     }
 
@@ -101,31 +105,34 @@ impl SettingsPage {
 
         match key {
             KeyCode::Down => {
-                if let Some((i, _)) = SETTINGS
-                    .into_iter()
-                    .enumerate()
-                    .skip(self.list.index() + 1)
-                    .filter(|(_, s)| s.filter())
-                    .next()
-                {
-                    if self.list.move_index(ListMove::Custom(i), false) {
-                        return Action::Render;
+                let mut next = self.list.index() + 1;
+                while next < SETTINGS.len() {
+                    if SETTINGS[next].filter() {
+                        if self.list.move_index(ListMove::Custom(next), false) {
+                            return Action::Render;
+                        } else {
+                            break;
+                        }
                     }
+                    next += 1;
                 }
             }
             KeyCode::Up => {
-                let index_rev = SETTINGS.len().saturating_sub(1) - self.list.index();
-                if let Some((i, _)) = SETTINGS
-                    .into_iter()
-                    .enumerate()
-                    .rev()
-                    .skip(index_rev + 1)
-                    .filter(|(_, s)| s.filter())
-                    .next()
-                {
-                    if self.list.move_index(ListMove::Custom(i), false) {
-                        return Action::Render;
+                let mut prev = self.list.index().saturating_sub(1);
+                loop {
+                    if SETTINGS[prev].filter() {
+                        if self.list.move_index(ListMove::Custom(prev), false) {
+                            return Action::Render;
+                        } else {
+                            break;
+                        }
                     }
+
+                    if prev == 0 {
+                        break;
+                    }
+
+                    prev -= 1;
                 }
             }
             KeyCode::Char(c) => match c {
