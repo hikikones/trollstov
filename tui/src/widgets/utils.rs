@@ -140,7 +140,7 @@ pub fn print_line(line: Rect, buf: &mut Buffer, text: impl AsRef<str>, style: im
 }
 
 /// Prints a collection of text slices and fills remaining empty cells with the given style.
-pub fn print_line_iter(
+pub fn _print_line_iter(
     line: Rect,
     buf: &mut Buffer,
     texts: impl IntoIterator<Item = impl AsRef<str>>,

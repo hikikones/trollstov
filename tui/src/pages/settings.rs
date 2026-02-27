@@ -2,6 +2,7 @@ use jukebox::AudioRating;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
+    widgets::{Block, Padding},
 };
 
 use crate::{
@@ -48,8 +49,19 @@ impl SettingsPage {
         colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
+        let max_width = area.width.min((0.60 * area.width as f32).floor() as u16);
+        let area = area.centered_horizontally(Constraint::Max(max_width));
+
+        let block = Block::bordered()
+            .title(" Settings ")
+            .title_alignment(Alignment::Center)
+            .padding(Padding::uniform(1));
+        let settings_area = block.inner(area);
+
+        block.render(area, buf);
+
         self.list.render(
-            area,
+            settings_area,
             buf,
             SETTINGS.into_iter(),
             |line, buf, setting, index| {
