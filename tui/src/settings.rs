@@ -7,10 +7,10 @@ const CONFIG_NAME: &str = "settings.toml";
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub skip_rating: AudioRating,
+    pub keep_selected_track_on_sort: bool,
 }
 
 // TODO: Add version?
-// TODO: Add toggle for keeping selected track when sorting.
 
 impl Settings {
     pub fn read() -> Result<Self, Box<dyn std::error::Error>> {
@@ -85,6 +85,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             skip_rating: Default::default(),
+            keep_selected_track_on_sort: false,
         }
     }
 }

@@ -71,11 +71,12 @@ pub enum Action {
     Render,
     Route(Route),
     Log(Log),
+    ApplySettings,
     Quit,
 }
 
 impl App {
-    pub fn new(mut jukebox: Jukebox, colors: Colors, picker: Picker, mpris: bool) -> Self {
+    pub fn new(jukebox: Jukebox, colors: Colors, picker: Picker, mpris: bool) -> Self {
         let mut logs = LogsPage::new(&colors);
 
         let settings = Settings::read()
@@ -84,10 +85,9 @@ impl App {
                 logs.enqueue(log);
             })
             .unwrap_or_default();
-        jukebox.set_skip(settings.skip_rating);
 
         let pages = Pages {
-            tracks: TracksPage::new(&colors),
+            tracks: TracksPage::new(&settings, &colors),
             playing: PlayingPage::new(&colors),
             search: SearchPage::new(&colors),
             settings: SettingsPage::new(&settings, &colors),
@@ -123,6 +123,8 @@ impl App {
         terminal.draw(|frame| {
             frame.render_widget(crate::widgets::LogoWidget, frame.area());
         })?;
+
+        self.apply_settings();
 
         // Start reading events and load music
         self.events.start();
@@ -169,6 +171,10 @@ impl App {
                 }
                 Action::Log(log) => {
                     self.pages.logs.enqueue(log);
+                    self.render(&mut terminal)?;
+                }
+                Action::ApplySettings => {
+                    self.apply_settings();
                     self.render(&mut terminal)?;
                 }
                 Action::Quit => {
@@ -580,14 +586,18 @@ impl App {
                 .pages
                 .search
                 .on_input(key.code, key.modifiers, &mut self.jukebox),
-            Route::Settings => self.pages.settings.on_input(
-                key.code,
-                key.modifiers,
-                &mut self.settings,
-                &mut self.jukebox,
-            ),
+            Route::Settings => {
+                self.pages
+                    .settings
+                    .on_input(key.code, key.modifiers, &mut self.settings)
+            }
             Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
         }
+    }
+
+    const fn apply_settings(&mut self) {
+        self.jukebox.set_skip(self.settings.skip_rating);
+        self.pages.tracks.keep_selected_track_on_sort = self.settings.keep_selected_track_on_sort;
     }
 }
 

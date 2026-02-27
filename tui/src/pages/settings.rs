@@ -1,4 +1,4 @@
-use jukebox::{AudioRating, Jukebox};
+use jukebox::AudioRating;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -25,9 +25,12 @@ pub struct SettingsPage {
     text: TextSegment,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Setting {
     SkipRating,
     SkipRatingDescription,
+    KeepTrackSort,
+    KeepTrackSortDescription,
     Empty,
 }
 
@@ -36,15 +39,19 @@ impl Setting {
         match self {
             Setting::SkipRating => true,
             Setting::SkipRatingDescription => false,
+            Setting::KeepTrackSort => true,
+            Setting::KeepTrackSortDescription => false,
             Setting::Empty => false,
         }
     }
 }
 
-const SETTINGS: [Setting; 3] = [
+const SETTINGS: [Setting; 5] = [
     Setting::SkipRating,
     Setting::SkipRatingDescription,
     Setting::Empty,
+    Setting::KeepTrackSort,
+    Setting::KeepTrackSortDescription,
 ];
 
 impl SettingsPage {
@@ -88,12 +95,11 @@ impl SettingsPage {
             SETTINGS.into_iter(),
             |line, buf, setting, index| {
                 let (symbol, style) = if index == ListItem::Selected {
-                    ("> ", Style::new())
+                    ("> ", Style::new().bold())
                 } else {
-                    ("", Style::new().fg(colors.neutral))
+                    ("", Style::new())
                 };
 
-                // TODO: Add a description for each option.
                 match setting {
                     Setting::SkipRating => {
                         self.text
@@ -108,9 +114,26 @@ impl SettingsPage {
                     }
                     Setting::SkipRatingDescription => {
                         self.text.push_str(
-                            "Skips tracks that are less than or equal to set rating",
+                            "skips tracks that are less than or equal to",
                             colors.neutral,
                         );
+                        self.text.render(line, buf);
+                    }
+                    Setting::KeepTrackSort => {
+                        self.text
+                            .extend_as_one([symbol, "Keep selected track on sort: "], style);
+
+                        // Checkmark
+                        let (checkmark, color) = match self.settings.keep_selected_track_on_sort {
+                            true => ("🗸", colors.accent),
+                            false => ("𐄂", colors.neutral),
+                        };
+                        self.text.push_str(checkmark, color);
+                        self.text.render(line, buf);
+                    }
+                    Setting::KeepTrackSortDescription => {
+                        self.text
+                            .push_str("scrolls to selected track when sorting", colors.neutral);
                         self.text.render(line, buf);
                     }
                     Setting::Empty => {}
@@ -124,6 +147,9 @@ impl SettingsPage {
         match SETTINGS[self.list.index()] {
             Setting::SkipRating => {
                 shortcuts.push(Shortcut::new("Rating", "0-5"));
+            }
+            Setting::KeepTrackSort => {
+                shortcuts.push(Shortcut::new("Toggle", "space"));
             }
             _ => {}
         }
@@ -141,7 +167,6 @@ impl SettingsPage {
         key: KeyCode,
         _modifiers: KeyModifiers,
         settings: &mut Settings,
-        jb: &mut Jukebox,
     ) -> Action {
         match key {
             KeyCode::Down => {
@@ -177,9 +202,19 @@ impl SettingsPage {
             }
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
-                    let rating = AudioRating::from_char(c).unwrap();
-                    if self.settings.skip_rating != rating {
-                        self.settings.skip_rating = rating;
+                    if self.current() == Setting::SkipRating {
+                        let rating = AudioRating::from_char(c).unwrap();
+                        if self.settings.skip_rating != rating {
+                            self.settings.skip_rating = rating;
+                            self.update_hash();
+                            return Action::Render;
+                        }
+                    }
+                }
+                ' ' => {
+                    if self.current() == Setting::KeepTrackSort {
+                        self.settings.keep_selected_track_on_sort =
+                            !self.settings.keep_selected_track_on_sort;
                         self.update_hash();
                         return Action::Render;
                     }
@@ -190,8 +225,7 @@ impl SettingsPage {
                         self.applied = self.settings.clone();
                         self.apply_hash = self.settings.hash();
                         self.is_applied = true;
-                        jb.set_skip(settings.skip_rating);
-                        return Action::Render;
+                        return Action::ApplySettings;
                     }
                 }
                 's' => {
@@ -223,5 +257,9 @@ impl SettingsPage {
         let hash = self.settings.hash();
         self.is_applied = self.apply_hash == hash;
         self.is_written = self.write_hash == hash;
+    }
+
+    const fn current(&self) -> Setting {
+        SETTINGS[self.list.index()]
     }
 }

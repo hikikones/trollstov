@@ -8,19 +8,22 @@ use ratatui::{
 use crate::{
     app::Action,
     colors::Colors,
+    settings::Settings,
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
 pub struct TracksPage {
     title: String,
     list: List,
+    pub keep_selected_track_on_sort: bool,
 }
 
 impl TracksPage {
-    pub const fn new(colors: &Colors) -> Self {
+    pub const fn new(settings: &Settings, colors: &Colors) -> Self {
         Self {
             title: String::new(),
             list: List::new().with_colors(colors.neutral, None),
+            keep_selected_track_on_sort: settings.keep_selected_track_on_sort,
         }
     }
 
@@ -110,7 +113,8 @@ impl TracksPage {
                 's' => {
                     let id = jb.get_id_from_index(self.list.index());
                     jb.sort(jb.get_sort().next());
-                    if let Some(id) = id
+                    if self.keep_selected_track_on_sort
+                        && let Some(id) = id
                         && let Some(i) = jb.get_index_from_id(id)
                     {
                         self.list.move_index(ListMove::Custom(i), false);
@@ -120,7 +124,8 @@ impl TracksPage {
                 'S' => {
                     let id = jb.get_id_from_index(self.list.index());
                     jb.sort(jb.get_sort().prev());
-                    if let Some(id) = id
+                    if self.keep_selected_track_on_sort
+                        && let Some(id) = id
                         && let Some(i) = jb.get_index_from_id(id)
                     {
                         self.list.move_index(ListMove::Custom(i), false);
