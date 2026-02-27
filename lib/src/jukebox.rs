@@ -321,7 +321,7 @@ impl Jukebox {
                 AudioRating::None => false,
                 _ => track.rating().as_u8() <= self.skip.as_u8(),
             })
-            .unwrap_or(false)
+            .unwrap_or(true)
     }
 
     fn start_play(&mut self, id: TrackId, index: QueueIndex) {
