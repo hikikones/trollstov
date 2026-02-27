@@ -1,4 +1,4 @@
-use jukebox::AudioRating;
+use jukebox::{AudioRating, Jukebox};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -95,12 +95,12 @@ impl SettingsPage {
         // Shortcuts
         match SETTINGS[self.list.index()] {
             Setting::SkipRating => {
-                shortcuts.extend([Shortcut::new("Rating", "0-5")]);
+                shortcuts.push(Shortcut::new("Rating", "0-5"));
             }
         }
 
         if self.is_dirty {
-            shortcuts.push(Shortcut::new("Save", "^s"));
+            shortcuts.extend([Shortcut::new("Apply", "a"), Shortcut::new("Save", "^s")]);
         }
     }
 
@@ -109,6 +109,7 @@ impl SettingsPage {
         key: KeyCode,
         modifiers: KeyModifiers,
         settings: &mut Settings,
+        jb: &mut Jukebox,
     ) -> Action {
         let ctrl = modifiers.contains(KeyModifiers::CONTROL);
 
@@ -150,6 +151,13 @@ impl SettingsPage {
                     if self.settings.skip_rating != rating {
                         self.settings.skip_rating = rating;
                         self.is_dirty = self.settings.hash() != settings.hash();
+                        return Action::Render;
+                    }
+                }
+                'a' => {
+                    if self.is_dirty {
+                        // TODO: also add is_applied
+                        jb.set_skip(self.settings.skip_rating);
                         return Action::Render;
                     }
                 }

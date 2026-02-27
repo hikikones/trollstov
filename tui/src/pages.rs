@@ -10,8 +10,6 @@ pub use search::*;
 pub use settings::*;
 pub use tracks::*;
 
-use crate::{colors::Colors, settings::Settings};
-
 pub struct Pages {
     pub tracks: TracksPage,
     pub playing: PlayingPage,

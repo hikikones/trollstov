@@ -579,11 +579,12 @@ impl App {
                 .pages
                 .search
                 .on_input(key.code, key.modifiers, &mut self.jukebox),
-            Route::Settings => {
-                self.pages
-                    .settings
-                    .on_input(key.code, key.modifiers, &mut self.settings)
-            }
+            Route::Settings => self.pages.settings.on_input(
+                key.code,
+                key.modifiers,
+                &mut self.settings,
+                &mut self.jukebox,
+            ),
             Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
         }
     }

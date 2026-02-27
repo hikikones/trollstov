@@ -17,6 +17,7 @@ pub struct Jukebox {
     current: Option<(TrackId, QueueIndex)>,
     queue: PlayQueue,
     state: PlayState,
+    skip: AudioRating,
     audio_decode_handle: Option<(AudioDecodeHandle, TrackId, QueueIndex, PathBuf)>,
     audio_write_handle: Option<AudioWriteHandle>,
     audio_write_queue: VecDeque<(TrackId, AudioRating)>,
@@ -52,6 +53,7 @@ impl Jukebox {
             current: None,
             queue: PlayQueue::new(),
             state: PlayState::Stop,
+            skip: AudioRating::default(),
             audio_decode_handle: None,
             audio_write_handle: None,
             audio_write_queue: VecDeque::new(),
@@ -247,7 +249,7 @@ impl Jukebox {
 
             match next {
                 Some((id, index)) => {
-                    if self.faulty.contains(&id) {
+                    if self.faulty.contains(&id) || self.should_skip(id) {
                         next = self.queue.next();
                         continue;
                     }
@@ -263,11 +265,17 @@ impl Jukebox {
         }
 
         // No tracks in the queue, play a random next
-        let mut random = TrackId(fastrand::u64(0..self.database.len() as u64));
-        if self.current_track_id() == Some(random) {
-            // Do it one more time
+        let mut tries = 10;
+        let mut random = TrackId(0);
+        while tries > 0 {
             random = TrackId(fastrand::u64(0..self.database.len() as u64));
+            if self.current_track_id() == Some(random) || self.should_skip(random) {
+                tries -= 1;
+                continue;
+            }
+            break;
         }
+
         let (id, index) = self.queue.enqueue(random).next().unwrap();
         self.state = PlayState::Next;
         self.start_play(id, index);
@@ -275,7 +283,7 @@ impl Jukebox {
 
     pub fn play_previous(&mut self) {
         while let Some((id, index)) = self.queue.previous() {
-            if self.faulty.contains(&id) {
+            if self.faulty.contains(&id) || self.should_skip(id) {
                 continue;
             }
 
@@ -298,6 +306,20 @@ impl Jukebox {
 
     pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
         self.audio_write_queue.push_back((id, rating));
+    }
+
+    pub const fn set_skip(&mut self, rating: AudioRating) {
+        self.skip = rating;
+    }
+
+    fn should_skip(&self, id: TrackId) -> bool {
+        self.database
+            .get(id)
+            .map(|track| match track.rating() {
+                AudioRating::None => false,
+                _ => track.rating().as_u8() <= self.skip.as_u8(),
+            })
+            .unwrap_or(false)
     }
 
     fn start_play(&mut self, id: TrackId, index: QueueIndex) {
