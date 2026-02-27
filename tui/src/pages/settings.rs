@@ -159,6 +159,6 @@ impl SettingsPage {
 fn print_stars(mut line: Rect, buf: &mut Buffer, rating: AudioRating, colors: &Colors) {
     let colored = rating as u8;
     let neutral = 5 - colored;
-    line = utils::_print_line_iter(line, buf, (0..colored).map(|_| "★"), colors.accent);
-    utils::_print_line_iter(line, buf, (0..neutral).map(|_| "★"), colors.neutral);
+    line = utils::print_text_repeat(line, buf, "★", colored, colors.accent);
+    utils::print_text_repeat(line, buf, "★", neutral, colors.neutral);
 }

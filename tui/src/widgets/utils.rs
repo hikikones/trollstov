@@ -42,6 +42,40 @@ pub fn print_ascii(
     }
 }
 
+/// Prints text `n` times.
+pub fn print_text_repeat(
+    line: Rect,
+    buf: &mut Buffer,
+    text: &str,
+    n: u8,
+    style: impl Into<Style>,
+) -> Rect {
+    let style = style.into();
+    let Rect {
+        mut x,
+        y,
+        mut width,
+        ..
+    } = line;
+
+    for _ in 0..n {
+        if width == 0 {
+            break;
+        }
+
+        let (next_x, _) = buf.set_stringn(x, y, text, width as usize, style);
+        width -= next_x - x;
+        x = next_x;
+    }
+
+    Rect {
+        x,
+        y,
+        width,
+        height: line.height,
+    }
+}
+
 /// Prints `ascii` collection assuming only ASCII, no newlines or
 /// control characters for simple layout calculation.
 pub fn print_ascii_iter(
@@ -88,10 +122,6 @@ pub fn print_ascii_iter(
 
 /// Prints `text` and fills remaining empty cells with the given style.
 pub fn print_line(line: Rect, buf: &mut Buffer, text: impl AsRef<str>, style: impl Into<Style>) {
-    if line.is_empty() {
-        return;
-    }
-
     let style = style.into();
     let Rect { x, y, width, .. } = line;
     let (end_x, _) = buf.set_stringn(x, y, text, width as usize, style);
