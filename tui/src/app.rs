@@ -14,7 +14,7 @@ use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
 use crate::{
     colors::Colors,
     events::{Event, EventHandler},
-    pages::{Log, Pages, Route},
+    pages::{Log, LogsPage, Pages, PlayingPage, Route, SearchPage, SettingsPage, TracksPage},
     settings::Settings,
     terminal::Terminal,
     widgets::{Shortcut, Shortcuts, TextSegment, utils},
@@ -76,15 +76,21 @@ pub enum Action {
 
 impl App {
     pub fn new(jukebox: Jukebox, colors: Colors, picker: Picker, mpris: bool) -> Self {
-        let mut pages = Pages::new(&colors);
+        let mut logs = LogsPage::new(&colors);
 
-        let settings = match Settings::read() {
-            Ok(settings) => settings,
-            Err(err) => {
+        let settings = Settings::read()
+            .inspect_err(|err| {
                 let log = Log::new(err);
-                pages.logs.enqueue(log);
-                Settings::default()
-            }
+                logs.enqueue(log);
+            })
+            .unwrap_or_default();
+
+        let pages = Pages {
+            tracks: TracksPage::new(&colors),
+            playing: PlayingPage::new(&colors),
+            search: SearchPage::new(&colors),
+            settings: SettingsPage::new(&settings, &colors),
+            logs,
         };
 
         let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
@@ -576,7 +582,7 @@ impl App {
             Route::Settings => {
                 self.pages
                     .settings
-                    .on_input(key.code, key.modifiers, &self.settings)
+                    .on_input(key.code, key.modifiers, &mut self.settings)
             }
             Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
         }

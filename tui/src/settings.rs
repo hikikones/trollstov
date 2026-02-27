@@ -4,13 +4,12 @@ use serde::{Deserialize, Serialize};
 
 const CONFIG_NAME: &str = "settings.toml";
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub skip_rating: AudioRating,
 }
 
 // TODO: Add version?
-// TODO: Add default/reset/discard changes.
 
 impl Settings {
     pub fn read() -> Result<Self, Box<dyn std::error::Error>> {

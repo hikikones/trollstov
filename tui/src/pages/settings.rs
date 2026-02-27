@@ -14,9 +14,10 @@ use crate::{
 };
 
 pub struct SettingsPage {
+    settings: Settings,
+    is_dirty: bool,
     list: List,
     text: TextSegment,
-    skip_rating: AudioRating,
 }
 
 enum Setting {
@@ -34,11 +35,12 @@ impl Setting {
 const SETTINGS: [Setting; 1] = [Setting::SkipRating];
 
 impl SettingsPage {
-    pub const fn new(colors: &Colors) -> Self {
+    pub fn new(settings: &Settings, colors: &Colors) -> Self {
         Self {
+            settings: settings.clone(),
+            is_dirty: false,
             list: List::new().with_colors(colors.neutral, None),
             text: TextSegment::new().with_alignment(Alignment::Center),
-            skip_rating: AudioRating::None,
         }
     }
 
@@ -78,7 +80,7 @@ impl SettingsPage {
                             .extend_as_one([symbol, "Skip tracks with rating up to: "], style);
 
                         // Stars
-                        let colored = self.skip_rating as usize;
+                        let colored = self.settings.skip_rating as usize;
                         let neutral = 5 - colored;
                         self.text.repeat_char('★', colored, colors.accent);
                         self.text.repeat_char('★', neutral, colors.neutral);
@@ -96,14 +98,17 @@ impl SettingsPage {
                 shortcuts.extend([Shortcut::new("Rating", "0-5")]);
             }
         }
-        shortcuts.push(Shortcut::new("Save", "^s"));
+
+        if self.is_dirty {
+            shortcuts.push(Shortcut::new("Save", "^s"));
+        }
     }
 
     pub fn on_input(
         &mut self,
         key: KeyCode,
         modifiers: KeyModifiers,
-        settings: &Settings,
+        settings: &mut Settings,
     ) -> Action {
         let ctrl = modifiers.contains(KeyModifiers::CONTROL);
 
@@ -141,14 +146,20 @@ impl SettingsPage {
             }
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
-                    self.skip_rating = AudioRating::from_char(c).unwrap();
-                    return Action::Render;
+                    let rating = AudioRating::from_char(c).unwrap();
+                    if self.settings.skip_rating != rating {
+                        self.settings.skip_rating = rating;
+                        self.is_dirty = self.settings.hash() != settings.hash();
+                        return Action::Render;
+                    }
                 }
                 's' => {
-                    if ctrl {
+                    if ctrl && self.is_dirty {
                         match settings.save() {
                             Ok(_) => {
-                                //todo?
+                                *settings = self.settings.clone();
+                                self.is_dirty = false;
+                                return Action::Render;
                             }
                             Err(err) => {
                                 return Action::Log(Log::new(err));
