@@ -75,7 +75,7 @@ pub enum Action {
 }
 
 impl App {
-    pub fn new(jukebox: Jukebox, colors: Colors, picker: Picker, mpris: bool) -> Self {
+    pub fn new(mut jukebox: Jukebox, colors: Colors, picker: Picker, mpris: bool) -> Self {
         let mut logs = LogsPage::new(&colors);
 
         let settings = Settings::read()
@@ -84,6 +84,7 @@ impl App {
                 logs.enqueue(log);
             })
             .unwrap_or_default();
+        jukebox.set_skip(settings.skip_rating);
 
         let pages = Pages {
             tracks: TracksPage::new(&colors),

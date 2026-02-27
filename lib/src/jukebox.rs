@@ -266,7 +266,7 @@ impl Jukebox {
 
         // No tracks in the queue, play a random next
         let current = self.current_track_id();
-        let mut tries = 10;
+        let mut tries = 5;
         let mut rand = TrackId(0);
         while tries > 0 {
             rand = TrackId(fastrand::u64(0..self.database.len() as u64));
