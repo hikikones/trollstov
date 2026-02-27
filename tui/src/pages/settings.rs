@@ -85,6 +85,7 @@ impl SettingsPage {
                     ("", Style::new().fg(colors.neutral))
                 };
 
+                // TODO: Add a description for each option.
                 match setting {
                     Setting::SkipRating => {
                         self.text

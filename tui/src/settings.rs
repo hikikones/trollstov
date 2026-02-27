@@ -10,6 +10,7 @@ pub struct Settings {
 }
 
 // TODO: Add version?
+// TODO: Add toggle for keeping selected track when sorting.
 
 impl Settings {
     pub fn read() -> Result<Self, Box<dyn std::error::Error>> {
