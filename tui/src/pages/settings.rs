@@ -7,45 +7,34 @@ use ratatui::{
 use crate::{
     app::Action,
     colors::Colors,
-    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
+    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment, utils},
 };
 
 pub struct SettingsPage {
     list: List,
+    text: TextSegment,
     skip_rating: AudioRating,
 }
 
 enum Setting {
     SkipRating,
-    Ignore,
-    Test,
 }
 
 impl Setting {
     const fn filter(&self) -> bool {
         match self {
             Setting::SkipRating => true,
-            Setting::Ignore => false,
-            Setting::Test => true,
         }
     }
 }
 
-const SETTINGS: [Setting; 8] = [
-    Setting::SkipRating,
-    Setting::Ignore,
-    Setting::Test,
-    Setting::Test,
-    Setting::Test,
-    Setting::Test,
-    Setting::Ignore,
-    Setting::SkipRating,
-];
+const SETTINGS: [Setting; 1] = [Setting::SkipRating];
 
 impl SettingsPage {
     pub const fn new(colors: &Colors) -> Self {
         Self {
             list: List::new().with_colors(colors.neutral, None),
+            text: TextSegment::new().with_alignment(Alignment::Center),
             skip_rating: AudioRating::None,
         }
     }
@@ -67,35 +56,32 @@ impl SettingsPage {
                 let (symbol, style) = if index == ListItem::Selected {
                     ("> ", Style::new())
                 } else {
-                    ("", Style::new())
+                    ("", Style::new().fg(colors.neutral))
                 };
 
                 match setting {
                     Setting::SkipRating => {
-                        let line = utils::_print_line_iter(
-                            line,
-                            buf,
-                            [symbol, "Skip tracks with rating up to: "],
-                            style,
-                        );
-                        print_stars(line, buf, self.skip_rating, colors);
-                    }
-                    Setting::Ignore => {
-                        Span::raw("ignore......").render(line, buf);
-                    }
-                    Setting::Test => {
-                        utils::_print_line_iter(line, buf, [symbol, "Test section"], style);
+                        self.text
+                            .extend_as_one([symbol, "Skip tracks with rating up to: "], style);
+
+                        // Stars
+                        let colored = self.skip_rating as usize;
+                        let neutral = 5 - colored;
+                        self.text.repeat_char('★', colored, colors.accent);
+                        self.text.repeat_char('★', neutral, colors.neutral);
+                        self.text.render(line, buf);
                     }
                 }
+
+                self.text.clear();
             },
         );
 
+        // Shortcuts
         match SETTINGS[self.list.index()] {
             Setting::SkipRating => {
                 shortcuts.extend([Shortcut::new("Rating", "0-5")]);
             }
-            Setting::Ignore => {}
-            Setting::Test => {}
         }
         shortcuts.push(Shortcut::new("Save", "^s"));
     }
@@ -154,11 +140,4 @@ impl SettingsPage {
     }
 
     pub fn on_exit(&self) {}
-}
-
-fn print_stars(mut line: Rect, buf: &mut Buffer, rating: AudioRating, colors: &Colors) {
-    let colored = rating as u8;
-    let neutral = 5 - colored;
-    line = utils::print_text_repeat(line, buf, "★", colored, colors.accent);
-    utils::print_text_repeat(line, buf, "★", neutral, colors.neutral);
 }
