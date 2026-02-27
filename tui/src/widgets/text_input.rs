@@ -256,8 +256,10 @@ impl TextInput {
             }
         }
 
-        if self.cursor == self.input.len() {
-            buf[(x, y)].set_style(self.cursor_style);
+        if self.cursor == self.input.len()
+            && let Some(cell) = buf.cell_mut((x, y))
+        {
+            cell.set_style(self.cursor_style);
         }
     }
 

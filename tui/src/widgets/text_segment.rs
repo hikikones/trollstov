@@ -130,10 +130,6 @@ impl TextSegment {
     }
 
     pub fn render(&self, line: Rect, buf: &mut Buffer) {
-        if line.is_empty() {
-            return;
-        }
-
         let line = match self.alignment {
             Alignment::Left => line,
             Alignment::Center => Rect {
@@ -154,6 +150,10 @@ impl TextSegment {
         } = line;
 
         for (len, style) in self.segments.iter().copied() {
+            if width == 0 {
+                break;
+            }
+
             let end = start + len;
             let text = &self.text[start..end];
 
@@ -161,10 +161,6 @@ impl TextSegment {
             width -= next_x - x;
             x = next_x;
             start = end;
-
-            if width == 0 {
-                break;
-            }
         }
     }
 }
