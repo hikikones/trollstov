@@ -270,7 +270,8 @@ impl Jukebox {
         let mut rand = TrackId(0);
         while tries > 0 {
             rand = TrackId(fastrand::u64(0..self.database.len() as u64));
-            if current == Some(rand) || self.faulty.contains(&rand) || self.should_skip(rand) {
+            let is_current = current.map(|id| id == rand).unwrap_or(false);
+            if is_current || self.faulty.contains(&rand) || self.should_skip(rand) {
                 tries -= 1;
                 continue;
             }
