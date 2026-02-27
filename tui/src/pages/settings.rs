@@ -15,7 +15,12 @@ use crate::{
 
 pub struct SettingsPage {
     settings: Settings,
-    is_dirty: bool,
+    applied: Settings,
+    written: Settings,
+    apply_hash: u64,
+    write_hash: u64,
+    is_applied: bool,
+    is_written: bool,
     list: List,
     text: TextSegment,
 }
@@ -36,9 +41,15 @@ const SETTINGS: [Setting; 1] = [Setting::SkipRating];
 
 impl SettingsPage {
     pub fn new(settings: &Settings, colors: &Colors) -> Self {
+        let hash = settings.hash();
         Self {
             settings: settings.clone(),
-            is_dirty: false,
+            applied: settings.clone(),
+            written: settings.clone(),
+            apply_hash: hash,
+            write_hash: hash,
+            is_applied: true,
+            is_written: true,
             list: List::new().with_colors(colors.neutral, None),
             text: TextSegment::new().with_alignment(Alignment::Center),
         }
@@ -99,20 +110,21 @@ impl SettingsPage {
             }
         }
 
-        if self.is_dirty {
-            shortcuts.extend([Shortcut::new("Apply", "a"), Shortcut::new("Save", "^s")]);
+        if !self.is_applied {
+            shortcuts.push(Shortcut::new("Apply", "a"));
+        }
+        if !self.is_written {
+            shortcuts.push(Shortcut::new("Save", "s"));
         }
     }
 
     pub fn on_input(
         &mut self,
         key: KeyCode,
-        modifiers: KeyModifiers,
+        _modifiers: KeyModifiers,
         settings: &mut Settings,
         jb: &mut Jukebox,
     ) -> Action {
-        let ctrl = modifiers.contains(KeyModifiers::CONTROL);
-
         match key {
             KeyCode::Down => {
                 let mut next = self.list.index() + 1;
@@ -150,23 +162,27 @@ impl SettingsPage {
                     let rating = AudioRating::from_char(c).unwrap();
                     if self.settings.skip_rating != rating {
                         self.settings.skip_rating = rating;
-                        self.is_dirty = self.settings.hash() != settings.hash();
+                        self.update_hash();
                         return Action::Render;
                     }
                 }
                 'a' => {
-                    if self.is_dirty {
-                        // TODO: also add is_applied
-                        jb.set_skip(self.settings.skip_rating);
+                    if !self.is_applied {
+                        *settings = self.settings.clone();
+                        self.applied = self.settings.clone();
+                        self.apply_hash = self.settings.hash();
+                        self.is_applied = true;
+                        jb.set_skip(settings.skip_rating);
                         return Action::Render;
                     }
                 }
                 's' => {
-                    if ctrl && self.is_dirty {
+                    if !self.is_written {
                         match settings.save() {
                             Ok(_) => {
-                                *settings = self.settings.clone();
-                                self.is_dirty = false;
+                                self.written = self.settings.clone();
+                                self.write_hash = self.settings.hash();
+                                self.is_written = true;
                                 return Action::Render;
                             }
                             Err(err) => {
@@ -184,4 +200,10 @@ impl SettingsPage {
     }
 
     pub fn on_exit(&self) {}
+
+    fn update_hash(&mut self) {
+        let hash = self.settings.hash();
+        self.is_applied = self.apply_hash == hash;
+        self.is_written = self.write_hash == hash;
+    }
 }

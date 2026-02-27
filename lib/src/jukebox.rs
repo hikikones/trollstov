@@ -265,18 +265,19 @@ impl Jukebox {
         }
 
         // No tracks in the queue, play a random next
+        let current = self.current_track_id();
         let mut tries = 10;
-        let mut random = TrackId(0);
+        let mut rand = TrackId(0);
         while tries > 0 {
-            random = TrackId(fastrand::u64(0..self.database.len() as u64));
-            if self.current_track_id() == Some(random) || self.should_skip(random) {
+            rand = TrackId(fastrand::u64(0..self.database.len() as u64));
+            if current == Some(rand) || self.faulty.contains(&rand) || self.should_skip(rand) {
                 tries -= 1;
                 continue;
             }
             break;
         }
 
-        let (id, index) = self.queue.enqueue(random).next().unwrap();
+        let (id, index) = self.queue.enqueue(rand).next().unwrap();
         self.state = PlayState::Next;
         self.start_play(id, index);
     }
