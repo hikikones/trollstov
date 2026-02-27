@@ -17,14 +17,14 @@ impl Settings {
             return Ok(Self::default());
         };
 
-        let config_path = proj_dirs.config_dir().join(CONFIG_NAME);
+        let file = proj_dirs.config_dir().join(CONFIG_NAME);
 
-        match std::fs::read(&config_path) {
+        match std::fs::read(&file) {
             Ok(bytes) => {
                 let toml: Self = toml::from_slice(&bytes).map_err(|err| {
                     format!(
                         "Failed to deserialize settings from \"{}\" due to {}",
-                        config_path.display(),
+                        file.display(),
                         err
                     )
                 })?;
@@ -34,7 +34,7 @@ impl Settings {
                 std::io::ErrorKind::NotFound => Ok(Self::default()),
                 _ => Err(format!(
                     "Failed to read settings from \"{}\" due to {}",
-                    config_path.display(),
+                    file.display(),
                     err
                 ))?,
             },
