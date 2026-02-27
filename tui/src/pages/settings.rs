@@ -27,17 +27,25 @@ pub struct SettingsPage {
 
 enum Setting {
     SkipRating,
+    SkipRatingDescription,
+    Empty,
 }
 
 impl Setting {
     const fn filter(&self) -> bool {
         match self {
             Setting::SkipRating => true,
+            Setting::SkipRatingDescription => false,
+            Setting::Empty => false,
         }
     }
 }
 
-const SETTINGS: [Setting; 1] = [Setting::SkipRating];
+const SETTINGS: [Setting; 3] = [
+    Setting::SkipRating,
+    Setting::SkipRatingDescription,
+    Setting::Empty,
+];
 
 impl SettingsPage {
     pub fn new(settings: &Settings, colors: &Colors) -> Self {
@@ -89,7 +97,7 @@ impl SettingsPage {
                 match setting {
                     Setting::SkipRating => {
                         self.text
-                            .extend_as_one([symbol, "Skip tracks with rating up to: "], style);
+                            .extend_as_one([symbol, "Skip tracks with rating: "], style);
 
                         // Stars
                         let colored = self.settings.skip_rating as usize;
@@ -98,6 +106,14 @@ impl SettingsPage {
                         self.text.repeat_char('★', neutral, colors.neutral);
                         self.text.render(line, buf);
                     }
+                    Setting::SkipRatingDescription => {
+                        self.text.push_str(
+                            "Skips tracks that are less than or equal to set rating",
+                            colors.neutral,
+                        );
+                        self.text.render(line, buf);
+                    }
+                    Setting::Empty => {}
                 }
 
                 self.text.clear();
@@ -109,6 +125,7 @@ impl SettingsPage {
             Setting::SkipRating => {
                 shortcuts.push(Shortcut::new("Rating", "0-5"));
             }
+            _ => {}
         }
 
         if !self.is_applied {
