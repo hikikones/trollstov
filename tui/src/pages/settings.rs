@@ -8,6 +8,7 @@ use ratatui::{
 use crate::{
     app::Action,
     colors::Colors,
+    pages::Log,
     settings::Settings,
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment},
 };
@@ -145,7 +146,14 @@ impl SettingsPage {
                 }
                 's' => {
                     if ctrl {
-                        //todo save
+                        match settings.save() {
+                            Ok(_) => {
+                                //todo?
+                            }
+                            Err(err) => {
+                                return Action::Log(Log::new(err));
+                            }
+                        }
                     }
                 }
                 _ => {}
