@@ -8,7 +8,8 @@ use ratatui::{
 use crate::{
     app::Action,
     colors::Colors,
-    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment, utils},
+    settings::Settings,
+    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment},
 };
 
 pub struct SettingsPage {
@@ -49,8 +50,7 @@ impl SettingsPage {
         colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
-        let max_width = area.width.min((0.60 * area.width as f32).floor() as u16);
-        let area = area.centered_horizontally(Constraint::Max(max_width));
+        let area = area.centered_horizontally(Constraint::Max(80));
 
         let block = Block::bordered()
             .title(" Settings ")
@@ -98,7 +98,12 @@ impl SettingsPage {
         shortcuts.push(Shortcut::new("Save", "^s"));
     }
 
-    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers) -> Action {
+    pub fn on_input(
+        &mut self,
+        key: KeyCode,
+        modifiers: KeyModifiers,
+        settings: &Settings,
+    ) -> Action {
         let ctrl = modifiers.contains(KeyModifiers::CONTROL);
 
         match key {

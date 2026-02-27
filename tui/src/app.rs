@@ -15,14 +15,12 @@ use crate::{
     colors::Colors,
     events::{Event, EventHandler},
     pages::{Log, Pages, Route},
+    settings::Settings,
     terminal::Terminal,
     widgets::{Shortcut, Shortcuts, TextSegment, utils},
 };
 
 // TODO: Add a dynamic playlist page for artists/albums/genres and filtering.
-
-const APP_NAME: &str = env!("CARGO_PKG_NAME");
-const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 type FrontCoverHandle = std::thread::JoinHandle<Result<FrontCover, AudioFileReport>>;
 
@@ -32,6 +30,7 @@ pub struct App {
     route: Route,
     colors: Colors,
     events: EventHandler,
+    settings: Settings,
     jukebox: Jukebox,
     mpris: bool,
     picker: Picker,
@@ -71,12 +70,22 @@ pub enum Action {
     None,
     Render,
     Route(Route),
+    Log(Log),
     Quit,
 }
 
 impl App {
     pub fn new(jukebox: Jukebox, colors: Colors, picker: Picker, mpris: bool) -> Self {
-        let pages = Pages::new(&colors);
+        let mut pages = Pages::new(&colors);
+
+        let settings = match Settings::read() {
+            Ok(settings) => settings,
+            Err(err) => {
+                let log = Log::new(err);
+                pages.logs.enqueue(log);
+                Settings::default()
+            }
+        };
 
         let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
         let shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
@@ -88,6 +97,7 @@ impl App {
             route: Route::default(),
             colors,
             events: EventHandler::new(),
+            settings,
             jukebox,
             mpris,
             picker,
@@ -113,7 +123,7 @@ impl App {
 
         // Try to establish media controls
         if self.mpris {
-            match self.jukebox.attach_media_controls(APP_NAME) {
+            match self.jukebox.attach_media_controls(crate::APP_NAME) {
                 Ok(_) => {
                     self.mpris = true;
                 }
@@ -148,6 +158,10 @@ impl App {
                     self.on_exit();
                     self.route = route;
                     self.on_enter();
+                    self.render(&mut terminal)?;
+                }
+                Action::Log(log) => {
+                    self.pages.logs.enqueue(log);
                     self.render(&mut terminal)?;
                 }
                 Action::Quit => {
@@ -434,7 +448,7 @@ impl App {
                     utils::print_ascii_iter(
                         title_area,
                         buf,
-                        &[APP_NAME, " v", APP_VERSION],
+                        &[crate::APP_NAME, " v", crate::APP_VERSION],
                         self.colors.neutral,
                         utils::Alignment::CenterHorizontal,
                     );
@@ -559,7 +573,11 @@ impl App {
                 .pages
                 .search
                 .on_input(key.code, key.modifiers, &mut self.jukebox),
-            Route::Settings => self.pages.settings.on_input(key.code, key.modifiers),
+            Route::Settings => {
+                self.pages
+                    .settings
+                    .on_input(key.code, key.modifiers, &self.settings)
+            }
             Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
         }
     }

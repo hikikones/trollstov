@@ -134,8 +134,8 @@ pub struct Log {
 }
 
 impl Log {
-    pub fn new(message: impl Into<String>) -> Self {
-        let message = message.into();
+    pub fn new(message: impl ToString) -> Self {
+        let message = message.to_string();
         let width = unicode_width::UnicodeWidthStr::width(message.as_str());
         Self { message, width }
     }
