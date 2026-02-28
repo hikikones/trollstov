@@ -74,7 +74,8 @@ impl Setting {
     }
 }
 
-const SETTINGS: [Setting; 21] = [
+const SETTINGS: [Setting; 23] = [
+    Setting::Empty,
     Setting::General,
     Setting::Empty,
     Setting::SkipRating,
@@ -96,6 +97,7 @@ const SETTINGS: [Setting; 21] = [
     Setting::Empty,
     Setting::OnNeutralColor,
     Setting::OnNeutralColorDescription,
+    Setting::Empty,
 ];
 
 impl SettingsPage {
@@ -109,7 +111,7 @@ impl SettingsPage {
             write_hash: hash,
             is_applied: true,
             is_written: true,
-            list: List::new().with_index(2).with_margins(5, 5),
+            list: List::new().with_index(3).with_margins(5, 5),
             text: TextSegment::new().with_alignment(Alignment::Center),
             accent: ColorSetting::new(settings.accent().to_string()),
             on_accent: ColorSetting::new(settings.on_accent().to_string()),
@@ -132,7 +134,7 @@ impl SettingsPage {
         let block = Block::bordered()
             .title(" Settings ")
             .title_alignment(Alignment::Center)
-            .padding(Padding::uniform(1));
+            .padding(Padding::horizontal(1));
         let settings_area = block.inner(area);
         block.render(area, buf);
 
