@@ -6,6 +6,10 @@ members = ["lib", "tui"]
 edition = "2024"
 license = "MIT"
 
+[workspace.dependencies]
+jukebox = { path = "lib/" }
+serde = { version = "1.0", features = ["derive"] }
+
 [profile.dev]
 opt-level = 1
 

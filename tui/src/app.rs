@@ -14,7 +14,8 @@ use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
 use crate::{
     colors::Colors,
     events::{Event, EventHandler},
-    pages::{Log, Pages, Route},
+    pages::{Log, LogsPage, Pages, PlayingPage, Route, SearchPage, SettingsPage, TracksPage},
+    settings::Settings,
     terminal::Terminal,
     widgets::{Shortcut, Shortcuts, TextSegment, utils},
 };
@@ -29,6 +30,7 @@ pub struct App {
     route: Route,
     colors: Colors,
     events: EventHandler,
+    settings: Settings,
     jukebox: Jukebox,
     mpris: bool,
     picker: Picker,
@@ -68,12 +70,29 @@ pub enum Action {
     None,
     Render,
     Route(Route),
+    Log(Log),
+    ApplySettings,
     Quit,
 }
 
 impl App {
     pub fn new(jukebox: Jukebox, colors: Colors, picker: Picker, mpris: bool) -> Self {
-        let pages = Pages::new(&colors);
+        let mut logs = LogsPage::new(&colors);
+
+        let settings = Settings::read()
+            .inspect_err(|err| {
+                let log = Log::new(err);
+                logs.enqueue(log);
+            })
+            .unwrap_or_default();
+
+        let pages = Pages {
+            tracks: TracksPage::new(&settings, &colors),
+            playing: PlayingPage::new(&colors),
+            search: SearchPage::new(&colors),
+            settings: SettingsPage::new(&settings, &colors),
+            logs,
+        };
 
         let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
         let shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
@@ -85,6 +104,7 @@ impl App {
             route: Route::default(),
             colors,
             events: EventHandler::new(),
+            settings,
             jukebox,
             mpris,
             picker,
@@ -104,13 +124,15 @@ impl App {
             frame.render_widget(crate::widgets::LogoWidget, frame.area());
         })?;
 
+        self.apply_settings();
+
         // Start reading events and load music
         self.events.start();
         self.jukebox.load_music();
 
         // Try to establish media controls
         if self.mpris {
-            match self.jukebox.attach_media_controls("trollstov") {
+            match self.jukebox.attach_media_controls(crate::APP_NAME) {
                 Ok(_) => {
                     self.mpris = true;
                 }
@@ -145,6 +167,14 @@ impl App {
                     self.on_exit();
                     self.route = route;
                     self.on_enter();
+                    self.render(&mut terminal)?;
+                }
+                Action::Log(log) => {
+                    self.pages.logs.enqueue(log);
+                    self.render(&mut terminal)?;
+                }
+                Action::ApplySettings => {
+                    self.apply_settings();
                     self.render(&mut terminal)?;
                 }
                 Action::Quit => {
@@ -428,11 +458,11 @@ impl App {
                     .areas(area);
 
                     // Title
-                    utils::print_ascii(
+                    utils::print_ascii_iter(
                         title_area,
                         buf,
-                        "trollstov",
-                        Style::new().fg(self.colors.neutral),
+                        &[crate::APP_NAME, " v", crate::APP_VERSION],
+                        self.colors.neutral,
                         utils::Alignment::CenterHorizontal,
                     );
 
@@ -506,6 +536,11 @@ impl App {
                     &mut self.shortcuts_page,
                 );
             }
+            Route::Settings => {
+                self.pages
+                    .settings
+                    .on_render(body, buf, &self.colors, &mut self.shortcuts_page);
+            }
             Route::Logs => {
                 self.pages
                     .logs
@@ -519,6 +554,7 @@ impl App {
             Route::Tracks(id) => self.pages.tracks.on_enter(id, &self.jukebox),
             Route::NowPlaying => self.pages.playing.on_enter(),
             Route::Search => self.pages.search.on_enter(),
+            Route::Settings => self.pages.settings.on_enter(),
             Route::Logs => self.pages.logs.on_enter(),
         }
     }
@@ -528,6 +564,7 @@ impl App {
             Route::Tracks(_) => self.pages.tracks.on_exit(),
             Route::NowPlaying => self.pages.playing.on_exit(),
             Route::Search => self.pages.search.on_exit(),
+            Route::Settings => self.pages.settings.on_exit(),
             Route::Logs => self.pages.logs.on_exit(),
         }
     }
@@ -549,8 +586,18 @@ impl App {
                 .pages
                 .search
                 .on_input(key.code, key.modifiers, &mut self.jukebox),
+            Route::Settings => {
+                self.pages
+                    .settings
+                    .on_input(key.code, key.modifiers, &mut self.settings)
+            }
             Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
         }
+    }
+
+    const fn apply_settings(&mut self) {
+        self.jukebox.set_skip(self.settings.skip_rating);
+        self.pages.tracks.keep_selected_track_on_sort = self.settings.keep_selected_track_on_sort;
     }
 }
 
@@ -567,6 +614,7 @@ fn render_navigation(
         (Route::Tracks(None), "Tracks", SPACING),
         (Route::NowPlaying, "Now Playing", SPACING),
         (Route::Search, "Search", SPACING),
+        (Route::Settings, "Settings", SPACING),
         (Route::Logs, "Logs", ""),
     ] {
         let is_current = std::mem::discriminant(&route) == std::mem::discriminant(&current_route);

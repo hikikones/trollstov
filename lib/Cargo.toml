@@ -12,5 +12,11 @@ itoa = "1.0"
 lofty = "0.23"
 nucleo-matcher = "0.3"
 rodio = "0.21"
+serde = { workspace = true, optional = true }
+serde_repr = { version = "0.1", optional = true }
 souvlaki = "0.8"
 walkdir = "2.5"
+
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_repr"]
