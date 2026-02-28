@@ -28,6 +28,9 @@ pub struct SettingsPage {
     list: List,
     text: TextSegment,
     accent: ColorSetting,
+    on_accent: ColorSetting,
+    neutral: ColorSetting,
+    on_neutral: ColorSetting,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -40,6 +43,12 @@ enum Setting {
     Colors,
     AccentColor,
     AccentColorDescription,
+    OnAccentColor,
+    OnAccentColorDescription,
+    NeutralColor,
+    NeutralColorDescription,
+    OnNeutralColor,
+    OnNeutralColorDescription,
     Empty,
 }
 
@@ -54,12 +63,18 @@ impl Setting {
             Setting::Colors => false,
             Setting::AccentColor => true,
             Setting::AccentColorDescription => false,
+            Setting::OnAccentColor => true,
+            Setting::OnAccentColorDescription => false,
+            Setting::NeutralColor => true,
+            Setting::NeutralColorDescription => false,
+            Setting::OnNeutralColor => true,
+            Setting::OnNeutralColorDescription => false,
             Setting::Empty => false,
         }
     }
 }
 
-const SETTINGS: [Setting; 12] = [
+const SETTINGS: [Setting; 21] = [
     Setting::General,
     Setting::Empty,
     Setting::SkipRating,
@@ -72,6 +87,15 @@ const SETTINGS: [Setting; 12] = [
     Setting::Empty,
     Setting::AccentColor,
     Setting::AccentColorDescription,
+    Setting::Empty,
+    Setting::OnAccentColor,
+    Setting::OnAccentColorDescription,
+    Setting::Empty,
+    Setting::NeutralColor,
+    Setting::NeutralColorDescription,
+    Setting::Empty,
+    Setting::OnNeutralColor,
+    Setting::OnNeutralColorDescription,
 ];
 
 impl SettingsPage {
@@ -85,9 +109,12 @@ impl SettingsPage {
             write_hash: hash,
             is_applied: true,
             is_written: true,
-            list: List::new().with_index(2),
+            list: List::new().with_index(2).with_margins(5, 5),
             text: TextSegment::new().with_alignment(Alignment::Center),
             accent: ColorSetting::new(settings.accent().to_string()),
+            on_accent: ColorSetting::new(settings.on_accent().to_string()),
+            neutral: ColorSetting::new(settings.neutral().to_string()),
+            on_neutral: ColorSetting::new(settings.on_neutral().to_string()),
         }
     }
 
@@ -164,13 +191,51 @@ impl SettingsPage {
                         self.text.render(line, buf);
                     }
                     Setting::AccentColor => {
-                        let is_active = current == Setting::AccentColor;
                         let s = "Set accent color: ";
+                        let is_active = current == Setting::AccentColor;
                         self.accent.set_active(is_active, settings);
                         self.accent.render(line, buf, &[symbol, s]);
                     }
                     Setting::AccentColorDescription => {
-                        self.text.push_str("accent color", self.settings.accent());
+                        let style = Style::new().fg(self.settings.accent());
+                        self.text.push_str("accent color", style);
+                        self.text.render(line, buf);
+                    }
+                    Setting::OnAccentColor => {
+                        let s = "Set on accent color: ";
+                        let is_active = current == Setting::OnAccentColor;
+                        self.on_accent.set_active(is_active, settings);
+                        self.on_accent.render(line, buf, &[symbol, s]);
+                    }
+                    Setting::OnAccentColorDescription => {
+                        let style = Style::new()
+                            .bg(self.settings.accent())
+                            .fg(self.settings.on_accent());
+                        self.text.push_str(" on accent color ", style);
+                        self.text.render(line, buf);
+                    }
+                    Setting::NeutralColor => {
+                        let s = "Set neutral color: ";
+                        let is_active = current == Setting::NeutralColor;
+                        self.neutral.set_active(is_active, settings);
+                        self.neutral.render(line, buf, &[symbol, s]);
+                    }
+                    Setting::NeutralColorDescription => {
+                        let style = Style::new().fg(self.settings.neutral());
+                        self.text.push_str("neutral color", style);
+                        self.text.render(line, buf);
+                    }
+                    Setting::OnNeutralColor => {
+                        let s = "Set accent color: ";
+                        let is_active = current == Setting::OnNeutralColor;
+                        self.on_neutral.set_active(is_active, settings);
+                        self.on_neutral.render(line, buf, &[symbol, s]);
+                    }
+                    Setting::OnNeutralColorDescription => {
+                        let style = Style::new()
+                            .bg(self.settings.neutral())
+                            .fg(self.settings.on_neutral());
+                        self.text.push_str(" on neutral color ", style);
                         self.text.render(line, buf);
                     }
                     Setting::Empty => {}
@@ -188,7 +253,10 @@ impl SettingsPage {
             Setting::KeepTrackSort => {
                 shortcuts.push(Shortcut::new("Toggle", "space"));
             }
-            Setting::AccentColor => {
+            Setting::AccentColor
+            | Setting::OnAccentColor
+            | Setting::NeutralColor
+            | Setting::OnNeutralColor => {
                 shortcuts.push(Shortcut::new("Set color", "↵"));
             }
             _ => {}
@@ -317,6 +385,63 @@ impl SettingsPage {
                         }
                     }
                 } else if self.accent.input(key, modifiers) {
+                    return Action::Render;
+                }
+            }
+            Setting::OnAccentColor => {
+                if let KeyCode::Enter = key {
+                    match self.on_accent.parse_color() {
+                        Ok(color) => {
+                            if self.settings.on_accent() != color {
+                                self.settings.set_on_accent(color);
+                                self.update_hash();
+                                return Action::Render;
+                            }
+                        }
+                        Err(err) => {
+                            let log = Log::new(err);
+                            return Action::Log(log);
+                        }
+                    }
+                } else if self.on_accent.input(key, modifiers) {
+                    return Action::Render;
+                }
+            }
+            Setting::NeutralColor => {
+                if let KeyCode::Enter = key {
+                    match self.neutral.parse_color() {
+                        Ok(color) => {
+                            if self.settings.neutral() != color {
+                                self.settings.set_neutral(color);
+                                self.update_hash();
+                                return Action::Render;
+                            }
+                        }
+                        Err(err) => {
+                            let log = Log::new(err);
+                            return Action::Log(log);
+                        }
+                    }
+                } else if self.neutral.input(key, modifiers) {
+                    return Action::Render;
+                }
+            }
+            Setting::OnNeutralColor => {
+                if let KeyCode::Enter = key {
+                    match self.on_neutral.parse_color() {
+                        Ok(color) => {
+                            if self.settings.on_neutral() != color {
+                                self.settings.set_on_neutral(color);
+                                self.update_hash();
+                                return Action::Render;
+                            }
+                        }
+                        Err(err) => {
+                            let log = Log::new(err);
+                            return Action::Log(log);
+                        }
+                    }
+                } else if self.on_neutral.input(key, modifiers) {
                     return Action::Render;
                 }
             }

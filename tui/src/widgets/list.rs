@@ -63,6 +63,11 @@ impl List {
         self
     }
 
+    pub const fn with_padding(mut self, bottom: usize) -> Self {
+        self.set_padding(bottom);
+        self
+    }
+
     pub const fn set_colors(&mut self, thumb: Color, track: Option<Color>) -> &mut Self {
         self.thumb_color = thumb;
         self.track_color = track;
