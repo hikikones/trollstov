@@ -91,6 +91,10 @@ impl Settings {
         self.colors.on_neutral = color;
     }
 
+    pub fn generate_readable_fg(bg: Color) -> Option<Color> {
+        readable_fg(bg)
+    }
+
     pub fn read() -> Result<Self, Box<dyn std::error::Error>> {
         let Some(file) = get_config_dir().map(|dir| dir.join(CONFIG_NAME)) else {
             return Ok(Self::default());
@@ -173,4 +177,105 @@ struct Colors {
 fn get_config_dir() -> Option<PathBuf> {
     directories::ProjectDirs::from("org", "hikikones", crate::APP_NAME)
         .map(|project_dirs| project_dirs.config_dir().to_path_buf())
+}
+
+fn readable_fg(mut bg: Color) -> Option<Color> {
+    if bg == Color::Reset {
+        return None;
+    }
+
+    if let Color::Indexed(i) = bg {
+        bg = indexed_to_color(i);
+    }
+
+    let readable_fg = match bg {
+        Color::Black => Color::White,
+        Color::Red => Color::White,
+        Color::Green => Color::Black,
+        Color::Yellow => Color::Black,
+        Color::Blue => Color::White,
+        Color::Magenta => Color::White,
+        Color::Cyan => Color::White,
+        Color::Gray => Color::DarkGray,
+        Color::DarkGray => Color::Gray,
+        Color::LightRed => Color::White,
+        Color::LightGreen => Color::Black,
+        Color::LightYellow => Color::Black,
+        Color::LightBlue => Color::Black,
+        Color::LightMagenta => Color::White,
+        Color::LightCyan => Color::Black,
+        Color::White => Color::Black,
+        Color::Rgb(r, g, b) => relative_luminance_color(r, g, b),
+        Color::Reset | Color::Indexed(_) => {
+            unreachable!()
+        }
+    };
+
+    Some(readable_fg)
+}
+
+fn indexed_to_color(i: u8) -> Color {
+    match i {
+        // 0-15: standard ANSI colors
+        0 => Color::Black,
+        1 => Color::Red,
+        2 => Color::Green,
+        3 => Color::Yellow,
+        4 => Color::Blue,
+        5 => Color::Magenta,
+        6 => Color::Cyan,
+        7 => Color::Gray,
+        8 => Color::DarkGray,
+        9 => Color::LightRed,
+        10 => Color::LightGreen,
+        11 => Color::LightYellow,
+        12 => Color::LightBlue,
+        13 => Color::LightMagenta,
+        14 => Color::LightCyan,
+        15 => Color::White,
+
+        // 16-231: 6x6x6 color cube
+        16..=231 => {
+            let i = i - 16;
+            let r = (i / 36) % 6;
+            let g = (i / 6) % 6;
+            let b = i % 6;
+
+            let scale = |v| if v == 0 { 0 } else { v * 40 + 55 };
+
+            Color::Rgb(scale(r), scale(g), scale(b))
+        }
+
+        // 232-255: grayscale ramp
+        232..=255 => {
+            let gray = 8 + (i - 232) * 10;
+            Color::Rgb(gray, gray, gray)
+        }
+    }
+}
+
+fn relative_luminance_color(r: u8, g: u8, b: u8) -> Color {
+    fn srgb_to_linear(c: u8) -> f64 {
+        let c = c as f64 / 255.0;
+        if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    }
+
+    let r = srgb_to_linear(r);
+    let g = srgb_to_linear(g);
+    let b = srgb_to_linear(b);
+
+    let l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+    let contrast_black = (l + 0.05) / 0.05;
+    let contrast_white = (1.05) / (l + 0.05);
+
+    if contrast_black > contrast_white {
+        Color::Black
+    } else {
+        Color::White
+    }
 }

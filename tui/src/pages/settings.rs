@@ -7,7 +7,6 @@ use ratatui::{
 
 use crate::{
     app::Action,
-    colors::Colors,
     pages::Log,
     settings::Settings,
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment},
@@ -55,7 +54,7 @@ const SETTINGS: [Setting; 5] = [
 ];
 
 impl SettingsPage {
-    pub fn new(settings: &Settings, colors: &Colors) -> Self {
+    pub fn new(settings: &Settings) -> Self {
         let hash = settings.hash();
         Self {
             settings: settings.clone(),
@@ -65,7 +64,7 @@ impl SettingsPage {
             write_hash: hash,
             is_applied: true,
             is_written: true,
-            list: List::new().with_colors(colors.neutral, None),
+            list: List::new(),
             text: TextSegment::new().with_alignment(Alignment::Center),
         }
     }
@@ -76,7 +75,7 @@ impl SettingsPage {
         &mut self,
         area: Rect,
         buf: &mut Buffer,
-        colors: &Colors,
+        settings: &Settings,
         shortcuts: &mut Shortcuts,
     ) {
         let area = area.centered_horizontally(Constraint::Max(80));
@@ -89,7 +88,7 @@ impl SettingsPage {
 
         block.render(area, buf);
 
-        self.list.render(
+        self.list.set_colors(settings.neutral(), None).render(
             settings_area,
             buf,
             SETTINGS.into_iter(),
@@ -108,14 +107,14 @@ impl SettingsPage {
                         // Stars
                         let colored = self.settings.skip_rating() as usize;
                         let neutral = 5 - colored;
-                        self.text.repeat_char('★', colored, colors.accent);
-                        self.text.repeat_char('★', neutral, colors.neutral);
+                        self.text.repeat_char('★', colored, settings.accent());
+                        self.text.repeat_char('★', neutral, settings.neutral());
                         self.text.render(line, buf);
                     }
                     Setting::SkipRatingDescription => {
                         self.text.push_str(
                             "skips tracks that are less than or equal to",
-                            colors.neutral,
+                            settings.neutral(),
                         );
                         self.text.render(line, buf);
                     }
@@ -125,15 +124,15 @@ impl SettingsPage {
 
                         // Checkmark
                         let (checkmark, color) = match self.settings.keep_on_sort() {
-                            true => ("🗸", colors.accent),
-                            false => ("𐄂", colors.neutral),
+                            true => ("🗸", settings.accent()),
+                            false => ("𐄂", settings.neutral()),
                         };
                         self.text.push_str(checkmark, color);
                         self.text.render(line, buf);
                     }
                     Setting::KeepTrackSortDescription => {
                         self.text
-                            .push_str("scrolls to selected track when sorting", colors.neutral);
+                            .push_str("scrolls to selected track when sorting", settings.neutral());
                         self.text.render(line, buf);
                     }
                     Setting::Empty => {}

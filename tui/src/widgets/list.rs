@@ -53,7 +53,7 @@ impl List {
         }
     }
 
-    pub const fn with_colors(mut self, thumb: Color, track: Option<Color>) -> Self {
+    pub const fn set_colors(&mut self, thumb: Color, track: Option<Color>) -> &mut Self {
         self.thumb_color = thumb;
         self.track_color = track;
         self

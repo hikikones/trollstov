@@ -8,7 +8,7 @@ use ratatui_image::StatefulImage;
 
 use crate::{
     app::{Action, FrontCover, ScreenSize},
-    colors::Colors,
+    settings::Settings,
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment, utils},
 };
 
@@ -25,11 +25,11 @@ enum ViewMode {
 }
 
 impl PlayingPage {
-    pub const fn new(colors: &Colors) -> Self {
+    pub const fn new() -> Self {
         Self {
             current_queue_index: None,
             text: TextSegment::new().with_alignment(Alignment::Center),
-            list: List::new().with_colors(colors.neutral, None),
+            list: List::new(),
             view_mode: ViewMode::Queue,
         }
     }
@@ -43,7 +43,7 @@ impl PlayingPage {
         jb: &Jukebox,
         screen_size: ScreenSize,
         front_cover: &mut FrontCover,
-        colors: &Colors,
+        settings: &Settings,
         shortcuts: &mut Shortcuts,
     ) {
         self.update_scroll_on_new_track(jb);
@@ -59,7 +59,7 @@ impl PlayingPage {
                             },
                             buf,
                             jb,
-                            colors,
+                            settings,
                         );
                     }
                     ViewMode::Cover => {
@@ -72,9 +72,9 @@ impl PlayingPage {
                                     area.inner(Margin::new(1, 1)),
                                     buf,
                                     front_cover,
-                                    colors,
+                                    settings,
                                 );
-                                fill_stars(&mut self.text, rating, colors);
+                                fill_stars(&mut self.text, rating, settings);
                                 self.text.render(
                                     Rect {
                                         y: cover_area.y / 2,
@@ -89,7 +89,7 @@ impl PlayingPage {
                                     area,
                                     buf,
                                     "No track currently playing",
-                                    colors.neutral,
+                                    settings.neutral(),
                                     utils::Alignment::Center,
                                 );
                             }
@@ -99,9 +99,9 @@ impl PlayingPage {
 
                 // Shortcut
                 self.text.extend([
-                    ("v", Style::new().fg(colors.accent)),
+                    ("v", Style::new().fg(settings.accent())),
                     (" ", Style::new()),
-                    ("toggle view", Style::new().fg(colors.neutral)),
+                    ("toggle view", Style::new().fg(settings.neutral())),
                 ]);
                 self.text.render(
                     Rect {
@@ -131,9 +131,9 @@ impl PlayingPage {
                             playing_area.inner(Margin::new(0, 1)),
                             buf,
                             front_cover,
-                            colors,
+                            settings,
                         );
-                        fill_stars(&mut self.text, rating, colors);
+                        fill_stars(&mut self.text, rating, settings);
                         self.text.render(
                             Rect {
                                 y: cover_area.y + cover_area.height,
@@ -149,14 +149,14 @@ impl PlayingPage {
                             playing_area,
                             buf,
                             "No track currently playing",
-                            colors.neutral,
+                            settings.neutral(),
                             utils::Alignment::Center,
                         );
                     }
                 }
 
                 // Render play queue
-                self.render_queue(queue_area, buf, jb, colors);
+                self.render_queue(queue_area, buf, jb, settings);
 
                 // Shortcuts
                 shortcuts.extend([
@@ -234,9 +234,9 @@ impl PlayingPage {
         area: Rect,
         buf: &mut Buffer,
         front_cover: &mut FrontCover,
-        colors: &Colors,
+        settings: &Settings,
     ) -> Rect {
-        let neutral_style = Style::new().fg(colors.neutral);
+        let neutral_style = Style::new().fg(settings.neutral());
 
         const MAX_COVER_SIZE: u16 = 24;
         let mut img_area = {
@@ -289,7 +289,7 @@ impl PlayingPage {
         img_area
     }
 
-    fn render_queue(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+    fn render_queue(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, settings: &Settings) {
         jukebox::utils::format_int(jb.history_len(), |hlen| {
             self.text
                 .extend_as_one([" History (", hlen, ")"], Style::new());
@@ -302,7 +302,7 @@ impl PlayingPage {
         let block = Block::bordered()
             .title(self.text.as_str())
             .title_alignment(Alignment::Center)
-            .style(colors.neutral)
+            .style(settings.neutral())
             .padding(Padding::horizontal(1));
         let queue_inner_area = block.inner(area);
 
@@ -314,7 +314,7 @@ impl PlayingPage {
                 queue_inner_area,
                 buf,
                 "No tracks in the queue",
-                colors.neutral,
+                settings.neutral(),
                 utils::Alignment::Center,
             );
             return;
@@ -326,7 +326,7 @@ impl PlayingPage {
             .set_padding(scrolloff);
 
         let current_queue_index = jb.current_queue_index();
-        self.list.render(
+        self.list.set_colors(settings.neutral(), None).render(
             queue_inner_area,
             buf,
             jb.queue_iter(),
@@ -335,7 +335,7 @@ impl PlayingPage {
                     let mut style = Style::new();
 
                     if current_queue_index == Some(qi) {
-                        style.fg = Some(colors.accent);
+                        style.fg = Some(settings.accent());
                     }
                     if jb.is_faulty(id) {
                         style.add_modifier.insert(Modifier::CROSSED_OUT);
@@ -362,9 +362,9 @@ impl PlayingPage {
     }
 }
 
-fn fill_stars(text: &mut TextSegment, rating: AudioRating, colors: &Colors) {
-    let accent = Style::new().fg(colors.accent);
-    let neutral = Style::new().fg(colors.neutral);
+fn fill_stars(text: &mut TextSegment, rating: AudioRating, settings: &Settings) {
+    let accent = Style::new().fg(settings.accent());
+    let neutral = Style::new().fg(settings.neutral());
     match rating {
         AudioRating::None => {
             text.push_str("☆☆☆☆☆", neutral);

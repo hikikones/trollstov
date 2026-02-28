@@ -6,7 +6,7 @@ use ratatui::{
 
 use crate::{
     app::Action,
-    colors::Colors,
+    settings::Settings,
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
@@ -19,12 +19,12 @@ pub struct LogsPage {
 }
 
 impl LogsPage {
-    pub const fn new(colors: &Colors) -> Self {
+    pub const fn new() -> Self {
         Self {
             title: String::new(),
             logs: Vec::new(),
             queue: 0,
-            list: List::new().with_colors(colors.neutral, None),
+            list: List::new(),
             horizontal_scroll: 0,
         }
     }
@@ -46,7 +46,7 @@ impl LogsPage {
         &mut self,
         area: Rect,
         buf: &mut Buffer,
-        colors: &Colors,
+        settings: &Settings,
         shortcuts: &mut Shortcuts,
     ) {
         if self.logs.is_empty() {
@@ -54,7 +54,7 @@ impl LogsPage {
                 area,
                 buf,
                 "No logs to report",
-                colors.neutral,
+                settings.neutral(),
                 utils::Alignment::Center,
             );
             return;
@@ -73,21 +73,25 @@ impl LogsPage {
         block.render(area, buf);
         self.title.clear();
 
-        self.list
-            .render(logs_area, buf, self.logs.iter(), |line, buf, log, item| {
+        self.list.set_colors(settings.neutral(), None).render(
+            logs_area,
+            buf,
+            self.logs.iter(),
+            |line, buf, log, item| {
                 let (scroll, style) = if item == ListItem::Selected {
                     let max_scroll = log.width.saturating_sub(line.width as usize);
                     self.horizontal_scroll = max_scroll.min(self.horizontal_scroll);
                     (
                         self.horizontal_scroll,
-                        Style::new().bg(colors.accent).fg(colors.on_accent),
+                        Style::new().bg(settings.accent()).fg(settings.on_accent()),
                     )
                 } else {
                     (0, Style::new())
                 };
 
                 utils::print_line(line, buf, &log.message[scroll..], style);
-            });
+            },
+        );
 
         // Shortcuts
         shortcuts.push(Shortcut::new("Clear", "c"));

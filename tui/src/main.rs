@@ -1,5 +1,4 @@
 mod app;
-mod colors;
 mod events;
 mod pages;
 mod settings;
@@ -19,13 +18,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let audio_device = jukebox::AudioDevice::new()?;
     let jukebox = jukebox::Jukebox::new(audio_device, args.dir);
-    let colors = colors::Colors::new()
-        .accent(args.accent_color)
-        .on_accent(args.on_accent_color)
-        .neutral(args.neutral_color)
-        .on_neutral(args.on_neutral_color);
 
-    let mut app = app::App::new(jukebox, colors, picker, args.mpris);
+    let mut app = app::App::new(jukebox, picker, args.mpris);
     let res = app.run(terminal);
 
     match terminal::Terminal::restore() {

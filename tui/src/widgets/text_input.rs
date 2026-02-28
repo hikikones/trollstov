@@ -56,17 +56,6 @@ impl TextInput {
         self
     }
 
-    pub const fn with_styles(
-        mut self,
-        normal: Style,
-        cursor: Style,
-        selector: Style,
-        placeholder: Style,
-    ) -> Self {
-        self.set_styles(normal, cursor, selector, placeholder);
-        self
-    }
-
     pub const fn set_styles(
         &mut self,
         normal: Style,

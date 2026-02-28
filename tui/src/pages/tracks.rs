@@ -7,7 +7,7 @@ use ratatui::{
 
 use crate::{
     app::Action,
-    colors::Colors,
+    settings::Settings,
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
@@ -18,10 +18,10 @@ pub struct TracksPage {
 }
 
 impl TracksPage {
-    pub const fn new(colors: &Colors) -> Self {
+    pub const fn new() -> Self {
         Self {
             title: String::new(),
-            list: List::new().with_colors(colors.neutral, None),
+            list: List::new(),
             keep_on_sort: false,
         }
     }
@@ -43,7 +43,7 @@ impl TracksPage {
         area: Rect,
         buf: &mut Buffer,
         jb: &Jukebox,
-        colors: &Colors,
+        settings: &Settings,
         shortcuts: &mut Shortcuts,
     ) {
         if jb.is_empty() {
@@ -51,7 +51,7 @@ impl TracksPage {
                 area,
                 buf,
                 "No tracks to be found",
-                Style::new().fg(colors.neutral),
+                Style::new().fg(settings.neutral()),
                 utils::Alignment::Center,
             );
             return;
@@ -71,7 +71,7 @@ impl TracksPage {
         block.render(area, buf);
         self.title.clear();
 
-        self.render_tracks(tracks_area, buf, jb, colors);
+        self.render_tracks(tracks_area, buf, jb, settings);
 
         // Shortcuts
         shortcuts.extend([
@@ -153,7 +153,7 @@ impl TracksPage {
 
     pub fn on_exit(&self) {}
 
-    fn render_tracks(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+    fn render_tracks(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, settings: &Settings) {
         if area.is_empty() {
             return;
         }
@@ -253,14 +253,18 @@ impl TracksPage {
 
         // Render the body for the table
         let current = jb.current_track_id();
-        self.list.render(
+        self.list.set_colors(settings.neutral(), None).render(
             table_area,
             buf,
             jb.iter(),
             |line, buf, (id, track), item| {
                 let mut style = match item {
-                    ListItem::Selected => Style::new().bg(colors.accent).fg(colors.on_accent),
-                    ListItem::Selection => Style::new().bg(colors.neutral).fg(colors.on_neutral),
+                    ListItem::Selected => {
+                        Style::new().bg(settings.accent()).fg(settings.on_accent())
+                    }
+                    ListItem::Selection => Style::new()
+                        .bg(settings.neutral())
+                        .fg(settings.on_neutral()),
                     ListItem::Normal => Style::new(),
                 };
 

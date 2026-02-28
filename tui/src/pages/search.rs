@@ -7,8 +7,8 @@ use ratatui::{
 
 use crate::{
     app::Action,
-    colors::Colors,
     pages::Route,
+    settings::Settings,
     widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, utils},
 };
 
@@ -27,17 +27,12 @@ enum State {
 }
 
 impl SearchPage {
-    pub const fn new(colors: &Colors) -> Self {
+    pub const fn new() -> Self {
         Self {
             state: State::Search,
-            search_input: TextInput::new().with_placeholder("Search...").with_styles(
-                Style::new(),
-                Style::new().bg(colors.accent).fg(colors.on_accent),
-                Style::new().bg(colors.neutral).fg(colors.on_neutral),
-                Style::new().fg(colors.neutral),
-            ),
+            search_input: TextInput::new().with_placeholder("Search..."),
             search_results: Vec::new(),
-            list: List::new().with_colors(colors.neutral, None),
+            list: List::new(),
             is_dirty: false,
             buffer: String::new(),
         }
@@ -54,7 +49,7 @@ impl SearchPage {
         area: Rect,
         buf: &mut Buffer,
         jb: &mut Jukebox,
-        colors: &Colors,
+        settings: &Settings,
         shortcuts: &mut Shortcuts,
     ) {
         if jb.is_empty() {
@@ -62,7 +57,7 @@ impl SearchPage {
                 area,
                 buf,
                 "No tracks to search for",
-                colors.neutral,
+                settings.neutral(),
                 utils::Alignment::Center,
             );
             return;
@@ -70,13 +65,15 @@ impl SearchPage {
 
         // Determine colors and shortcuts for search input and results
         let (block_style, border_style) = {
-            let neutral = Style::new().fg(colors.neutral);
+            let neutral = Style::new().fg(settings.neutral());
             match self.state {
                 State::Search => {
                     self.search_input.set_styles(
                         Style::new(),
-                        Style::new().bg(colors.accent).fg(colors.on_accent),
-                        Style::new().bg(colors.neutral).fg(colors.on_neutral),
+                        Style::new().bg(settings.accent()).fg(settings.on_accent()),
+                        Style::new()
+                            .bg(settings.neutral())
+                            .fg(settings.on_neutral()),
                         neutral,
                     );
                     shortcuts.extend([
@@ -97,7 +94,7 @@ impl SearchPage {
                         Shortcut::new("Search", "s"),
                     ]);
 
-                    (Style::new(), Style::new().fg(colors.accent))
+                    (Style::new(), Style::new().fg(settings.accent()))
                 }
             }
         };
@@ -132,7 +129,7 @@ impl SearchPage {
         self.buffer.clear();
 
         let current = jb.current_track_id();
-        self.list.render(
+        self.list.set_colors(settings.neutral(), None).render(
             search_results_inner,
             buf,
             self.search_results.iter().copied(),
@@ -142,12 +139,12 @@ impl SearchPage {
                     if matches!(self.state, State::Browse) {
                         match item {
                             ListItem::Selected => {
-                                style.bg = Some(colors.accent);
-                                style.fg = Some(colors.on_accent);
+                                style.bg = Some(settings.accent());
+                                style.fg = Some(settings.on_accent());
                             }
                             ListItem::Selection => {
-                                style.bg = Some(colors.neutral);
-                                style.fg = Some(colors.on_neutral);
+                                style.bg = Some(settings.neutral());
+                                style.fg = Some(settings.on_neutral());
                             }
                             ListItem::Normal => {}
                         }
