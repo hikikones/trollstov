@@ -9,7 +9,7 @@ use crate::{
     app::Action,
     pages::Route,
     settings::Settings,
-    widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, utils},
+    widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles, utils},
 };
 
 pub struct SearchPage {
@@ -68,14 +68,14 @@ impl SearchPage {
             let neutral = Style::new().fg(settings.neutral());
             match self.state {
                 State::Search => {
-                    self.search_input.set_styles(
-                        Style::new(),
-                        Style::new().bg(settings.accent()).fg(settings.on_accent()),
-                        Style::new()
+                    self.search_input.set_styles(TextInputStyles {
+                        normal: Style::new(),
+                        cursor: Style::new().bg(settings.accent()).fg(settings.on_accent()),
+                        selector: Style::new()
                             .bg(settings.neutral())
                             .fg(settings.on_neutral()),
-                        neutral,
-                    );
+                        placeholder: neutral,
+                    });
                     shortcuts.extend([
                         Shortcut::new("Browse", "↵"),
                         Shortcut::new("Select all", "^a"),
@@ -84,8 +84,7 @@ impl SearchPage {
                     (neutral, neutral)
                 }
                 State::Browse => {
-                    self.search_input
-                        .set_styles(neutral, neutral, neutral, neutral);
+                    self.search_input.set_styles(TextInputStyles::all(neutral));
                     shortcuts.extend([
                         Shortcut::new("Play", "↵"),
                         Shortcut::new("Add to queue", "q"),

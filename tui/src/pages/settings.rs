@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use jukebox::AudioRating;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
@@ -9,7 +11,10 @@ use crate::{
     app::Action,
     pages::Log,
     settings::Settings,
-    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment},
+    widgets::{
+        List, ListItem, ListMove, Shortcut, Shortcuts, TextInput, TextInputStyles, TextSegment,
+        utils,
+    },
 };
 
 pub struct SettingsPage {
@@ -22,35 +27,51 @@ pub struct SettingsPage {
     is_written: bool,
     list: List,
     text: TextSegment,
+    accent_input: TextInput,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Setting {
+    General,
     SkipRating,
     SkipRatingDescription,
     KeepTrackSort,
     KeepTrackSortDescription,
+    Colors,
+    AccentColor,
+    AccentColorDescription,
     Empty,
 }
 
 impl Setting {
     const fn filter(&self) -> bool {
         match self {
+            Setting::General => false,
             Setting::SkipRating => true,
             Setting::SkipRatingDescription => false,
             Setting::KeepTrackSort => true,
             Setting::KeepTrackSortDescription => false,
+            Setting::Colors => false,
+            Setting::AccentColor => true,
+            Setting::AccentColorDescription => false,
             Setting::Empty => false,
         }
     }
 }
 
-const SETTINGS: [Setting; 5] = [
+const SETTINGS: [Setting; 12] = [
+    Setting::General,
+    Setting::Empty,
     Setting::SkipRating,
     Setting::SkipRatingDescription,
     Setting::Empty,
     Setting::KeepTrackSort,
     Setting::KeepTrackSortDescription,
+    Setting::Empty,
+    Setting::Colors,
+    Setting::Empty,
+    Setting::AccentColor,
+    Setting::AccentColorDescription,
 ];
 
 impl SettingsPage {
@@ -64,8 +85,9 @@ impl SettingsPage {
             write_hash: hash,
             is_applied: true,
             is_written: true,
-            list: List::new(),
+            list: List::new().with_index(2),
             text: TextSegment::new().with_alignment(Alignment::Center),
+            accent_input: TextInput::from(settings.accent().to_string()),
         }
     }
 
@@ -88,6 +110,10 @@ impl SettingsPage {
 
         block.render(area, buf);
 
+        self.accent_input
+            .set_styles(TextInputStyles::all(Style::new()));
+        let current = self.current();
+
         self.list.set_colors(settings.neutral(), None).render(
             settings_area,
             buf,
@@ -100,6 +126,10 @@ impl SettingsPage {
                 };
 
                 match setting {
+                    Setting::General => {
+                        self.text.push_str("GENERAL", style);
+                        self.text.render(line, buf);
+                    }
                     Setting::SkipRating => {
                         self.text
                             .extend_as_one([symbol, "Skip tracks with rating: "], style);
@@ -135,6 +165,52 @@ impl SettingsPage {
                             .push_str("scrolls to selected track when sorting", settings.neutral());
                         self.text.render(line, buf);
                     }
+                    Setting::Colors => {
+                        self.text.push_str("COLORS", style);
+                        self.text.render(line, buf);
+                    }
+                    Setting::AccentColor => {
+                        let s = "Set accent color: ";
+                        let spacing = "        ";
+                        // let n = symbol.len() + s.len() + spacing.len();
+                        // let sa = utils::align(
+                        //     Rect {
+                        //         width: n as u16,
+                        //         ..line
+                        //     },
+                        //     line,
+                        //     utils::Alignment::CenterHorizontal,
+                        // );
+                        // utils::print_ascii(sa, buf, s, style, utils::Alignment::Left);
+                        let mut line = utils::print_ascii_iter(
+                            line,
+                            buf,
+                            &[symbol, s, spacing],
+                            style,
+                            utils::Alignment::CenterHorizontal,
+                        );
+                        line.x = line.x.saturating_sub(spacing.len() as u16);
+                        line.width += spacing.len() as u16;
+                        if current == Setting::AccentColor {
+                            self.accent_input.set_styles(TextInputStyles {
+                                normal: Style::new(),
+                                cursor: Style::new().bg(settings.accent()).fg(settings.on_accent()),
+                                selector: Style::new()
+                                    .bg(settings.neutral())
+                                    .fg(settings.on_neutral()),
+                                placeholder: Style::new(),
+                            });
+                        }
+                        self.accent_input.render(line, buf);
+
+                        // self.text
+                        //     .extend_as_one([symbol, "Set accent color:         "], style);
+                        // self.text.render(line, buf);
+                    }
+                    Setting::AccentColorDescription => {
+                        self.text.push_str("accent color", self.settings.accent());
+                        self.text.render(line, buf);
+                    }
                     Setting::Empty => {}
                 }
 
@@ -150,23 +226,28 @@ impl SettingsPage {
             Setting::KeepTrackSort => {
                 shortcuts.push(Shortcut::new("Toggle", "space"));
             }
+            Setting::AccentColor => {
+                shortcuts.push(Shortcut::new("Set color", "↵"));
+            }
             _ => {}
         }
 
         if !self.is_applied {
-            shortcuts.push(Shortcut::new("Apply", "a"));
+            shortcuts.push(Shortcut::new("Apply", "^a"));
         }
         if !self.is_written {
-            shortcuts.push(Shortcut::new("Save", "s"));
+            shortcuts.push(Shortcut::new("Save", "^s"));
         }
     }
 
     pub fn on_input(
         &mut self,
         key: KeyCode,
-        _modifiers: KeyModifiers,
+        modifiers: KeyModifiers,
         settings: &mut Settings,
     ) -> Action {
+        let ctrl = modifiers.contains(KeyModifiers::CONTROL);
+
         match key {
             KeyCode::Down => {
                 let mut next = self.list.index() + 1;
@@ -200,35 +281,19 @@ impl SettingsPage {
                 }
             }
             KeyCode::Char(c) => match c {
-                '0' | '1' | '2' | '3' | '4' | '5' => {
-                    if self.current() == Setting::SkipRating {
-                        let rating = AudioRating::from_char(c).unwrap();
-                        if self.settings.skip_rating() != rating {
-                            self.settings.set_skip_rating(rating);
-                            self.update_hash();
-                            return Action::Render;
-                        }
-                    }
-                }
-                ' ' => {
-                    if self.current() == Setting::KeepTrackSort {
-                        let toggle = !self.settings.keep_on_sort();
-                        self.settings.set_keep_on_sort(toggle);
-                        self.update_hash();
-                        return Action::Render;
-                    }
-                }
                 'a' => {
-                    if !self.is_applied {
+                    if ctrl && !self.is_applied {
                         *settings = self.settings.clone();
                         self.applied = self.settings.clone();
                         self.apply_hash = self.settings.hash();
                         self.is_applied = true;
                         return Action::ApplySettings;
+                    } else {
+                        return self.handle_setting(key, modifiers);
                     }
                 }
                 's' => {
-                    if !self.is_written {
+                    if ctrl && !self.is_written {
                         match settings.save() {
                             Ok(_) => {
                                 self.written = self.settings.clone();
@@ -240,17 +305,64 @@ impl SettingsPage {
                                 return Action::Log(Log::new(err));
                             }
                         }
+                    } else {
+                        return self.handle_setting(key, modifiers);
                     }
                 }
-                _ => {}
+                _ => return self.handle_setting(key, modifiers),
             },
-            _ => {}
+            _ => return self.handle_setting(key, modifiers),
         }
 
         Action::None
     }
 
     pub fn on_exit(&self) {}
+
+    fn handle_setting(&mut self, key: KeyCode, modifiers: KeyModifiers) -> Action {
+        match self.current() {
+            Setting::SkipRating => {
+                if let KeyCode::Char(c) = key
+                    && let Some(rating) = AudioRating::from_char(c)
+                    && self.settings.skip_rating() != rating
+                {
+                    self.settings.set_skip_rating(rating);
+                    self.update_hash();
+                    return Action::Render;
+                }
+            }
+            Setting::KeepTrackSort => {
+                if let KeyCode::Char(' ') = key {
+                    let toggle = !self.settings.keep_on_sort();
+                    self.settings.set_keep_on_sort(toggle);
+                    self.update_hash();
+                    return Action::Render;
+                }
+            }
+            Setting::AccentColor => {
+                if let KeyCode::Enter = key {
+                    match Color::from_str(self.accent_input.as_str().trim()) {
+                        Ok(color) => {
+                            if self.settings.accent() != color {
+                                self.settings.set_accent(color);
+                                self.update_hash();
+                                return Action::Render;
+                            }
+                        }
+                        Err(err) => {
+                            let log = Log::new(err);
+                            return Action::Log(log);
+                        }
+                    }
+                } else if self.accent_input.input(key, modifiers) {
+                    return Action::Render;
+                }
+            }
+            _ => {}
+        }
+
+        Action::None
+    }
 
     fn update_hash(&mut self) {
         let hash = self.settings.hash();

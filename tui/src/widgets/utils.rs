@@ -87,7 +87,7 @@ pub fn print_ascii_iter(
     ascii: &[&str],
     style: impl Into<Style>,
     alignment: Alignment,
-) {
+) -> Rect {
     let ascii_width = ascii.iter().map(|s| s.len() as u16).sum::<u16>();
     let style = style.into();
     let Rect {
@@ -108,11 +108,11 @@ pub fn print_ascii_iter(
     for ascii in ascii {
         for ch in ascii.chars() {
             if width == 0 {
-                return;
+                return Rect { x, width, ..line };
             }
 
             let Some(cell) = buf.cell_mut((x, y)) else {
-                return;
+                return Rect { x, width, ..line };
             };
 
             cell.set_char(ch).set_style(style);
@@ -121,6 +121,8 @@ pub fn print_ascii_iter(
             width -= 1;
         }
     }
+
+    Rect { x, width, ..line }
 }
 
 /// Prints `text` and fills remaining empty cells with the given style.

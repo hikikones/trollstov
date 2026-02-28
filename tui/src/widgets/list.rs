@@ -53,6 +53,11 @@ impl List {
         }
     }
 
+    pub const fn with_index(mut self, index: usize) -> Self {
+        self.index = index;
+        self
+    }
+
     pub const fn set_colors(&mut self, thumb: Color, track: Option<Color>) -> &mut Self {
         self.thumb_color = thumb;
         self.track_color = track;
