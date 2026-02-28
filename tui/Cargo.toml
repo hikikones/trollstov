@@ -11,7 +11,7 @@ clap-cargo = { version = "0.18", default-features = false }
 directories = "6.0"
 image = "0.25"
 jukebox = { workspace = true, features = ["serde"] }
-ratatui = "0.30"
+ratatui = { version = "0.30", features = ["serde"] }
 ratatui-image = { version = "10.0", default-features = false, features = [
   "crossterm"
 ] }

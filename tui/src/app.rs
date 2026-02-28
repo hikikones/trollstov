@@ -87,7 +87,7 @@ impl App {
             .unwrap_or_default();
 
         let pages = Pages {
-            tracks: TracksPage::new(&settings, &colors),
+            tracks: TracksPage::new(&colors),
             playing: PlayingPage::new(&colors),
             search: SearchPage::new(&colors),
             settings: SettingsPage::new(&settings, &colors),
@@ -596,8 +596,10 @@ impl App {
     }
 
     const fn apply_settings(&mut self) {
-        self.jukebox.set_skip(self.settings.skip_rating);
-        self.pages.tracks.keep_selected_track_on_sort = self.settings.keep_selected_track_on_sort;
+        self.jukebox.set_skip(self.settings.skip_rating());
+        self.pages
+            .tracks
+            .set_keep_on_sort(self.settings.keep_on_sort());
     }
 }
 

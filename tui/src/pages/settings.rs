@@ -106,7 +106,7 @@ impl SettingsPage {
                             .extend_as_one([symbol, "Skip tracks with rating: "], style);
 
                         // Stars
-                        let colored = self.settings.skip_rating as usize;
+                        let colored = self.settings.skip_rating() as usize;
                         let neutral = 5 - colored;
                         self.text.repeat_char('★', colored, colors.accent);
                         self.text.repeat_char('★', neutral, colors.neutral);
@@ -124,7 +124,7 @@ impl SettingsPage {
                             .extend_as_one([symbol, "Keep selected track on sort: "], style);
 
                         // Checkmark
-                        let (checkmark, color) = match self.settings.keep_selected_track_on_sort {
+                        let (checkmark, color) = match self.settings.keep_on_sort() {
                             true => ("🗸", colors.accent),
                             false => ("𐄂", colors.neutral),
                         };
@@ -204,8 +204,8 @@ impl SettingsPage {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
                     if self.current() == Setting::SkipRating {
                         let rating = AudioRating::from_char(c).unwrap();
-                        if self.settings.skip_rating != rating {
-                            self.settings.skip_rating = rating;
+                        if self.settings.skip_rating() != rating {
+                            self.settings.set_skip_rating(rating);
                             self.update_hash();
                             return Action::Render;
                         }
@@ -213,8 +213,8 @@ impl SettingsPage {
                 }
                 ' ' => {
                     if self.current() == Setting::KeepTrackSort {
-                        self.settings.keep_selected_track_on_sort =
-                            !self.settings.keep_selected_track_on_sort;
+                        let toggle = !self.settings.keep_on_sort();
+                        self.settings.set_keep_on_sort(toggle);
                         self.update_hash();
                         return Action::Render;
                     }
