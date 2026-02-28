@@ -30,7 +30,9 @@ impl SearchPage {
     pub const fn new() -> Self {
         Self {
             state: State::Search,
-            search_input: TextInput::new().with_placeholder("Search..."),
+            search_input: TextInput::new()
+                .with_placeholder("Search...")
+                .with_margins(2, 2),
             search_results: Vec::new(),
             list: List::new(),
             is_dirty: false,

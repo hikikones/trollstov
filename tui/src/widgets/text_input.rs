@@ -16,6 +16,8 @@ pub struct TextInput {
     cursor: usize,
     selector: Option<usize>,
     scroll: usize,
+    margin_top: usize,
+    margin_bottom: usize,
     styles: TextInputStyles,
 }
 
@@ -47,12 +49,20 @@ impl TextInput {
             placeholder: "",
             selector: None,
             scroll: 0,
+            margin_top: 0,
+            margin_bottom: 0,
             styles: TextInputStyles::new(),
         }
     }
 
     pub const fn with_placeholder(mut self, s: &'static str) -> Self {
         self.placeholder = s;
+        self
+    }
+
+    pub const fn with_margins(mut self, top: usize, bottom: usize) -> Self {
+        self.margin_top = top;
+        self.margin_bottom = bottom;
         self
     }
 
@@ -208,8 +218,15 @@ impl TextInput {
 
         // Get total input width and update scroll
         let total_width = unicode_width::UnicodeWidthStr::width(self.input.as_str());
-        self.scroll =
-            utils::calculate_scroll(total_width, line.width, self.cursor, self.scroll, 2, 2, 0);
+        self.scroll = utils::calculate_scroll(
+            total_width,
+            line.width,
+            self.cursor,
+            self.scroll,
+            self.margin_top,
+            self.margin_bottom,
+            0,
+        );
 
         // Render
         let selection = self.try_selection().unwrap_or(self.cursor..self.cursor);

@@ -27,7 +27,7 @@ pub struct SettingsPage {
     is_written: bool,
     list: List,
     text: TextSegment,
-    accent_input: TextInput,
+    accent: ColorSetting,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -87,7 +87,7 @@ impl SettingsPage {
             is_written: true,
             list: List::new().with_index(2),
             text: TextSegment::new().with_alignment(Alignment::Center),
-            accent_input: TextInput::from(settings.accent().to_string()),
+            accent: ColorSetting::new(settings.accent().to_string()),
         }
     }
 
@@ -107,13 +107,9 @@ impl SettingsPage {
             .title_alignment(Alignment::Center)
             .padding(Padding::uniform(1));
         let settings_area = block.inner(area);
-
         block.render(area, buf);
 
-        self.accent_input
-            .set_styles(TextInputStyles::all(Style::new()));
         let current = self.current();
-
         self.list.set_colors(settings.neutral(), None).render(
             settings_area,
             buf,
@@ -131,8 +127,8 @@ impl SettingsPage {
                         self.text.render(line, buf);
                     }
                     Setting::SkipRating => {
-                        self.text
-                            .extend_as_one([symbol, "Skip tracks with rating: "], style);
+                        let s = "Skip tracks with rating: ";
+                        self.text.extend_as_one([symbol, s], style);
 
                         // Stars
                         let colored = self.settings.skip_rating() as usize;
@@ -142,15 +138,13 @@ impl SettingsPage {
                         self.text.render(line, buf);
                     }
                     Setting::SkipRatingDescription => {
-                        self.text.push_str(
-                            "skips tracks that are less than or equal to",
-                            settings.neutral(),
-                        );
+                        let s = "skips tracks that are less than or equal to";
+                        self.text.push_str(s, settings.neutral());
                         self.text.render(line, buf);
                     }
                     Setting::KeepTrackSort => {
-                        self.text
-                            .extend_as_one([symbol, "Keep selected track on sort: "], style);
+                        let s = "Keep selected track on sort: ";
+                        self.text.extend_as_one([symbol, s], style);
 
                         // Checkmark
                         let (checkmark, color) = match self.settings.keep_on_sort() {
@@ -161,8 +155,8 @@ impl SettingsPage {
                         self.text.render(line, buf);
                     }
                     Setting::KeepTrackSortDescription => {
-                        self.text
-                            .push_str("scrolls to selected track when sorting", settings.neutral());
+                        let s = "scrolls to selected track when sorting";
+                        self.text.push_str(s, settings.neutral());
                         self.text.render(line, buf);
                     }
                     Setting::Colors => {
@@ -170,42 +164,10 @@ impl SettingsPage {
                         self.text.render(line, buf);
                     }
                     Setting::AccentColor => {
+                        let is_active = current == Setting::AccentColor;
                         let s = "Set accent color: ";
-                        let spacing = "        ";
-                        // let n = symbol.len() + s.len() + spacing.len();
-                        // let sa = utils::align(
-                        //     Rect {
-                        //         width: n as u16,
-                        //         ..line
-                        //     },
-                        //     line,
-                        //     utils::Alignment::CenterHorizontal,
-                        // );
-                        // utils::print_ascii(sa, buf, s, style, utils::Alignment::Left);
-                        let mut line = utils::print_ascii_iter(
-                            line,
-                            buf,
-                            &[symbol, s, spacing],
-                            style,
-                            utils::Alignment::CenterHorizontal,
-                        );
-                        line.x = line.x.saturating_sub(spacing.len() as u16);
-                        line.width += spacing.len() as u16;
-                        if current == Setting::AccentColor {
-                            self.accent_input.set_styles(TextInputStyles {
-                                normal: Style::new(),
-                                cursor: Style::new().bg(settings.accent()).fg(settings.on_accent()),
-                                selector: Style::new()
-                                    .bg(settings.neutral())
-                                    .fg(settings.on_neutral()),
-                                placeholder: Style::new(),
-                            });
-                        }
-                        self.accent_input.render(line, buf);
-
-                        // self.text
-                        //     .extend_as_one([symbol, "Set accent color:         "], style);
-                        // self.text.render(line, buf);
+                        self.accent.set_active(is_active, settings);
+                        self.accent.render(line, buf, &[symbol, s]);
                     }
                     Setting::AccentColorDescription => {
                         self.text.push_str("accent color", self.settings.accent());
@@ -341,7 +303,7 @@ impl SettingsPage {
             }
             Setting::AccentColor => {
                 if let KeyCode::Enter = key {
-                    match Color::from_str(self.accent_input.as_str().trim()) {
+                    match self.accent.parse_color() {
                         Ok(color) => {
                             if self.settings.accent() != color {
                                 self.settings.set_accent(color);
@@ -354,7 +316,7 @@ impl SettingsPage {
                             return Action::Log(log);
                         }
                     }
-                } else if self.accent_input.input(key, modifiers) {
+                } else if self.accent.input(key, modifiers) {
                     return Action::Render;
                 }
             }
@@ -372,5 +334,51 @@ impl SettingsPage {
 
     const fn current(&self) -> Setting {
         SETTINGS[self.list.index()]
+    }
+}
+
+struct ColorSetting(TextInput);
+
+impl ColorSetting {
+    const fn new(s: String) -> Self {
+        Self(TextInput::from(s))
+    }
+
+    fn parse_color(&self) -> Result<Color, ratatui::style::ParseColorError> {
+        Color::from_str(self.0.as_str().trim())
+    }
+
+    const fn set_active(&mut self, active: bool, settings: &Settings) {
+        let styles = if active {
+            TextInputStyles {
+                normal: Style::new(),
+                cursor: Style::new().bg(settings.accent()).fg(settings.on_accent()),
+                selector: Style::new()
+                    .bg(settings.neutral())
+                    .fg(settings.on_neutral()),
+                placeholder: Style::new(),
+            }
+        } else {
+            TextInputStyles::all(Style::new())
+        };
+        self.0.set_styles(styles);
+    }
+
+    fn input(&mut self, key: KeyCode, modifiers: KeyModifiers) -> bool {
+        self.0.input(key, modifiers)
+    }
+
+    fn render(&mut self, line: Rect, buf: &mut Buffer, texts: &[&str]) {
+        const INPUT_WIDTH: u16 = 10;
+
+        let width = texts.iter().map(|s| s.len() as u16).sum::<u16>() + INPUT_WIDTH;
+        let mut line = utils::align(
+            Rect { width, ..line },
+            line,
+            utils::Alignment::CenterHorizontal,
+        );
+
+        line = utils::print_asciis_simple(line, buf, texts, Style::new());
+        self.0.render(line, buf);
     }
 }

@@ -58,6 +58,11 @@ impl List {
         self
     }
 
+    pub const fn with_margins(mut self, top: usize, bottom: usize) -> Self {
+        self.set_margins(top, bottom);
+        self
+    }
+
     pub const fn set_colors(&mut self, thumb: Color, track: Option<Color>) -> &mut Self {
         self.thumb_color = thumb;
         self.track_color = track;
@@ -80,14 +85,14 @@ impl List {
             .unwrap_or(self.index..=self.index)
     }
 
-    pub const fn set_margins(&mut self, margin_top: usize, margin_bottom: usize) -> &mut Self {
-        self.margin_top = margin_top;
-        self.margin_bottom = margin_bottom;
+    pub const fn set_margins(&mut self, top: usize, bottom: usize) -> &mut Self {
+        self.margin_top = top;
+        self.margin_bottom = bottom;
         self
     }
 
-    pub const fn set_padding(&mut self, padding_bottom: usize) -> &mut Self {
-        self.padding_bottom = padding_bottom;
+    pub const fn set_padding(&mut self, bottom: usize) -> &mut Self {
+        self.padding_bottom = bottom;
         self
     }
 

@@ -1,5 +1,40 @@
 use ratatui::{buffer::Buffer, layout::Rect, style::Style};
 
+/// Prints ascii collection assuming only ASCII, no newlines or control characters.
+pub fn print_asciis_simple(
+    line: Rect,
+    buf: &mut Buffer,
+    ascii: &[&str],
+    style: impl Into<Style>,
+) -> Rect {
+    let style = style.into();
+    let Rect {
+        mut x,
+        y,
+        mut width,
+        ..
+    } = line;
+
+    'outer: for ascii in ascii {
+        for ch in ascii.chars() {
+            if width == 0 {
+                break 'outer;
+            }
+
+            let Some(cell) = buf.cell_mut((x, y)) else {
+                break 'outer;
+            };
+
+            cell.set_char(ch).set_style(style);
+
+            x += 1;
+            width -= 1;
+        }
+    }
+
+    Rect { x, width, ..line }
+}
+
 /// Prints `ascii` assuming only ASCII, no newlines or
 /// control characters for simple layout calculation.
 pub fn print_ascii(
@@ -89,21 +124,16 @@ pub fn print_ascii_iter(
     alignment: Alignment,
 ) -> Rect {
     let ascii_width = ascii.iter().map(|s| s.len() as u16).sum::<u16>();
-    let style = style.into();
-    let Rect {
-        mut x,
-        y,
-        mut width,
-        ..
-    } = align(
+    let Rect { mut x, y, .. } = align(
         Rect {
             width: line.width.min(ascii_width),
-            height: 1,
             ..line
         },
         line,
         alignment,
     );
+    let mut width = line.width;
+    let style = style.into();
 
     for ascii in ascii {
         for ch in ascii.chars() {
