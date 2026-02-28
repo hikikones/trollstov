@@ -1,6 +1,6 @@
 [package]
 name = "trollstov"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 description = "A music player for the terminal where your music is the database."
 license.workspace = true
