@@ -214,6 +214,47 @@ pub fn print_ascii_iter(
     let style = style.into();
 
     for ascii in ascii {
+        debug_assert!(ascii.is_ascii());
+        for ch in ascii.chars() {
+            if width == 0 {
+                return Rect { x, width, ..line };
+            }
+
+            let Some(cell) = buf.cell_mut((x, y)) else {
+                return Rect { x, width, ..line };
+            };
+
+            cell.set_char(ch).set_style(style);
+
+            x += 1;
+            width -= 1;
+        }
+    }
+
+    Rect { x, width, ..line }
+}
+
+/// Prints `ascii` collection with styles assuming only ASCII, no newlines or
+/// control characters for simple layout calculation.
+pub fn print_ascii_iter_with_styles(
+    line: Rect,
+    buf: &mut Buffer,
+    asciis: &[(&str, Style)],
+    alignment: Alignment,
+) -> Rect {
+    let ascii_width = asciis.iter().map(|(s, _)| s.len() as u16).sum::<u16>();
+    let Rect { mut x, y, .. } = align(
+        Rect {
+            width: line.width.min(ascii_width),
+            ..line
+        },
+        line,
+        alignment,
+    );
+    let mut width = line.width;
+
+    for (ascii, style) in asciis.into_iter().copied() {
+        debug_assert!(ascii.is_ascii());
         for ch in ascii.chars() {
             if width == 0 {
                 return Rect { x, width, ..line };

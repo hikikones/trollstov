@@ -117,7 +117,7 @@ impl SettingsPage {
             write_hash: hash,
             is_applied: true,
             is_written: true,
-            list: List::new().with_index(3).with_margins(5, 5),
+            list: List::new().with_index(4).with_margins(5, 5),
             text: TextSegment::new().with_alignment(Alignment::Center),
             accent: ColorSetting::new(settings.accent()),
             on_accent: ColorSetting::new(settings.on_accent()),
@@ -141,12 +141,8 @@ impl SettingsPage {
             .title(" Settings ")
             .title_alignment(Alignment::Center)
             .padding(Padding::horizontal(1));
-        let mut settings_area = block.inner(area);
+        let settings_area = block.inner(area);
         block.render(area, buf);
-
-        if SETTINGS.len() > settings_area.height as usize {
-            settings_area.width = settings_area.width.saturating_sub(1);
-        }
 
         let mut label_area = Rect {
             width: settings_area.width / 2,
