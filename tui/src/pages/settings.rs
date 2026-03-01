@@ -36,47 +36,52 @@ pub struct SettingsPage {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Setting {
     General,
+    GeneralDescription,
     SkipRating,
     SkipRatingDescription,
     KeepTrackSort,
     KeepTrackSortDescription,
     Colors,
+    ColorsDescription,
     AccentColor,
-    AccentColorDescription,
+    AccentColorPreview,
     OnAccentColor,
-    OnAccentColorDescription,
+    OnAccentColorPreview,
     NeutralColor,
-    NeutralColorDescription,
+    NeutralColorPreview,
     OnNeutralColor,
-    OnNeutralColorDescription,
+    OnNeutralColorPreview,
     Empty,
 }
 
 impl Setting {
     const fn filter(&self) -> bool {
         match self {
-            Setting::General => false,
-            Setting::SkipRating => true,
-            Setting::SkipRatingDescription => false,
-            Setting::KeepTrackSort => true,
-            Setting::KeepTrackSortDescription => false,
-            Setting::Colors => false,
-            Setting::AccentColor => true,
-            Setting::AccentColorDescription => false,
-            Setting::OnAccentColor => true,
-            Setting::OnAccentColorDescription => false,
-            Setting::NeutralColor => true,
-            Setting::NeutralColorDescription => false,
-            Setting::OnNeutralColor => true,
-            Setting::OnNeutralColorDescription => false,
-            Setting::Empty => false,
+            Self::General => false,
+            Self::GeneralDescription => false,
+            Self::SkipRating => true,
+            Self::SkipRatingDescription => false,
+            Self::KeepTrackSort => true,
+            Self::KeepTrackSortDescription => false,
+            Self::Colors => false,
+            Self::ColorsDescription => false,
+            Self::AccentColor => true,
+            Self::AccentColorPreview => false,
+            Self::OnAccentColor => true,
+            Self::OnAccentColorPreview => false,
+            Self::NeutralColor => true,
+            Self::NeutralColorPreview => false,
+            Self::OnNeutralColor => true,
+            Self::OnNeutralColorPreview => false,
+            Self::Empty => false,
         }
     }
 }
 
-const SETTINGS: [Setting; 23] = [
+const SETTINGS: [Setting; 25] = [
     Setting::Empty,
     Setting::General,
+    Setting::GeneralDescription,
     Setting::Empty,
     Setting::SkipRating,
     Setting::SkipRatingDescription,
@@ -85,18 +90,19 @@ const SETTINGS: [Setting; 23] = [
     Setting::KeepTrackSortDescription,
     Setting::Empty,
     Setting::Colors,
+    Setting::ColorsDescription,
     Setting::Empty,
     Setting::AccentColor,
-    Setting::AccentColorDescription,
+    Setting::AccentColorPreview,
     Setting::Empty,
     Setting::OnAccentColor,
-    Setting::OnAccentColorDescription,
+    Setting::OnAccentColorPreview,
     Setting::Empty,
     Setting::NeutralColor,
-    Setting::NeutralColorDescription,
+    Setting::NeutralColorPreview,
     Setting::Empty,
     Setting::OnNeutralColor,
-    Setting::OnNeutralColorDescription,
+    Setting::OnNeutralColorPreview,
     Setting::Empty,
 ];
 
@@ -113,10 +119,10 @@ impl SettingsPage {
             is_written: true,
             list: List::new().with_index(3).with_margins(5, 5),
             text: TextSegment::new().with_alignment(Alignment::Center),
-            accent: ColorSetting::new(settings.accent().to_string()),
-            on_accent: ColorSetting::new(settings.on_accent().to_string()),
-            neutral: ColorSetting::new(settings.neutral().to_string()),
-            on_neutral: ColorSetting::new(settings.on_neutral().to_string()),
+            accent: ColorSetting::new(settings.accent()),
+            on_accent: ColorSetting::new(settings.on_accent()),
+            neutral: ColorSetting::new(settings.neutral()),
+            on_neutral: ColorSetting::new(settings.on_neutral()),
         }
     }
 
@@ -135,8 +141,31 @@ impl SettingsPage {
             .title(" Settings ")
             .title_alignment(Alignment::Center)
             .padding(Padding::horizontal(1));
-        let settings_area = block.inner(area);
+        let mut settings_area = block.inner(area);
         block.render(area, buf);
+
+        if SETTINGS.len() > settings_area.height as usize {
+            settings_area.width = settings_area.width.saturating_sub(1);
+        }
+
+        // let [mut label_area, _, mut setting_area, _, mut preview_area] = Layout::horizontal([
+        //     Constraint::Percentage(60),
+        //     Constraint::Length(1),
+        //     Constraint::Max(10),
+        //     Constraint::Length(1),
+        //     Constraint::Fill(0),
+        // ])
+        // .areas(settings_area);
+
+        let mut label_area = Rect {
+            width: settings_area.width / 2,
+            ..settings_area
+        };
+        let mut setting_area = Rect {
+            x: label_area.x + label_area.width + 1,
+            width: label_area.width.saturating_sub(1),
+            ..label_area
+        };
 
         let current = self.current();
         self.list.set_colors(settings.neutral(), None).render(
@@ -144,6 +173,10 @@ impl SettingsPage {
             buf,
             SETTINGS.into_iter(),
             |line, buf, setting, index| {
+                label_area.y = line.y;
+                setting_area.y = line.y;
+                // preview_area.y = line.y;
+
                 let (symbol, style) = if index == ListItem::Selected {
                     ("> ", Style::new().bold())
                 } else {
@@ -152,93 +185,240 @@ impl SettingsPage {
 
                 match setting {
                     Setting::General => {
-                        self.text.push_str("GENERAL", style);
-                        self.text.render(line, buf);
+                        // self.text.push_str("GENERAL", style);
+                        // self.text.render(line, buf);
+                        utils::print_ascii(
+                            line,
+                            buf,
+                            "GENERAL",
+                            style,
+                            utils::Alignment::CenterHorizontal,
+                        );
+                    }
+                    Setting::GeneralDescription => {
+                        utils::print_ascii(
+                            line,
+                            buf,
+                            "the general settings for the application",
+                            settings.neutral(),
+                            utils::Alignment::CenterHorizontal,
+                        );
                     }
                     Setting::SkipRating => {
-                        let s = "Skip tracks with rating: ";
-                        self.text.extend_as_one([symbol, s], style);
+                        let s = "Skip tracks with rating:";
+                        // self.text.extend_as_one([symbol, s], style);
+                        utils::print_ascii_iter(
+                            label_area,
+                            buf,
+                            &[symbol, s],
+                            style,
+                            utils::Alignment::Right,
+                        );
 
                         // Stars
-                        let colored = self.settings.skip_rating() as usize;
+                        let colored = self.settings.skip_rating().as_u8();
                         let neutral = 5 - colored;
-                        self.text.repeat_char('★', colored, settings.accent());
-                        self.text.repeat_char('★', neutral, settings.neutral());
-                        self.text.render(line, buf);
+                        let setting_area = utils::print_char_repeat(
+                            setting_area,
+                            buf,
+                            '★',
+                            colored,
+                            settings.accent(),
+                        );
+                        utils::print_char_repeat(
+                            setting_area,
+                            buf,
+                            '★',
+                            neutral,
+                            settings.neutral(),
+                        );
+                        // self.text.repeat_char('★', colored, settings.accent());
+                        // self.text.repeat_char('★', neutral, settings.neutral());
+                        // self.text.render(line, buf);
                     }
                     Setting::SkipRatingDescription => {
-                        let s = "skips tracks that are less than or equal to";
-                        self.text.push_str(s, settings.neutral());
-                        self.text.render(line, buf);
+                        // let s = "skips tracks that are less than or equal to";
+                        utils::print_ascii(
+                            line,
+                            buf,
+                            "skips tracks that are less than or equal to",
+                            settings.neutral(),
+                            utils::Alignment::CenterHorizontal,
+                        );
+                        // self.text.push_str(s, settings.neutral());
+                        // self.text.render(line, buf);
                     }
                     Setting::KeepTrackSort => {
-                        let s = "Keep selected track on sort: ";
-                        self.text.extend_as_one([symbol, s], style);
+                        let s = "Keep selected track on sort:";
+                        // self.text.extend_as_one([symbol, s], style);
+                        utils::print_ascii_iter(
+                            label_area,
+                            buf,
+                            &[symbol, s],
+                            style,
+                            utils::Alignment::Right,
+                        );
 
                         // Checkmark
                         let (checkmark, color) = match self.settings.keep_on_sort() {
-                            true => ("🗸", settings.accent()),
-                            false => ("𐄂", settings.neutral()),
+                            true => ('🗸', settings.accent()),
+                            false => ('𐄂', settings.neutral()),
                         };
-                        self.text.push_str(checkmark, color);
-                        self.text.render(line, buf);
+                        let Rect { x, y, .. } = setting_area;
+                        if let Some(cell) = buf.cell_mut((x, y)) {
+                            cell.set_char(checkmark).set_style(color);
+                        }
+                        // self.text.push_str(checkmark, color);
+                        // self.text.render(line, buf);
                     }
                     Setting::KeepTrackSortDescription => {
-                        let s = "scrolls to selected track when sorting";
-                        self.text.push_str(s, settings.neutral());
-                        self.text.render(line, buf);
+                        // let s = "scrolls to selected track when sorting";
+                        // self.text.push_str(s, settings.neutral());
+                        // self.text.render(line, buf);
+                        utils::print_ascii(
+                            line,
+                            buf,
+                            "scrolls to selected track when sorting",
+                            settings.neutral(),
+                            utils::Alignment::CenterHorizontal,
+                        );
                     }
                     Setting::Colors => {
-                        self.text.push_str("COLORS", style);
-                        self.text.render(line, buf);
+                        // self.text.push_str("COLORS", style);
+                        // self.text.render(line, buf);
+                        utils::print_ascii(
+                            line,
+                            buf,
+                            "COLORS",
+                            style,
+                            utils::Alignment::CenterHorizontal,
+                        );
+                    }
+                    Setting::ColorsDescription => {
+                        utils::print_ascii(
+                            line,
+                            buf,
+                            "set colors by name, hex code or indexed value",
+                            settings.neutral(),
+                            utils::Alignment::CenterHorizontal,
+                        );
                     }
                     Setting::AccentColor => {
-                        let s = "Set accent color: ";
+                        let s = "Set accent color:";
+                        utils::print_ascii_iter(
+                            label_area,
+                            buf,
+                            &[symbol, s],
+                            style,
+                            utils::Alignment::Right,
+                        );
+
+                        // Input
                         let is_active = current == Setting::AccentColor;
                         self.accent.set_active(is_active, settings);
-                        self.accent.render(line, buf, &[symbol, s]);
+                        self.accent.render2(setting_area, buf);
+
+                        // Preview
+                        // let style = Style::new().fg(self.settings.accent());
+                        // utils::print_ascii_simple(preview_area, buf, "preview", style);
                     }
-                    Setting::AccentColorDescription => {
-                        let style = Style::new().fg(self.settings.accent());
-                        self.text.push_str("accent color", style);
-                        self.text.render(line, buf);
+                    Setting::AccentColorPreview => {
+                        utils::print_ascii(
+                            line,
+                            buf,
+                            "accent color",
+                            Style::new().fg(self.settings.accent()),
+                            utils::Alignment::CenterHorizontal,
+                        );
+                        // let style = Style::new().fg(self.settings.accent());
+                        // self.text.push_str("accent color", style);
+                        // self.text.render(line, buf);
                     }
                     Setting::OnAccentColor => {
                         let s = "Set on accent color: ";
+                        utils::print_ascii_iter(
+                            label_area,
+                            buf,
+                            &[symbol, s],
+                            style,
+                            utils::Alignment::Right,
+                        );
+
                         let is_active = current == Setting::OnAccentColor;
                         self.on_accent.set_active(is_active, settings);
-                        self.on_accent.render(line, buf, &[symbol, s]);
+                        self.on_accent.render2(setting_area, buf);
                     }
-                    Setting::OnAccentColorDescription => {
-                        let style = Style::new()
-                            .bg(self.settings.accent())
-                            .fg(self.settings.on_accent());
-                        self.text.push_str(" on accent color ", style);
-                        self.text.render(line, buf);
+                    Setting::OnAccentColorPreview => {
+                        utils::print_ascii(
+                            line,
+                            buf,
+                            " on accent color ",
+                            Style::new()
+                                .bg(self.settings.accent())
+                                .fg(self.settings.on_accent()),
+                            utils::Alignment::CenterHorizontal,
+                        );
+                        // let style = Style::new()
+                        //     .bg(self.settings.accent())
+                        //     .fg(self.settings.on_accent());
+                        // self.text.push_str(" on accent color ", style);
+                        // self.text.render(line, buf);
                     }
                     Setting::NeutralColor => {
                         let s = "Set neutral color: ";
+                        utils::print_ascii_iter(
+                            label_area,
+                            buf,
+                            &[symbol, s],
+                            style,
+                            utils::Alignment::Right,
+                        );
+
                         let is_active = current == Setting::NeutralColor;
                         self.neutral.set_active(is_active, settings);
-                        self.neutral.render(line, buf, &[symbol, s]);
+                        self.neutral.render2(setting_area, buf);
                     }
-                    Setting::NeutralColorDescription => {
-                        let style = Style::new().fg(self.settings.neutral());
-                        self.text.push_str("neutral color", style);
-                        self.text.render(line, buf);
+                    Setting::NeutralColorPreview => {
+                        utils::print_ascii(
+                            line,
+                            buf,
+                            "neutral color",
+                            Style::new().fg(self.settings.neutral()),
+                            utils::Alignment::CenterHorizontal,
+                        );
+                        // let style = Style::new().fg(self.settings.neutral());
+                        // self.text.push_str("neutral color", style);
+                        // self.text.render(line, buf);
                     }
                     Setting::OnNeutralColor => {
                         let s = "Set accent color: ";
+                        utils::print_ascii_iter(
+                            label_area,
+                            buf,
+                            &[symbol, s],
+                            style,
+                            utils::Alignment::Right,
+                        );
+
                         let is_active = current == Setting::OnNeutralColor;
                         self.on_neutral.set_active(is_active, settings);
-                        self.on_neutral.render(line, buf, &[symbol, s]);
+                        self.on_neutral.render2(setting_area, buf);
                     }
-                    Setting::OnNeutralColorDescription => {
-                        let style = Style::new()
-                            .bg(self.settings.neutral())
-                            .fg(self.settings.on_neutral());
-                        self.text.push_str(" on neutral color ", style);
-                        self.text.render(line, buf);
+                    Setting::OnNeutralColorPreview => {
+                        utils::print_ascii(
+                            line,
+                            buf,
+                            " on neutral color ",
+                            Style::new()
+                                .bg(self.settings.neutral())
+                                .fg(self.settings.on_neutral()),
+                            utils::Alignment::CenterHorizontal,
+                        );
+                        // let style = Style::new()
+                        //     .bg(self.settings.neutral())
+                        //     .fg(self.settings.on_neutral());
+                        // self.text.push_str(" on neutral color ", style);
+                        // self.text.render(line, buf);
                     }
                     Setting::Empty => {}
                 }
@@ -467,8 +647,8 @@ impl SettingsPage {
 struct ColorSetting(TextInput);
 
 impl ColorSetting {
-    const fn new(s: String) -> Self {
-        Self(TextInput::from(s))
+    fn new(color: Color) -> Self {
+        Self(TextInput::from(color.to_string()))
     }
 
     fn parse_color(&self) -> Result<Color, ratatui::style::ParseColorError> {
@@ -506,6 +686,10 @@ impl ColorSetting {
         );
 
         line = utils::print_asciis_simple(line, buf, texts, Style::new());
+        self.0.render(line, buf);
+    }
+
+    fn render2(&mut self, line: Rect, buf: &mut Buffer) {
         self.0.render(line, buf);
     }
 }
