@@ -36,7 +36,6 @@ pub struct SettingsPage {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Setting {
     General,
-    GeneralDescription,
     SkipRating,
     SkipRatingDescription,
     KeepTrackSort,
@@ -58,7 +57,6 @@ impl Setting {
     const fn filter(&self) -> bool {
         match self {
             Self::General => false,
-            Self::GeneralDescription => false,
             Self::SkipRating => true,
             Self::SkipRatingDescription => false,
             Self::KeepTrackSort => true,
@@ -78,10 +76,9 @@ impl Setting {
     }
 }
 
-const SETTINGS: [Setting; 25] = [
+const SETTINGS: [Setting; 24] = [
     Setting::Empty,
     Setting::General,
-    Setting::GeneralDescription,
     Setting::Empty,
     Setting::SkipRating,
     Setting::SkipRatingDescription,
@@ -118,7 +115,7 @@ impl SettingsPage {
             write_hash: hash,
             is_applied: true,
             is_written: true,
-            list: List::new().with_index(4).with_margins(5, 5),
+            list: List::new().with_index(3).with_margins(5, 5),
             text: TextSegment::new().with_alignment(Alignment::Center),
             accent: ColorSetting::new(colors.accent),
             on_accent: ColorSetting::new(colors.on_accent),
@@ -179,15 +176,6 @@ impl SettingsPage {
                             buf,
                             "GENERAL",
                             style,
-                            utils::Alignment::CenterHorizontal,
-                        );
-                    }
-                    Setting::GeneralDescription => {
-                        utils::print_ascii(
-                            line,
-                            buf,
-                            "the general settings for the application",
-                            colors.neutral,
                             utils::Alignment::CenterHorizontal,
                         );
                     }
