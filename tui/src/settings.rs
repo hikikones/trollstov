@@ -8,6 +8,7 @@ const CONFIG_NAME: &str = "settings.toml";
 
 // TODO: Add version?
 // TODO: Add secondary color?
+// TODO: Search by path.
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Settings {
