@@ -14,7 +14,7 @@ use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
 use crate::{
     events::{Event, EventHandler},
     pages::{Log, LogsPage, Pages, PlayingPage, Route, SearchPage, SettingsPage, TracksPage},
-    settings::Settings,
+    settings::{Colors, Settings},
     terminal::Terminal,
     widgets::{Shortcut, Shortcuts, TextSegment, utils},
 };
@@ -361,14 +361,16 @@ impl App {
             let area = frame.area();
             let buf = frame.buffer_mut();
 
+            let colors = &self.settings.colors().clone();
+
             self.shortcuts_page
-                .set_colors(Color::Reset, self.settings.accent())
+                .set_colors(Color::Reset, colors.accent)
                 .clear();
             self.shortcuts_play
-                .set_colors(self.settings.neutral(), self.settings.accent())
+                .set_colors(colors.neutral, colors.accent)
                 .clear();
             self.shortcuts_app
-                .set_colors(self.settings.neutral(), self.settings.accent())
+                .set_colors(colors.neutral, colors.accent)
                 .clear();
 
             const MARGIN: u16 = 1;
@@ -377,7 +379,7 @@ impl App {
             match self.screen_size {
                 ScreenSize::Small => {
                     // Body
-                    self.on_render(area, buf);
+                    self.on_render(area, buf, colors);
                 }
                 ScreenSize::Medium => {
                     // Layout
@@ -407,12 +409,12 @@ impl App {
                         &mut self.text_segment,
                         self.route,
                         &self.pages,
-                        self.settings.accent(),
+                        colors.accent,
                     );
 
                     // Body
                     let body = body_area.inner(Margin::new(MARGIN, MARGIN));
-                    self.on_render(body, buf);
+                    self.on_render(body, buf, colors);
                     self.shortcuts_page.render(shortcuts_page_area, buf);
 
                     // Playback
@@ -424,8 +426,8 @@ impl App {
                         self.jukebox
                             .current_track_id()
                             .and_then(|id| self.jukebox.get(id)),
-                        self.settings.accent(),
-                        self.settings.neutral(),
+                        colors.accent,
+                        colors.neutral,
                     );
 
                     // Shortcuts
@@ -462,7 +464,7 @@ impl App {
                         title_area,
                         buf,
                         &[crate::APP_NAME, " v", crate::APP_VERSION],
-                        self.settings.neutral(),
+                        colors.neutral,
                         utils::Alignment::CenterHorizontal,
                     );
 
@@ -473,7 +475,7 @@ impl App {
                         &mut self.text_segment,
                         self.route,
                         &self.pages,
-                        self.settings.accent(),
+                        colors.accent,
                     );
 
                     // Body
@@ -481,7 +483,7 @@ impl App {
                     let body = body_area
                         .centered_horizontally(Constraint::Length(MAX_WIDTH + MARGIN))
                         .inner(Margin::new(MARGIN, MARGIN));
-                    self.on_render(body, buf);
+                    self.on_render(body, buf, colors);
                     self.shortcuts_page.render(shortcuts_page_area, buf);
 
                     // Playback
@@ -493,8 +495,8 @@ impl App {
                         self.jukebox
                             .current_track_id()
                             .and_then(|id| self.jukebox.get(id)),
-                        self.settings.accent(),
-                        self.settings.neutral(),
+                        colors.accent,
+                        colors.neutral,
                     );
 
                     // Shortcuts
@@ -506,14 +508,14 @@ impl App {
         })
     }
 
-    fn on_render(&mut self, body: Rect, buf: &mut Buffer) {
+    fn on_render(&mut self, body: Rect, buf: &mut Buffer, colors: &Colors) {
         match self.route {
             Route::Tracks(_) => {
                 self.pages.tracks.on_render(
                     body,
                     buf,
                     &self.jukebox,
-                    &self.settings,
+                    colors,
                     &mut self.shortcuts_page,
                 );
             }
@@ -524,7 +526,7 @@ impl App {
                     &self.jukebox,
                     self.screen_size,
                     &mut self.front_cover,
-                    &self.settings,
+                    colors,
                     &mut self.shortcuts_page,
                 );
             }
@@ -533,7 +535,7 @@ impl App {
                     body,
                     buf,
                     &mut self.jukebox,
-                    &self.settings,
+                    colors,
                     &mut self.shortcuts_page,
                 );
             }
@@ -545,7 +547,7 @@ impl App {
             Route::Logs => {
                 self.pages
                     .logs
-                    .on_render(body, buf, &self.settings, &mut self.shortcuts_page);
+                    .on_render(body, buf, colors, &mut self.shortcuts_page);
             }
         }
     }

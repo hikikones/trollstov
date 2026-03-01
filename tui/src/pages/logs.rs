@@ -6,7 +6,7 @@ use ratatui::{
 
 use crate::{
     app::Action,
-    settings::Settings,
+    settings::Colors,
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
@@ -46,7 +46,7 @@ impl LogsPage {
         &mut self,
         area: Rect,
         buf: &mut Buffer,
-        settings: &Settings,
+        colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
         if self.logs.is_empty() {
@@ -54,7 +54,7 @@ impl LogsPage {
                 area,
                 buf,
                 "No logs to report",
-                settings.neutral(),
+                colors.neutral,
                 utils::Alignment::Center,
             );
             return;
@@ -73,7 +73,7 @@ impl LogsPage {
         block.render(area, buf);
         self.title.clear();
 
-        self.list.set_colors(settings.neutral(), None).render(
+        self.list.set_colors(colors.neutral, None).render(
             logs_area,
             buf,
             self.logs.iter(),
@@ -83,7 +83,7 @@ impl LogsPage {
                     self.horizontal_scroll = max_scroll.min(self.horizontal_scroll);
                     (
                         self.horizontal_scroll,
-                        Style::new().bg(settings.accent()).fg(settings.on_accent()),
+                        Style::new().bg(colors.accent).fg(colors.on_accent),
                     )
                 } else {
                     (0, Style::new())

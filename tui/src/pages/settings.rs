@@ -10,7 +10,7 @@ use ratatui::{
 use crate::{
     app::Action,
     pages::Log,
-    settings::Settings,
+    settings::{Colors, Settings},
     widgets::{
         List, ListItem, ListMove, Shortcut, Shortcuts, TextInput, TextInputStyles, TextSegment,
         utils,
@@ -108,6 +108,7 @@ const SETTINGS: [Setting; 25] = [
 
 impl SettingsPage {
     pub fn new(settings: &Settings) -> Self {
+        let colors = settings.colors();
         let hash = settings.hash();
         Self {
             settings: settings.clone(),
@@ -119,10 +120,10 @@ impl SettingsPage {
             is_written: true,
             list: List::new().with_index(4).with_margins(5, 5),
             text: TextSegment::new().with_alignment(Alignment::Center),
-            accent: ColorSetting::new(settings.accent()),
-            on_accent: ColorSetting::new(settings.on_accent()),
-            neutral: ColorSetting::new(settings.neutral()),
-            on_neutral: ColorSetting::new(settings.on_neutral()),
+            accent: ColorSetting::new(colors.accent),
+            on_accent: ColorSetting::new(colors.on_accent),
+            neutral: ColorSetting::new(colors.neutral),
+            on_neutral: ColorSetting::new(colors.on_neutral),
         }
     }
 
@@ -154,8 +155,10 @@ impl SettingsPage {
             ..label_area
         };
 
+        let colors = settings.colors();
         let current = self.current();
-        self.list.set_colors(settings.neutral(), None).render(
+
+        self.list.set_colors(colors.neutral, None).render(
             settings_area,
             buf,
             SETTINGS.into_iter(),
@@ -184,7 +187,7 @@ impl SettingsPage {
                             line,
                             buf,
                             "the general settings for the application",
-                            settings.neutral(),
+                            colors.neutral,
                             utils::Alignment::CenterHorizontal,
                         );
                     }
@@ -206,22 +209,16 @@ impl SettingsPage {
                             buf,
                             '★',
                             colored,
-                            settings.accent(),
+                            colors.accent,
                         );
-                        utils::print_char_repeat(
-                            setting_area,
-                            buf,
-                            '★',
-                            neutral,
-                            settings.neutral(),
-                        );
+                        utils::print_char_repeat(setting_area, buf, '★', neutral, colors.neutral);
                     }
                     Setting::SkipRatingDescription => {
                         utils::print_ascii(
                             line,
                             buf,
                             "skips tracks that are less than or equal to",
-                            settings.neutral(),
+                            colors.neutral,
                             utils::Alignment::CenterHorizontal,
                         );
                     }
@@ -237,8 +234,8 @@ impl SettingsPage {
 
                         // Checkmark
                         let (checkmark, color) = match self.settings.keep_on_sort() {
-                            true => ('🗸', settings.accent()),
-                            false => ('𐄂', settings.neutral()),
+                            true => ('🗸', colors.accent),
+                            false => ('𐄂', colors.neutral),
                         };
                         let Rect { x, y, .. } = setting_area;
                         if let Some(cell) = buf.cell_mut((x, y)) {
@@ -250,7 +247,7 @@ impl SettingsPage {
                             line,
                             buf,
                             "scrolls to selected track when sorting",
-                            settings.neutral(),
+                            colors.neutral,
                             utils::Alignment::CenterHorizontal,
                         );
                     }
@@ -268,7 +265,7 @@ impl SettingsPage {
                             line,
                             buf,
                             "set colors by name, hex code or indexed value",
-                            settings.neutral(),
+                            colors.neutral,
                             utils::Alignment::CenterHorizontal,
                         );
                     }
@@ -283,7 +280,7 @@ impl SettingsPage {
                         );
 
                         let is_active = current == Setting::AccentColor;
-                        self.accent.set_active(is_active, settings);
+                        self.accent.set_active(is_active, colors);
                         self.accent.render(setting_area, buf);
                     }
                     Setting::AccentColorPreview => {
@@ -306,7 +303,7 @@ impl SettingsPage {
                         );
 
                         let is_active = current == Setting::OnAccentColor;
-                        self.on_accent.set_active(is_active, settings);
+                        self.on_accent.set_active(is_active, colors);
                         self.on_accent.render(setting_area, buf);
                     }
                     Setting::OnAccentColorPreview => {
@@ -331,7 +328,7 @@ impl SettingsPage {
                         );
 
                         let is_active = current == Setting::NeutralColor;
-                        self.neutral.set_active(is_active, settings);
+                        self.neutral.set_active(is_active, colors);
                         self.neutral.render(setting_area, buf);
                     }
                     Setting::NeutralColorPreview => {
@@ -354,7 +351,7 @@ impl SettingsPage {
                         );
 
                         let is_active = current == Setting::OnNeutralColor;
-                        self.on_neutral.set_active(is_active, settings);
+                        self.on_neutral.set_active(is_active, colors);
                         self.on_neutral.render(setting_area, buf);
                     }
                     Setting::OnNeutralColorPreview => {
@@ -603,14 +600,12 @@ impl ColorSetting {
         Color::from_str(self.0.as_str().trim())
     }
 
-    const fn set_active(&mut self, active: bool, settings: &Settings) {
+    const fn set_active(&mut self, active: bool, colors: &Colors) {
         let styles = if active {
             TextInputStyles {
                 normal: Style::new(),
-                cursor: Style::new().bg(settings.accent()).fg(settings.on_accent()),
-                selector: Style::new()
-                    .bg(settings.neutral())
-                    .fg(settings.on_neutral()),
+                cursor: Style::new().bg(colors.accent).fg(colors.on_accent),
+                selector: Style::new().bg(colors.neutral).fg(colors.on_neutral),
                 placeholder: Style::new(),
             }
         } else {

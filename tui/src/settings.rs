@@ -59,6 +59,10 @@ impl Settings {
         self.general.keep_selected_track_on_sort = value;
     }
 
+    pub const fn colors(&self) -> &Colors {
+        &self.colors
+    }
+
     pub const fn accent(&self) -> Color {
         self.colors.accent
     }
@@ -89,10 +93,6 @@ impl Settings {
 
     pub const fn set_on_neutral(&mut self, color: Color) {
         self.colors.on_neutral = color;
-    }
-
-    pub fn generate_readable_fg(bg: Color) -> Option<Color> {
-        readable_fg(bg)
     }
 
     pub fn read() -> Result<Self, Box<dyn std::error::Error>> {
@@ -167,11 +167,17 @@ struct General {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-struct Colors {
-    accent: Color,
-    on_accent: Color,
-    neutral: Color,
-    on_neutral: Color,
+pub struct Colors {
+    pub accent: Color,
+    pub on_accent: Color,
+    pub neutral: Color,
+    pub on_neutral: Color,
+}
+
+impl Colors {
+    pub fn generate_readable_fg(bg: Color) -> Option<Color> {
+        readable_fg(bg)
+    }
 }
 
 fn get_config_dir() -> Option<PathBuf> {

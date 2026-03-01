@@ -8,7 +8,7 @@ use ratatui::{
 use crate::{
     app::Action,
     pages::Route,
-    settings::Settings,
+    settings::Colors,
     widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles, utils},
 };
 
@@ -51,7 +51,7 @@ impl SearchPage {
         area: Rect,
         buf: &mut Buffer,
         jb: &mut Jukebox,
-        settings: &Settings,
+        colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
         if jb.is_empty() {
@@ -59,7 +59,7 @@ impl SearchPage {
                 area,
                 buf,
                 "No tracks to search for",
-                settings.neutral(),
+                colors.neutral,
                 utils::Alignment::Center,
             );
             return;
@@ -67,15 +67,13 @@ impl SearchPage {
 
         // Determine colors and shortcuts for search input and results
         let (block_style, border_style) = {
-            let neutral = Style::new().fg(settings.neutral());
+            let neutral = Style::new().fg(colors.neutral);
             match self.state {
                 State::Search => {
                     self.search_input.set_styles(TextInputStyles {
                         normal: Style::new(),
-                        cursor: Style::new().bg(settings.accent()).fg(settings.on_accent()),
-                        selector: Style::new()
-                            .bg(settings.neutral())
-                            .fg(settings.on_neutral()),
+                        cursor: Style::new().bg(colors.accent).fg(colors.on_accent),
+                        selector: Style::new().bg(colors.neutral).fg(colors.on_neutral),
                         placeholder: neutral,
                     });
                     shortcuts.extend([
@@ -95,7 +93,7 @@ impl SearchPage {
                         Shortcut::new("Search", "s"),
                     ]);
 
-                    (Style::new(), Style::new().fg(settings.accent()))
+                    (Style::new(), Style::new().fg(colors.accent))
                 }
             }
         };
@@ -130,7 +128,7 @@ impl SearchPage {
         self.buffer.clear();
 
         let current = jb.current_track_id();
-        self.list.set_colors(settings.neutral(), None).render(
+        self.list.set_colors(colors.neutral, None).render(
             search_results_inner,
             buf,
             self.search_results.iter().copied(),
@@ -140,12 +138,12 @@ impl SearchPage {
                     if matches!(self.state, State::Browse) {
                         match item {
                             ListItem::Selected => {
-                                style.bg = Some(settings.accent());
-                                style.fg = Some(settings.on_accent());
+                                style.bg = Some(colors.accent);
+                                style.fg = Some(colors.on_accent);
                             }
                             ListItem::Selection => {
-                                style.bg = Some(settings.neutral());
-                                style.fg = Some(settings.on_neutral());
+                                style.bg = Some(colors.neutral);
+                                style.fg = Some(colors.on_neutral);
                             }
                             ListItem::Normal => {}
                         }
