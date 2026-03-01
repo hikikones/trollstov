@@ -614,7 +614,9 @@ struct ColorSetting(TextInput);
 
 impl ColorSetting {
     fn new(color: Color) -> Self {
-        Self(TextInput::from(color.to_string()))
+        let mut input = TextInput::from(color.to_string());
+        input.move_cursor(crate::widgets::CursorMove::End, false);
+        Self(input)
     }
 
     fn parse_color(&self) -> Result<Color, ratatui::style::ParseColorError> {

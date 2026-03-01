@@ -37,9 +37,7 @@ pub enum CursorDelete {
 
 impl TextInput {
     pub const fn new() -> Self {
-        let mut input = Self::from(String::new());
-        input.cursor = 0;
-        input
+        Self::from(String::new())
     }
 
     pub const fn from(s: String) -> Self {
