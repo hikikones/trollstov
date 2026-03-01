@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use ratatui::{buffer::Buffer, layout::Rect, style::Color, text::Text, widgets::Widget};
 
 pub struct LogoWidget;

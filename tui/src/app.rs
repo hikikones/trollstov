@@ -12,10 +12,9 @@ use ratatui::{
 use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
-    colors::Colors,
     events::{Event, EventHandler},
     pages::{Log, LogsPage, Pages, PlayingPage, Route, SearchPage, SettingsPage, TracksPage},
-    settings::Settings,
+    settings::{Colors, Settings},
     terminal::Terminal,
     widgets::{Shortcut, Shortcuts, TextSegment, utils},
 };
@@ -28,7 +27,6 @@ pub struct App {
     running: bool,
     pages: Pages,
     route: Route,
-    colors: Colors,
     events: EventHandler,
     settings: Settings,
     jukebox: Jukebox,
@@ -76,8 +74,8 @@ pub enum Action {
 }
 
 impl App {
-    pub fn new(jukebox: Jukebox, colors: Colors, picker: Picker, mpris: bool) -> Self {
-        let mut logs = LogsPage::new(&colors);
+    pub fn new(jukebox: Jukebox, picker: Picker, mpris: bool) -> Self {
+        let mut logs = LogsPage::new();
 
         let settings = Settings::read()
             .inspect_err(|err| {
@@ -87,22 +85,17 @@ impl App {
             .unwrap_or_default();
 
         let pages = Pages {
-            tracks: TracksPage::new(&settings, &colors),
-            playing: PlayingPage::new(&colors),
-            search: SearchPage::new(&colors),
-            settings: SettingsPage::new(&settings, &colors),
+            tracks: TracksPage::new(),
+            playing: PlayingPage::new(),
+            search: SearchPage::new(),
+            settings: SettingsPage::new(&settings),
             logs,
         };
-
-        let shortcuts_page = Shortcuts::new(Color::Reset, colors.accent);
-        let shortcuts_play = Shortcuts::new(colors.neutral, colors.accent);
-        let shortcuts_app = Shortcuts::new(colors.neutral, colors.accent);
 
         Self {
             running: true,
             pages,
             route: Route::default(),
-            colors,
             events: EventHandler::new(),
             settings,
             jukebox,
@@ -112,9 +105,9 @@ impl App {
             front_cover: FrontCover::None,
             front_cover_handle: None,
             text_segment: TextSegment::new().with_alignment(Alignment::Center),
-            shortcuts_page,
-            shortcuts_play,
-            shortcuts_app,
+            shortcuts_page: Shortcuts::new(),
+            shortcuts_play: Shortcuts::new(),
+            shortcuts_app: Shortcuts::new(),
         }
     }
 
@@ -368,17 +361,25 @@ impl App {
             let area = frame.area();
             let buf = frame.buffer_mut();
 
-            self.shortcuts_page.clear();
-            self.shortcuts_play.clear();
-            self.shortcuts_app.clear();
-            self.screen_size = ScreenSize::from_rect(area);
+            let colors = &self.settings.colors().clone();
+
+            self.shortcuts_page
+                .set_colors(Color::Reset, colors.accent)
+                .clear();
+            self.shortcuts_play
+                .set_colors(colors.neutral, colors.accent)
+                .clear();
+            self.shortcuts_app
+                .set_colors(colors.neutral, colors.accent)
+                .clear();
 
             const MARGIN: u16 = 1;
+            self.screen_size = ScreenSize::from_rect(area);
 
             match self.screen_size {
                 ScreenSize::Small => {
                     // Body
-                    self.on_render(area, buf);
+                    self.on_render(area, buf, colors);
                 }
                 ScreenSize::Medium => {
                     // Layout
@@ -408,12 +409,12 @@ impl App {
                         &mut self.text_segment,
                         self.route,
                         &self.pages,
-                        &self.colors,
+                        colors.accent,
                     );
 
                     // Body
                     let body = body_area.inner(Margin::new(MARGIN, MARGIN));
-                    self.on_render(body, buf);
+                    self.on_render(body, buf, colors);
                     self.shortcuts_page.render(shortcuts_page_area, buf);
 
                     // Playback
@@ -425,7 +426,8 @@ impl App {
                         self.jukebox
                             .current_track_id()
                             .and_then(|id| self.jukebox.get(id)),
-                        &self.colors,
+                        colors.accent,
+                        colors.neutral,
                     );
 
                     // Shortcuts
@@ -462,7 +464,7 @@ impl App {
                         title_area,
                         buf,
                         &[crate::APP_NAME, " v", crate::APP_VERSION],
-                        self.colors.neutral,
+                        colors.neutral,
                         utils::Alignment::CenterHorizontal,
                     );
 
@@ -473,7 +475,7 @@ impl App {
                         &mut self.text_segment,
                         self.route,
                         &self.pages,
-                        &self.colors,
+                        colors.accent,
                     );
 
                     // Body
@@ -481,7 +483,7 @@ impl App {
                     let body = body_area
                         .centered_horizontally(Constraint::Length(MAX_WIDTH + MARGIN))
                         .inner(Margin::new(MARGIN, MARGIN));
-                    self.on_render(body, buf);
+                    self.on_render(body, buf, colors);
                     self.shortcuts_page.render(shortcuts_page_area, buf);
 
                     // Playback
@@ -493,7 +495,8 @@ impl App {
                         self.jukebox
                             .current_track_id()
                             .and_then(|id| self.jukebox.get(id)),
-                        &self.colors,
+                        colors.accent,
+                        colors.neutral,
                     );
 
                     // Shortcuts
@@ -505,14 +508,14 @@ impl App {
         })
     }
 
-    fn on_render(&mut self, body: Rect, buf: &mut Buffer) {
+    fn on_render(&mut self, body: Rect, buf: &mut Buffer, colors: &Colors) {
         match self.route {
             Route::Tracks(_) => {
                 self.pages.tracks.on_render(
                     body,
                     buf,
                     &self.jukebox,
-                    &self.colors,
+                    colors,
                     &mut self.shortcuts_page,
                 );
             }
@@ -523,7 +526,7 @@ impl App {
                     &self.jukebox,
                     self.screen_size,
                     &mut self.front_cover,
-                    &self.colors,
+                    colors,
                     &mut self.shortcuts_page,
                 );
             }
@@ -532,19 +535,19 @@ impl App {
                     body,
                     buf,
                     &mut self.jukebox,
-                    &self.colors,
+                    colors,
                     &mut self.shortcuts_page,
                 );
             }
             Route::Settings => {
                 self.pages
                     .settings
-                    .on_render(body, buf, &self.colors, &mut self.shortcuts_page);
+                    .on_render(body, buf, &self.settings, &mut self.shortcuts_page);
             }
             Route::Logs => {
                 self.pages
                     .logs
-                    .on_render(body, buf, &self.colors, &mut self.shortcuts_page);
+                    .on_render(body, buf, colors, &mut self.shortcuts_page);
             }
         }
     }
@@ -596,8 +599,10 @@ impl App {
     }
 
     const fn apply_settings(&mut self) {
-        self.jukebox.set_skip(self.settings.skip_rating);
-        self.pages.tracks.keep_selected_track_on_sort = self.settings.keep_selected_track_on_sort;
+        self.jukebox.set_skip(self.settings.skip_rating());
+        self.pages
+            .tracks
+            .set_keep_on_sort(self.settings.keep_on_sort());
     }
 }
 
@@ -607,7 +612,7 @@ fn render_navigation(
     text: &mut TextSegment,
     current_route: Route,
     pages: &Pages,
-    colors: &Colors,
+    accent: Color,
 ) {
     const SPACING: &str = "   ";
     for (route, name, spacing) in [
@@ -619,7 +624,7 @@ fn render_navigation(
     ] {
         let is_current = std::mem::discriminant(&route) == std::mem::discriminant(&current_route);
         let style = if is_current {
-            Style::new().fg(colors.accent).bold()
+            Style::new().fg(accent).bold()
         } else {
             Style::new()
         };
@@ -646,10 +651,11 @@ fn render_playback(
     text: &mut TextSegment,
     audio_position: Duration,
     track: Option<&Track>,
-    colors: &Colors,
+    accent: Color,
+    neutral: Color,
 ) {
-    let accent = Style::new().fg(colors.accent);
-    let neutral = Style::new().fg(colors.neutral);
+    let accent = Style::new().fg(accent);
+    let neutral = Style::new().fg(neutral);
 
     let title_line = Rect { height: 1, ..area };
     let status_line = Rect {

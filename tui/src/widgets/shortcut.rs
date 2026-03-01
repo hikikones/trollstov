@@ -24,12 +24,18 @@ pub struct Shortcuts {
 }
 
 impl Shortcuts {
-    pub fn new(name_color: Color, key_color: Color) -> Self {
+    pub const fn new() -> Self {
         Self {
-            name_color,
-            key_color,
+            name_color: Color::Reset,
+            key_color: Color::Indexed(240),
             text: TextSegment::new().with_alignment(Alignment::Center),
         }
+    }
+
+    pub const fn set_colors(&mut self, name: Color, key: Color) -> &mut Self {
+        self.name_color = name;
+        self.key_color = key;
+        self
     }
 
     pub fn push(&mut self, shortcut: Shortcut<'_>) {
@@ -61,15 +67,15 @@ impl Shortcuts {
         }
     }
 
-    pub fn _pop(&mut self) {
+    pub fn pop(&mut self) {
         if self.text.is_empty() {
             return;
         }
 
-        self.text._pop();
-        self.text._pop();
-        self.text._pop();
-        self.text._pop();
+        self.text.pop();
+        self.text.pop();
+        self.text.pop();
+        self.text.pop();
     }
 
     pub fn clear(&mut self) {

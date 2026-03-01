@@ -6,7 +6,7 @@ use ratatui::{
 
 use crate::{
     app::Action,
-    colors::Colors,
+    settings::Colors,
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
@@ -19,12 +19,12 @@ pub struct LogsPage {
 }
 
 impl LogsPage {
-    pub const fn new(colors: &Colors) -> Self {
+    pub const fn new() -> Self {
         Self {
             title: String::new(),
             logs: Vec::new(),
             queue: 0,
-            list: List::new().with_colors(colors.neutral, None),
+            list: List::new(),
             horizontal_scroll: 0,
         }
     }
@@ -73,8 +73,11 @@ impl LogsPage {
         block.render(area, buf);
         self.title.clear();
 
-        self.list
-            .render(logs_area, buf, self.logs.iter(), |line, buf, log, item| {
+        self.list.set_colors(colors.neutral, None).render(
+            logs_area,
+            buf,
+            self.logs.iter(),
+            |line, buf, log, item| {
                 let (scroll, style) = if item == ListItem::Selected {
                     let max_scroll = log.width.saturating_sub(line.width as usize);
                     self.horizontal_scroll = max_scroll.min(self.horizontal_scroll);
@@ -87,7 +90,8 @@ impl LogsPage {
                 };
 
                 utils::print_line(line, buf, &log.message[scroll..], style);
-            });
+            },
+        );
 
         // Shortcuts
         shortcuts.push(Shortcut::new("Clear", "c"));

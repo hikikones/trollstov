@@ -25,15 +25,11 @@ The `trollstov` command takes one mandatory argument, which is the path to your 
 trollstov /path/to/my/music
 ```
 
-In addition, it comes with a few optional arguments that is mostly colors you define by name, hex code or indexed value. See [ANSI colors](https://en.wikipedia.org/wiki/ANSI_escape_code#Colors) for options.
+In addition, it comes with one optional argument.
 
 | Option | Description |
 | ------ | ----------- |
 | `--mpris` | Add media controls through the Media Player Remote Interfacing Specification (MPRIS). |
-| `--accent-color` | The accent color of the application. |
-| `--on-accent-color` | The color on top of an accent. |
-| `--neutral-color` | The neutral color of the application. |
-| `--on-neutral-color` | The color on top of a neutral. |
 
 ## 💡 Supported Audio Formats
 
@@ -54,7 +50,7 @@ In addition, it comes with a few optional arguments that is mostly colors you de
 
 ## 🔖 Install
 
-The application is only available on GitHub for now, but will come to crates.io at a later time.
+The application is only available on GitHub for now, but will come to `crates.io` at a later time.
 
 ```sh
 cargo install --git https://github.com/hikikones/trollstov --tag v0.1.0

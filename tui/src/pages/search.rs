@@ -7,9 +7,9 @@ use ratatui::{
 
 use crate::{
     app::Action,
-    colors::Colors,
     pages::Route,
-    widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, utils},
+    settings::Colors,
+    widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles, utils},
 };
 
 pub struct SearchPage {
@@ -27,17 +27,14 @@ enum State {
 }
 
 impl SearchPage {
-    pub const fn new(colors: &Colors) -> Self {
+    pub const fn new() -> Self {
         Self {
             state: State::Search,
-            search_input: TextInput::new().with_placeholder("Search...").with_styles(
-                Style::new(),
-                Style::new().bg(colors.accent).fg(colors.on_accent),
-                Style::new().bg(colors.neutral).fg(colors.on_neutral),
-                Style::new().fg(colors.neutral),
-            ),
+            search_input: TextInput::new()
+                .with_placeholder("Search...")
+                .with_margins(2, 2),
             search_results: Vec::new(),
-            list: List::new().with_colors(colors.neutral, None),
+            list: List::new(),
             is_dirty: false,
             buffer: String::new(),
         }
@@ -73,12 +70,12 @@ impl SearchPage {
             let neutral = Style::new().fg(colors.neutral);
             match self.state {
                 State::Search => {
-                    self.search_input.set_styles(
-                        Style::new(),
-                        Style::new().bg(colors.accent).fg(colors.on_accent),
-                        Style::new().bg(colors.neutral).fg(colors.on_neutral),
-                        neutral,
-                    );
+                    self.search_input.set_styles(TextInputStyles {
+                        normal: Style::new(),
+                        cursor: Style::new().bg(colors.accent).fg(colors.on_accent),
+                        selector: Style::new().bg(colors.neutral).fg(colors.on_neutral),
+                        placeholder: neutral,
+                    });
                     shortcuts.extend([
                         Shortcut::new("Browse", "↵"),
                         Shortcut::new("Select all", "^a"),
@@ -87,8 +84,7 @@ impl SearchPage {
                     (neutral, neutral)
                 }
                 State::Browse => {
-                    self.search_input
-                        .set_styles(neutral, neutral, neutral, neutral);
+                    self.search_input.set_styles(TextInputStyles::all(neutral));
                     shortcuts.extend([
                         Shortcut::new("Play", "↵"),
                         Shortcut::new("Add to queue", "q"),
@@ -132,7 +128,7 @@ impl SearchPage {
         self.buffer.clear();
 
         let current = jb.current_track_id();
-        self.list.render(
+        self.list.set_colors(colors.neutral, None).render(
             search_results_inner,
             buf,
             self.search_results.iter().copied(),

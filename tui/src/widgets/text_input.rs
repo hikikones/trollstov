@@ -16,10 +16,9 @@ pub struct TextInput {
     cursor: usize,
     selector: Option<usize>,
     scroll: usize,
-    normal_style: Style,
-    cursor_style: Style,
-    selector_style: Style,
-    placeholder_style: Style,
+    margin_top: usize,
+    margin_bottom: usize,
+    styles: TextInputStyles,
 }
 
 pub enum CursorMove {
@@ -38,16 +37,19 @@ pub enum CursorDelete {
 
 impl TextInput {
     pub const fn new() -> Self {
+        Self::from(String::new())
+    }
+
+    pub const fn from(s: String) -> Self {
         Self {
-            input: String::new(),
+            input: s,
             placeholder: "",
             cursor: 0,
             selector: None,
             scroll: 0,
-            normal_style: Style::new(),
-            cursor_style: Style::new().bg(Color::White).fg(Color::Black),
-            selector_style: Style::new().bg(Color::DarkGray).fg(Color::Gray),
-            placeholder_style: Style::new().fg(Color::DarkGray).italic(),
+            margin_top: 0,
+            margin_bottom: 0,
+            styles: TextInputStyles::new(),
         }
     }
 
@@ -56,28 +58,15 @@ impl TextInput {
         self
     }
 
-    pub const fn with_styles(
-        mut self,
-        normal: Style,
-        cursor: Style,
-        selector: Style,
-        placeholder: Style,
-    ) -> Self {
-        self.set_styles(normal, cursor, selector, placeholder);
+    pub const fn with_margins(mut self, top: usize, bottom: usize) -> Self {
+        self.margin_top = top;
+        self.margin_bottom = bottom;
         self
     }
 
-    pub const fn set_styles(
-        &mut self,
-        normal: Style,
-        cursor: Style,
-        selector: Style,
-        placeholder: Style,
-    ) {
-        self.normal_style = normal;
-        self.cursor_style = cursor;
-        self.selector_style = selector;
-        self.placeholder_style = placeholder;
+    pub const fn set_styles(&mut self, styles: TextInputStyles) -> &mut Self {
+        self.styles = styles;
+        self
     }
 
     pub const fn as_str(&self) -> &str {
@@ -123,7 +112,7 @@ impl TextInput {
         self.cursor += c.len_utf8();
     }
 
-    pub fn _push_str(&mut self, s: &str) {
+    pub fn push_str(&mut self, s: &str) {
         self.delete_selection();
 
         s.graphemes(true)
@@ -210,7 +199,7 @@ impl TextInput {
         }
     }
 
-    pub fn _clear(&mut self) {
+    pub fn clear(&mut self) {
         self.input.clear();
         self.cursor = 0;
         self.selector = None;
@@ -220,15 +209,22 @@ impl TextInput {
     pub fn render(&mut self, line: Rect, buf: &mut Buffer) {
         if self.input.is_empty() {
             let Rect { x, y, .. } = line;
-            buf.set_string(x, y, self.placeholder, self.placeholder_style);
-            buf[(x, y)].set_style(self.cursor_style);
+            buf.set_string(x, y, self.placeholder, self.styles.placeholder);
+            buf[(x, y)].set_style(self.styles.cursor);
             return;
         }
 
         // Get total input width and update scroll
         let total_width = unicode_width::UnicodeWidthStr::width(self.input.as_str());
-        self.scroll =
-            utils::calculate_scroll(total_width, line.width, self.cursor, self.scroll, 2, 2, 0);
+        self.scroll = utils::calculate_scroll(
+            total_width,
+            line.width,
+            self.cursor,
+            self.scroll,
+            self.margin_top,
+            self.margin_bottom,
+            0,
+        );
 
         // Render
         let selection = self.try_selection().unwrap_or(self.cursor..self.cursor);
@@ -246,11 +242,11 @@ impl TextInput {
                 let is_cursor = i == self.cursor;
                 let is_selected = selection.contains(&i);
                 let style = if is_cursor {
-                    self.cursor_style
+                    self.styles.cursor
                 } else if is_selected {
-                    self.selector_style
+                    self.styles.selector
                 } else {
-                    self.normal_style
+                    self.styles.normal
                 };
                 (x, _) = buf.set_stringn(x, y, g, grapheme_width, style);
             }
@@ -259,7 +255,7 @@ impl TextInput {
         if self.cursor == self.input.len()
             && let Some(cell) = buf.cell_mut((x, y))
         {
-            cell.set_style(self.cursor_style);
+            cell.set_style(self.styles.cursor);
         }
     }
 
@@ -288,5 +284,38 @@ impl TextInput {
         self.cursor = range.start;
         self.input.replace_range(range, "");
         true
+    }
+}
+
+pub struct TextInputStyles {
+    pub normal: Style,
+    pub cursor: Style,
+    pub selector: Style,
+    pub placeholder: Style,
+}
+
+impl TextInputStyles {
+    pub const fn new() -> Self {
+        Self {
+            normal: Style::new(),
+            cursor: Style::new().bg(Color::White).fg(Color::Black),
+            selector: Style::new().bg(Color::DarkGray).fg(Color::Gray),
+            placeholder: Style::new().fg(Color::DarkGray).italic(),
+        }
+    }
+
+    pub const fn all(style: Style) -> Self {
+        Self {
+            normal: style,
+            cursor: style,
+            selector: style,
+            placeholder: style,
+        }
+    }
+}
+
+impl Default for TextInputStyles {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -8,7 +8,7 @@ use ratatui_image::StatefulImage;
 
 use crate::{
     app::{Action, FrontCover, ScreenSize},
-    colors::Colors,
+    settings::Colors,
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment, utils},
 };
 
@@ -25,11 +25,11 @@ enum ViewMode {
 }
 
 impl PlayingPage {
-    pub const fn new(colors: &Colors) -> Self {
+    pub const fn new() -> Self {
         Self {
             current_queue_index: None,
             text: TextSegment::new().with_alignment(Alignment::Center),
-            list: List::new().with_colors(colors.neutral, None),
+            list: List::new(),
             view_mode: ViewMode::Queue,
         }
     }
@@ -326,7 +326,7 @@ impl PlayingPage {
             .set_padding(scrolloff);
 
         let current_queue_index = jb.current_queue_index();
-        self.list.render(
+        self.list.set_colors(colors.neutral, None).render(
             queue_inner_area,
             buf,
             jb.queue_iter(),

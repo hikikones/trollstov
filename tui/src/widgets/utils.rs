@@ -1,5 +1,77 @@
 use ratatui::{buffer::Buffer, layout::Rect, style::Style};
 
+/// Prints ascii collection assuming only ASCII, no newlines or control characters.
+pub fn print_ascii_simple(
+    line: Rect,
+    buf: &mut Buffer,
+    ascii: impl AsRef<str>,
+    style: impl Into<Style>,
+) -> Rect {
+    let ascii = ascii.as_ref();
+
+    debug_assert!(ascii.is_ascii());
+
+    let style = style.into();
+    let Rect {
+        mut x,
+        y,
+        mut width,
+        ..
+    } = line;
+
+    for ch in ascii.chars() {
+        if width == 0 {
+            break;
+        }
+
+        let Some(cell) = buf.cell_mut((x, y)) else {
+            break;
+        };
+
+        cell.set_char(ch).set_style(style);
+
+        x += 1;
+        width -= 1;
+    }
+
+    Rect { x, width, ..line }
+}
+
+/// Prints ascii collection assuming only ASCII, no newlines or control characters.
+pub fn print_asciis_simple(
+    line: Rect,
+    buf: &mut Buffer,
+    ascii: &[&str],
+    style: impl Into<Style>,
+) -> Rect {
+    let style = style.into();
+    let Rect {
+        mut x,
+        y,
+        mut width,
+        ..
+    } = line;
+
+    'outer: for ascii in ascii {
+        for ch in ascii.chars() {
+            if width == 0 {
+                break 'outer;
+            }
+
+            let Some(cell) = buf.cell_mut((x, y)) else {
+                break 'outer;
+            };
+
+            cell.set_char(ch).set_style(style);
+
+            x += 1;
+            width -= 1;
+        }
+    }
+
+    Rect { x, width, ..line }
+}
+
 /// Prints `ascii` assuming only ASCII, no newlines or
 /// control characters for simple layout calculation.
 pub fn print_ascii(
@@ -45,6 +117,47 @@ pub fn print_ascii(
     }
 }
 
+/// Prints char `n` times.
+pub fn print_char_repeat(
+    line: Rect,
+    buf: &mut Buffer,
+    ch: char,
+    n: u8,
+    style: impl Into<Style>,
+) -> Rect {
+    let style = style.into();
+    let char_width = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0) as u16;
+    let Rect {
+        mut x,
+        y,
+        mut width,
+        ..
+    } = line;
+
+    for _ in 0..n {
+        if width == 0 {
+            break;
+        }
+
+        match buf.cell_mut((x, y)) {
+            Some(cell) => {
+                cell.set_char(ch).set_style(style);
+            }
+            None => break,
+        }
+
+        width = width.saturating_sub(char_width);
+        x += char_width;
+    }
+
+    Rect {
+        x,
+        y,
+        width,
+        height: line.height,
+    }
+}
+
 /// Prints text `n` times.
 pub fn _print_text_repeat(
     line: Rect,
@@ -87,32 +200,28 @@ pub fn print_ascii_iter(
     ascii: &[&str],
     style: impl Into<Style>,
     alignment: Alignment,
-) {
+) -> Rect {
     let ascii_width = ascii.iter().map(|s| s.len() as u16).sum::<u16>();
-    let style = style.into();
-    let Rect {
-        mut x,
-        y,
-        mut width,
-        ..
-    } = align(
+    let Rect { mut x, y, .. } = align(
         Rect {
             width: line.width.min(ascii_width),
-            height: 1,
             ..line
         },
         line,
         alignment,
     );
+    let mut width = line.width;
+    let style = style.into();
 
     for ascii in ascii {
+        debug_assert!(ascii.is_ascii());
         for ch in ascii.chars() {
             if width == 0 {
-                return;
+                return Rect { x, width, ..line };
             }
 
             let Some(cell) = buf.cell_mut((x, y)) else {
-                return;
+                return Rect { x, width, ..line };
             };
 
             cell.set_char(ch).set_style(style);
@@ -121,6 +230,48 @@ pub fn print_ascii_iter(
             width -= 1;
         }
     }
+
+    Rect { x, width, ..line }
+}
+
+/// Prints `ascii` collection with styles assuming only ASCII, no newlines or
+/// control characters for simple layout calculation.
+pub fn print_ascii_iter_with_styles(
+    line: Rect,
+    buf: &mut Buffer,
+    asciis: &[(&str, Style)],
+    alignment: Alignment,
+) -> Rect {
+    let ascii_width = asciis.iter().map(|(s, _)| s.len() as u16).sum::<u16>();
+    let Rect { mut x, y, .. } = align(
+        Rect {
+            width: line.width.min(ascii_width),
+            ..line
+        },
+        line,
+        alignment,
+    );
+    let mut width = line.width;
+
+    for (ascii, style) in asciis.into_iter().copied() {
+        debug_assert!(ascii.is_ascii());
+        for ch in ascii.chars() {
+            if width == 0 {
+                return Rect { x, width, ..line };
+            }
+
+            let Some(cell) = buf.cell_mut((x, y)) else {
+                return Rect { x, width, ..line };
+            };
+
+            cell.set_char(ch).set_style(style);
+
+            x += 1;
+            width -= 1;
+        }
+    }
+
+    Rect { x, width, ..line }
 }
 
 /// Prints `text` and fills remaining empty cells with the given style.

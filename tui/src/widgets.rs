@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 mod list;
 mod logo;
 mod shortcut;
