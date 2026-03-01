@@ -463,7 +463,7 @@ impl App {
                     utils::print_asciis(
                         title_area,
                         buf,
-                        &[crate::APP_NAME, " v", crate::APP_VERSION],
+                        [crate::APP_NAME, " v", crate::APP_VERSION],
                         colors.neutral,
                         Some(utils::Alignment::CenterHorizontal),
                     );

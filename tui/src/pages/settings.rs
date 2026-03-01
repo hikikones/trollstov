@@ -184,7 +184,7 @@ impl SettingsPage {
                         utils::print_asciis(
                             label_area,
                             buf,
-                            &[symbol, s],
+                            [symbol, s],
                             style,
                             Some(utils::Alignment::Right),
                         );
@@ -215,7 +215,7 @@ impl SettingsPage {
                         utils::print_asciis(
                             label_area,
                             buf,
-                            &[symbol, s],
+                            [symbol, s],
                             style,
                             Some(utils::Alignment::Right),
                         );
@@ -262,7 +262,7 @@ impl SettingsPage {
                         utils::print_asciis(
                             label_area,
                             buf,
-                            &[symbol, s],
+                            [symbol, s],
                             style,
                             Some(utils::Alignment::Right),
                         );
@@ -285,7 +285,7 @@ impl SettingsPage {
                         utils::print_asciis(
                             label_area,
                             buf,
-                            &[symbol, s],
+                            [symbol, s],
                             style,
                             Some(utils::Alignment::Right),
                         );
@@ -310,7 +310,7 @@ impl SettingsPage {
                         utils::print_asciis(
                             label_area,
                             buf,
-                            &[symbol, s],
+                            [symbol, s],
                             style,
                             Some(utils::Alignment::Right),
                         );
@@ -333,7 +333,7 @@ impl SettingsPage {
                         utils::print_asciis(
                             label_area,
                             buf,
-                            &[symbol, s],
+                            [symbol, s],
                             style,
                             Some(utils::Alignment::Right),
                         );

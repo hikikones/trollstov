@@ -159,7 +159,7 @@ impl SearchPage {
                     utils::print_texts_with_styles(
                         line,
                         buf,
-                        &[
+                        [
                             (track.title(), style),
                             (" ", style),
                             (track.artist(), style),

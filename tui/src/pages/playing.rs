@@ -346,7 +346,7 @@ impl PlayingPage {
                     utils::print_texts_with_styles(
                         line,
                         buf,
-                        &[
+                        [
                             (symbol, style.not_crossed_out()),
                             (track.title(), style),
                             (" ", style),
