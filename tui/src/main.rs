@@ -45,17 +45,7 @@ A music player for the terminal that is built around a simple idea: your music i
 It treats your audio files — and their metadata — as the single source of truth. \
 Your filesystem is the index, and your tags are the schema. \
 Simply back up your music directory and you have backed up everything. \
-Ratings are part of the metadata, so your favorite songs are always just a few keystrokes away.
-
-The application takes one mandatory argument, which is the path to your music directory. \
-In addition, it comes with a few optional arguments that is mostly colors \
-you define by name, hex code or indexed value.
-
-See ANSI colors for options: https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
-
-EXAMPLES:
-    # Run using mpris with different accent colors:
-    trollstov --mpris /path/to/my/music --accent-color cyan --on-accent-color \"#000000\""
+Ratings are part of the metadata, so your favorite songs are always just a few keystrokes away."
 )]
 struct Args {
     /// The directory for your music.
@@ -66,22 +56,6 @@ struct Args {
     /// allowing music control with media keys and visually in your desktop environment.
     #[clap(long, action)]
     mpris: bool,
-
-    /// The accent color of the application.
-    #[clap(long, value_name = "COLOR")]
-    accent_color: Option<ratatui::style::Color>,
-
-    /// The color on top of an accent.
-    #[clap(long, value_name = "COLOR")]
-    on_accent_color: Option<ratatui::style::Color>,
-
-    /// The neutral color of the application.
-    #[clap(long, value_name = "COLOR")]
-    neutral_color: Option<ratatui::style::Color>,
-
-    /// The color on top of a neutral.
-    #[clap(long, value_name = "COLOR")]
-    on_neutral_color: Option<ratatui::style::Color>,
 }
 
 const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()
