@@ -114,7 +114,8 @@ impl App {
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Draw logo
         terminal.draw(|frame| {
-            frame.render_widget(crate::widgets::LogoWidget, frame.area());
+            let color = self.settings.neutral();
+            frame.render_widget(crate::widgets::LogoWidget(color), frame.area());
         })?;
 
         self.apply_settings();

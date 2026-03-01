@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 const CONFIG_NAME: &str = "settings.toml";
 
 // TODO: Add version?
+// TODO: Add secondary color?
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Settings {

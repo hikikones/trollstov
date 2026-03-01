@@ -11,6 +11,8 @@ use crate::{
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
+// TODO: Add goto current.
+
 pub struct TracksPage {
     title: String,
     list: List,

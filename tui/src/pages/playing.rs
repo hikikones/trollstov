@@ -12,6 +12,8 @@ use crate::{
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment, utils},
 };
 
+// TODO: Add goto shortcut.
+
 pub struct PlayingPage {
     current_queue_index: Option<QueueIndex>,
     text: TextSegment,

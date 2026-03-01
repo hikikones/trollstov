@@ -1,6 +1,6 @@
 use ratatui::{buffer::Buffer, layout::Rect, style::Color, text::Text, widgets::Widget};
 
-pub struct LogoWidget;
+pub struct LogoWidget(pub Color);
 
 impl Widget for LogoWidget {
     fn render(self, area: Rect, buf: &mut Buffer)
@@ -9,10 +9,9 @@ impl Widget for LogoWidget {
     {
         let logo = Logo::from_rect(area);
         let ascii = logo.ascii();
-        let color = Color::DarkGray;
         let (width, height) = logo.dim();
 
-        Text::styled(ascii, color).render(
+        Text::styled(ascii, self.0).render(
             super::utils::align(
                 Rect {
                     width: width,
