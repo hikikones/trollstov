@@ -176,17 +176,17 @@ impl SettingsPage {
                             buf,
                             "GENERAL",
                             style,
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::SkipRating => {
                         let s = "Skip tracks with rating:";
-                        utils::print_ascii_iter(
+                        utils::print_asciis(
                             label_area,
                             buf,
                             &[symbol, s],
                             style,
-                            utils::Alignment::Right,
+                            Some(utils::Alignment::Right),
                         );
 
                         // Stars
@@ -207,17 +207,17 @@ impl SettingsPage {
                             buf,
                             "skips tracks that are less than or equal to",
                             colors.neutral,
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::KeepTrackSort => {
                         let s = "Keep selected track on sort:";
-                        utils::print_ascii_iter(
+                        utils::print_asciis(
                             label_area,
                             buf,
                             &[symbol, s],
                             style,
-                            utils::Alignment::Right,
+                            Some(utils::Alignment::Right),
                         );
 
                         // Checkmark
@@ -236,7 +236,7 @@ impl SettingsPage {
                             buf,
                             "scrolls to selected track when sorting",
                             colors.neutral,
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::Colors => {
@@ -245,7 +245,7 @@ impl SettingsPage {
                             buf,
                             "COLORS",
                             style,
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::ColorsDescription => {
@@ -254,17 +254,17 @@ impl SettingsPage {
                             buf,
                             "set colors by name, hex code or indexed value",
                             colors.neutral,
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::AccentColor => {
                         let s = "Set accent color:";
-                        utils::print_ascii_iter(
+                        utils::print_asciis(
                             label_area,
                             buf,
                             &[symbol, s],
                             style,
-                            utils::Alignment::Right,
+                            Some(utils::Alignment::Right),
                         );
 
                         let is_active = current == Setting::AccentColor;
@@ -277,17 +277,17 @@ impl SettingsPage {
                             buf,
                             "accent color",
                             Style::new().fg(self.settings.accent()),
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::OnAccentColor => {
                         let s = "Set on accent color: ";
-                        utils::print_ascii_iter(
+                        utils::print_asciis(
                             label_area,
                             buf,
                             &[symbol, s],
                             style,
-                            utils::Alignment::Right,
+                            Some(utils::Alignment::Right),
                         );
 
                         let is_active = current == Setting::OnAccentColor;
@@ -302,17 +302,17 @@ impl SettingsPage {
                             Style::new()
                                 .bg(self.settings.accent())
                                 .fg(self.settings.on_accent()),
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::NeutralColor => {
                         let s = "Set neutral color: ";
-                        utils::print_ascii_iter(
+                        utils::print_asciis(
                             label_area,
                             buf,
                             &[symbol, s],
                             style,
-                            utils::Alignment::Right,
+                            Some(utils::Alignment::Right),
                         );
 
                         let is_active = current == Setting::NeutralColor;
@@ -325,17 +325,17 @@ impl SettingsPage {
                             buf,
                             "neutral color",
                             Style::new().fg(self.settings.neutral()),
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::OnNeutralColor => {
                         let s = "Set accent color: ";
-                        utils::print_ascii_iter(
+                        utils::print_asciis(
                             label_area,
                             buf,
                             &[symbol, s],
                             style,
-                            utils::Alignment::Right,
+                            Some(utils::Alignment::Right),
                         );
 
                         let is_active = current == Setting::OnNeutralColor;
@@ -350,7 +350,7 @@ impl SettingsPage {
                             Style::new()
                                 .bg(self.settings.neutral())
                                 .fg(self.settings.on_neutral()),
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::Empty => {}

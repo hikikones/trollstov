@@ -460,12 +460,12 @@ impl App {
                     .areas(area);
 
                     // Title
-                    utils::print_ascii_iter(
+                    utils::print_asciis(
                         title_area,
                         buf,
                         &[crate::APP_NAME, " v", crate::APP_VERSION],
                         colors.neutral,
-                        utils::Alignment::CenterHorizontal,
+                        Some(utils::Alignment::CenterHorizontal),
                     );
 
                     // Navigation
