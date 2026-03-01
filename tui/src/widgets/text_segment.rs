@@ -112,7 +112,7 @@ impl TextSegment {
         self.total_width += width;
     }
 
-    pub fn _pop(&mut self) {
+    pub fn pop(&mut self) {
         if let Some((i, _)) = self.segments.pop() {
             let start = self.text.len() - i;
             let end = self.text.len();

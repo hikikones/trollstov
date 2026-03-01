@@ -44,9 +44,9 @@ impl TextInput {
 
     pub const fn from(s: String) -> Self {
         Self {
-            cursor: s.len(),
             input: s,
             placeholder: "",
+            cursor: 0,
             selector: None,
             scroll: 0,
             margin_top: 0,
@@ -114,7 +114,7 @@ impl TextInput {
         self.cursor += c.len_utf8();
     }
 
-    pub fn _push_str(&mut self, s: &str) {
+    pub fn push_str(&mut self, s: &str) {
         self.delete_selection();
 
         s.graphemes(true)
@@ -201,7 +201,7 @@ impl TextInput {
         }
     }
 
-    pub fn _clear(&mut self) {
+    pub fn clear(&mut self) {
         self.input.clear();
         self.cursor = 0;
         self.selector = None;

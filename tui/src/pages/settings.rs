@@ -380,11 +380,14 @@ impl SettingsPage {
             Setting::KeepTrackSort => {
                 shortcuts.push(Shortcut::new("Toggle", "space"));
             }
-            Setting::AccentColor
-            | Setting::OnAccentColor
-            | Setting::NeutralColor
-            | Setting::OnNeutralColor => {
+            Setting::AccentColor | Setting::NeutralColor => {
                 shortcuts.push(Shortcut::new("Set color", "↵"));
+            }
+            Setting::OnAccentColor | Setting::OnNeutralColor => {
+                shortcuts.extend([
+                    Shortcut::new("Set color", "↵"),
+                    Shortcut::new("Generate color", "^g"),
+                ]);
             }
             _ => {}
         }
@@ -530,6 +533,15 @@ impl SettingsPage {
                             return Action::Log(log);
                         }
                     }
+                } else if modifiers.contains(KeyModifiers::CONTROL)
+                    && let KeyCode::Char('g') = key
+                {
+                    let bg = self.settings.accent();
+                    let fg = Colors::generate_readable_fg(bg).unwrap_or_default();
+                    self.settings.set_on_accent(fg);
+                    self.update_hash();
+                    self.on_accent.reset_with(fg.to_string());
+                    return Action::Render;
                 } else if self.on_accent.input(key, modifiers) {
                     return Action::Render;
                 }
@@ -568,6 +580,15 @@ impl SettingsPage {
                             return Action::Log(log);
                         }
                     }
+                } else if modifiers.contains(KeyModifiers::CONTROL)
+                    && let KeyCode::Char('g') = key
+                {
+                    let bg = self.settings.neutral();
+                    let fg = Colors::generate_readable_fg(bg).unwrap_or_default();
+                    self.settings.set_on_neutral(fg);
+                    self.update_hash();
+                    self.on_neutral.reset_with(fg.to_string());
+                    return Action::Render;
                 } else if self.on_neutral.input(key, modifiers) {
                     return Action::Render;
                 }
@@ -620,5 +641,10 @@ impl ColorSetting {
 
     fn render(&mut self, line: Rect, buf: &mut Buffer) {
         self.0.render(line, buf);
+    }
+
+    fn reset_with(&mut self, s: impl AsRef<str>) {
+        self.0.clear();
+        self.0.push_str(s.as_ref());
     }
 }
