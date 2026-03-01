@@ -148,15 +148,6 @@ impl SettingsPage {
             settings_area.width = settings_area.width.saturating_sub(1);
         }
 
-        // let [mut label_area, _, mut setting_area, _, mut preview_area] = Layout::horizontal([
-        //     Constraint::Percentage(60),
-        //     Constraint::Length(1),
-        //     Constraint::Max(10),
-        //     Constraint::Length(1),
-        //     Constraint::Fill(0),
-        // ])
-        // .areas(settings_area);
-
         let mut label_area = Rect {
             width: settings_area.width / 2,
             ..settings_area
@@ -175,7 +166,6 @@ impl SettingsPage {
             |line, buf, setting, index| {
                 label_area.y = line.y;
                 setting_area.y = line.y;
-                // preview_area.y = line.y;
 
                 let (symbol, style) = if index == ListItem::Selected {
                     ("> ", Style::new().bold())
@@ -185,8 +175,6 @@ impl SettingsPage {
 
                 match setting {
                     Setting::General => {
-                        // self.text.push_str("GENERAL", style);
-                        // self.text.render(line, buf);
                         utils::print_ascii(
                             line,
                             buf,
@@ -206,7 +194,6 @@ impl SettingsPage {
                     }
                     Setting::SkipRating => {
                         let s = "Skip tracks with rating:";
-                        // self.text.extend_as_one([symbol, s], style);
                         utils::print_ascii_iter(
                             label_area,
                             buf,
@@ -232,12 +219,8 @@ impl SettingsPage {
                             neutral,
                             settings.neutral(),
                         );
-                        // self.text.repeat_char('★', colored, settings.accent());
-                        // self.text.repeat_char('★', neutral, settings.neutral());
-                        // self.text.render(line, buf);
                     }
                     Setting::SkipRatingDescription => {
-                        // let s = "skips tracks that are less than or equal to";
                         utils::print_ascii(
                             line,
                             buf,
@@ -245,12 +228,9 @@ impl SettingsPage {
                             settings.neutral(),
                             utils::Alignment::CenterHorizontal,
                         );
-                        // self.text.push_str(s, settings.neutral());
-                        // self.text.render(line, buf);
                     }
                     Setting::KeepTrackSort => {
                         let s = "Keep selected track on sort:";
-                        // self.text.extend_as_one([symbol, s], style);
                         utils::print_ascii_iter(
                             label_area,
                             buf,
@@ -268,13 +248,8 @@ impl SettingsPage {
                         if let Some(cell) = buf.cell_mut((x, y)) {
                             cell.set_char(checkmark).set_style(color);
                         }
-                        // self.text.push_str(checkmark, color);
-                        // self.text.render(line, buf);
                     }
                     Setting::KeepTrackSortDescription => {
-                        // let s = "scrolls to selected track when sorting";
-                        // self.text.push_str(s, settings.neutral());
-                        // self.text.render(line, buf);
                         utils::print_ascii(
                             line,
                             buf,
@@ -284,8 +259,6 @@ impl SettingsPage {
                         );
                     }
                     Setting::Colors => {
-                        // self.text.push_str("COLORS", style);
-                        // self.text.render(line, buf);
                         utils::print_ascii(
                             line,
                             buf,
@@ -313,14 +286,9 @@ impl SettingsPage {
                             utils::Alignment::Right,
                         );
 
-                        // Input
                         let is_active = current == Setting::AccentColor;
                         self.accent.set_active(is_active, settings);
-                        self.accent.render2(setting_area, buf);
-
-                        // Preview
-                        // let style = Style::new().fg(self.settings.accent());
-                        // utils::print_ascii_simple(preview_area, buf, "preview", style);
+                        self.accent.render(setting_area, buf);
                     }
                     Setting::AccentColorPreview => {
                         utils::print_ascii(
@@ -330,9 +298,6 @@ impl SettingsPage {
                             Style::new().fg(self.settings.accent()),
                             utils::Alignment::CenterHorizontal,
                         );
-                        // let style = Style::new().fg(self.settings.accent());
-                        // self.text.push_str("accent color", style);
-                        // self.text.render(line, buf);
                     }
                     Setting::OnAccentColor => {
                         let s = "Set on accent color: ";
@@ -346,7 +311,7 @@ impl SettingsPage {
 
                         let is_active = current == Setting::OnAccentColor;
                         self.on_accent.set_active(is_active, settings);
-                        self.on_accent.render2(setting_area, buf);
+                        self.on_accent.render(setting_area, buf);
                     }
                     Setting::OnAccentColorPreview => {
                         utils::print_ascii(
@@ -358,11 +323,6 @@ impl SettingsPage {
                                 .fg(self.settings.on_accent()),
                             utils::Alignment::CenterHorizontal,
                         );
-                        // let style = Style::new()
-                        //     .bg(self.settings.accent())
-                        //     .fg(self.settings.on_accent());
-                        // self.text.push_str(" on accent color ", style);
-                        // self.text.render(line, buf);
                     }
                     Setting::NeutralColor => {
                         let s = "Set neutral color: ";
@@ -376,7 +336,7 @@ impl SettingsPage {
 
                         let is_active = current == Setting::NeutralColor;
                         self.neutral.set_active(is_active, settings);
-                        self.neutral.render2(setting_area, buf);
+                        self.neutral.render(setting_area, buf);
                     }
                     Setting::NeutralColorPreview => {
                         utils::print_ascii(
@@ -386,9 +346,6 @@ impl SettingsPage {
                             Style::new().fg(self.settings.neutral()),
                             utils::Alignment::CenterHorizontal,
                         );
-                        // let style = Style::new().fg(self.settings.neutral());
-                        // self.text.push_str("neutral color", style);
-                        // self.text.render(line, buf);
                     }
                     Setting::OnNeutralColor => {
                         let s = "Set accent color: ";
@@ -402,7 +359,7 @@ impl SettingsPage {
 
                         let is_active = current == Setting::OnNeutralColor;
                         self.on_neutral.set_active(is_active, settings);
-                        self.on_neutral.render2(setting_area, buf);
+                        self.on_neutral.render(setting_area, buf);
                     }
                     Setting::OnNeutralColorPreview => {
                         utils::print_ascii(
@@ -414,11 +371,6 @@ impl SettingsPage {
                                 .fg(self.settings.on_neutral()),
                             utils::Alignment::CenterHorizontal,
                         );
-                        // let style = Style::new()
-                        //     .bg(self.settings.neutral())
-                        //     .fg(self.settings.on_neutral());
-                        // self.text.push_str(" on neutral color ", style);
-                        // self.text.render(line, buf);
                     }
                     Setting::Empty => {}
                 }
@@ -675,21 +627,7 @@ impl ColorSetting {
         self.0.input(key, modifiers)
     }
 
-    fn render(&mut self, line: Rect, buf: &mut Buffer, texts: &[&str]) {
-        const INPUT_WIDTH: u16 = 10;
-
-        let width = texts.iter().map(|s| s.len() as u16).sum::<u16>() + INPUT_WIDTH;
-        let mut line = utils::align(
-            Rect { width, ..line },
-            line,
-            utils::Alignment::CenterHorizontal,
-        );
-
-        line = utils::print_asciis_simple(line, buf, texts, Style::new());
-        self.0.render(line, buf);
-    }
-
-    fn render2(&mut self, line: Rect, buf: &mut Buffer) {
+    fn render(&mut self, line: Rect, buf: &mut Buffer) {
         self.0.render(line, buf);
     }
 }
