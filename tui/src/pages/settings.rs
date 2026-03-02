@@ -37,19 +37,12 @@ pub struct SettingsPage {
 enum Setting {
     General,
     SkipRating,
-    // SkipRatingDescription,
     KeepTrackSort,
-    // KeepTrackSortDescription,
     Colors,
-    // ColorsDescription,
     AccentColor,
-    // AccentColorPreview,
     OnAccentColor,
-    // OnAccentColorPreview,
     NeutralColor,
-    // NeutralColorPreview,
     OnNeutralColor,
-    // OnNeutralColorPreview,
     Empty,
 }
 
@@ -58,49 +51,29 @@ impl Setting {
         match self {
             Self::General => false,
             Self::SkipRating => true,
-            // Self::SkipRatingDescription => false,
             Self::KeepTrackSort => true,
-            // Self::KeepTrackSortDescription => false,
             Self::Colors => false,
-            // Self::ColorsDescription => false,
             Self::AccentColor => true,
-            // Self::AccentColorPreview => false,
             Self::OnAccentColor => true,
-            // Self::OnAccentColorPreview => false,
             Self::NeutralColor => true,
-            // Self::NeutralColorPreview => false,
             Self::OnNeutralColor => true,
-            // Self::OnNeutralColorPreview => false,
             Self::Empty => false,
         }
     }
 }
 
 const SETTINGS: [Setting; 11] = [
-    // Setting::Empty,
     Setting::General,
     Setting::Empty,
     Setting::SkipRating,
-    // Setting::SkipRatingDescription,
-    // Setting::Empty,
     Setting::KeepTrackSort,
-    // Setting::KeepTrackSortDescription,
     Setting::Empty,
     Setting::Colors,
-    // Setting::ColorsDescription,
     Setting::Empty,
     Setting::AccentColor,
-    // Setting::AccentColorPreview,
-    // Setting::Empty,
     Setting::OnAccentColor,
-    // Setting::OnAccentColorPreview,
-    // Setting::Empty,
     Setting::NeutralColor,
-    // Setting::NeutralColorPreview,
-    // Setting::Empty,
     Setting::OnNeutralColor,
-    // Setting::OnNeutralColorPreview,
-    // Setting::Empty,
 ];
 
 impl SettingsPage {
@@ -154,6 +127,7 @@ impl SettingsPage {
             ..settings_area
         };
 
+        // General areas
         let mut general_area = Rect {
             width: settings_area.width / 2,
             ..settings_area
@@ -163,11 +137,15 @@ impl SettingsPage {
             width: general_area.width.saturating_sub(1),
             ..general_area
         };
-        // let mut preview_area = Rect {
 
-        // };
-
-        let [mut label_area, _, mut setting_area, _, mut preview_area] = Layout::horizontal([
+        // Color areas
+        let [
+            mut color_area,
+            _,
+            mut color_input_area,
+            _,
+            mut color_preview_area,
+        ] = Layout::horizontal([
             Constraint::Percentage(42),
             Constraint::Length(1),
             Constraint::Max(8),
@@ -177,7 +155,7 @@ impl SettingsPage {
         .areas(settings_area);
 
         let colors = settings.colors();
-        let current = self.current();
+        let current_setting = self.current();
 
         self.list.set_colors(colors.neutral, None).render(
             settings_area,
@@ -186,9 +164,9 @@ impl SettingsPage {
             |line, buf, setting, index| {
                 general_area.y = line.y;
                 general_input_area.y = line.y;
-                label_area.y = line.y;
-                setting_area.y = line.y;
-                preview_area.y = line.y;
+                color_area.y = line.y;
+                color_input_area.y = line.y;
+                color_preview_area.y = line.y;
 
                 let (symbol, style) = if index == ListItem::Selected {
                     ("> ", Style::new().bold())
@@ -227,25 +205,7 @@ impl SettingsPage {
                             colors.accent,
                         );
                         utils::print_char_repeat(stars_area, buf, '★', neutral, colors.neutral);
-
-                        // Description
-                        // utils::print_ascii(
-                        //     description_area,
-                        //     buf,
-                        //     " Skips tracks that are less than or equal to set rating ",
-                        //     colors.neutral,
-                        //     Some(utils::Alignment::CenterHorizontal),
-                        // );
                     }
-                    // Setting::SkipRatingDescription => {
-                    //     utils::print_ascii(
-                    //         line,
-                    //         buf,
-                    //         "skips tracks that are less than or equal to",
-                    //         colors.neutral,
-                    //         Some(utils::Alignment::CenterHorizontal),
-                    //     );
-                    // }
                     Setting::KeepTrackSort => {
                         let s = "Keep selected track on sort:";
                         utils::print_asciis(
@@ -265,25 +225,7 @@ impl SettingsPage {
                         if let Some(cell) = buf.cell_mut((x, y)) {
                             cell.set_char(checkmark).set_style(color);
                         }
-
-                        // Description
-                        // utils::print_ascii(
-                        //     description_area,
-                        //     buf,
-                        //     " Scrolls to selected track when sorting ",
-                        //     colors.neutral,
-                        //     Some(utils::Alignment::CenterHorizontal),
-                        // );
                     }
-                    // Setting::KeepTrackSortDescription => {
-                    //     utils::print_ascii(
-                    //         line,
-                    //         buf,
-                    //         "scrolls to selected track when sorting",
-                    //         colors.neutral,
-                    //         Some(utils::Alignment::CenterHorizontal),
-                    //     );
-                    // }
                     Setting::Colors => {
                         utils::print_ascii(
                             line,
@@ -293,73 +235,45 @@ impl SettingsPage {
                             Some(utils::Alignment::CenterHorizontal),
                         );
                     }
-                    // Setting::ColorsDescription => {
-                    //     utils::print_ascii(
-                    //         line,
-                    //         buf,
-                    //         "set colors by name, hex code or indexed value",
-                    //         colors.neutral,
-                    //         Some(utils::Alignment::CenterHorizontal),
-                    //     );
-                    // }
                     Setting::AccentColor => {
                         let s = "Set accent color:";
                         utils::print_asciis(
-                            label_area,
+                            color_area,
                             buf,
                             [symbol, s],
                             style,
                             Some(utils::Alignment::Right),
                         );
 
-                        let is_active = current == Setting::AccentColor;
+                        let is_active = current_setting == Setting::AccentColor;
                         self.accent.set_active(is_active, colors);
-                        self.accent.render(setting_area, buf);
+                        self.accent.render(color_input_area, buf);
 
                         // Preview
                         utils::print_ascii(
-                            preview_area,
+                            color_preview_area,
                             buf,
                             "accent color",
                             Style::new().fg(self.settings.accent()),
                             None,
                         );
-
-                        // Description
-                        // utils::print_ascii(
-                        //     description_area,
-                        //     buf,
-                        //     COLOR_DESCRIPTION,
-                        //     colors.neutral,
-                        //     Some(utils::Alignment::CenterHorizontal),
-                        // );
                     }
-                    // Setting::AccentColorPreview => {
-                    //     utils::print_ascii(
-                    //         line,
-                    //         buf,
-                    //         "accent color",
-                    //         Style::new().fg(self.settings.accent()),
-                    //         Some(utils::Alignment::CenterHorizontal),
-                    //     );
-                    // }
                     Setting::OnAccentColor => {
                         let s = "Set on accent color:";
                         utils::print_asciis(
-                            label_area,
+                            color_area,
                             buf,
                             [symbol, s],
                             style,
                             Some(utils::Alignment::Right),
                         );
 
-                        let is_active = current == Setting::OnAccentColor;
+                        let is_active = current_setting == Setting::OnAccentColor;
                         self.on_accent.set_active(is_active, colors);
-                        self.on_accent.render(setting_area, buf);
+                        self.on_accent.render(color_input_area, buf);
 
-                        // Preview
                         utils::print_ascii(
-                            preview_area,
+                            color_preview_area,
                             buf,
                             " on accent color ",
                             Style::new()
@@ -367,85 +281,46 @@ impl SettingsPage {
                                 .fg(self.settings.on_accent()),
                             None,
                         );
-
-                        // Description
-                        // utils::print_ascii(
-                        //     description_area,
-                        //     buf,
-                        //     COLOR_DESCRIPTION,
-                        //     colors.neutral,
-                        //     Some(utils::Alignment::CenterHorizontal),
-                        // );
                     }
-                    // Setting::OnAccentColorPreview => {
-                    //     utils::print_ascii(
-                    //         line,
-                    //         buf,
-                    //         " on accent color ",
-                    //         Style::new()
-                    //             .bg(self.settings.accent())
-                    //             .fg(self.settings.on_accent()),
-                    //         Some(utils::Alignment::CenterHorizontal),
-                    //     );
-                    // }
+
                     Setting::NeutralColor => {
                         let s = "Set neutral color:";
                         utils::print_asciis(
-                            label_area,
+                            color_area,
                             buf,
                             [symbol, s],
                             style,
                             Some(utils::Alignment::Right),
                         );
 
-                        let is_active = current == Setting::NeutralColor;
+                        let is_active = current_setting == Setting::NeutralColor;
                         self.neutral.set_active(is_active, colors);
-                        self.neutral.render(setting_area, buf);
+                        self.neutral.render(color_input_area, buf);
 
-                        // Preview
                         utils::print_ascii(
-                            preview_area,
+                            color_preview_area,
                             buf,
                             "neutral color",
                             Style::new().fg(self.settings.neutral()),
                             None,
                         );
-
-                        // Description
-                        // utils::print_ascii(
-                        //     description_area,
-                        //     buf,
-                        //     COLOR_DESCRIPTION,
-                        //     colors.neutral,
-                        //     Some(utils::Alignment::CenterHorizontal),
-                        // );
                     }
-                    // Setting::NeutralColorPreview => {
-                    //     utils::print_ascii(
-                    //         line,
-                    //         buf,
-                    //         "neutral color",
-                    //         Style::new().fg(self.settings.neutral()),
-                    //         Some(utils::Alignment::CenterHorizontal),
-                    //     );
-                    // }
                     Setting::OnNeutralColor => {
                         let s = "Set on neutral color:";
                         utils::print_asciis(
-                            label_area,
+                            color_area,
                             buf,
                             [symbol, s],
                             style,
                             Some(utils::Alignment::Right),
                         );
 
-                        let is_active = current == Setting::OnNeutralColor;
+                        let is_active = current_setting == Setting::OnNeutralColor;
                         self.on_neutral.set_active(is_active, colors);
-                        self.on_neutral.render(setting_area, buf);
+                        self.on_neutral.render(color_input_area, buf);
 
-                        // Preview
                         utils::print_ascii(
-                            preview_area,
+                            color_preview_area,
                             buf,
                             " on neutral color ",
                             Style::new()
@@ -453,27 +328,7 @@ impl SettingsPage {
                                 .fg(self.settings.on_neutral()),
                             None,
                         );
-
-                        // Description
-                        // utils::print_ascii(
-                        //     description_area,
-                        //     buf,
-                        //     COLOR_DESCRIPTION,
-                        //     colors.neutral,
-                        //     Some(utils::Alignment::CenterHorizontal),
-                        // );
                     }
-                    // Setting::OnNeutralColorPreview => {
-                    //     utils::print_ascii(
-                    //         line,
-                    //         buf,
-                    //         " on neutral color ",
-                    //         Style::new()
-                    //             .bg(self.settings.neutral())
-                    //             .fg(self.settings.on_neutral()),
-                    //         Some(utils::Alignment::CenterHorizontal),
-                    //     );
-                    // }
                     Setting::Empty => {}
                 }
 
@@ -483,7 +338,7 @@ impl SettingsPage {
 
         // Description and shortcuts
         const COLOR_DESCRIPTION: &str = "Set color by name, hex code or indexed value";
-        let description = match current {
+        let description = match current_setting {
             Setting::SkipRating => {
                 shortcuts.push(Shortcut::new("Rating", "0-5"));
                 "Skips tracks that are less than or equal to set rating"
