@@ -167,7 +167,7 @@ impl SettingsPage {
         self.list.set_colors(colors.neutral, None).render(
             settings_area,
             buf,
-            SETTINGS.into_iter(),
+            SETTINGS,
             |line, buf, setting, index| {
                 label_area.y = line.y;
                 setting_area.y = line.y;
