@@ -79,7 +79,7 @@ impl SearchPage {
                     });
                     shortcuts.extend([
                         Shortcut::new("Browse", symbols::ENTER),
-                        Shortcut::new("Select all", constcat::concat!(symbols::CTRL, "a")),
+                        Shortcut::new("Select all", symbols::ctrl!("a")),
                     ]);
 
                     (neutral, neutral)

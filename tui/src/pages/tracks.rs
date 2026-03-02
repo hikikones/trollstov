@@ -82,7 +82,7 @@ impl TracksPage {
             Shortcut::new("Add to queue", "q"),
             Shortcut::new("Play next", "n"),
             Shortcut::new("Rating", "0-5"),
-            Shortcut::new("Sort", constcat::concat!("(", symbols::SHIFT, ")s")),
+            Shortcut::new("Sort", symbols::shift!("s")),
         ]);
     }
 

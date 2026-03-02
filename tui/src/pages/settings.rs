@@ -355,7 +355,7 @@ impl SettingsPage {
             Setting::OnAccentColor | Setting::OnNeutralColor => {
                 shortcuts.extend([
                     Shortcut::new("Set color", symbols::ENTER),
-                    Shortcut::new("Generate color", constcat::concat!(symbols::CTRL, "g")),
+                    Shortcut::new("Generate color", symbols::ctrl!("g")),
                 ]);
                 COLOR_DESCRIPTION
             }
@@ -373,13 +373,10 @@ impl SettingsPage {
         }
 
         if !self.is_applied {
-            shortcuts.push(Shortcut::new(
-                "Apply",
-                constcat::concat!(symbols::CTRL, "a"),
-            ));
+            shortcuts.push(Shortcut::new("Apply", symbols::ctrl!("a")));
         }
         if !self.is_written {
-            shortcuts.push(Shortcut::new("Save", constcat::concat!(symbols::CTRL, "s")));
+            shortcuts.push(Shortcut::new("Save", symbols::ctrl!("s")));
         }
     }
 

@@ -766,29 +766,17 @@ fn render_playback(
 
 fn fill_play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
     shortcuts.extend([
-        Shortcut::new(
-            "Play/Pause",
-            constcat::concat!(symbols::CTRL, symbols::ARROW_UP),
-        ),
-        Shortcut::new(
-            "Next/Prev",
-            constcat::concat!(symbols::CTRL, symbols::ARROW_LEFT_RIGHT),
-        ),
-        Shortcut::new(
-            "Stop",
-            constcat::concat!(symbols::CTRL, symbols::ARROW_DOWN),
-        ),
-        Shortcut::new(
-            "Forward 30s",
-            constcat::concat!(symbols::ALT, symbols::ARROW_RIGHT),
-        ),
+        Shortcut::new("Play/Pause", symbols::ctrl!(symbols::ARROW_UP)),
+        Shortcut::new("Next/Prev", symbols::ctrl!(symbols::ARROW_LEFT_RIGHT)),
+        Shortcut::new("Stop", symbols::ctrl!(symbols::ARROW_DOWN)),
+        Shortcut::new("Forward 30s", symbols::ctrl!(symbols::ARROW_RIGHT)),
     ]);
 
     let volume = (volume * 100.0).round() as u8;
     jukebox::utils::format_int(volume, |volume| {
         shortcuts.push_iter(
             ["Volume ", volume, "%"],
-            constcat::concat!(symbols::ALT, symbols::ARROW_DOWN_UP),
+            symbols::alt!(symbols::ARROW_DOWN_UP),
         );
     });
 }
@@ -796,7 +784,7 @@ fn fill_play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
 fn fill_app_shortcuts(shortcuts: &mut Shortcuts) {
     shortcuts.extend([
         Shortcut::new("Quit", symbols::ESCAPE),
-        Shortcut::new("Navigate", constcat::concat!("(", symbols::SHIFT, ")Tab")),
+        Shortcut::new("Navigate", symbols::shift!("Tab")),
         Shortcut::new("Search", "/"),
     ]);
 }
