@@ -17,6 +17,9 @@ use crate::{
     },
 };
 
+// TODO: Show description for each setting on a dedicated line.
+// Probably better than being part of the list.
+
 pub struct SettingsPage {
     settings: Settings,
     applied: Settings,
