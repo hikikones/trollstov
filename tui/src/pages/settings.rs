@@ -11,6 +11,7 @@ use crate::{
     app::Action,
     pages::Log,
     settings::{Colors, Settings},
+    symbols,
     widgets::{
         List, ListItem, ListMove, Shortcut, Shortcuts, TextInput, TextInputStyles, TextSegment,
         utils,
@@ -344,17 +345,17 @@ impl SettingsPage {
                 "Skips tracks that are less than or equal to set rating"
             }
             Setting::KeepTrackSort => {
-                shortcuts.push(Shortcut::new("Toggle", "space"));
+                shortcuts.push(Shortcut::new("Toggle", symbols::SPACE));
                 "Scrolls to selected track when sorting"
             }
             Setting::AccentColor | Setting::NeutralColor => {
-                shortcuts.push(Shortcut::new("Set color", "↵"));
+                shortcuts.push(Shortcut::new("Set color", symbols::ENTER));
                 COLOR_DESCRIPTION
             }
             Setting::OnAccentColor | Setting::OnNeutralColor => {
                 shortcuts.extend([
-                    Shortcut::new("Set color", "↵"),
-                    Shortcut::new("Generate color", "^g"),
+                    Shortcut::new("Set color", symbols::ENTER),
+                    Shortcut::new("Generate color", symbols::ctrl!("g")),
                 ]);
                 COLOR_DESCRIPTION
             }
@@ -372,10 +373,10 @@ impl SettingsPage {
         }
 
         if !self.is_applied {
-            shortcuts.push(Shortcut::new("Apply", "^a"));
+            shortcuts.push(Shortcut::new("Apply", symbols::ctrl!("a")));
         }
         if !self.is_written {
-            shortcuts.push(Shortcut::new("Save", "^s"));
+            shortcuts.push(Shortcut::new("Save", symbols::ctrl!("s")));
         }
     }
 

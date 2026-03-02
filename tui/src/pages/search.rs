@@ -9,6 +9,7 @@ use crate::{
     app::Action,
     pages::Route,
     settings::Colors,
+    symbols,
     widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles, utils},
 };
 
@@ -77,8 +78,8 @@ impl SearchPage {
                         placeholder: neutral,
                     });
                     shortcuts.extend([
-                        Shortcut::new("Browse", "↵"),
-                        Shortcut::new("Select all", "^a"),
+                        Shortcut::new("Browse", symbols::ENTER),
+                        Shortcut::new("Select all", symbols::ctrl!("a")),
                     ]);
 
                     (neutral, neutral)
@@ -86,7 +87,7 @@ impl SearchPage {
                 State::Browse => {
                     self.search_input.set_styles(TextInputStyles::all(neutral));
                     shortcuts.extend([
-                        Shortcut::new("Play", "↵"),
+                        Shortcut::new("Play", symbols::ENTER),
                         Shortcut::new("Add to queue", "q"),
                         Shortcut::new("Play next", "n"),
                         Shortcut::new("Goto", "g"),

@@ -9,6 +9,7 @@ use ratatui_image::StatefulImage;
 use crate::{
     app::{Action, FrontCover, ScreenSize},
     settings::Colors,
+    symbols,
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment, utils},
 };
 
@@ -162,7 +163,7 @@ impl PlayingPage {
 
                 // Shortcuts
                 shortcuts.extend([
-                    Shortcut::new("Play", "↵"),
+                    Shortcut::new("Play", symbols::ENTER),
                     Shortcut::new("Rating", "0-5"),
                     Shortcut::new("Shuffle", "s"),
                     Shortcut::new("Clear", "c"),
