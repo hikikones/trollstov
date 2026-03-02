@@ -107,6 +107,12 @@ impl SettingsPage {
     pub fn new(settings: &Settings) -> Self {
         let colors = settings.colors();
         let hash = settings.hash();
+        let selected = if SETTINGS[0].filter() {
+            0
+        } else {
+            next(0).unwrap()
+        };
+
         Self {
             settings: settings.clone(),
             applied: settings.clone(),
@@ -115,7 +121,7 @@ impl SettingsPage {
             write_hash: hash,
             is_applied: true,
             is_written: true,
-            list: List::new().with_index(3).with_margins(5, 5),
+            list: List::new().with_index(selected).with_margins(5, 5),
             text: TextSegment::new().with_alignment(Alignment::Center),
             accent: ColorSetting::new(colors.accent),
             on_accent: ColorSetting::new(colors.on_accent),
@@ -281,7 +287,7 @@ impl SettingsPage {
                         );
                     }
                     Setting::OnAccentColor => {
-                        let s = "Set on accent color: ";
+                        let s = "Set on accent color:";
                         utils::print_asciis(
                             label_area,
                             buf,
@@ -306,7 +312,7 @@ impl SettingsPage {
                         );
                     }
                     Setting::NeutralColor => {
-                        let s = "Set neutral color: ";
+                        let s = "Set neutral color:";
                         utils::print_asciis(
                             label_area,
                             buf,
@@ -329,7 +335,7 @@ impl SettingsPage {
                         );
                     }
                     Setting::OnNeutralColor => {
-                        let s = "Set accent color: ";
+                        let s = "Set on neutral color:";
                         utils::print_asciis(
                             label_area,
                             buf,
@@ -398,34 +404,15 @@ impl SettingsPage {
 
         match key {
             KeyCode::Down => {
-                let mut next = self.list.index() + 1;
-                while next < SETTINGS.len() {
-                    if SETTINGS[next].filter() {
-                        if self.list.move_index(ListMove::Custom(next), false) {
-                            return Action::Render;
-                        } else {
-                            break;
-                        }
-                    }
-                    next += 1;
+                if let Some(next) = next(self.list.index()) {
+                    self.list.move_index(ListMove::Custom(next), false);
+                    return Action::Render;
                 }
             }
             KeyCode::Up => {
-                let mut prev = self.list.index().saturating_sub(1);
-                loop {
-                    if SETTINGS[prev].filter() {
-                        if self.list.move_index(ListMove::Custom(prev), false) {
-                            return Action::Render;
-                        } else {
-                            break;
-                        }
-                    }
-
-                    if prev == 0 {
-                        break;
-                    }
-
-                    prev -= 1;
+                if let Some(prev) = previous(self.list.index()) {
+                    self.list.move_index(ListMove::Custom(prev), false);
+                    return Action::Render;
                 }
             }
             KeyCode::Char(c) => match c {
@@ -637,4 +624,37 @@ impl ColorSetting {
         self.0.clear();
         self.0.push_str(s.as_ref());
     }
+}
+
+fn next(current: usize) -> Option<usize> {
+    let mut next = current + 1;
+    while next < SETTINGS.len() {
+        if SETTINGS[next].filter() {
+            return Some(next);
+        }
+        next += 1;
+    }
+
+    None
+}
+
+fn previous(current: usize) -> Option<usize> {
+    if current == 0 {
+        return None;
+    }
+
+    let mut prev = current.saturating_sub(1);
+    loop {
+        if SETTINGS[prev].filter() {
+            return Some(prev);
+        }
+
+        if prev == 0 {
+            break;
+        }
+
+        prev -= 1;
+    }
+
+    None
 }
