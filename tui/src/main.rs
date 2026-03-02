@@ -2,13 +2,12 @@ mod app;
 mod events;
 mod pages;
 mod settings;
+mod symbols;
 mod terminal;
 mod widgets;
 
 const APP_NAME: &str = env!("CARGO_PKG_NAME");
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-// TODO: Add symbols module.
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Args = clap::Parser::parse();
