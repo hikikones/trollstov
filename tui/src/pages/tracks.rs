@@ -8,6 +8,7 @@ use ratatui::{
 use crate::{
     app::Action,
     settings::Colors,
+    symbols,
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
@@ -77,11 +78,11 @@ impl TracksPage {
 
         // Shortcuts
         shortcuts.extend([
-            Shortcut::new("Play", "↵"),
+            Shortcut::new("Play", symbols::ENTER),
             Shortcut::new("Add to queue", "q"),
             Shortcut::new("Play next", "n"),
             Shortcut::new("Rating", "0-5"),
-            Shortcut::new("Sort", "(⇧)s"),
+            Shortcut::new("Sort", constcat::concat!("(", symbols::SHIFT, ")s")),
         ]);
     }
 

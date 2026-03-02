@@ -1,0 +1,11 @@
+pub const ALT: &str = "⎇";
+pub const CTRL: &str = "^";
+pub const SHIFT: &str = "⇧";
+pub const ENTER: &str = "↵";
+pub const SPACE: &str = "Space";
+pub const ESCAPE: &str = "Esc";
+pub const ARROW_UP: &str = "￪";
+pub const ARROW_DOWN: &str = "￬";
+pub const ARROW_RIGHT: &str = "→";
+pub const ARROW_DOWN_UP: &str = "⇵";
+pub const ARROW_LEFT_RIGHT: &str = "⇆";
