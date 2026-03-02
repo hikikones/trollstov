@@ -121,7 +121,7 @@ impl SettingsPage {
             write_hash: hash,
             is_applied: true,
             is_written: true,
-            list: List::new().with_index(selected).with_margins(5, 5),
+            list: List::new().with_index(selected).with_margins(3, 3),
             text: TextSegment::new().with_alignment(Alignment::Center),
             accent: ColorSetting::new(colors.accent),
             on_accent: ColorSetting::new(colors.on_accent),
@@ -154,21 +154,21 @@ impl SettingsPage {
             ..settings_area
         };
 
-        // let mut label_area = Rect {
-        //     width: settings_area.width / 2,
-        //     ..settings_area
-        // };
-        // let mut setting_area = Rect {
-        //     x: label_area.x + label_area.width + 1,
-        //     width: label_area.width.saturating_sub(1),
-        //     ..label_area
-        // };
+        let mut general_area = Rect {
+            width: settings_area.width / 2,
+            ..settings_area
+        };
+        let mut general_input_area = Rect {
+            x: general_area.x + general_area.width + 1,
+            width: general_area.width.saturating_sub(1),
+            ..general_area
+        };
         // let mut preview_area = Rect {
 
         // };
 
         let [mut label_area, _, mut setting_area, _, mut preview_area] = Layout::horizontal([
-            Constraint::Percentage(50),
+            Constraint::Percentage(42),
             Constraint::Length(1),
             Constraint::Max(8),
             Constraint::Length(2),
@@ -184,6 +184,8 @@ impl SettingsPage {
             buf,
             SETTINGS,
             |line, buf, setting, index| {
+                general_area.y = line.y;
+                general_input_area.y = line.y;
                 label_area.y = line.y;
                 setting_area.y = line.y;
                 preview_area.y = line.y;
@@ -207,7 +209,7 @@ impl SettingsPage {
                     Setting::SkipRating => {
                         let s = "Skip tracks with rating:";
                         utils::print_asciis(
-                            label_area,
+                            general_area,
                             buf,
                             [symbol, s],
                             style,
@@ -217,14 +219,14 @@ impl SettingsPage {
                         // Stars
                         let colored = self.settings.skip_rating().as_u8();
                         let neutral = 5 - colored;
-                        let setting_area = utils::print_char_repeat(
-                            setting_area,
+                        let stars_area = utils::print_char_repeat(
+                            general_input_area,
                             buf,
                             '★',
                             colored,
                             colors.accent,
                         );
-                        utils::print_char_repeat(setting_area, buf, '★', neutral, colors.neutral);
+                        utils::print_char_repeat(stars_area, buf, '★', neutral, colors.neutral);
 
                         // Description
                         // utils::print_ascii(
@@ -247,7 +249,7 @@ impl SettingsPage {
                     Setting::KeepTrackSort => {
                         let s = "Keep selected track on sort:";
                         utils::print_asciis(
-                            label_area,
+                            general_area,
                             buf,
                             [symbol, s],
                             style,
@@ -259,7 +261,7 @@ impl SettingsPage {
                             true => ('🗸', colors.accent),
                             false => ('𐄂', colors.neutral),
                         };
-                        let Rect { x, y, .. } = setting_area;
+                        let Rect { x, y, .. } = general_input_area;
                         if let Some(cell) = buf.cell_mut((x, y)) {
                             cell.set_char(checkmark).set_style(color);
                         }
