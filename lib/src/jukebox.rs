@@ -18,22 +18,19 @@ pub struct Jukebox {
     queue: PlayQueue,
     state: PlayState,
     skip: AudioRating,
-    audio_decode_handle: Option<(AudioDecodeHandle, TrackId, QueueIndex, PathBuf)>,
+    audio_decode_handle: Option<(AudioDecodeHandle, TrackId, QueueIndex)>,
     audio_write_handle: Option<AudioWriteHandle>,
     audio_write_queue: VecDeque<(TrackId, AudioRating)>,
     faulty: HashSet<TrackId>,
     events: Vec<JukeboxEvent>,
     device: AudioDevice,
-    mpris: Option<MediaControls>,
 }
 
 pub enum JukeboxEvent {
-    Play(TrackId, PathBuf),
+    Play(TrackId),
     Stop,
     Rating(TrackId),
     Error(AudioFileReport),
-    Focus,
-    Quit,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,17 +57,11 @@ impl Jukebox {
             faulty: HashSet::new(),
             events: Vec::new(),
             device,
-            mpris: None,
         }
     }
 
     pub fn load_music(&mut self) {
         self.database.load();
-    }
-
-    pub fn attach_media_controls(&mut self, name: &str) -> Result<(), AudioFileReport> {
-        self.mpris = Some(MediaControls::new(name)?);
-        Ok(())
     }
 
     pub fn is_empty(&self) -> bool {
@@ -229,10 +220,6 @@ impl Jukebox {
         self.state = PlayState::Stop;
         self.device.clear();
         self.events.push(JukeboxEvent::Stop);
-
-        if let Some(mpris) = self.mpris.as_mut() {
-            mpris.reset_metadata();
-        }
     }
 
     pub fn play_next(&mut self) {
@@ -353,7 +340,7 @@ impl Jukebox {
                 })?;
             Ok(source)
         });
-        self.audio_decode_handle = Some((handle, id, index, track.path().to_path_buf()));
+        self.audio_decode_handle = Some((handle, id, index));
     }
 
     fn write_rating(&mut self, id: TrackId, rating: AudioRating) -> Option<AudioWriteHandle> {
@@ -386,15 +373,15 @@ impl Jukebox {
         }
     }
 
-    pub fn update(&mut self, mut on_event: impl FnMut(JukeboxEvent)) {
+    pub fn update(&mut self) {
         self.database.update(|error| {
             self.events.push(JukeboxEvent::Error(error));
         });
 
         // Poll thread handle for audio decoding
-        if let Some((handle, _, _, _)) = self.audio_decode_handle.as_ref() {
+        if let Some((handle, _, _)) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
-                let (handle, id, index, path) = self.audio_decode_handle.take().unwrap();
+                let (handle, id, index) = self.audio_decode_handle.take().unwrap();
                 match handle.join().unwrap() {
                     // Play successfully decoded audio and update state
                     Ok(decoded_audio) => {
@@ -405,14 +392,7 @@ impl Jukebox {
                             self.device.play();
                         }
                         self.current = Some((id, index));
-                        self.events.push(JukeboxEvent::Play(id, path));
-
-                        // Update metadata for media control
-                        if let Some(mpris) = self.mpris.as_mut()
-                            && let Some(track) = self.database.get(id)
-                        {
-                            mpris.set_metadata(track.title(), track.artist());
-                        }
+                        self.events.push(JukeboxEvent::Play(id));
                     }
                     // Failed to decode audio
                     Err(err) => {
@@ -462,25 +442,8 @@ impl Jukebox {
             }
         }
 
-        // Check for media control events
-        if let Some(event) = self.mpris.as_ref().and_then(|mpris| mpris.try_recv()) {
-            match event {
-                MediaEvent::Play => self.play(),
-                MediaEvent::Pause => self.pause(),
-                MediaEvent::Toggle => self.pause_or_play(),
-                MediaEvent::Next => self.play_next(),
-                MediaEvent::Previous => self.play_previous(),
-                MediaEvent::Stop => self.stop(),
-                MediaEvent::Raise => {
-                    self.events.push(JukeboxEvent::Focus);
-                }
-                MediaEvent::Quit => {
-                    self.events.push(JukeboxEvent::Quit);
-                }
-            }
-        }
         // Play next when empty and idle
-        else if self.device.is_empty() && !self.device.is_paused() {
+        if self.device.is_empty() && !self.device.is_paused() {
             match self.state {
                 PlayState::Play => {
                     self.play_next();
@@ -491,10 +454,14 @@ impl Jukebox {
                 _ => {}
             }
         }
+    }
 
-        for event in self.events.drain(..) {
-            on_event(event);
-        }
+    pub fn events(&self) -> impl Iterator<Item = &JukeboxEvent> {
+        self.events.iter()
+    }
+
+    pub fn clear_events(&mut self) {
+        self.events.clear();
     }
 
     pub fn shutdown(mut self) {

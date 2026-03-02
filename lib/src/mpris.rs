@@ -2,12 +2,12 @@ use std::sync::mpsc;
 
 use crate::AudioFileReport;
 
-pub(crate) struct MediaControls {
+pub struct MediaControls {
     controls: souvlaki::MediaControls,
     receiver: mpsc::Receiver<MediaEvent>,
 }
 
-pub(crate) enum MediaEvent {
+pub enum MediaEvent {
     Play,
     Pause,
     Toggle,
@@ -18,10 +18,8 @@ pub(crate) enum MediaEvent {
     Quit,
 }
 
-// TODO: Move creation to app.
-
 impl MediaControls {
-    pub(crate) fn new(name: &str) -> Result<Self, AudioFileReport> {
+    pub fn new(name: &str) -> Result<Self, AudioFileReport> {
         let config = souvlaki::PlatformConfig {
             display_name: name,
             dbus_name: name,
@@ -29,7 +27,7 @@ impl MediaControls {
         };
         let mut controls = souvlaki::MediaControls::new(config).map_err(|err| {
             AudioFileReport::new(format!(
-                "Failed to create media controls for the Media Player\
+                "Failed to create media controls for the Media Player \
                 Remote Interfacing Specification (MPRIS) due to {}",
                 err
             ))
@@ -68,7 +66,7 @@ impl MediaControls {
             })
             .map_err(|err| {
                 AudioFileReport::new(format!(
-                    "Failed to attach static handler for Media Player\
+                    "Failed to attach static handler for Media Player \
                     Remote Interfacing Specification (MPRIS) due to {}",
                     err
                 ))
@@ -77,11 +75,11 @@ impl MediaControls {
         Ok(Self { controls, receiver })
     }
 
-    pub(crate) fn try_recv(&self) -> Option<MediaEvent> {
+    pub fn try_recv(&self) -> Option<MediaEvent> {
         self.receiver.try_recv().ok()
     }
 
-    pub(crate) fn set_metadata(&mut self, title: &str, artist: &str) {
+    pub fn set_metadata(&mut self, title: &str, artist: &str) {
         let _ = self.controls.set_metadata(souvlaki::MediaMetadata {
             title: Some(title),
             artist: Some(artist),
@@ -90,7 +88,7 @@ impl MediaControls {
         });
     }
 
-    pub(crate) fn reset_metadata(&mut self) {
+    pub fn reset_metadata(&mut self) {
         let _ = self
             .controls
             .set_metadata(souvlaki::MediaMetadata::default());
