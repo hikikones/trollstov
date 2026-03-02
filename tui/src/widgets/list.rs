@@ -187,9 +187,11 @@ impl List {
         &mut self,
         mut area: Rect,
         buf: &mut Buffer,
-        items: impl ExactSizeIterator<Item = T>,
+        items: impl IntoIterator<Item = T, IntoIter: ExactSizeIterator>,
         mut render_line: impl FnMut(Rect, &mut Buffer, T, ListItem),
     ) {
+        let items = items.into_iter();
+
         // Make sure index and selector is not out of bounds
         let max_idx = items.len().saturating_sub(1);
         self.index = self.index.min(max_idx);
