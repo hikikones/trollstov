@@ -1,7 +1,9 @@
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
 
 use image::GenericImageView;
-use jukebox::{AudioFileReport, AudioPicture, Jukebox, JukeboxEvent, Track};
+use jukebox::{
+    AudioFileReport, AudioPicture, Jukebox, JukeboxEvent, MediaControls, MediaEvent, Track,
+};
 use ratatui::{
     CompletedFrame,
     crossterm::event::{
@@ -30,7 +32,7 @@ pub struct App {
     events: EventHandler,
     settings: Settings,
     jukebox: Jukebox,
-    mpris: bool,
+    mpris: Option<MediaControls>,
     picker: Picker,
     screen_size: ScreenSize,
     front_cover: FrontCover,
@@ -84,6 +86,21 @@ impl App {
             })
             .unwrap_or_default();
 
+        let media_controls = {
+            if mpris {
+                match MediaControls::new(crate::APP_NAME) {
+                    Ok(media_controls) => Some(media_controls),
+                    Err(err) => {
+                        let log = Log::new(err);
+                        logs.enqueue(log);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        };
+
         let pages = Pages {
             tracks: TracksPage::new(),
             playing: PlayingPage::new(),
@@ -99,7 +116,7 @@ impl App {
             events: EventHandler::new(),
             settings,
             jukebox,
-            mpris,
+            mpris: media_controls,
             picker,
             screen_size: ScreenSize::Large,
             front_cover: FrontCover::None,
@@ -123,19 +140,6 @@ impl App {
         // Start reading events and load music
         self.events.start();
         self.jukebox.load_music();
-
-        // Try to establish media controls
-        if self.mpris {
-            match self.jukebox.attach_media_controls(crate::APP_NAME) {
-                Ok(_) => {
-                    self.mpris = true;
-                }
-                Err(err) => {
-                    self.mpris = false;
-                    self.pages.logs.enqueue(Log::new(err));
-                }
-            }
-        }
 
         self.on_enter();
 
@@ -239,7 +243,7 @@ impl App {
             }
             KeyCode::Media(media) => {
                 // Ignore when we have media controls through MPRIS
-                if !self.mpris {
+                if self.mpris.is_none() {
                     match media {
                         MediaKeyCode::Play => {
                             self.jukebox.play();
@@ -290,52 +294,54 @@ impl App {
     fn update(&mut self) -> Action {
         let mut render = false;
 
-        self.jukebox.update(|event| match event {
-            JukeboxEvent::Play(_, path) => {
-                // Load image in thread and store handle
-                self.front_cover = FrontCover::Loading;
-                let picker = self.picker.clone();
-                let handle = std::thread::spawn(move || {
-                    let picture = AudioPicture::read(&path)?;
-                    match picture.bytes() {
-                        Some(bytes) => {
-                            const MAX_RES: u32 = 1080;
-                            let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
-                                AudioFileReport::new(format!(
-                                    "Failed to load front cover image for \"{}\" due to {}",
-                                    path.display(),
-                                    err
-                                ))
-                            })?;
-                            let (w, h) = dyn_img.dimensions();
-                            if w > MAX_RES || h > MAX_RES {
-                                dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
-                            }
-                            Ok(FrontCover::Ready(picker.new_resize_protocol(dyn_img)))
+        // Check for media control events
+        if let Some(event) = self.mpris.as_ref().and_then(|mpris| mpris.try_recv()) {
+            match event {
+                MediaEvent::Play => self.jukebox.play(),
+                MediaEvent::Pause => self.jukebox.pause(),
+                MediaEvent::Toggle => self.jukebox.pause_or_play(),
+                MediaEvent::Next => self.jukebox.play_next(),
+                MediaEvent::Previous => self.jukebox.play_previous(),
+                MediaEvent::Stop => self.jukebox.stop(),
+                MediaEvent::Raise => {
+                    // TODO: Focus terminal window.
+                }
+                MediaEvent::Quit => {
+                    self.running = false;
+                }
+            }
+        }
+
+        // Update jukebox
+        self.jukebox.update();
+        for event in self.jukebox.events() {
+            render = true;
+            match event {
+                JukeboxEvent::Play(id) => {
+                    if let Some(track) = self.jukebox.get(*id) {
+                        // Start loading front cover image
+                        self.front_cover = FrontCover::Loading;
+                        let handle = self.load_image(track.path().to_path_buf());
+                        self.front_cover_handle = Some(handle);
+
+                        // Update metadata for mpris
+                        if let Some(mpris) = self.mpris.as_mut() {
+                            mpris.set_metadata(track.title(), track.artist());
                         }
-                        None => Ok(FrontCover::None),
                     }
-                });
-                self.front_cover_handle = Some(handle);
-                render = true;
+                }
+                JukeboxEvent::Stop => {
+                    if let Some(mpris) = self.mpris.as_mut() {
+                        mpris.reset_metadata();
+                    }
+                }
+                JukeboxEvent::Rating(_) => {}
+                JukeboxEvent::Error(err) => {
+                    self.pages.logs.enqueue(Log::new(err));
+                }
             }
-            JukeboxEvent::Stop => {
-                render = true;
-            }
-            JukeboxEvent::Rating(_) => {
-                render = true;
-            }
-            JukeboxEvent::Error(err) => {
-                render = true;
-                self.pages.logs.enqueue(Log::new(err));
-            }
-            JukeboxEvent::Focus => {
-                // TODO: Focus terminal window.
-            }
-            JukeboxEvent::Quit => {
-                self.running = false;
-            }
-        });
+        }
+        self.jukebox.clear_events();
 
         // Poll thread for finished image loading
         if let Some(handle) = self.front_cover_handle.as_ref() {
@@ -604,6 +610,31 @@ impl App {
         self.pages
             .tracks
             .set_keep_on_sort(self.settings.keep_on_sort());
+    }
+
+    fn load_image(&self, path: PathBuf) -> FrontCoverHandle {
+        let picker = self.picker.clone();
+        std::thread::spawn(move || {
+            let picture = AudioPicture::read(&path)?;
+            match picture.bytes() {
+                Some(bytes) => {
+                    const MAX_RES: u32 = 1080;
+                    let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
+                        AudioFileReport::new(format!(
+                            "Failed to load front cover image for \"{}\" due to {}",
+                            path.display(),
+                            err
+                        ))
+                    })?;
+                    let (w, h) = dyn_img.dimensions();
+                    if w > MAX_RES || h > MAX_RES {
+                        dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
+                    }
+                    Ok(FrontCover::Ready(picker.new_resize_protocol(dyn_img)))
+                }
+                None => Ok(FrontCover::None),
+            }
+        })
     }
 }
 

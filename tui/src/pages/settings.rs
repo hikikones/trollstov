@@ -275,7 +275,7 @@ impl SettingsPage {
                         utils::print_ascii(
                             color_preview_area,
                             buf,
-                            " on accent color ",
+                            "on accent color",
                             Style::new()
                                 .bg(self.settings.accent())
                                 .fg(self.settings.on_accent()),
@@ -322,7 +322,7 @@ impl SettingsPage {
                         utils::print_ascii(
                             color_preview_area,
                             buf,
-                            " on neutral color ",
+                            "on neutral color",
                             Style::new()
                                 .bg(self.settings.neutral())
                                 .fg(self.settings.on_neutral()),
