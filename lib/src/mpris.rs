@@ -18,6 +18,8 @@ pub(crate) enum MediaEvent {
     Quit,
 }
 
+// TODO: Move creation to app.
+
 impl MediaControls {
     pub(crate) fn new(name: &str) -> Result<Self, AudioFileReport> {
         let config = souvlaki::PlatformConfig {

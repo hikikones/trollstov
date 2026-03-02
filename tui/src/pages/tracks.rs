@@ -11,6 +11,8 @@ use crate::{
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
+// TODO: Add goto current.
+
 pub struct TracksPage {
     title: String,
     list: List,
@@ -52,7 +54,7 @@ impl TracksPage {
                 buf,
                 "No tracks to be found",
                 Style::new().fg(colors.neutral),
-                utils::Alignment::Center,
+                Some(utils::Alignment::Center),
             );
             return;
         }
@@ -291,7 +293,7 @@ impl TracksPage {
                             style.not_crossed_out(),
                         ),
                     ],
-                    style.not_crossed_out(),
+                    Some(style.not_crossed_out()),
                 );
             },
         );

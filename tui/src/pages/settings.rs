@@ -17,6 +17,9 @@ use crate::{
     },
 };
 
+// TODO: Show description for each setting on a dedicated line.
+// Probably better than being part of the list.
+
 pub struct SettingsPage {
     settings: Settings,
     applied: Settings,
@@ -107,6 +110,12 @@ impl SettingsPage {
     pub fn new(settings: &Settings) -> Self {
         let colors = settings.colors();
         let hash = settings.hash();
+        let selected = if SETTINGS[0].filter() {
+            0
+        } else {
+            next(0).unwrap()
+        };
+
         Self {
             settings: settings.clone(),
             applied: settings.clone(),
@@ -115,7 +124,7 @@ impl SettingsPage {
             write_hash: hash,
             is_applied: true,
             is_written: true,
-            list: List::new().with_index(3).with_margins(5, 5),
+            list: List::new().with_index(selected).with_margins(5, 5),
             text: TextSegment::new().with_alignment(Alignment::Center),
             accent: ColorSetting::new(colors.accent),
             on_accent: ColorSetting::new(colors.on_accent),
@@ -176,17 +185,17 @@ impl SettingsPage {
                             buf,
                             "GENERAL",
                             style,
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::SkipRating => {
                         let s = "Skip tracks with rating:";
-                        utils::print_ascii_iter(
+                        utils::print_asciis(
                             label_area,
                             buf,
-                            &[symbol, s],
+                            [symbol, s],
                             style,
-                            utils::Alignment::Right,
+                            Some(utils::Alignment::Right),
                         );
 
                         // Stars
@@ -207,17 +216,17 @@ impl SettingsPage {
                             buf,
                             "skips tracks that are less than or equal to",
                             colors.neutral,
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::KeepTrackSort => {
                         let s = "Keep selected track on sort:";
-                        utils::print_ascii_iter(
+                        utils::print_asciis(
                             label_area,
                             buf,
-                            &[symbol, s],
+                            [symbol, s],
                             style,
-                            utils::Alignment::Right,
+                            Some(utils::Alignment::Right),
                         );
 
                         // Checkmark
@@ -236,7 +245,7 @@ impl SettingsPage {
                             buf,
                             "scrolls to selected track when sorting",
                             colors.neutral,
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::Colors => {
@@ -245,7 +254,7 @@ impl SettingsPage {
                             buf,
                             "COLORS",
                             style,
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::ColorsDescription => {
@@ -254,17 +263,17 @@ impl SettingsPage {
                             buf,
                             "set colors by name, hex code or indexed value",
                             colors.neutral,
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::AccentColor => {
                         let s = "Set accent color:";
-                        utils::print_ascii_iter(
+                        utils::print_asciis(
                             label_area,
                             buf,
-                            &[symbol, s],
+                            [symbol, s],
                             style,
-                            utils::Alignment::Right,
+                            Some(utils::Alignment::Right),
                         );
 
                         let is_active = current == Setting::AccentColor;
@@ -277,17 +286,17 @@ impl SettingsPage {
                             buf,
                             "accent color",
                             Style::new().fg(self.settings.accent()),
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::OnAccentColor => {
-                        let s = "Set on accent color: ";
-                        utils::print_ascii_iter(
+                        let s = "Set on accent color:";
+                        utils::print_asciis(
                             label_area,
                             buf,
-                            &[symbol, s],
+                            [symbol, s],
                             style,
-                            utils::Alignment::Right,
+                            Some(utils::Alignment::Right),
                         );
 
                         let is_active = current == Setting::OnAccentColor;
@@ -302,17 +311,17 @@ impl SettingsPage {
                             Style::new()
                                 .bg(self.settings.accent())
                                 .fg(self.settings.on_accent()),
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::NeutralColor => {
-                        let s = "Set neutral color: ";
-                        utils::print_ascii_iter(
+                        let s = "Set neutral color:";
+                        utils::print_asciis(
                             label_area,
                             buf,
-                            &[symbol, s],
+                            [symbol, s],
                             style,
-                            utils::Alignment::Right,
+                            Some(utils::Alignment::Right),
                         );
 
                         let is_active = current == Setting::NeutralColor;
@@ -325,17 +334,17 @@ impl SettingsPage {
                             buf,
                             "neutral color",
                             Style::new().fg(self.settings.neutral()),
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::OnNeutralColor => {
-                        let s = "Set accent color: ";
-                        utils::print_ascii_iter(
+                        let s = "Set on neutral color:";
+                        utils::print_asciis(
                             label_area,
                             buf,
-                            &[symbol, s],
+                            [symbol, s],
                             style,
-                            utils::Alignment::Right,
+                            Some(utils::Alignment::Right),
                         );
 
                         let is_active = current == Setting::OnNeutralColor;
@@ -350,7 +359,7 @@ impl SettingsPage {
                             Style::new()
                                 .bg(self.settings.neutral())
                                 .fg(self.settings.on_neutral()),
-                            utils::Alignment::CenterHorizontal,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
                     }
                     Setting::Empty => {}
@@ -398,34 +407,15 @@ impl SettingsPage {
 
         match key {
             KeyCode::Down => {
-                let mut next = self.list.index() + 1;
-                while next < SETTINGS.len() {
-                    if SETTINGS[next].filter() {
-                        if self.list.move_index(ListMove::Custom(next), false) {
-                            return Action::Render;
-                        } else {
-                            break;
-                        }
-                    }
-                    next += 1;
+                if let Some(next) = next(self.list.index()) {
+                    self.list.move_index(ListMove::Custom(next), false);
+                    return Action::Render;
                 }
             }
             KeyCode::Up => {
-                let mut prev = self.list.index().saturating_sub(1);
-                loop {
-                    if SETTINGS[prev].filter() {
-                        if self.list.move_index(ListMove::Custom(prev), false) {
-                            return Action::Render;
-                        } else {
-                            break;
-                        }
-                    }
-
-                    if prev == 0 {
-                        break;
-                    }
-
-                    prev -= 1;
+                if let Some(prev) = previous(self.list.index()) {
+                    self.list.move_index(ListMove::Custom(prev), false);
+                    return Action::Render;
                 }
             }
             KeyCode::Char(c) => match c {
@@ -637,4 +627,37 @@ impl ColorSetting {
         self.0.clear();
         self.0.push_str(s.as_ref());
     }
+}
+
+fn next(current: usize) -> Option<usize> {
+    let mut next = current + 1;
+    while next < SETTINGS.len() {
+        if SETTINGS[next].filter() {
+            return Some(next);
+        }
+        next += 1;
+    }
+
+    None
+}
+
+fn previous(current: usize) -> Option<usize> {
+    if current == 0 {
+        return None;
+    }
+
+    let mut prev = current.saturating_sub(1);
+    loop {
+        if SETTINGS[prev].filter() {
+            return Some(prev);
+        }
+
+        if prev == 0 {
+            break;
+        }
+
+        prev -= 1;
+    }
+
+    None
 }

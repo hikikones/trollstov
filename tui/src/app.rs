@@ -114,7 +114,8 @@ impl App {
     pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Draw logo
         terminal.draw(|frame| {
-            frame.render_widget(crate::widgets::LogoWidget, frame.area());
+            let color = self.settings.neutral();
+            frame.render_widget(crate::widgets::LogoWidget(color), frame.area());
         })?;
 
         self.apply_settings();
@@ -460,12 +461,12 @@ impl App {
                     .areas(area);
 
                     // Title
-                    utils::print_ascii_iter(
+                    utils::print_asciis(
                         title_area,
                         buf,
-                        &[crate::APP_NAME, " v", crate::APP_VERSION],
+                        [crate::APP_NAME, " v", crate::APP_VERSION],
                         colors.neutral,
-                        utils::Alignment::CenterHorizontal,
+                        Some(utils::Alignment::CenterHorizontal),
                     );
 
                     // Navigation

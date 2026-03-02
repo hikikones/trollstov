@@ -55,7 +55,7 @@ impl LogsPage {
                 buf,
                 "No logs to report",
                 colors.neutral,
-                utils::Alignment::Center,
+                Some(utils::Alignment::Center),
             );
             return;
         }
@@ -89,7 +89,7 @@ impl LogsPage {
                     (0, Style::new())
                 };
 
-                utils::print_line(line, buf, &log.message[scroll..], style);
+                utils::print_text(line, buf, &log.message[scroll..], style, true, None);
             },
         );
 

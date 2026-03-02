@@ -12,6 +12,8 @@ use crate::{
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment, utils},
 };
 
+// TODO: Add goto shortcut.
+
 pub struct PlayingPage {
     current_queue_index: Option<QueueIndex>,
     text: TextSegment,
@@ -90,7 +92,7 @@ impl PlayingPage {
                                     buf,
                                     "No track currently playing",
                                     colors.neutral,
-                                    utils::Alignment::Center,
+                                    Some(utils::Alignment::Center),
                                 );
                             }
                         }
@@ -150,7 +152,7 @@ impl PlayingPage {
                             buf,
                             "No track currently playing",
                             colors.neutral,
-                            utils::Alignment::Center,
+                            Some(utils::Alignment::Center),
                         );
                     }
                 }
@@ -258,7 +260,7 @@ impl PlayingPage {
                     buf,
                     "NO IMAGE",
                     neutral_style,
-                    utils::Alignment::Center,
+                    Some(utils::Alignment::Center),
                 );
             }
             FrontCover::Loading => {
@@ -268,7 +270,7 @@ impl PlayingPage {
                     buf,
                     "LOADING",
                     neutral_style,
-                    utils::Alignment::Center,
+                    Some(utils::Alignment::Center),
                 );
             }
             FrontCover::Ready(image) => {
@@ -315,7 +317,7 @@ impl PlayingPage {
                 buf,
                 "No tracks in the queue",
                 colors.neutral,
-                utils::Alignment::Center,
+                Some(utils::Alignment::Center),
             );
             return;
         }
@@ -343,7 +345,7 @@ impl PlayingPage {
 
                     let symbol = if item == ListItem::Selected { "> " } else { "" };
 
-                    utils::print_line_iter_with_styles(
+                    utils::print_texts_with_styles(
                         line,
                         buf,
                         [
@@ -354,7 +356,8 @@ impl PlayingPage {
                             (" ", style),
                             (track.album(), style),
                         ],
-                        style.not_crossed_out(),
+                        Some(style.not_crossed_out()),
+                        None,
                     );
                 }
             },

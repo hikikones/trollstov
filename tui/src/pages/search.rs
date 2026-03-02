@@ -60,7 +60,7 @@ impl SearchPage {
                 buf,
                 "No tracks to search for",
                 colors.neutral,
-                utils::Alignment::Center,
+                Some(utils::Alignment::Center),
             );
             return;
         }
@@ -156,7 +156,7 @@ impl SearchPage {
                         style.add_modifier.insert(Modifier::CROSSED_OUT);
                     }
 
-                    utils::print_line_iter_with_styles(
+                    utils::print_texts_with_styles(
                         line,
                         buf,
                         [
@@ -166,7 +166,8 @@ impl SearchPage {
                             (" ", style),
                             (track.album(), style),
                         ],
-                        style.not_crossed_out(),
+                        Some(style.not_crossed_out()),
+                        None,
                     );
                 }
             },

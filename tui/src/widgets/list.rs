@@ -226,7 +226,7 @@ impl List {
                 ..area
             };
             area.width = area.width.saturating_sub(1);
-            render_scrollbar(
+            utils::render_scrollbar(
                 scrollbar,
                 buf,
                 items.len(),
@@ -256,62 +256,5 @@ impl List {
 
                 line.y += 1;
             });
-    }
-}
-
-fn render_scrollbar(
-    vertical_line: Rect,
-    buf: &mut Buffer,
-    total_items: usize,
-    current_scroll: usize,
-    thumb_color: Color,
-    track_color: Option<Color>,
-) {
-    let height = vertical_line.height as usize;
-    if total_items == 0 || height == 0 {
-        return;
-    }
-
-    let visible = height as f32 / total_items as f32;
-    let size = ((visible * height as f32).round() as usize).max(1);
-    let progress = (current_scroll as f32 / total_items.saturating_sub(height) as f32).min(1.0);
-    let range = height.saturating_sub(size);
-    let start = (progress * range as f32).round() as usize;
-    let end = start + size;
-
-    let thumb_style = Style::new().fg(thumb_color);
-    let Rect { x, mut y, .. } = vertical_line;
-
-    match track_color {
-        Some(track_color) => {
-            let track_style = Style::new().fg(track_color);
-            for i in 0..height {
-                match buf.cell_mut((x, y)) {
-                    Some(cell) => {
-                        let (symbol, style) = if i >= start && i < end {
-                            ("┃", thumb_style)
-                        } else {
-                            ("│", track_style)
-                        };
-                        cell.set_symbol(symbol).set_style(style);
-                    }
-                    None => return,
-                }
-                y += 1;
-            }
-        }
-        None => {
-            for i in 0..height {
-                match buf.cell_mut((x, y)) {
-                    Some(cell) => {
-                        if i >= start && i < end {
-                            cell.set_symbol("│").set_style(thumb_style);
-                        }
-                    }
-                    None => return,
-                }
-                y += 1;
-            }
-        }
     }
 }
