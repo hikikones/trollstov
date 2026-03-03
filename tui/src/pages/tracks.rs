@@ -105,7 +105,7 @@ impl TracksPage {
         match key {
             KeyCode::Enter => {
                 if let Some(id) = db.get_id_from_index(self.list.index()) {
-                    jb.play_track(id, db);
+                    jb.play_id(id, db);
                 }
             }
             KeyCode::Char(c) => match c {

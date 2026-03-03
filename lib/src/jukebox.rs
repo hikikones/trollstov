@@ -44,12 +44,28 @@ impl Jukebox {
         }
     }
 
+    pub const fn is_empty(&self) -> bool {
+        self.queue.is_empty()
+    }
+
     pub fn is_faulty(&self, id: TrackId) -> bool {
         self.faulty.contains(&id)
     }
 
-    pub fn get_id_from_queue(&self, i: usize) -> Option<TrackId> {
-        self.queue.get(QueueIndex(i))
+    pub const fn len(&self) -> usize {
+        self.queue.len()
+    }
+
+    pub const fn queue(&self) -> usize {
+        self.queue.queue_len()
+    }
+
+    pub const fn history(&self) -> usize {
+        self.queue.history_len()
+    }
+
+    pub fn get(&self, index: QueueIndex) -> Option<TrackId> {
+        self.queue.get(index)
     }
 
     pub const fn current_track(&self) -> Option<(TrackId, QueueIndex)> {
@@ -68,27 +84,11 @@ impl Jukebox {
         self.device.position()
     }
 
-    pub const fn is_queue_empty(&self) -> bool {
-        self.queue.is_empty()
-    }
-
-    pub const fn queue_total(&self) -> usize {
-        self.queue.len()
-    }
-
-    pub const fn queue_len(&self) -> usize {
-        self.queue.queue_len()
-    }
-
-    pub const fn history_len(&self) -> usize {
-        self.queue.history_len()
-    }
-
-    pub fn queue_iter(&self) -> impl ExactSizeIterator<Item = (TrackId, QueueIndex)> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, QueueIndex)> {
         self.queue.iter()
     }
 
-    pub fn queue_shuffle(&mut self) {
+    pub fn shuffle(&mut self) {
         let start = match self.current_queue_index() {
             Some(index) => index.0 + 1,
             None => 0,
@@ -96,7 +96,7 @@ impl Jukebox {
         self.queue.shuffle(start);
     }
 
-    pub fn queue_clear(&mut self) {
+    pub fn clear(&mut self) {
         self.queue.clear();
 
         if let Some((id, _)) = self.current.take() {
@@ -120,14 +120,14 @@ impl Jukebox {
         self.device.set_volume(value);
     }
 
-    pub fn play_queue_index(&mut self, index: usize, db: &Database) {
-        if let Some(id) = self.queue.set_index(index) {
+    pub fn play_index(&mut self, index: QueueIndex, db: &Database) {
+        if let Some(id) = self.queue.set_index(index.0) {
             self.state = PlayState::Track;
-            self.start_play(id, QueueIndex(index), db);
+            self.start_play(id, QueueIndex(index.0), db);
         }
     }
 
-    pub fn play_track(&mut self, id: TrackId, db: &Database) {
+    pub fn play_id(&mut self, id: TrackId, db: &Database) {
         let (id, index) = self.queue.enqueue_next(id).next().unwrap();
         self.state = PlayState::Track;
         self.start_play(id, index, db);
@@ -196,9 +196,9 @@ impl Jukebox {
         let mut tries = 5;
         let mut rand = TrackId(0);
         while tries > 0 {
-            rand = TrackId(fastrand::u64(0..db.len() as u64));
+            rand = db.random_id();
             let is_current = current.map(|id| id == rand).unwrap_or(false);
-            if is_current || self.faulty.contains(&rand) || self.should_skip(rand, db) {
+            if is_current || self.is_faulty(rand) || self.should_skip(rand, db) {
                 tries -= 1;
                 continue;
             }
@@ -497,6 +497,10 @@ impl PlayQueue {
 pub struct QueueIndex(usize);
 
 impl QueueIndex {
+    pub const fn from(i: usize) -> Self {
+        Self(i)
+    }
+
     pub const fn raw(self) -> usize {
         self.0
     }

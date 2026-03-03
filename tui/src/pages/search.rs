@@ -214,7 +214,7 @@ impl SearchPage {
             State::Browse => match key {
                 KeyCode::Enter => {
                     if let Some((id, _)) = self.search_results.get(self.list.index()).copied() {
-                        jb.play_track(id, db);
+                        jb.play_id(id, db);
                     }
                 }
                 KeyCode::Up => {

@@ -192,7 +192,8 @@ impl PlayingPage {
     ) -> Action {
         match key {
             KeyCode::Enter => {
-                jb.play_queue_index(self.list.index(), db);
+                let index = self.list.index();
+                jb.play_index(QueueIndex::from(index), db);
             }
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
@@ -202,16 +203,16 @@ impl PlayingPage {
                     }
                 }
                 'c' => {
-                    jb.queue_clear();
+                    jb.clear();
                     return Action::Render;
                 }
                 's' => {
-                    jb.queue_shuffle();
+                    jb.shuffle();
                     return Action::Render;
                 }
                 'g' => {
                     let index = self.list.index();
-                    let id = jb.get_id_from_queue(index);
+                    let id = jb.get(QueueIndex::from(index));
                     return Action::Route(Route::Tracks(id));
                 }
                 'v' => {
@@ -323,7 +324,7 @@ impl PlayingPage {
         block.render(area, buf);
 
         // Title for bordered play queue
-        jukebox::utils::format_int2(jb.history_len(), jb.queue_len(), |hlen, qlen| {
+        jukebox::utils::format_int2(jb.history(), jb.queue(), |hlen, qlen| {
             utils::print_asciis(
                 Rect {
                     y: area.y,
@@ -337,7 +338,7 @@ impl PlayingPage {
             );
         });
 
-        if jb.is_queue_empty() {
+        if jb.is_empty() {
             utils::print_ascii(
                 queue_inner_area,
                 buf,
@@ -357,7 +358,7 @@ impl PlayingPage {
         self.list.set_colors(colors.neutral, None).render(
             queue_inner_area,
             buf,
-            jb.queue_iter(),
+            jb.iter(),
             |line, buf, (id, qi), item| {
                 if let Some(track) = db.get(id) {
                     let mut style = Style::new();

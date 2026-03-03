@@ -99,6 +99,10 @@ impl Database {
         self.write_queue.push_back((id, rating));
     }
 
+    pub fn random_id(&self) -> TrackId {
+        TrackId(fastrand::u64(0..self.tracks.len() as u64))
+    }
+
     fn start_write(&mut self, id: TrackId, rating: AudioRating) -> Option<AudioWriteHandle> {
         let Some(track) = self.tracks.get(&id) else {
             return None;
@@ -195,7 +199,7 @@ impl Database {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TrackId(pub(crate) u64);
 
 #[derive(Debug)]
