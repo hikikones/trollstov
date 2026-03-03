@@ -8,16 +8,14 @@ use ratatui_image::StatefulImage;
 
 use crate::{
     app::{Action, FrontCover, ScreenSize},
+    pages::Route,
     settings::Colors,
     symbols,
-    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment, utils},
+    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
-
-// TODO: Add goto shortcut.
 
 pub struct PlayingPage {
     current_queue_index: Option<QueueIndex>,
-    text: TextSegment,
     list: List,
     view_mode: ViewMode,
 }
@@ -31,7 +29,6 @@ impl PlayingPage {
     pub const fn new() -> Self {
         Self {
             current_queue_index: None,
-            text: TextSegment::new().with_alignment(Alignment::Center),
             list: List::new(),
             view_mode: ViewMode::Queue,
         }
@@ -77,15 +74,20 @@ impl PlayingPage {
                                     front_cover,
                                     colors,
                                 );
-                                fill_stars(&mut self.text, rating, colors);
-                                self.text.render(
+                                let stars = symbols::stars_split(rating);
+                                utils::print_texts_with_styles(
                                     Rect {
                                         y: cover_area.y / 2,
                                         ..area
                                     },
                                     buf,
+                                    [
+                                        (stars.0, Style::new().fg(colors.accent)),
+                                        (stars.1, Style::new().fg(colors.neutral)),
+                                    ],
+                                    None,
+                                    Some(utils::Alignment::CenterHorizontal),
                                 );
-                                self.text.clear();
                             }
                             None => {
                                 utils::print_ascii(
@@ -101,19 +103,19 @@ impl PlayingPage {
                 }
 
                 // Shortcut
-                self.text.extend([
-                    ("v", Style::new().fg(colors.accent)),
-                    (" ", Style::new()),
-                    ("toggle view", Style::new().fg(colors.neutral)),
-                ]);
-                self.text.render(
+                utils::print_asciis_with_styles(
                     Rect {
                         y: area.y + area.height.saturating_sub(1),
                         ..area
                     },
                     buf,
+                    [
+                        ("v", Style::new().fg(colors.accent)),
+                        (" ", Style::new()),
+                        ("toggle view", Style::new().fg(colors.neutral)),
+                    ],
+                    Some(utils::Alignment::CenterHorizontal),
                 );
-                self.text.clear();
             }
             ScreenSize::Medium | ScreenSize::Large => {
                 // Layout
@@ -136,16 +138,21 @@ impl PlayingPage {
                             front_cover,
                             colors,
                         );
-                        fill_stars(&mut self.text, rating, colors);
-                        self.text.render(
+                        let stars = symbols::stars_split(rating);
+                        utils::print_texts_with_styles(
                             Rect {
                                 y: cover_area.y + cover_area.height,
                                 height: 1,
                                 ..cover_area
                             },
                             buf,
+                            [
+                                (stars.0, Style::new().fg(colors.accent)),
+                                (stars.1, Style::new().fg(colors.neutral)),
+                            ],
+                            None,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
-                        self.text.clear();
                     }
                     None => {
                         utils::print_ascii(
@@ -167,6 +174,7 @@ impl PlayingPage {
                     Shortcut::new("Rating", "0-5"),
                     Shortcut::new("Shuffle", "s"),
                     Shortcut::new("Clear", "c"),
+                    Shortcut::new("Goto", "g"),
                 ]);
             }
         }
@@ -197,6 +205,11 @@ impl PlayingPage {
                 's' => {
                     jb.queue_shuffle();
                     return Action::Render;
+                }
+                'g' => {
+                    let index = self.list.index();
+                    let id = jb.get_id_from_queue(index);
+                    return Action::Route(Route::Tracks(id));
                 }
                 'v' => {
                     if screen_size == ScreenSize::Small {
@@ -293,24 +306,26 @@ impl PlayingPage {
     }
 
     fn render_queue(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
-        jukebox::utils::format_int(jb.history_len(), |hlen| {
-            self.text
-                .extend_as_one([" History (", hlen, ")"], Style::new());
-        });
-        jukebox::utils::format_int(jb.queue_len(), |qlen| {
-            self.text
-                .extend_as_one([" / Queue (", qlen, ") "], Style::new());
-        });
-
         let block = Block::bordered()
-            .title(self.text.as_str())
-            .title_alignment(Alignment::Center)
             .style(colors.neutral)
             .padding(Padding::horizontal(1));
         let queue_inner_area = block.inner(area);
-
         block.render(area, buf);
-        self.text.clear();
+
+        // Title for bordered play queue
+        jukebox::utils::format_int2(jb.history_len(), jb.queue_len(), |hlen, qlen| {
+            utils::print_asciis(
+                Rect {
+                    y: area.y,
+                    height: 1,
+                    ..queue_inner_area
+                },
+                buf,
+                [" History (", hlen, ") / Queue (", qlen, ") "],
+                colors.neutral,
+                Some(utils::Alignment::CenterHorizontal),
+            );
+        });
 
         if jb.is_queue_empty() {
             utils::print_ascii(
@@ -363,30 +378,5 @@ impl PlayingPage {
                 }
             },
         );
-    }
-}
-
-fn fill_stars(text: &mut TextSegment, rating: AudioRating, colors: &Colors) {
-    let accent = Style::new().fg(colors.accent);
-    let neutral = Style::new().fg(colors.neutral);
-    match rating {
-        AudioRating::None => {
-            text.push_str("☆☆☆☆☆", neutral);
-        }
-        AudioRating::Awful => {
-            text.extend([("★", accent), ("☆☆☆☆", neutral)]);
-        }
-        AudioRating::Bad => {
-            text.extend([("★★", accent), ("☆☆☆", neutral)]);
-        }
-        AudioRating::Ok => {
-            text.extend([("★★★", accent), ("☆☆", neutral)]);
-        }
-        AudioRating::Good => {
-            text.extend([("★★★★", accent), ("☆", neutral)]);
-        }
-        AudioRating::Amazing => {
-            text.push_str("★★★★★", accent);
-        }
     }
 }

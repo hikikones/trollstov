@@ -19,7 +19,6 @@ pub struct SearchPage {
     search_results: Vec<(TrackId, u16)>,
     list: List,
     is_dirty: bool,
-    buffer: String,
 }
 
 enum State {
@@ -37,7 +36,6 @@ impl SearchPage {
             search_results: Vec::new(),
             list: List::new(),
             is_dirty: false,
-            buffer: String::new(),
         }
     }
 
@@ -90,8 +88,8 @@ impl SearchPage {
                         Shortcut::new("Play", symbols::ENTER),
                         Shortcut::new("Add to queue", "q"),
                         Shortcut::new("Play next", "n"),
-                        Shortcut::new("Goto", "g"),
                         Shortcut::new("Search", "s"),
+                        Shortcut::new("Goto", "g"),
                     ]);
 
                     (Style::new(), Style::new().fg(colors.accent))
@@ -108,25 +106,32 @@ impl SearchPage {
         self.update_search_results(jb);
 
         // Render search results
-        jukebox::utils::format_int(self.search_results.len(), |len| {
-            self.buffer.extend([" Search results (", len, ") "]);
-        });
-
         let search_results_area = Rect {
             y: area.y + search_line.height + 1,
             height: area.height.saturating_sub(search_line.height + 1),
             ..area
         };
         let search_results_block = Block::bordered()
-            .title(self.buffer.as_str())
-            .title_alignment(Alignment::Center)
             .style(block_style)
             .border_style(border_style)
             .padding(Padding::horizontal(1));
         let search_results_inner = search_results_block.inner(search_results_area);
-
         search_results_block.render(search_results_area, buf);
-        self.buffer.clear();
+
+        // Title for bordered search results
+        jukebox::utils::format_int(self.search_results.len(), |len| {
+            utils::print_asciis(
+                Rect {
+                    y: search_results_area.y,
+                    height: 1,
+                    ..search_results_inner
+                },
+                buf,
+                [" Search results (", len, ") "],
+                border_style,
+                Some(utils::Alignment::CenterHorizontal),
+            );
+        });
 
         let current = jb.current_track_id();
         self.list.set_colors(colors.neutral, None).render(

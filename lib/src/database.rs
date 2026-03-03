@@ -181,17 +181,6 @@ impl Track {
         self.metadata.rating
     }
 
-    pub const fn rating_display(&self) -> &str {
-        match self.metadata.rating {
-            AudioRating::None => "",
-            AudioRating::Awful => "★",
-            AudioRating::Bad => "★★",
-            AudioRating::Ok => "★★★",
-            AudioRating::Good => "★★★★",
-            AudioRating::Amazing => "★★★★★",
-        }
-    }
-
     pub const fn set_rating(&mut self, rating: AudioRating) {
         self.metadata.rating = rating;
     }
