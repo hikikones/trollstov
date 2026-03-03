@@ -33,8 +33,8 @@ pub struct App {
     route: Route,
     events: EventHandler,
     settings: Settings,
-    jukebox: Jukebox,
     database: Database,
+    jukebox: Jukebox,
     mpris: Option<MediaControls>,
     picker: Picker,
     screen_size: ScreenSize,
@@ -79,7 +79,7 @@ pub enum Action {
 }
 
 impl App {
-    pub fn new(jukebox: Jukebox, database: Database, picker: Picker, mpris: bool) -> Self {
+    pub fn new(database: Database, jukebox: Jukebox, picker: Picker, mpris: bool) -> Self {
         let mut logs = LogsPage::new();
 
         let settings = Settings::read()
@@ -118,8 +118,8 @@ impl App {
             route: Route::default(),
             events: EventHandler::new(),
             settings,
-            jukebox,
             database,
+            jukebox,
             mpris: media_controls,
             picker,
             screen_size: ScreenSize::Large,
@@ -327,16 +327,17 @@ impl App {
         }
 
         // Update jukebox
-        self.jukebox.update(&mut self.database);
-        for event in self.jukebox.events() {
+        self.jukebox.update(&self.database, |event| {
             render = true;
             match event {
                 JukeboxEvent::Play(id) => {
-                    if let Some(track) = self.database.get(*id) {
+                    if let Some(track) = self.database.get(id) {
                         // Start loading front cover image
-                        self.front_cover = FrontCover::Loading;
-                        let handle = self.load_image(track.path().to_path_buf());
+                        let path = track.path().to_path_buf();
+                        let picker = self.picker.clone();
+                        let handle = load_front_cover(path, picker);
                         self.front_cover_handle = Some(handle);
+                        self.front_cover = FrontCover::Loading;
 
                         // Update metadata for mpris
                         if let Some(mpris) = self.mpris.as_mut() {
@@ -345,6 +346,7 @@ impl App {
                     }
                 }
                 JukeboxEvent::Stop => {
+                    self.front_cover = FrontCover::None;
                     if let Some(mpris) = self.mpris.as_mut() {
                         mpris.reset_metadata();
                     }
@@ -353,8 +355,7 @@ impl App {
                     self.pages.logs.enqueue(Log::new(err));
                 }
             }
-        }
-        self.jukebox.clear_events();
+        });
 
         // Poll thread for finished image loading
         if let Some(handle) = self.front_cover_handle.as_ref() {
@@ -631,31 +632,6 @@ impl App {
             .tracks
             .set_keep_on_sort(self.settings.keep_on_sort());
     }
-
-    fn load_image(&self, path: PathBuf) -> FrontCoverHandle {
-        let picker = self.picker.clone();
-        std::thread::spawn(move || {
-            let picture = AudioPicture::read(&path)?;
-            match picture.bytes() {
-                Some(bytes) => {
-                    const MAX_RES: u32 = 1080;
-                    let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
-                        AudioFileReport::new(format!(
-                            "Failed to load front cover image for \"{}\" due to {}",
-                            path.display(),
-                            err
-                        ))
-                    })?;
-                    let (w, h) = dyn_img.dimensions();
-                    if w > MAX_RES || h > MAX_RES {
-                        dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
-                    }
-                    Ok(FrontCover::Ready(picker.new_resize_protocol(dyn_img)))
-                }
-                None => Ok(FrontCover::None),
-            }
-        })
-    }
 }
 
 fn render_navigation(
@@ -806,4 +782,28 @@ fn fill_app_shortcuts(shortcuts: &mut Shortcuts) {
         Shortcut::new("Navigate", symbols::shift!("Tab")),
         Shortcut::new("Search", "/"),
     ]);
+}
+
+fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
+    std::thread::spawn(move || {
+        let picture = AudioPicture::read(&path)?;
+        match picture.bytes() {
+            Some(bytes) => {
+                const MAX_RES: u32 = 1080;
+                let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
+                    AudioFileReport::new(format!(
+                        "Failed to load front cover image for \"{}\" due to {}",
+                        path.display(),
+                        err
+                    ))
+                })?;
+                let (w, h) = dyn_img.dimensions();
+                if w > MAX_RES || h > MAX_RES {
+                    dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
+                }
+                Ok(FrontCover::Ready(picker.new_resize_protocol(dyn_img)))
+            }
+            None => Ok(FrontCover::None),
+        }
+    })
 }

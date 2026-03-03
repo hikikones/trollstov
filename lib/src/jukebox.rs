@@ -292,7 +292,7 @@ impl Jukebox {
         }
     }
 
-    pub fn update(&mut self, db: &Database) {
+    pub fn update(&mut self, db: &Database, mut on_event: impl FnMut(JukeboxEvent)) {
         // Poll thread handle for audio decoding
         if let Some((handle, _, _)) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
@@ -343,14 +343,10 @@ impl Jukebox {
                 _ => {}
             }
         }
-    }
 
-    pub fn events(&self) -> impl Iterator<Item = &JukeboxEvent> {
-        self.events.iter()
-    }
-
-    pub fn clear_events(&mut self) {
-        self.events.clear();
+        for event in self.events.drain(..) {
+            on_event(event);
+        }
     }
 }
 
