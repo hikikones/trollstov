@@ -124,9 +124,15 @@ impl TracksPage {
                         }
                     }
                 }
-                's' => {
+                's' | 'S' => {
                     let id = jb.get_id_from_index(self.list.index());
-                    jb.sort(jb.get_sort().next());
+
+                    if c == 's' {
+                        jb.sort(jb.get_sort().next());
+                    } else {
+                        jb.sort(jb.get_sort().prev());
+                    }
+
                     if self.keep_on_sort
                         && let Some(id) = id
                         && let Some(i) = jb.get_index_from_id(id)
@@ -135,18 +141,7 @@ impl TracksPage {
                     }
                     return Action::Render;
                 }
-                'S' => {
-                    let id = jb.get_id_from_index(self.list.index());
-                    jb.sort(jb.get_sort().prev());
-                    if self.keep_on_sort
-                        && let Some(id) = id
-                        && let Some(i) = jb.get_index_from_id(id)
-                    {
-                        self.list.move_index(ListMove::Custom(i), false);
-                    }
-                    return Action::Render;
-                }
-                'g' => {
+                'g' | 'G' => {
                     if !self.is_index_current(jb)
                         && let Some(id) = jb.current_track_id()
                         && let Some(index) = jb.get_index_from_id(id)
