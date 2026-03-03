@@ -8,6 +8,7 @@ use ratatui_image::StatefulImage;
 
 use crate::{
     app::{Action, FrontCover, ScreenSize},
+    pages::Route,
     settings::Colors,
     symbols,
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
@@ -173,6 +174,7 @@ impl PlayingPage {
                     Shortcut::new("Rating", "0-5"),
                     Shortcut::new("Shuffle", "s"),
                     Shortcut::new("Clear", "c"),
+                    Shortcut::new("Goto", "g"),
                 ]);
             }
         }
@@ -203,6 +205,11 @@ impl PlayingPage {
                 's' => {
                     jb.queue_shuffle();
                     return Action::Render;
+                }
+                'g' => {
+                    let index = self.list.index();
+                    let id = jb.queue_iter().nth(index).map(|(id, _)| id);
+                    return Action::Route(Route::Tracks(id));
                 }
                 'v' => {
                     if screen_size == ScreenSize::Small {
