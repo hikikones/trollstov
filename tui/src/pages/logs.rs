@@ -10,6 +10,8 @@ use crate::{
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
+// TODO: LogLevel? ERROR/INFO.
+
 pub struct LogsPage {
     title: String,
     logs: Vec<Log>,
