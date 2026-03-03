@@ -16,6 +16,7 @@ type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), 
 type AudioWriteHandle = std::thread::JoinHandle<Result<(TrackId, AudioRating), AudioFileReport>>;
 
 pub struct Database {
+    music_dir: PathBuf,
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
     matcher: Matcher,
@@ -32,18 +33,22 @@ pub enum DatabaseEvent {
 
 impl Database {
     pub fn new(music_dir: PathBuf) -> Self {
-        let (sender, receiver) = mpsc::channel();
-        traverse_and_process_audio_files(music_dir, true, sender);
-
         Self {
+            music_dir,
             tracks: IndexMap::new(),
             sort: TrackSort::default(),
             matcher: Matcher::new(),
             buffer: String::new(),
-            receiver: Some(receiver),
+            receiver: None,
             write_handle: None,
             write_queue: VecDeque::new(),
         }
+    }
+
+    pub fn load(&mut self) {
+        let (sender, receiver) = mpsc::channel();
+        traverse_and_process_audio_files(self.music_dir.clone(), true, sender);
+        self.receiver = Some(receiver);
     }
 
     pub fn is_empty(&self) -> bool {

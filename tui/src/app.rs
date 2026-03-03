@@ -139,11 +139,10 @@ impl App {
             frame.render_widget(crate::widgets::LogoWidget(color), frame.area());
         })?;
 
+        // Apply settings, read events, load music and enter first page
         self.apply_settings();
-
-        // Start reading events
         self.events.start();
-
+        self.database.load();
         self.on_enter();
 
         // Run event loop
