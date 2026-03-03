@@ -1,4 +1,4 @@
-use jukebox::{Jukebox, TrackId};
+use jukebox::{Database, Jukebox, TrackId};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -49,11 +49,12 @@ impl SearchPage {
         &mut self,
         area: Rect,
         buf: &mut Buffer,
-        jb: &mut Jukebox,
+        db: &mut Database,
+        jb: &Jukebox,
         colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
-        if jb.is_empty() {
+        if db.is_empty() {
             utils::print_ascii(
                 area,
                 buf,
@@ -103,7 +104,7 @@ impl SearchPage {
         self.search_input.render(search_line, buf);
 
         // Update search results
-        self.update_search_results(jb);
+        self.update_search_results(db);
 
         // Render search results
         let search_results_area = Rect {
@@ -139,7 +140,7 @@ impl SearchPage {
             buf,
             self.search_results.iter().copied(),
             |line, buf, (id, _), item| {
-                if let Some(track) = jb.get(id) {
+                if let Some(track) = db.get(id) {
                     let mut style = Style::new();
                     if matches!(self.state, State::Browse) {
                         match item {
@@ -180,8 +181,14 @@ impl SearchPage {
         );
     }
 
-    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) -> Action {
-        if jb.is_empty() {
+    pub fn on_input(
+        &mut self,
+        key: KeyCode,
+        modifiers: KeyModifiers,
+        db: &Database,
+        jb: &mut Jukebox,
+    ) -> Action {
+        if db.is_empty() {
             return Action::None;
         }
 
@@ -207,7 +214,7 @@ impl SearchPage {
             State::Browse => match key {
                 KeyCode::Enter => {
                     if let Some((id, _)) = self.search_results.get(self.list.index()).copied() {
-                        jb.play_track(id);
+                        jb.play_track(id, db);
                     }
                 }
                 KeyCode::Up => {
@@ -264,7 +271,7 @@ impl SearchPage {
 
     pub fn on_exit(&self) {}
 
-    fn update_search_results(&mut self, jb: &mut Jukebox) {
+    fn update_search_results(&mut self, db: &mut Database) {
         if !self.is_dirty {
             return;
         }
@@ -277,7 +284,7 @@ impl SearchPage {
             return;
         }
 
-        self.search_results.extend(jb.search(keywords));
+        self.search_results.extend(db.search(keywords));
         self.search_results
             .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
     }

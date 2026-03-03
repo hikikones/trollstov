@@ -1,7 +1,6 @@
 use std::{
     collections::{HashSet, VecDeque},
     fs::File,
-    path::PathBuf,
     time::Duration,
 };
 
@@ -13,7 +12,7 @@ type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<File>, AudioFile
 type AudioWriteHandle = std::thread::JoinHandle<Result<(TrackId, AudioRating), AudioFileReport>>;
 
 pub struct Jukebox {
-    database: Database,
+    // database: Database,
     current: Option<(TrackId, QueueIndex)>,
     queue: PlayQueue,
     state: PlayState,
@@ -44,9 +43,8 @@ enum PlayState {
 }
 
 impl Jukebox {
-    pub fn new(device: AudioDevice, music_dir: PathBuf) -> Self {
+    pub fn new(device: AudioDevice) -> Self {
         Self {
-            database: Database::new(music_dir),
             current: None,
             queue: PlayQueue::new(),
             state: PlayState::Stop,
@@ -60,56 +58,12 @@ impl Jukebox {
         }
     }
 
-    pub fn load_music(&mut self) {
-        self.database.load();
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.database.is_empty()
-    }
-
     pub fn is_faulty(&self, id: TrackId) -> bool {
         self.faulty.contains(&id)
     }
 
-    pub fn len(&self) -> usize {
-        self.database.len()
-    }
-
-    pub fn get(&self, id: TrackId) -> Option<&Track> {
-        self.database.get(id)
-    }
-
-    pub fn get_mut(&mut self, id: TrackId) -> Option<&mut Track> {
-        self.database.get_mut(id)
-    }
-
-    pub fn get_id_from_index(&self, i: usize) -> Option<TrackId> {
-        self.database.get_id_from_index(i)
-    }
-
-    pub fn get_index_from_id(&self, id: TrackId) -> Option<usize> {
-        self.database.get_index_from_id(id)
-    }
-
     pub fn get_id_from_queue(&self, i: usize) -> Option<TrackId> {
         self.queue.get(QueueIndex(i))
-    }
-
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, &Track)> + DoubleEndedIterator {
-        self.database.iter().map(|(id, track)| (*id, track))
-    }
-
-    pub const fn get_sort(&self) -> TrackSort {
-        self.database.get_sort()
-    }
-
-    pub fn sort(&mut self, sort: TrackSort) {
-        self.database.sort(sort);
-    }
-
-    pub fn search(&mut self, keywords: &str) -> impl Iterator<Item = (TrackId, u16)> {
-        self.database.search(keywords)
     }
 
     pub const fn current_track(&self) -> Option<(TrackId, QueueIndex)> {
@@ -180,17 +134,17 @@ impl Jukebox {
         self.device.set_volume(value);
     }
 
-    pub fn play_queue_index(&mut self, index: usize) {
+    pub fn play_queue_index(&mut self, index: usize, db: &Database) {
         if let Some(id) = self.queue.set_index(index) {
             self.state = PlayState::Track;
-            self.start_play(id, QueueIndex(index));
+            self.start_play(id, QueueIndex(index), db);
         }
     }
 
-    pub fn play_track(&mut self, id: TrackId) {
+    pub fn play_track(&mut self, id: TrackId, db: &Database) {
         let (id, index) = self.queue.enqueue_next(id).next().unwrap();
         self.state = PlayState::Track;
-        self.start_play(id, index);
+        self.start_play(id, index, db);
     }
 
     pub fn play(&mut self) {
@@ -222,8 +176,8 @@ impl Jukebox {
         self.events.push(JukeboxEvent::Stop);
     }
 
-    pub fn play_next(&mut self) {
-        if self.database.is_empty() {
+    pub fn play_next(&mut self, db: &Database) {
+        if db.is_empty() {
             return;
         }
 
@@ -236,13 +190,13 @@ impl Jukebox {
 
             match next {
                 Some((id, index)) => {
-                    if self.faulty.contains(&id) || self.should_skip(id) {
+                    if self.faulty.contains(&id) || self.should_skip(id, db) {
                         next = self.queue.next();
                         continue;
                     }
 
                     self.state = PlayState::Next;
-                    self.start_play(id, index);
+                    self.start_play(id, index, db);
                     return;
                 }
                 None => {
@@ -256,9 +210,9 @@ impl Jukebox {
         let mut tries = 5;
         let mut rand = TrackId(0);
         while tries > 0 {
-            rand = TrackId(fastrand::u64(0..self.database.len() as u64));
+            rand = TrackId(fastrand::u64(0..db.len() as u64));
             let is_current = current.map(|id| id == rand).unwrap_or(false);
-            if is_current || self.faulty.contains(&rand) || self.should_skip(rand) {
+            if is_current || self.faulty.contains(&rand) || self.should_skip(rand, db) {
                 tries -= 1;
                 continue;
             }
@@ -267,17 +221,17 @@ impl Jukebox {
 
         let (id, index) = self.queue.enqueue(rand).next().unwrap();
         self.state = PlayState::Next;
-        self.start_play(id, index);
+        self.start_play(id, index, db);
     }
 
-    pub fn play_previous(&mut self) {
+    pub fn play_previous(&mut self, db: &Database) {
         while let Some((id, index)) = self.queue.previous() {
-            if self.faulty.contains(&id) || self.should_skip(id) {
+            if self.faulty.contains(&id) || self.should_skip(id, db) {
                 continue;
             }
 
             self.state = PlayState::Previous;
-            self.start_play(id, index);
+            self.start_play(id, index, db);
             return;
         }
 
@@ -294,16 +248,15 @@ impl Jukebox {
     }
 
     pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
-        self.audio_write_queue.push_back((id, rating));
+        self.audio_write_queue.push_back((id, rating)); // TODO: move writing to db
     }
 
     pub const fn set_skip(&mut self, rating: AudioRating) {
         self.skip = rating;
     }
 
-    fn should_skip(&self, id: TrackId) -> bool {
-        self.database
-            .get(id)
+    fn should_skip(&self, id: TrackId, db: &Database) -> bool {
+        db.get(id)
             .map(|track| match track.rating() {
                 AudioRating::None => false,
                 _ => track.rating().as_u8() <= self.skip.as_u8(),
@@ -311,8 +264,8 @@ impl Jukebox {
             .unwrap_or(true)
     }
 
-    fn start_play(&mut self, id: TrackId, index: QueueIndex) {
-        let Some(track) = self.database.get(id) else {
+    fn start_play(&mut self, id: TrackId, index: QueueIndex, db: &Database) {
+        let Some(track) = db.get(id) else {
             return;
         };
 
@@ -343,8 +296,13 @@ impl Jukebox {
         self.audio_decode_handle = Some((handle, id, index));
     }
 
-    fn write_rating(&mut self, id: TrackId, rating: AudioRating) -> Option<AudioWriteHandle> {
-        let Some(track) = self.database.get(id) else {
+    fn write_rating(
+        &mut self,
+        id: TrackId,
+        rating: AudioRating,
+        db: &Database,
+    ) -> Option<AudioWriteHandle> {
+        let Some(track) = db.get(id) else {
             return None;
         };
 
@@ -373,8 +331,8 @@ impl Jukebox {
         }
     }
 
-    pub fn update(&mut self) {
-        self.database.update(|error| {
+    pub fn update(&mut self, db: &mut Database) {
+        db.update(|error| {
             self.events.push(JukeboxEvent::Error(error));
         });
 
@@ -400,10 +358,10 @@ impl Jukebox {
                         self.events.push(JukeboxEvent::Error(err));
                         match self.state {
                             PlayState::Play | PlayState::Next => {
-                                self.play_next();
+                                self.play_next(db);
                             }
                             PlayState::Previous => {
-                                self.play_previous();
+                                self.play_previous(db);
                             }
                             PlayState::Track => {
                                 self.state = PlayState::Play;
@@ -423,7 +381,7 @@ impl Jukebox {
                     let handle = self.audio_write_handle.take().unwrap();
                     match handle.join().unwrap() {
                         Ok((id, new_rating)) => {
-                            if let Some(track) = self.database.get_mut(id) {
+                            if let Some(track) = db.get_mut(id) {
                                 track.set_rating(new_rating);
                                 self.events.push(JukeboxEvent::Rating(id));
                             }
@@ -438,7 +396,7 @@ impl Jukebox {
                 self.audio_write_handle = self
                     .audio_write_queue
                     .pop_front()
-                    .and_then(|(id, rating)| self.write_rating(id, rating));
+                    .and_then(|(id, rating)| self.write_rating(id, rating, db));
             }
         }
 
@@ -446,7 +404,7 @@ impl Jukebox {
         if self.device.is_empty() && !self.device.is_paused() {
             match self.state {
                 PlayState::Play => {
-                    self.play_next();
+                    self.play_next(db);
                 }
                 PlayState::Next | PlayState::Previous | PlayState::Track => {
                     self.state = PlayState::Play;

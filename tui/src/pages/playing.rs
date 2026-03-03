@@ -1,4 +1,4 @@
-use jukebox::{AudioRating, Jukebox, QueueIndex};
+use jukebox::{AudioRating, Database, Jukebox, QueueIndex};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -40,6 +40,7 @@ impl PlayingPage {
         &mut self,
         area: Rect,
         buf: &mut Buffer,
+        db: &Database,
         jb: &Jukebox,
         screen_size: ScreenSize,
         front_cover: &mut FrontCover,
@@ -58,6 +59,7 @@ impl PlayingPage {
                                 ..area
                             },
                             buf,
+                            db,
                             jb,
                             colors,
                         );
@@ -65,7 +67,7 @@ impl PlayingPage {
                     ViewMode::Cover => {
                         match jb
                             .current_track_id()
-                            .and_then(|id| jb.get(id).map(|track| track.rating()))
+                            .and_then(|id| db.get(id).map(|track| track.rating()))
                         {
                             Some(rating) => {
                                 let cover_area = self.render_cover(
@@ -129,7 +131,7 @@ impl PlayingPage {
                 // Render track
                 match jb
                     .current_track_id()
-                    .and_then(|id| jb.get(id).map(|track| track.rating()))
+                    .and_then(|id| db.get(id).map(|track| track.rating()))
                 {
                     Some(rating) => {
                         let cover_area = self.render_cover(
@@ -166,7 +168,7 @@ impl PlayingPage {
                 }
 
                 // Render play queue
-                self.render_queue(queue_area, buf, jb, colors);
+                self.render_queue(queue_area, buf, db, jb, colors);
 
                 // Shortcuts
                 shortcuts.extend([
@@ -184,12 +186,13 @@ impl PlayingPage {
         &mut self,
         key: KeyCode,
         _modifiers: KeyModifiers,
+        db: &Database,
         jb: &mut Jukebox,
         screen_size: ScreenSize,
     ) -> Action {
         match key {
             KeyCode::Enter => {
-                jb.play_queue_index(self.list.index());
+                jb.play_queue_index(self.list.index(), db);
             }
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
@@ -305,7 +308,14 @@ impl PlayingPage {
         img_area
     }
 
-    fn render_queue(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+    fn render_queue(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        db: &Database,
+        jb: &Jukebox,
+        colors: &Colors,
+    ) {
         let block = Block::bordered()
             .style(colors.neutral)
             .padding(Padding::horizontal(1));
@@ -349,7 +359,7 @@ impl PlayingPage {
             buf,
             jb.queue_iter(),
             |line, buf, (id, qi), item| {
-                if let Some(track) = jb.get(id) {
+                if let Some(track) = db.get(id) {
                     let mut style = Style::new();
 
                     if current_queue_index == Some(qi) {

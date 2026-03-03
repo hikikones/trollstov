@@ -2,7 +2,8 @@ use std::{path::PathBuf, time::Duration};
 
 use image::GenericImageView;
 use jukebox::{
-    AudioFileReport, AudioPicture, Jukebox, JukeboxEvent, MediaControls, MediaEvent, Track,
+    AudioFileReport, AudioPicture, Database, Jukebox, JukeboxEvent, MediaControls, MediaEvent,
+    Track,
 };
 use ratatui::{
     CompletedFrame,
@@ -33,6 +34,7 @@ pub struct App {
     events: EventHandler,
     settings: Settings,
     jukebox: Jukebox,
+    database: Database,
     mpris: Option<MediaControls>,
     picker: Picker,
     screen_size: ScreenSize,
@@ -77,7 +79,7 @@ pub enum Action {
 }
 
 impl App {
-    pub fn new(jukebox: Jukebox, picker: Picker, mpris: bool) -> Self {
+    pub fn new(jukebox: Jukebox, database: Database, picker: Picker, mpris: bool) -> Self {
         let mut logs = LogsPage::new();
 
         let settings = Settings::read()
@@ -117,6 +119,7 @@ impl App {
             events: EventHandler::new(),
             settings,
             jukebox,
+            database,
             mpris: media_controls,
             picker,
             screen_size: ScreenSize::Large,
@@ -138,9 +141,8 @@ impl App {
 
         self.apply_settings();
 
-        // Start reading events and load music
+        // Start reading events
         self.events.start();
-        self.jukebox.load_music();
 
         self.on_enter();
 
@@ -227,7 +229,7 @@ impl App {
             }
             KeyCode::Right => {
                 if ctrl {
-                    self.jukebox.play_next();
+                    self.jukebox.play_next(&self.database);
                 } else if alt {
                     self.jukebox.fast_forward_by(Duration::from_secs(30));
                     return Action::Render;
@@ -237,7 +239,7 @@ impl App {
             }
             KeyCode::Left => {
                 if ctrl {
-                    self.jukebox.play_previous();
+                    self.jukebox.play_previous(&self.database);
                 } else {
                     return self.on_input(key);
                 }
@@ -259,10 +261,10 @@ impl App {
                             self.jukebox.stop();
                         }
                         MediaKeyCode::TrackNext => {
-                            self.jukebox.play_next();
+                            self.jukebox.play_next(&self.database);
                         }
                         MediaKeyCode::TrackPrevious => {
-                            self.jukebox.play_previous();
+                            self.jukebox.play_previous(&self.database);
                         }
                         MediaKeyCode::FastForward => {
                             self.jukebox.fast_forward_by(Duration::from_secs(30));
@@ -301,8 +303,8 @@ impl App {
                 MediaEvent::Play => self.jukebox.play(),
                 MediaEvent::Pause => self.jukebox.pause(),
                 MediaEvent::Toggle => self.jukebox.pause_or_play(),
-                MediaEvent::Next => self.jukebox.play_next(),
-                MediaEvent::Previous => self.jukebox.play_previous(),
+                MediaEvent::Next => self.jukebox.play_next(&self.database),
+                MediaEvent::Previous => self.jukebox.play_previous(&self.database),
                 MediaEvent::Stop => self.jukebox.stop(),
                 MediaEvent::Raise => {
                     // TODO: Focus terminal window.
@@ -314,12 +316,12 @@ impl App {
         }
 
         // Update jukebox
-        self.jukebox.update();
+        self.jukebox.update(&mut self.database);
         for event in self.jukebox.events() {
             render = true;
             match event {
                 JukeboxEvent::Play(id) => {
-                    if let Some(track) = self.jukebox.get(*id) {
+                    if let Some(track) = self.database.get(*id) {
                         // Start loading front cover image
                         self.front_cover = FrontCover::Loading;
                         let handle = self.load_image(track.path().to_path_buf());
@@ -433,7 +435,7 @@ impl App {
                         self.jukebox.current_track_pos(),
                         self.jukebox
                             .current_track_id()
-                            .and_then(|id| self.jukebox.get(id)),
+                            .and_then(|id| self.database.get(id)),
                         colors.accent,
                         colors.neutral,
                     );
@@ -502,7 +504,7 @@ impl App {
                         self.jukebox.current_track_pos(),
                         self.jukebox
                             .current_track_id()
-                            .and_then(|id| self.jukebox.get(id)),
+                            .and_then(|id| self.database.get(id)),
                         colors.accent,
                         colors.neutral,
                     );
@@ -522,6 +524,7 @@ impl App {
                 self.pages.tracks.on_render(
                     body,
                     buf,
+                    &self.database,
                     &self.jukebox,
                     colors,
                     &mut self.shortcuts_page,
@@ -531,6 +534,7 @@ impl App {
                 self.pages.playing.on_render(
                     body,
                     buf,
+                    &self.database,
                     &self.jukebox,
                     self.screen_size,
                     &mut self.front_cover,
@@ -542,6 +546,7 @@ impl App {
                 self.pages.search.on_render(
                     body,
                     buf,
+                    &mut self.database,
                     &mut self.jukebox,
                     colors,
                     &mut self.shortcuts_page,
@@ -562,7 +567,7 @@ impl App {
 
     fn on_enter(&mut self) {
         match self.route {
-            Route::Tracks(id) => self.pages.tracks.on_enter(id, &self.jukebox),
+            Route::Tracks(id) => self.pages.tracks.on_enter(id, &self.database),
             Route::NowPlaying => self.pages.playing.on_enter(),
             Route::Search => self.pages.search.on_enter(),
             Route::Settings => self.pages.settings.on_enter(),
@@ -582,21 +587,25 @@ impl App {
 
     fn on_input(&mut self, key: KeyEvent) -> Action {
         match self.route {
-            Route::Tracks(_) => {
-                self.pages
-                    .tracks
-                    .on_input(key.code, key.modifiers, &mut self.jukebox)
-            }
+            Route::Tracks(_) => self.pages.tracks.on_input(
+                key.code,
+                key.modifiers,
+                &mut self.database,
+                &mut self.jukebox,
+            ),
             Route::NowPlaying => self.pages.playing.on_input(
                 key.code,
                 key.modifiers,
+                &self.database,
                 &mut self.jukebox,
                 self.screen_size,
             ),
-            Route::Search => self
-                .pages
-                .search
-                .on_input(key.code, key.modifiers, &mut self.jukebox),
+            Route::Search => self.pages.search.on_input(
+                key.code,
+                key.modifiers,
+                &self.database,
+                &mut self.jukebox,
+            ),
             Route::Settings => {
                 self.pages
                     .settings

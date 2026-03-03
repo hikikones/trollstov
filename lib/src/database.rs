@@ -13,72 +13,67 @@ use crate::{
 
 type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileReport>>;
 
-pub(crate) struct Database {
-    music_dir: PathBuf,
+pub struct Database {
     tracks: IndexMap<TrackId, Track>,
     sort: TrackSort,
     matcher: Matcher,
     buffer: String,
-    audio_file_receiver: Option<AudioFileReceiver>,
+    receiver: Option<AudioFileReceiver>,
 }
 
 impl Database {
-    pub(crate) fn new(music_dir: PathBuf) -> Self {
+    pub fn new(music_dir: PathBuf) -> Self {
+        let (sender, receiver) = mpsc::channel();
+        traverse_and_process_audio_files(music_dir, true, sender);
+
         Self {
-            music_dir,
             tracks: IndexMap::new(),
             sort: TrackSort::default(),
             matcher: Matcher::new(),
             buffer: String::new(),
-            audio_file_receiver: None,
+            receiver: Some(receiver),
         }
     }
 
-    pub(crate) fn load(&mut self) {
-        let (sender, receiver) = mpsc::channel();
-        traverse_and_process_audio_files(self.music_dir.as_path(), true, sender);
-        self.audio_file_receiver = Some(receiver);
-    }
-
-    pub(crate) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.tracks.is_empty()
     }
 
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.tracks.len()
     }
 
-    pub(crate) fn get(&self, id: TrackId) -> Option<&Track> {
+    pub fn get(&self, id: TrackId) -> Option<&Track> {
         self.tracks.get(&id)
     }
 
-    pub(crate) fn get_mut(&mut self, id: TrackId) -> Option<&mut Track> {
+    pub fn get_mut(&mut self, id: TrackId) -> Option<&mut Track> {
         self.tracks.get_mut(&id)
     }
 
-    pub(crate) fn get_id_from_index(&self, i: usize) -> Option<TrackId> {
+    pub fn get_id_from_index(&self, i: usize) -> Option<TrackId> {
         self.tracks.keys().nth(i).copied()
     }
 
-    pub(crate) fn get_index_from_id(&self, id: TrackId) -> Option<usize> {
+    pub fn get_index_from_id(&self, id: TrackId) -> Option<usize> {
         self.tracks.get_index_of(&id)
     }
 
-    pub(crate) fn iter(&self) -> indexmap::map::Iter<'_, TrackId, Track> {
-        self.tracks.iter()
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, &Track)> {
+        self.tracks.iter().map(|(id, track)| (*id, track))
     }
 
-    pub(crate) const fn get_sort(&self) -> TrackSort {
+    pub const fn get_sort(&self) -> TrackSort {
         self.sort
     }
 
-    pub(crate) fn sort(&mut self, sort: TrackSort) {
+    pub fn sort(&mut self, sort: TrackSort) {
         self.tracks
             .sort_unstable_by(|_, track1, _, track2| sort.cmp(track1, track2));
         self.sort = sort;
     }
 
-    pub(crate) fn search(&mut self, needle: &str) -> impl Iterator<Item = (TrackId, u16)> {
+    pub fn search(&mut self, needle: &str) -> impl Iterator<Item = (TrackId, u16)> {
         self.matcher.update(needle);
         self.tracks.iter().filter_map(|(id, track)| {
             self.buffer
@@ -89,8 +84,8 @@ impl Database {
         })
     }
 
-    pub(crate) fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) {
-        let Some(receiver) = self.audio_file_receiver.as_ref() else {
+    pub fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) {
+        let Some(receiver) = self.receiver.as_ref() else {
             return;
         };
 
@@ -126,7 +121,7 @@ impl Database {
                         break;
                     }
                     mpsc::TryRecvError::Disconnected => {
-                        self.audio_file_receiver = None;
+                        self.receiver = None;
                         break;
                     }
                 },
@@ -317,11 +312,10 @@ impl Matcher {
 }
 
 fn traverse_and_process_audio_files(
-    root: impl AsRef<Path>,
+    root: PathBuf,
     follow_links: bool,
     sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileReport>>,
 ) {
-    let root = root.as_ref().to_path_buf();
     std::thread::spawn(move || {
         walkdir::WalkDir::new(root)
             .follow_links(follow_links)
@@ -340,11 +334,10 @@ fn traverse_and_process_audio_files(
 }
 
 fn _traverse_and_process_audio_files_in_parallel(
-    root: impl AsRef<Path>,
+    root: PathBuf,
     follow_links: bool,
     sender: mpsc::Sender<Result<(AudioFile, AudioFileExtension), AudioFileReport>>,
 ) {
-    let root = root.as_ref().to_path_buf();
     std::thread::spawn(move || {
         ignore::WalkBuilder::new(root)
             .follow_links(follow_links)

@@ -18,9 +18,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let picker = ratatui_image::picker::Picker::from_query_stdio()?;
 
     let audio_device = jukebox::AudioDevice::new()?;
-    let jukebox = jukebox::Jukebox::new(audio_device, args.dir);
+    let jukebox = jukebox::Jukebox::new(audio_device);
+    let database = jukebox::Database::new(args.dir);
 
-    let mut app = app::App::new(jukebox, picker, args.mpris);
+    let mut app = app::App::new(jukebox, database, picker, args.mpris);
     let res = app.run(terminal);
 
     match terminal::Terminal::restore() {
