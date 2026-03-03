@@ -113,7 +113,7 @@ impl TracksPage {
                     let rating = AudioRating::from_char(c).unwrap();
                     for i in self.list.selection() {
                         if let Some(id) = db.get_id_from_index(i) {
-                            jb.set_rating(id, rating);
+                            db.write_rating(id, rating);
                         }
                     }
                 }

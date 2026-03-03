@@ -2,8 +2,8 @@ use std::{path::PathBuf, time::Duration};
 
 use image::GenericImageView;
 use jukebox::{
-    AudioFileReport, AudioPicture, Database, Jukebox, JukeboxEvent, MediaControls, MediaEvent,
-    Track,
+    AudioFileReport, AudioPicture, Database, DatabaseEvent, Jukebox, JukeboxEvent, MediaControls,
+    MediaEvent, Track,
 };
 use ratatui::{
     CompletedFrame,
@@ -188,7 +188,7 @@ impl App {
     }
 
     pub fn quit(self) {
-        self.jukebox.shutdown();
+        self.database.shutdown();
     }
 
     fn handle_key_press(&mut self, key: KeyEvent) -> Action {
@@ -297,6 +297,17 @@ impl App {
     fn update(&mut self) -> Action {
         let mut render = false;
 
+        // Update database
+        self.database.update(|event| {
+            render = true;
+            match event {
+                DatabaseEvent::Rating(_) => {}
+                DatabaseEvent::Error(err) => {
+                    self.pages.logs.enqueue(Log::new(err));
+                }
+            }
+        });
+
         // Check for media control events
         if let Some(event) = self.mpris.as_ref().and_then(|mpris| mpris.try_recv()) {
             match event {
@@ -338,7 +349,6 @@ impl App {
                         mpris.reset_metadata();
                     }
                 }
-                JukeboxEvent::Rating(_) => {}
                 JukeboxEvent::Error(err) => {
                     self.pages.logs.enqueue(Log::new(err));
                 }
@@ -596,7 +606,7 @@ impl App {
             Route::NowPlaying => self.pages.playing.on_input(
                 key.code,
                 key.modifiers,
-                &self.database,
+                &mut self.database,
                 &mut self.jukebox,
                 self.screen_size,
             ),

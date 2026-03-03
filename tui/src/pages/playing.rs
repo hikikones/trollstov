@@ -186,7 +186,7 @@ impl PlayingPage {
         &mut self,
         key: KeyCode,
         _modifiers: KeyModifiers,
-        db: &Database,
+        db: &mut Database,
         jb: &mut Jukebox,
         screen_size: ScreenSize,
     ) -> Action {
@@ -198,7 +198,7 @@ impl PlayingPage {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
                     if let Some(id) = jb.current_track_id() {
                         let rating = AudioRating::from_char(c).unwrap();
-                        jb.set_rating(id, rating);
+                        db.write_rating(id, rating);
                     }
                 }
                 'c' => {

@@ -1,5 +1,6 @@
 use std::{
     cmp::Ordering,
+    collections::VecDeque,
     path::{Path, PathBuf},
     sync::mpsc,
     time::Duration,
@@ -12,6 +13,7 @@ use crate::{
 };
 
 type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileReport>>;
+type AudioWriteHandle = std::thread::JoinHandle<Result<(TrackId, AudioRating), AudioFileReport>>;
 
 pub struct Database {
     tracks: IndexMap<TrackId, Track>,
@@ -19,6 +21,13 @@ pub struct Database {
     matcher: Matcher,
     buffer: String,
     receiver: Option<AudioFileReceiver>,
+    write_handle: Option<AudioWriteHandle>,
+    write_queue: VecDeque<(TrackId, AudioRating)>,
+}
+
+pub enum DatabaseEvent {
+    Rating(TrackId),
+    Error(AudioFileReport),
 }
 
 impl Database {
@@ -32,6 +41,8 @@ impl Database {
             matcher: Matcher::new(),
             buffer: String::new(),
             receiver: Some(receiver),
+            write_handle: None,
+            write_queue: VecDeque::new(),
         }
     }
 
@@ -84,48 +95,102 @@ impl Database {
         })
     }
 
-    pub fn update(&mut self, mut on_error: impl FnMut(AudioFileReport)) {
-        let Some(receiver) = self.receiver.as_ref() else {
-            return;
+    pub fn write_rating(&mut self, id: TrackId, rating: AudioRating) {
+        self.write_queue.push_back((id, rating));
+    }
+
+    fn start_write(&mut self, id: TrackId, rating: AudioRating) -> Option<AudioWriteHandle> {
+        let Some(track) = self.tracks.get(&id) else {
+            return None;
         };
 
+        if track.rating() == rating {
+            return None;
+        }
+
+        let path = track.path().to_path_buf();
+        let extension = track.extension();
+        let handle = std::thread::spawn(move || {
+            let mut audio_file = AudioFile::read_from(path, extension)?;
+            audio_file.write_rating(rating)?;
+            Ok((id, rating))
+        });
+        Some(handle)
+    }
+
+    pub fn update(&mut self, mut on_event: impl FnMut(DatabaseEvent)) {
         // Receive processed audio files and convert to tracks
-        loop {
-            match receiver.try_recv() {
-                Ok(audio_file_res) => {
-                    let track_res = audio_file_res.and_then(|(audio_file, extension)| {
-                        let track = Track::new(
-                            audio_file.metadata()?,
-                            audio_file.properties(),
-                            audio_file.path().to_path_buf(),
-                            extension,
-                        );
-                        Ok(track)
-                    });
-                    match track_res {
-                        Ok(track) => {
-                            let last_id = self.tracks.len() as u64;
-                            self.tracks.insert_sorted_by(
-                                TrackId(last_id),
-                                track,
-                                |_, track1, _, track2| self.sort.cmp(track1, track2),
+        if let Some(receiver) = self.receiver.as_ref() {
+            loop {
+                match receiver.try_recv() {
+                    Ok(audio_file_res) => {
+                        let track_res = audio_file_res.and_then(|(audio_file, extension)| {
+                            let track = Track::new(
+                                audio_file.metadata()?,
+                                audio_file.properties(),
+                                audio_file.path().to_path_buf(),
+                                extension,
                             );
+                            Ok(track)
+                        });
+                        match track_res {
+                            Ok(track) => {
+                                let last_id = self.tracks.len() as u64;
+                                self.tracks.insert_sorted_by(
+                                    TrackId(last_id),
+                                    track,
+                                    |_, track1, _, track2| self.sort.cmp(track1, track2),
+                                );
+                            }
+                            Err(err) => {
+                                on_event(DatabaseEvent::Error(err));
+                            }
+                        }
+                    }
+                    Err(err) => match err {
+                        mpsc::TryRecvError::Empty => {
+                            break;
+                        }
+                        mpsc::TryRecvError::Disconnected => {
+                            self.receiver = None;
+                            break;
+                        }
+                    },
+                }
+            }
+        }
+
+        // Poll thread handle for finished tag writing
+        match self.write_handle.as_ref() {
+            Some(handle) => {
+                if handle.is_finished() {
+                    let handle = self.write_handle.take().unwrap();
+                    match handle.join().unwrap() {
+                        Ok((id, new_rating)) => {
+                            if let Some(track) = self.tracks.get_mut(&id) {
+                                track.set_rating(new_rating);
+                                on_event(DatabaseEvent::Rating(id));
+                            }
                         }
                         Err(err) => {
-                            on_error(err);
+                            on_event(DatabaseEvent::Error(err));
                         }
                     }
                 }
-                Err(err) => match err {
-                    mpsc::TryRecvError::Empty => {
-                        break;
-                    }
-                    mpsc::TryRecvError::Disconnected => {
-                        self.receiver = None;
-                        break;
-                    }
-                },
             }
+            None => {
+                self.write_handle = self
+                    .write_queue
+                    .pop_front()
+                    .and_then(|(id, rating)| self.start_write(id, rating));
+            }
+        }
+    }
+
+    /// Gracefully shutdown by waiting for thread to finish writing the rating tag
+    pub fn shutdown(mut self) {
+        if let Some(handle) = self.write_handle.take() {
+            let _ = handle.join().unwrap();
         }
     }
 }

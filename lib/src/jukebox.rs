@@ -1,25 +1,17 @@
-use std::{
-    collections::{HashSet, VecDeque},
-    fs::File,
-    time::Duration,
-};
+use std::{collections::HashSet, fs::File, time::Duration};
 
 use rodio::decoder::Decoder;
 
 use crate::*;
 
 type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<File>, AudioFileReport>>;
-type AudioWriteHandle = std::thread::JoinHandle<Result<(TrackId, AudioRating), AudioFileReport>>;
 
 pub struct Jukebox {
-    // database: Database,
     current: Option<(TrackId, QueueIndex)>,
     queue: PlayQueue,
     state: PlayState,
     skip: AudioRating,
     audio_decode_handle: Option<(AudioDecodeHandle, TrackId, QueueIndex)>,
-    audio_write_handle: Option<AudioWriteHandle>,
-    audio_write_queue: VecDeque<(TrackId, AudioRating)>,
     faulty: HashSet<TrackId>,
     events: Vec<JukeboxEvent>,
     device: AudioDevice,
@@ -28,7 +20,6 @@ pub struct Jukebox {
 pub enum JukeboxEvent {
     Play(TrackId),
     Stop,
-    Rating(TrackId),
     Error(AudioFileReport),
 }
 
@@ -50,8 +41,6 @@ impl Jukebox {
             state: PlayState::Stop,
             skip: AudioRating::default(),
             audio_decode_handle: None,
-            audio_write_handle: None,
-            audio_write_queue: VecDeque::new(),
             faulty: HashSet::new(),
             events: Vec::new(),
             device,
@@ -247,10 +236,6 @@ impl Jukebox {
         self.device.seek(self.device.position() + duration);
     }
 
-    pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
-        self.audio_write_queue.push_back((id, rating)); // TODO: move writing to db
-    }
-
     pub const fn set_skip(&mut self, rating: AudioRating) {
         self.skip = rating;
     }
@@ -296,30 +281,6 @@ impl Jukebox {
         self.audio_decode_handle = Some((handle, id, index));
     }
 
-    fn write_rating(
-        &mut self,
-        id: TrackId,
-        rating: AudioRating,
-        db: &Database,
-    ) -> Option<AudioWriteHandle> {
-        let Some(track) = db.get(id) else {
-            return None;
-        };
-
-        if track.rating() == rating {
-            return None;
-        }
-
-        let path = track.path().to_path_buf();
-        let extension = track.extension();
-        let handle = std::thread::spawn(move || {
-            let mut audio_file = AudioFile::read_from(path, extension)?;
-            audio_file.write_rating(rating)?;
-            Ok((id, rating))
-        });
-        Some(handle)
-    }
-
     fn sync_queue_index(&mut self) {
         match self.current {
             Some((_, index)) => {
@@ -331,11 +292,7 @@ impl Jukebox {
         }
     }
 
-    pub fn update(&mut self, db: &mut Database) {
-        db.update(|error| {
-            self.events.push(JukeboxEvent::Error(error));
-        });
-
+    pub fn update(&mut self, db: &Database) {
         // Poll thread handle for audio decoding
         if let Some((handle, _, _)) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
@@ -374,32 +331,6 @@ impl Jukebox {
             }
         }
 
-        // Poll thread handle for finished tag writing
-        match self.audio_write_handle.as_ref() {
-            Some(handle) => {
-                if handle.is_finished() {
-                    let handle = self.audio_write_handle.take().unwrap();
-                    match handle.join().unwrap() {
-                        Ok((id, new_rating)) => {
-                            if let Some(track) = db.get_mut(id) {
-                                track.set_rating(new_rating);
-                                self.events.push(JukeboxEvent::Rating(id));
-                            }
-                        }
-                        Err(err) => {
-                            self.events.push(JukeboxEvent::Error(err));
-                        }
-                    }
-                }
-            }
-            None => {
-                self.audio_write_handle = self
-                    .audio_write_queue
-                    .pop_front()
-                    .and_then(|(id, rating)| self.write_rating(id, rating, db));
-            }
-        }
-
         // Play next when empty and idle
         if self.device.is_empty() && !self.device.is_paused() {
             match self.state {
@@ -420,12 +351,5 @@ impl Jukebox {
 
     pub fn clear_events(&mut self) {
         self.events.clear();
-    }
-
-    pub fn shutdown(mut self) {
-        // Gracefully shutdown by waiting for thread to finish writing tag
-        if let Some(handle) = self.audio_write_handle.take() {
-            let _ = handle.join().unwrap();
-        }
     }
 }
