@@ -176,7 +176,7 @@ impl Jukebox {
 
             match next {
                 Some((id, index)) => {
-                    if self.faulty.contains(&id) || self.should_skip(id, db) {
+                    if self.is_faulty(id) || self.should_skip(id, db) {
                         next = self.queue.next();
                         continue;
                     }
@@ -212,7 +212,7 @@ impl Jukebox {
 
     pub fn play_previous(&mut self, db: &Database) {
         while let Some((id, index)) = self.queue.previous() {
-            if self.faulty.contains(&id) || self.should_skip(id, db) {
+            if self.is_faulty(id) || self.should_skip(id, db) {
                 continue;
             }
 
