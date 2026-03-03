@@ -10,12 +10,11 @@ use crate::{
     app::{Action, FrontCover, ScreenSize},
     settings::Colors,
     symbols,
-    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment, utils},
+    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
 pub struct PlayingPage {
     current_queue_index: Option<QueueIndex>,
-    text: TextSegment,
     list: List,
     view_mode: ViewMode,
 }
@@ -29,7 +28,6 @@ impl PlayingPage {
     pub const fn new() -> Self {
         Self {
             current_queue_index: None,
-            text: TextSegment::new().with_alignment(Alignment::Center),
             list: List::new(),
             view_mode: ViewMode::Queue,
         }
@@ -301,24 +299,26 @@ impl PlayingPage {
     }
 
     fn render_queue(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
-        jukebox::utils::format_int(jb.history_len(), |hlen| {
-            self.text
-                .extend_as_one([" History (", hlen, ")"], Style::new());
-        });
-        jukebox::utils::format_int(jb.queue_len(), |qlen| {
-            self.text
-                .extend_as_one([" / Queue (", qlen, ") "], Style::new());
-        });
-
         let block = Block::bordered()
-            .title(self.text.as_str())
-            .title_alignment(Alignment::Center)
             .style(colors.neutral)
             .padding(Padding::horizontal(1));
         let queue_inner_area = block.inner(area);
-
         block.render(area, buf);
-        self.text.clear();
+
+        // Title for bordered play queue
+        jukebox::utils::format_int2(jb.history_len(), jb.queue_len(), |hlen, qlen| {
+            utils::print_asciis(
+                Rect {
+                    y: area.y,
+                    height: 1,
+                    ..queue_inner_area
+                },
+                buf,
+                [" History (", hlen, ") / Queue (", qlen, ") "],
+                colors.neutral,
+                Some(utils::Alignment::CenterHorizontal),
+            );
+        });
 
         if jb.is_queue_empty() {
             utils::print_ascii(

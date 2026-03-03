@@ -6,6 +6,12 @@ pub fn format_int(i: impl itoa::Integer, mut f: impl FnMut(&str)) {
     f(buffer.format(i))
 }
 
+/// Formats two integers to its string representations.
+pub fn format_int2(i1: impl itoa::Integer, i2: impl itoa::Integer, mut f: impl FnMut(&str, &str)) {
+    let (mut b1, mut b2) = (itoa::Buffer::new(), itoa::Buffer::new());
+    f(b1.format(i1), b2.format(i2))
+}
+
 /// Formats the duration as `mm:ss` to a String.
 pub fn format_duration(duration: Duration) -> String {
     let mut s = String::with_capacity(5);
