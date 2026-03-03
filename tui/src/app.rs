@@ -191,6 +191,13 @@ impl App {
         self.database.shutdown();
     }
 
+    const fn apply_settings(&mut self) {
+        self.jukebox.set_skip(self.settings.skip_rating());
+        self.pages
+            .tracks
+            .set_keep_on_sort(self.settings.keep_on_sort());
+    }
+
     fn handle_key_press(&mut self, key: KeyEvent) -> Action {
         let alt = key.modifiers.contains(KeyModifiers::ALT);
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
@@ -218,7 +225,7 @@ impl App {
             }
             KeyCode::Down => {
                 if ctrl {
-                    self.jukebox.stop();
+                    return self.stop();
                 } else if alt {
                     let new_volume = (self.jukebox.volume() - 0.1).max(0.0);
                     self.jukebox.set_volume(new_volume);
@@ -258,7 +265,7 @@ impl App {
                             self.jukebox.pause_or_play();
                         }
                         MediaKeyCode::Stop => {
-                            self.jukebox.stop();
+                            return self.stop();
                         }
                         MediaKeyCode::TrackNext => {
                             self.jukebox.play_next(&self.database);
@@ -294,6 +301,18 @@ impl App {
         Action::None
     }
 
+    fn stop(&mut self) -> Action {
+        if self.jukebox.stop() {
+            self.front_cover = FrontCover::None;
+            if let Some(mpris) = self.mpris.as_mut() {
+                mpris.reset_metadata();
+            }
+            return Action::Render;
+        }
+
+        Action::None
+    }
+
     fn update(&mut self) -> Action {
         let mut render = false;
 
@@ -316,7 +335,11 @@ impl App {
                 MediaEvent::Toggle => self.jukebox.pause_or_play(),
                 MediaEvent::Next => self.jukebox.play_next(&self.database),
                 MediaEvent::Previous => self.jukebox.play_previous(&self.database),
-                MediaEvent::Stop => self.jukebox.stop(),
+                MediaEvent::Stop => {
+                    if let Action::Render = self.stop() {
+                        render = true;
+                    }
+                }
                 MediaEvent::Raise => {
                     // TODO: Focus terminal window.
                 }
@@ -343,12 +366,6 @@ impl App {
                         if let Some(mpris) = self.mpris.as_mut() {
                             mpris.set_metadata(track.title(), track.artist());
                         }
-                    }
-                }
-                JukeboxEvent::Stop => {
-                    self.front_cover = FrontCover::None;
-                    if let Some(mpris) = self.mpris.as_mut() {
-                        mpris.reset_metadata();
                     }
                 }
                 JukeboxEvent::Error(err) => {
@@ -624,13 +641,6 @@ impl App {
             }
             Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
         }
-    }
-
-    const fn apply_settings(&mut self) {
-        self.jukebox.set_skip(self.settings.skip_rating());
-        self.pages
-            .tracks
-            .set_keep_on_sort(self.settings.keep_on_sort());
     }
 }
 

@@ -13,13 +13,11 @@ pub struct Jukebox {
     skip: AudioRating,
     audio_decode_handle: Option<(AudioDecodeHandle, TrackId, QueueIndex)>,
     faulty: HashSet<TrackId>,
-    events: Vec<JukeboxEvent>,
     device: AudioDevice,
 }
 
 pub enum JukeboxEvent {
     Play(TrackId),
-    Stop,
     Error(AudioFileReport),
 }
 
@@ -42,7 +40,6 @@ impl Jukebox {
             skip: AudioRating::default(),
             audio_decode_handle: None,
             faulty: HashSet::new(),
-            events: Vec::new(),
             device,
         }
     }
@@ -153,16 +150,16 @@ impl Jukebox {
         }
     }
 
-    pub fn stop(&mut self) {
+    pub fn stop(&mut self) -> bool {
         if self.state == PlayState::Stop {
-            return;
+            return false;
         }
 
         self.current = None;
         self.audio_decode_handle = None;
         self.state = PlayState::Stop;
         self.device.clear();
-        self.events.push(JukeboxEvent::Stop);
+        true
     }
 
     pub fn play_next(&mut self, db: &Database) {
@@ -307,12 +304,12 @@ impl Jukebox {
                             self.device.play();
                         }
                         self.current = Some((id, index));
-                        self.events.push(JukeboxEvent::Play(id));
+                        on_event(JukeboxEvent::Play(id));
                     }
                     // Failed to decode audio
                     Err(err) => {
                         self.faulty.insert(id);
-                        self.events.push(JukeboxEvent::Error(err));
+                        on_event(JukeboxEvent::Error(err));
                         match self.state {
                             PlayState::Play | PlayState::Next => {
                                 self.play_next(db);
@@ -342,10 +339,6 @@ impl Jukebox {
                 }
                 _ => {}
             }
-        }
-
-        for event in self.events.drain(..) {
-            on_event(event);
         }
     }
 }
