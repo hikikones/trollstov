@@ -84,8 +84,8 @@ impl Database {
         self.sort = sort;
     }
 
-    pub fn search(&mut self, needle: &str) -> impl Iterator<Item = (TrackId, u16)> {
-        self.matcher.update(needle);
+    pub fn search(&mut self, keywords: &str) -> impl Iterator<Item = (TrackId, u16)> {
+        self.matcher.update(keywords);
         self.tracks.iter().filter_map(|(id, track)| {
             self.buffer
                 .extend([track.artist(), " ", track.album(), " ", track.title()]);
