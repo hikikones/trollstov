@@ -123,14 +123,14 @@ impl Jukebox {
     pub fn play_index(&mut self, index: QueueIndex, db: &Database) {
         if let Some(id) = self.queue.set_index(index.0) {
             self.state = PlayState::Track;
-            self.start_play(id, QueueIndex(index.0), db);
+            self.start_decode(id, QueueIndex(index.0), db);
         }
     }
 
     pub fn play_id(&mut self, id: TrackId, db: &Database) {
         let (id, index) = self.queue.enqueue_next(id).next().unwrap();
         self.state = PlayState::Track;
-        self.start_play(id, index, db);
+        self.start_decode(id, index, db);
     }
 
     pub fn play(&mut self) {
@@ -182,7 +182,7 @@ impl Jukebox {
                     }
 
                     self.state = PlayState::Next;
-                    self.start_play(id, index, db);
+                    self.start_decode(id, index, db);
                     return;
                 }
                 None => {
@@ -207,7 +207,7 @@ impl Jukebox {
 
         let (id, index) = self.queue.enqueue(rand).next().unwrap();
         self.state = PlayState::Next;
-        self.start_play(id, index, db);
+        self.start_decode(id, index, db);
     }
 
     pub fn play_previous(&mut self, db: &Database) {
@@ -217,7 +217,7 @@ impl Jukebox {
             }
 
             self.state = PlayState::Previous;
-            self.start_play(id, index, db);
+            self.start_decode(id, index, db);
             return;
         }
 
@@ -246,7 +246,7 @@ impl Jukebox {
             .unwrap_or(true)
     }
 
-    fn start_play(&mut self, id: TrackId, index: QueueIndex, db: &Database) {
+    fn start_decode(&mut self, id: TrackId, index: QueueIndex, db: &Database) {
         let Some(track) = db.get(id) else {
             return;
         };
