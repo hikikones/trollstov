@@ -208,7 +208,7 @@ impl PlayingPage {
                 }
                 'g' => {
                     let index = self.list.index();
-                    let id = jb.queue_iter().nth(index).map(|(id, _)| id);
+                    let id = jb.get_id_from_queue(index);
                     return Action::Route(Route::Tracks(id));
                 }
                 'v' => {

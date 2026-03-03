@@ -12,8 +12,6 @@ use crate::{
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
-// TODO: Add goto current.
-
 pub struct TracksPage {
     title: String,
     list: List,
@@ -31,6 +29,11 @@ impl TracksPage {
 
     pub const fn set_keep_on_sort(&mut self, value: bool) {
         self.keep_on_sort = value;
+    }
+
+    fn is_index_current(&self, jb: &Jukebox) -> bool {
+        let current = jb.current_track_id();
+        current.is_none() || current == jb.get_id_from_index(self.list.index())
     }
 
     pub fn on_enter(&mut self, id: Option<TrackId>, jb: &Jukebox) {
@@ -84,6 +87,11 @@ impl TracksPage {
             Shortcut::new("Rating", "0-5"),
             Shortcut::new("Sort", symbols::shift!("s")),
         ]);
+
+        // Add goto when currently playing track is not selected
+        if !self.is_index_current(jb) {
+            shortcuts.push(Shortcut::new("Goto current", "g"));
+        }
     }
 
     pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) -> Action {
@@ -137,6 +145,16 @@ impl TracksPage {
                         self.list.move_index(ListMove::Custom(i), false);
                     }
                     return Action::Render;
+                }
+                'g' => {
+                    if !self.is_index_current(jb)
+                        && let Some(id) = jb.current_track_id()
+                        && let Some(index) = jb.get_index_from_id(id)
+                    {
+                        let shift = modifiers.contains(KeyModifiers::SHIFT);
+                        self.list.move_index(ListMove::Custom(index), shift);
+                        return Action::Render;
+                    }
                 }
                 _ => {
                     if self.list.input(key, modifiers) {
