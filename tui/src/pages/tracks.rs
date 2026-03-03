@@ -288,7 +288,7 @@ impl TracksPage {
                             style.not_crossed_out(),
                         ),
                         (
-                            track.rating_display(),
+                            symbols::stars(track.rating()),
                             rating_width,
                             0,
                             style.not_crossed_out(),

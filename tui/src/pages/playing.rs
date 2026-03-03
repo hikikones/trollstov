@@ -13,8 +13,6 @@ use crate::{
     widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, TextSegment, utils},
 };
 
-// TODO: Add goto shortcut.
-
 pub struct PlayingPage {
     current_queue_index: Option<QueueIndex>,
     text: TextSegment,
@@ -77,15 +75,20 @@ impl PlayingPage {
                                     front_cover,
                                     colors,
                                 );
-                                fill_stars(&mut self.text, rating, colors);
-                                self.text.render(
+                                let stars = symbols::stars_split(rating);
+                                utils::print_texts_with_styles(
                                     Rect {
                                         y: cover_area.y / 2,
                                         ..area
                                     },
                                     buf,
+                                    [
+                                        (stars.0, Style::new().fg(colors.accent)),
+                                        (stars.1, Style::new().fg(colors.neutral)),
+                                    ],
+                                    None,
+                                    Some(utils::Alignment::CenterHorizontal),
                                 );
-                                self.text.clear();
                             }
                             None => {
                                 utils::print_ascii(
@@ -101,19 +104,19 @@ impl PlayingPage {
                 }
 
                 // Shortcut
-                self.text.extend([
-                    ("v", Style::new().fg(colors.accent)),
-                    (" ", Style::new()),
-                    ("toggle view", Style::new().fg(colors.neutral)),
-                ]);
-                self.text.render(
+                utils::print_asciis_with_styles(
                     Rect {
                         y: area.y + area.height.saturating_sub(1),
                         ..area
                     },
                     buf,
+                    [
+                        ("v", Style::new().fg(colors.accent)),
+                        (" ", Style::new()),
+                        ("toggle view", Style::new().fg(colors.neutral)),
+                    ],
+                    Some(utils::Alignment::CenterHorizontal),
                 );
-                self.text.clear();
             }
             ScreenSize::Medium | ScreenSize::Large => {
                 // Layout
@@ -136,16 +139,21 @@ impl PlayingPage {
                             front_cover,
                             colors,
                         );
-                        fill_stars(&mut self.text, rating, colors);
-                        self.text.render(
+                        let stars = symbols::stars_split(rating);
+                        utils::print_texts_with_styles(
                             Rect {
                                 y: cover_area.y + cover_area.height,
                                 height: 1,
                                 ..cover_area
                             },
                             buf,
+                            [
+                                (stars.0, Style::new().fg(colors.accent)),
+                                (stars.1, Style::new().fg(colors.neutral)),
+                            ],
+                            None,
+                            Some(utils::Alignment::CenterHorizontal),
                         );
-                        self.text.clear();
                     }
                     None => {
                         utils::print_ascii(
@@ -363,30 +371,5 @@ impl PlayingPage {
                 }
             },
         );
-    }
-}
-
-fn fill_stars(text: &mut TextSegment, rating: AudioRating, colors: &Colors) {
-    let accent = Style::new().fg(colors.accent);
-    let neutral = Style::new().fg(colors.neutral);
-    match rating {
-        AudioRating::None => {
-            text.push_str("☆☆☆☆☆", neutral);
-        }
-        AudioRating::Awful => {
-            text.extend([("★", accent), ("☆☆☆☆", neutral)]);
-        }
-        AudioRating::Bad => {
-            text.extend([("★★", accent), ("☆☆☆", neutral)]);
-        }
-        AudioRating::Ok => {
-            text.extend([("★★★", accent), ("☆☆", neutral)]);
-        }
-        AudioRating::Good => {
-            text.extend([("★★★★", accent), ("☆", neutral)]);
-        }
-        AudioRating::Amazing => {
-            text.push_str("★★★★★", accent);
-        }
     }
 }
