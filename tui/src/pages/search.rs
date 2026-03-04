@@ -210,9 +210,9 @@ impl SearchPage {
                 }
                 KeyCode::Up => {}
                 _ => {
-                    let hash_old = seahash::hash(self.search_input.as_str().trim().as_bytes());
+                    let hash_old = self.search_input.hash_trim();
                     if self.search_input.input(key, modifiers) {
-                        let hash_new = seahash::hash(self.search_input.as_str().trim().as_bytes());
+                        let hash_new = self.search_input.hash_trim();
                         self.is_dirty = hash_old != hash_new;
                         return Action::Render;
                     }
