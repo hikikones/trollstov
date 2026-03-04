@@ -195,6 +195,9 @@ impl App {
         self.pages
             .tracks
             .set_keep_on_sort(self.settings.keep_on_sort());
+        self.pages
+            .search
+            .set_search_by_path(self.settings.search_by_path());
     }
 
     fn handle_key_press(&mut self, key: KeyEvent) -> Action {

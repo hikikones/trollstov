@@ -73,6 +73,18 @@ impl TextInput {
         self.input.as_str()
     }
 
+    pub fn as_str_trim(&self) -> &str {
+        self.input.as_str().trim()
+    }
+
+    pub fn hash(&self) -> u64 {
+        seahash::hash(self.input.as_str().as_bytes())
+    }
+
+    pub fn hash_trim(&self) -> u64 {
+        seahash::hash(self.input.as_str().trim().as_bytes())
+    }
+
     pub fn input(&mut self, key_pressed: KeyCode, key_modifiers: KeyModifiers) -> bool {
         let ctrl = key_modifiers.contains(KeyModifiers::CONTROL);
         let shift = key_modifiers.contains(KeyModifiers::SHIFT);

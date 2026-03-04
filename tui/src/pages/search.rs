@@ -13,10 +13,14 @@ use crate::{
     widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles, utils},
 };
 
+// TODO: Add timer for searching?
+// Currently searching on every input, but should probably be a small timeout.
+
 pub struct SearchPage {
     state: State,
     search_input: TextInput,
     search_results: Vec<(TrackId, u16)>,
+    include_path: bool,
     list: List,
     is_dirty: bool,
 }
@@ -34,6 +38,7 @@ impl SearchPage {
                 .with_placeholder("Search...")
                 .with_margins(2, 2),
             search_results: Vec::new(),
+            include_path: false,
             list: List::new(),
             is_dirty: false,
         }
@@ -41,6 +46,11 @@ impl SearchPage {
 
     pub const fn set_search(&mut self) {
         self.state = State::Search;
+    }
+
+    pub const fn set_search_by_path(&mut self, value: bool) {
+        self.include_path = value;
+        self.is_dirty = true;
     }
 
     pub fn on_enter(&self) {}
@@ -203,9 +213,9 @@ impl SearchPage {
                 }
                 KeyCode::Up => {}
                 _ => {
-                    let hash_old = seahash::hash(self.search_input.as_str().trim().as_bytes());
+                    let hash_old = self.search_input.hash_trim();
                     if self.search_input.input(key, modifiers) {
-                        let hash_new = seahash::hash(self.search_input.as_str().trim().as_bytes());
+                        let hash_new = self.search_input.hash_trim();
                         self.is_dirty = hash_old != hash_new;
                         return Action::Render;
                     }
@@ -279,12 +289,13 @@ impl SearchPage {
         self.is_dirty = false;
         self.search_results.clear();
 
-        let keywords = self.search_input.as_str().trim();
+        let keywords = self.search_input.as_str_trim();
         if keywords.is_empty() {
             return;
         }
 
-        self.search_results.extend(db.search(keywords));
+        self.search_results
+            .extend(db.search(keywords, self.include_path));
         self.search_results
             .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
     }
