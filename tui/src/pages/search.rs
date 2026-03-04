@@ -17,6 +17,7 @@ pub struct SearchPage {
     state: State,
     search_input: TextInput,
     search_results: Vec<(TrackId, u16)>,
+    include_path: bool,
     list: List,
     is_dirty: bool,
 }
@@ -34,6 +35,7 @@ impl SearchPage {
                 .with_placeholder("Search...")
                 .with_margins(2, 2),
             search_results: Vec::new(),
+            include_path: false,
             list: List::new(),
             is_dirty: false,
         }
@@ -41,6 +43,11 @@ impl SearchPage {
 
     pub const fn set_search(&mut self) {
         self.state = State::Search;
+    }
+
+    pub const fn set_search_by_path(&mut self, value: bool) {
+        self.include_path = value;
+        self.is_dirty = true;
     }
 
     pub fn on_enter(&self) {}
@@ -51,7 +58,6 @@ impl SearchPage {
         buf: &mut Buffer,
         db: &mut Database,
         jb: &Jukebox,
-        include_path: bool,
         colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
@@ -105,7 +111,7 @@ impl SearchPage {
         self.search_input.render(search_line, buf);
 
         // Update search results
-        self.update_search_results(db, include_path);
+        self.update_search_results(db);
 
         // Render search results
         let search_results_area = Rect {
@@ -272,7 +278,7 @@ impl SearchPage {
 
     pub fn on_exit(&self) {}
 
-    fn update_search_results(&mut self, db: &mut Database, include_path: bool) {
+    fn update_search_results(&mut self, db: &mut Database) {
         if !self.is_dirty {
             return;
         }
@@ -286,7 +292,7 @@ impl SearchPage {
         }
 
         self.search_results
-            .extend(db.search(keywords, include_path));
+            .extend(db.search(keywords, self.include_path));
         self.search_results
             .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
     }
