@@ -11,13 +11,16 @@ pub struct Jukebox {
     queue: PlayQueue,
     state: PlayState,
     skip: AudioRating,
-    audio_decode_handle: Option<(AudioDecodeHandle, TrackId, QueueIndex)>,
+    decode_handle: Option<(AudioDecodeHandle, TrackId, QueueIndex)>,
+    events: Vec<JukeboxEvent>,
     faulty: HashSet<TrackId>,
     device: AudioDevice,
 }
 
 pub enum JukeboxEvent {
-    Play(TrackId),
+    Play(Option<TrackId>),
+    Pause,
+    Stop,
     Error(AudioFileReport),
 }
 
@@ -38,7 +41,8 @@ impl Jukebox {
             queue: PlayQueue::new(),
             state: PlayState::Stop,
             skip: AudioRating::default(),
-            audio_decode_handle: None,
+            decode_handle: None,
+            events: Vec::new(),
             faulty: HashSet::new(),
             device,
         }
@@ -134,13 +138,23 @@ impl Jukebox {
     }
 
     pub fn play(&mut self) {
+        if self.state == PlayState::Play {
+            return;
+        }
+
         self.state = PlayState::Play;
         self.device.play();
+        self.events.push(JukeboxEvent::Play(None));
     }
 
     pub fn pause(&mut self) {
+        if self.state == PlayState::Pause {
+            return;
+        }
+
         self.state = PlayState::Pause;
         self.device.pause();
+        self.events.push(JukeboxEvent::Pause);
     }
 
     pub fn pause_or_play(&mut self) {
@@ -150,16 +164,16 @@ impl Jukebox {
         }
     }
 
-    pub fn stop(&mut self) -> bool {
+    pub fn stop(&mut self) {
         if self.state == PlayState::Stop {
-            return false;
+            return;
         }
 
-        self.current = None;
-        self.audio_decode_handle = None;
         self.state = PlayState::Stop;
+        self.current = None;
+        self.decode_handle = None;
         self.device.clear();
-        true
+        self.events.push(JukeboxEvent::Stop);
     }
 
     pub fn play_next(&mut self, db: &Database) {
@@ -275,7 +289,7 @@ impl Jukebox {
                 })?;
             Ok(source)
         });
-        self.audio_decode_handle = Some((handle, id, index));
+        self.decode_handle = Some((handle, id, index));
     }
 
     fn sync_queue_index(&mut self) {
@@ -291,9 +305,9 @@ impl Jukebox {
 
     pub fn update(&mut self, db: &Database, mut on_event: impl FnMut(JukeboxEvent)) {
         // Poll thread handle for audio decoding
-        if let Some((handle, _, _)) = self.audio_decode_handle.as_ref() {
+        if let Some((handle, _, _)) = self.decode_handle.as_ref() {
             if handle.is_finished() {
-                let (handle, id, index) = self.audio_decode_handle.take().unwrap();
+                let (handle, id, index) = self.decode_handle.take().unwrap();
                 match handle.join().unwrap() {
                     // Play successfully decoded audio and update state
                     Ok(decoded_audio) => {
@@ -304,12 +318,12 @@ impl Jukebox {
                             self.device.play();
                         }
                         self.current = Some((id, index));
-                        on_event(JukeboxEvent::Play(id));
+                        self.events.push(JukeboxEvent::Play(Some(id)));
                     }
                     // Failed to decode audio
                     Err(err) => {
                         self.faulty.insert(id);
-                        on_event(JukeboxEvent::Error(err));
+                        self.events.push(JukeboxEvent::Error(err));
                         match self.state {
                             PlayState::Play | PlayState::Next => {
                                 self.play_next(db);
@@ -339,6 +353,11 @@ impl Jukebox {
                 }
                 _ => {}
             }
+        }
+
+        // Drain events
+        for event in self.events.drain(..) {
+            on_event(event);
         }
     }
 }
