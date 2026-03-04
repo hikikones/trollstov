@@ -1,4 +1,4 @@
-use jukebox::{AudioRating, Jukebox, QueueIndex};
+use jukebox::{AudioRating, Database, Jukebox, QueueIndex};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -40,6 +40,7 @@ impl PlayingPage {
         &mut self,
         area: Rect,
         buf: &mut Buffer,
+        db: &Database,
         jb: &Jukebox,
         screen_size: ScreenSize,
         front_cover: &mut FrontCover,
@@ -58,6 +59,7 @@ impl PlayingPage {
                                 ..area
                             },
                             buf,
+                            db,
                             jb,
                             colors,
                         );
@@ -65,7 +67,7 @@ impl PlayingPage {
                     ViewMode::Cover => {
                         match jb
                             .current_track_id()
-                            .and_then(|id| jb.get(id).map(|track| track.rating()))
+                            .and_then(|id| db.get(id).map(|track| track.rating()))
                         {
                             Some(rating) => {
                                 let cover_area = self.render_cover(
@@ -129,7 +131,7 @@ impl PlayingPage {
                 // Render track
                 match jb
                     .current_track_id()
-                    .and_then(|id| jb.get(id).map(|track| track.rating()))
+                    .and_then(|id| db.get(id).map(|track| track.rating()))
                 {
                     Some(rating) => {
                         let cover_area = self.render_cover(
@@ -166,7 +168,7 @@ impl PlayingPage {
                 }
 
                 // Render play queue
-                self.render_queue(queue_area, buf, jb, colors);
+                self.render_queue(queue_area, buf, db, jb, colors);
 
                 // Shortcuts
                 shortcuts.extend([
@@ -184,31 +186,33 @@ impl PlayingPage {
         &mut self,
         key: KeyCode,
         _modifiers: KeyModifiers,
+        db: &mut Database,
         jb: &mut Jukebox,
         screen_size: ScreenSize,
     ) -> Action {
         match key {
             KeyCode::Enter => {
-                jb.play_queue_index(self.list.index());
+                let index = self.list.index();
+                jb.play_index(QueueIndex::from(index), db);
             }
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
                     if let Some(id) = jb.current_track_id() {
                         let rating = AudioRating::from_char(c).unwrap();
-                        jb.set_rating(id, rating);
+                        db.write_rating(id, rating);
                     }
                 }
                 'c' => {
-                    jb.queue_clear();
+                    jb.clear();
                     return Action::Render;
                 }
                 's' => {
-                    jb.queue_shuffle();
+                    jb.shuffle();
                     return Action::Render;
                 }
                 'g' => {
                     let index = self.list.index();
-                    let id = jb.get_id_from_queue(index);
+                    let id = jb.get(QueueIndex::from(index));
                     return Action::Route(Route::Tracks(id));
                 }
                 'v' => {
@@ -305,7 +309,14 @@ impl PlayingPage {
         img_area
     }
 
-    fn render_queue(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+    fn render_queue(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        db: &Database,
+        jb: &Jukebox,
+        colors: &Colors,
+    ) {
         let block = Block::bordered()
             .style(colors.neutral)
             .padding(Padding::horizontal(1));
@@ -313,7 +324,7 @@ impl PlayingPage {
         block.render(area, buf);
 
         // Title for bordered play queue
-        jukebox::utils::format_int2(jb.history_len(), jb.queue_len(), |hlen, qlen| {
+        jukebox::utils::format_int2(jb.history(), jb.queue(), |hlen, qlen| {
             utils::print_asciis(
                 Rect {
                     y: area.y,
@@ -327,7 +338,7 @@ impl PlayingPage {
             );
         });
 
-        if jb.is_queue_empty() {
+        if jb.is_empty() {
             utils::print_ascii(
                 queue_inner_area,
                 buf,
@@ -347,9 +358,9 @@ impl PlayingPage {
         self.list.set_colors(colors.neutral, None).render(
             queue_inner_area,
             buf,
-            jb.queue_iter(),
+            jb.iter(),
             |line, buf, (id, qi), item| {
-                if let Some(track) = jb.get(id) {
+                if let Some(track) = db.get(id) {
                     let mut style = Style::new();
 
                     if current_queue_index == Some(qi) {

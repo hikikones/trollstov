@@ -2,7 +2,8 @@ use std::{path::PathBuf, time::Duration};
 
 use image::GenericImageView;
 use jukebox::{
-    AudioFileReport, AudioPicture, Jukebox, JukeboxEvent, MediaControls, MediaEvent, Track,
+    AudioFileReport, AudioPicture, Database, DatabaseEvent, Jukebox, JukeboxEvent, MediaControls,
+    MediaEvent, Track,
 };
 use ratatui::{
     CompletedFrame,
@@ -32,6 +33,7 @@ pub struct App {
     route: Route,
     events: EventHandler,
     settings: Settings,
+    database: Database,
     jukebox: Jukebox,
     mpris: Option<MediaControls>,
     picker: Picker,
@@ -77,7 +79,7 @@ pub enum Action {
 }
 
 impl App {
-    pub fn new(jukebox: Jukebox, picker: Picker, mpris: bool) -> Self {
+    pub fn new(database: Database, jukebox: Jukebox, picker: Picker, mpris: bool) -> Self {
         let mut logs = LogsPage::new();
 
         let settings = Settings::read()
@@ -116,6 +118,7 @@ impl App {
             route: Route::default(),
             events: EventHandler::new(),
             settings,
+            database,
             jukebox,
             mpris: media_controls,
             picker,
@@ -136,12 +139,10 @@ impl App {
             frame.render_widget(crate::widgets::LogoWidget(color), frame.area());
         })?;
 
+        // Apply settings, read events, load music and enter first page
         self.apply_settings();
-
-        // Start reading events and load music
         self.events.start();
-        self.jukebox.load_music();
-
+        self.database.load();
         self.on_enter();
 
         // Run event loop
@@ -186,7 +187,14 @@ impl App {
     }
 
     pub fn quit(self) {
-        self.jukebox.shutdown();
+        self.database.shutdown();
+    }
+
+    const fn apply_settings(&mut self) {
+        self.jukebox.set_skip(self.settings.skip_rating());
+        self.pages
+            .tracks
+            .set_keep_on_sort(self.settings.keep_on_sort());
     }
 
     fn handle_key_press(&mut self, key: KeyEvent) -> Action {
@@ -216,7 +224,7 @@ impl App {
             }
             KeyCode::Down => {
                 if ctrl {
-                    self.jukebox.stop();
+                    return self.stop();
                 } else if alt {
                     let new_volume = (self.jukebox.volume() - 0.1).max(0.0);
                     self.jukebox.set_volume(new_volume);
@@ -227,7 +235,7 @@ impl App {
             }
             KeyCode::Right => {
                 if ctrl {
-                    self.jukebox.play_next();
+                    self.jukebox.play_next(&self.database);
                 } else if alt {
                     self.jukebox.fast_forward_by(Duration::from_secs(30));
                     return Action::Render;
@@ -237,7 +245,7 @@ impl App {
             }
             KeyCode::Left => {
                 if ctrl {
-                    self.jukebox.play_previous();
+                    self.jukebox.play_previous(&self.database);
                 } else {
                     return self.on_input(key);
                 }
@@ -256,13 +264,13 @@ impl App {
                             self.jukebox.pause_or_play();
                         }
                         MediaKeyCode::Stop => {
-                            self.jukebox.stop();
+                            return self.stop();
                         }
                         MediaKeyCode::TrackNext => {
-                            self.jukebox.play_next();
+                            self.jukebox.play_next(&self.database);
                         }
                         MediaKeyCode::TrackPrevious => {
-                            self.jukebox.play_previous();
+                            self.jukebox.play_previous(&self.database);
                         }
                         MediaKeyCode::FastForward => {
                             self.jukebox.fast_forward_by(Duration::from_secs(30));
@@ -292,8 +300,31 @@ impl App {
         Action::None
     }
 
+    fn stop(&mut self) -> Action {
+        if self.jukebox.stop() {
+            self.front_cover = FrontCover::None;
+            if let Some(mpris) = self.mpris.as_mut() {
+                mpris.reset_metadata();
+            }
+            return Action::Render;
+        }
+
+        Action::None
+    }
+
     fn update(&mut self) -> Action {
         let mut render = false;
+
+        // Update database
+        self.database.update(|event| {
+            render = true;
+            match event {
+                DatabaseEvent::Rating(_) => {}
+                DatabaseEvent::Error(err) => {
+                    self.pages.logs.enqueue(Log::new(err));
+                }
+            }
+        });
 
         // Check for media control events
         if let Some(event) = self.mpris.as_ref().and_then(|mpris| mpris.try_recv()) {
@@ -301,9 +332,13 @@ impl App {
                 MediaEvent::Play => self.jukebox.play(),
                 MediaEvent::Pause => self.jukebox.pause(),
                 MediaEvent::Toggle => self.jukebox.pause_or_play(),
-                MediaEvent::Next => self.jukebox.play_next(),
-                MediaEvent::Previous => self.jukebox.play_previous(),
-                MediaEvent::Stop => self.jukebox.stop(),
+                MediaEvent::Next => self.jukebox.play_next(&self.database),
+                MediaEvent::Previous => self.jukebox.play_previous(&self.database),
+                MediaEvent::Stop => {
+                    if let Action::Render = self.stop() {
+                        render = true;
+                    }
+                }
                 MediaEvent::Raise => {
                     // TODO: Focus terminal window.
                 }
@@ -314,16 +349,17 @@ impl App {
         }
 
         // Update jukebox
-        self.jukebox.update();
-        for event in self.jukebox.events() {
+        self.jukebox.update(&self.database, |event| {
             render = true;
             match event {
                 JukeboxEvent::Play(id) => {
-                    if let Some(track) = self.jukebox.get(*id) {
+                    if let Some(track) = self.database.get(id) {
                         // Start loading front cover image
-                        self.front_cover = FrontCover::Loading;
-                        let handle = self.load_image(track.path().to_path_buf());
+                        let path = track.path().to_path_buf();
+                        let picker = self.picker.clone();
+                        let handle = load_front_cover(path, picker);
                         self.front_cover_handle = Some(handle);
+                        self.front_cover = FrontCover::Loading;
 
                         // Update metadata for mpris
                         if let Some(mpris) = self.mpris.as_mut() {
@@ -331,18 +367,11 @@ impl App {
                         }
                     }
                 }
-                JukeboxEvent::Stop => {
-                    if let Some(mpris) = self.mpris.as_mut() {
-                        mpris.reset_metadata();
-                    }
-                }
-                JukeboxEvent::Rating(_) => {}
                 JukeboxEvent::Error(err) => {
                     self.pages.logs.enqueue(Log::new(err));
                 }
             }
-        }
-        self.jukebox.clear_events();
+        });
 
         // Poll thread for finished image loading
         if let Some(handle) = self.front_cover_handle.as_ref() {
@@ -433,7 +462,7 @@ impl App {
                         self.jukebox.current_track_pos(),
                         self.jukebox
                             .current_track_id()
-                            .and_then(|id| self.jukebox.get(id)),
+                            .and_then(|id| self.database.get(id)),
                         colors.accent,
                         colors.neutral,
                     );
@@ -502,7 +531,7 @@ impl App {
                         self.jukebox.current_track_pos(),
                         self.jukebox
                             .current_track_id()
-                            .and_then(|id| self.jukebox.get(id)),
+                            .and_then(|id| self.database.get(id)),
                         colors.accent,
                         colors.neutral,
                     );
@@ -522,6 +551,7 @@ impl App {
                 self.pages.tracks.on_render(
                     body,
                     buf,
+                    &self.database,
                     &self.jukebox,
                     colors,
                     &mut self.shortcuts_page,
@@ -531,6 +561,7 @@ impl App {
                 self.pages.playing.on_render(
                     body,
                     buf,
+                    &self.database,
                     &self.jukebox,
                     self.screen_size,
                     &mut self.front_cover,
@@ -542,6 +573,7 @@ impl App {
                 self.pages.search.on_render(
                     body,
                     buf,
+                    &mut self.database,
                     &mut self.jukebox,
                     colors,
                     &mut self.shortcuts_page,
@@ -562,7 +594,7 @@ impl App {
 
     fn on_enter(&mut self) {
         match self.route {
-            Route::Tracks(id) => self.pages.tracks.on_enter(id, &self.jukebox),
+            Route::Tracks(id) => self.pages.tracks.on_enter(id, &self.database),
             Route::NowPlaying => self.pages.playing.on_enter(),
             Route::Search => self.pages.search.on_enter(),
             Route::Settings => self.pages.settings.on_enter(),
@@ -582,21 +614,25 @@ impl App {
 
     fn on_input(&mut self, key: KeyEvent) -> Action {
         match self.route {
-            Route::Tracks(_) => {
-                self.pages
-                    .tracks
-                    .on_input(key.code, key.modifiers, &mut self.jukebox)
-            }
+            Route::Tracks(_) => self.pages.tracks.on_input(
+                key.code,
+                key.modifiers,
+                &mut self.database,
+                &mut self.jukebox,
+            ),
             Route::NowPlaying => self.pages.playing.on_input(
                 key.code,
                 key.modifiers,
+                &mut self.database,
                 &mut self.jukebox,
                 self.screen_size,
             ),
-            Route::Search => self
-                .pages
-                .search
-                .on_input(key.code, key.modifiers, &mut self.jukebox),
+            Route::Search => self.pages.search.on_input(
+                key.code,
+                key.modifiers,
+                &self.database,
+                &mut self.jukebox,
+            ),
             Route::Settings => {
                 self.pages
                     .settings
@@ -604,38 +640,6 @@ impl App {
             }
             Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
         }
-    }
-
-    const fn apply_settings(&mut self) {
-        self.jukebox.set_skip(self.settings.skip_rating());
-        self.pages
-            .tracks
-            .set_keep_on_sort(self.settings.keep_on_sort());
-    }
-
-    fn load_image(&self, path: PathBuf) -> FrontCoverHandle {
-        let picker = self.picker.clone();
-        std::thread::spawn(move || {
-            let picture = AudioPicture::read(&path)?;
-            match picture.bytes() {
-                Some(bytes) => {
-                    const MAX_RES: u32 = 1080;
-                    let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
-                        AudioFileReport::new(format!(
-                            "Failed to load front cover image for \"{}\" due to {}",
-                            path.display(),
-                            err
-                        ))
-                    })?;
-                    let (w, h) = dyn_img.dimensions();
-                    if w > MAX_RES || h > MAX_RES {
-                        dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
-                    }
-                    Ok(FrontCover::Ready(picker.new_resize_protocol(dyn_img)))
-                }
-                None => Ok(FrontCover::None),
-            }
-        })
     }
 }
 
@@ -787,4 +791,28 @@ fn fill_app_shortcuts(shortcuts: &mut Shortcuts) {
         Shortcut::new("Navigate", symbols::shift!("Tab")),
         Shortcut::new("Search", "/"),
     ]);
+}
+
+fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
+    std::thread::spawn(move || {
+        let picture = AudioPicture::read(&path)?;
+        match picture.bytes() {
+            Some(bytes) => {
+                const MAX_RES: u32 = 1080;
+                let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
+                    AudioFileReport::new(format!(
+                        "Failed to load front cover image for \"{}\" due to {}",
+                        path.display(),
+                        err
+                    ))
+                })?;
+                let (w, h) = dyn_img.dimensions();
+                if w > MAX_RES || h > MAX_RES {
+                    dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
+                }
+                Ok(FrontCover::Ready(picker.new_resize_protocol(dyn_img)))
+            }
+            None => Ok(FrontCover::None),
+        }
+    })
 }

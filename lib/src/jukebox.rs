@@ -1,35 +1,23 @@
-use std::{
-    collections::{HashSet, VecDeque},
-    fs::File,
-    path::PathBuf,
-    time::Duration,
-};
+use std::{collections::HashSet, fs::File, time::Duration};
 
 use rodio::decoder::Decoder;
 
 use crate::*;
 
 type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<File>, AudioFileReport>>;
-type AudioWriteHandle = std::thread::JoinHandle<Result<(TrackId, AudioRating), AudioFileReport>>;
 
 pub struct Jukebox {
-    database: Database,
     current: Option<(TrackId, QueueIndex)>,
     queue: PlayQueue,
     state: PlayState,
     skip: AudioRating,
     audio_decode_handle: Option<(AudioDecodeHandle, TrackId, QueueIndex)>,
-    audio_write_handle: Option<AudioWriteHandle>,
-    audio_write_queue: VecDeque<(TrackId, AudioRating)>,
     faulty: HashSet<TrackId>,
-    events: Vec<JukeboxEvent>,
     device: AudioDevice,
 }
 
 pub enum JukeboxEvent {
     Play(TrackId),
-    Stop,
-    Rating(TrackId),
     Error(AudioFileReport),
 }
 
@@ -44,72 +32,40 @@ enum PlayState {
 }
 
 impl Jukebox {
-    pub fn new(device: AudioDevice, music_dir: PathBuf) -> Self {
+    pub fn new(device: AudioDevice) -> Self {
         Self {
-            database: Database::new(music_dir),
             current: None,
             queue: PlayQueue::new(),
             state: PlayState::Stop,
             skip: AudioRating::default(),
             audio_decode_handle: None,
-            audio_write_handle: None,
-            audio_write_queue: VecDeque::new(),
             faulty: HashSet::new(),
-            events: Vec::new(),
             device,
         }
     }
 
-    pub fn load_music(&mut self) {
-        self.database.load();
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.database.is_empty()
+    pub const fn is_empty(&self) -> bool {
+        self.queue.is_empty()
     }
 
     pub fn is_faulty(&self, id: TrackId) -> bool {
         self.faulty.contains(&id)
     }
 
-    pub fn len(&self) -> usize {
-        self.database.len()
+    pub const fn len(&self) -> usize {
+        self.queue.len()
     }
 
-    pub fn get(&self, id: TrackId) -> Option<&Track> {
-        self.database.get(id)
+    pub const fn queue(&self) -> usize {
+        self.queue.queue_len()
     }
 
-    pub fn get_mut(&mut self, id: TrackId) -> Option<&mut Track> {
-        self.database.get_mut(id)
+    pub const fn history(&self) -> usize {
+        self.queue.history_len()
     }
 
-    pub fn get_id_from_index(&self, i: usize) -> Option<TrackId> {
-        self.database.get_id_from_index(i)
-    }
-
-    pub fn get_index_from_id(&self, id: TrackId) -> Option<usize> {
-        self.database.get_index_from_id(id)
-    }
-
-    pub fn get_id_from_queue(&self, i: usize) -> Option<TrackId> {
-        self.queue.get(QueueIndex(i))
-    }
-
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, &Track)> + DoubleEndedIterator {
-        self.database.iter().map(|(id, track)| (*id, track))
-    }
-
-    pub const fn get_sort(&self) -> TrackSort {
-        self.database.get_sort()
-    }
-
-    pub fn sort(&mut self, sort: TrackSort) {
-        self.database.sort(sort);
-    }
-
-    pub fn search(&mut self, keywords: &str) -> impl Iterator<Item = (TrackId, u16)> {
-        self.database.search(keywords)
+    pub fn get(&self, index: QueueIndex) -> Option<TrackId> {
+        self.queue.get(index)
     }
 
     pub const fn current_track(&self) -> Option<(TrackId, QueueIndex)> {
@@ -128,27 +84,11 @@ impl Jukebox {
         self.device.position()
     }
 
-    pub const fn is_queue_empty(&self) -> bool {
-        self.queue.is_empty()
-    }
-
-    pub const fn queue_total(&self) -> usize {
-        self.queue.len()
-    }
-
-    pub const fn queue_len(&self) -> usize {
-        self.queue.queue_len()
-    }
-
-    pub const fn history_len(&self) -> usize {
-        self.queue.history_len()
-    }
-
-    pub fn queue_iter(&self) -> impl ExactSizeIterator<Item = (TrackId, QueueIndex)> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, QueueIndex)> {
         self.queue.iter()
     }
 
-    pub fn queue_shuffle(&mut self) {
+    pub fn shuffle(&mut self) {
         let start = match self.current_queue_index() {
             Some(index) => index.0 + 1,
             None => 0,
@@ -156,7 +96,7 @@ impl Jukebox {
         self.queue.shuffle(start);
     }
 
-    pub fn queue_clear(&mut self) {
+    pub fn clear(&mut self) {
         self.queue.clear();
 
         if let Some((id, _)) = self.current.take() {
@@ -180,17 +120,17 @@ impl Jukebox {
         self.device.set_volume(value);
     }
 
-    pub fn play_queue_index(&mut self, index: usize) {
-        if let Some(id) = self.queue.set_index(index) {
+    pub fn play_index(&mut self, index: QueueIndex, db: &Database) {
+        if let Some(id) = self.queue.set_index(index.0) {
             self.state = PlayState::Track;
-            self.start_play(id, QueueIndex(index));
+            self.start_decode(id, QueueIndex(index.0), db);
         }
     }
 
-    pub fn play_track(&mut self, id: TrackId) {
+    pub fn play_id(&mut self, id: TrackId, db: &Database) {
         let (id, index) = self.queue.enqueue_next(id).next().unwrap();
         self.state = PlayState::Track;
-        self.start_play(id, index);
+        self.start_decode(id, index, db);
     }
 
     pub fn play(&mut self) {
@@ -210,20 +150,20 @@ impl Jukebox {
         }
     }
 
-    pub fn stop(&mut self) {
+    pub fn stop(&mut self) -> bool {
         if self.state == PlayState::Stop {
-            return;
+            return false;
         }
 
         self.current = None;
         self.audio_decode_handle = None;
         self.state = PlayState::Stop;
         self.device.clear();
-        self.events.push(JukeboxEvent::Stop);
+        true
     }
 
-    pub fn play_next(&mut self) {
-        if self.database.is_empty() {
+    pub fn play_next(&mut self, db: &Database) {
+        if db.is_empty() {
             return;
         }
 
@@ -236,13 +176,13 @@ impl Jukebox {
 
             match next {
                 Some((id, index)) => {
-                    if self.faulty.contains(&id) || self.should_skip(id) {
+                    if self.is_faulty(id) || self.should_skip(id, db) {
                         next = self.queue.next();
                         continue;
                     }
 
                     self.state = PlayState::Next;
-                    self.start_play(id, index);
+                    self.start_decode(id, index, db);
                     return;
                 }
                 None => {
@@ -256,9 +196,9 @@ impl Jukebox {
         let mut tries = 5;
         let mut rand = TrackId(0);
         while tries > 0 {
-            rand = TrackId(fastrand::u64(0..self.database.len() as u64));
+            rand = db.random_id();
             let is_current = current.map(|id| id == rand).unwrap_or(false);
-            if is_current || self.faulty.contains(&rand) || self.should_skip(rand) {
+            if is_current || self.is_faulty(rand) || self.should_skip(rand, db) {
                 tries -= 1;
                 continue;
             }
@@ -267,17 +207,17 @@ impl Jukebox {
 
         let (id, index) = self.queue.enqueue(rand).next().unwrap();
         self.state = PlayState::Next;
-        self.start_play(id, index);
+        self.start_decode(id, index, db);
     }
 
-    pub fn play_previous(&mut self) {
+    pub fn play_previous(&mut self, db: &Database) {
         while let Some((id, index)) = self.queue.previous() {
-            if self.faulty.contains(&id) || self.should_skip(id) {
+            if self.is_faulty(id) || self.should_skip(id, db) {
                 continue;
             }
 
             self.state = PlayState::Previous;
-            self.start_play(id, index);
+            self.start_decode(id, index, db);
             return;
         }
 
@@ -293,17 +233,12 @@ impl Jukebox {
         self.device.seek(self.device.position() + duration);
     }
 
-    pub fn set_rating(&mut self, id: TrackId, rating: AudioRating) {
-        self.audio_write_queue.push_back((id, rating));
-    }
-
     pub const fn set_skip(&mut self, rating: AudioRating) {
         self.skip = rating;
     }
 
-    fn should_skip(&self, id: TrackId) -> bool {
-        self.database
-            .get(id)
+    fn should_skip(&self, id: TrackId, db: &Database) -> bool {
+        db.get(id)
             .map(|track| match track.rating() {
                 AudioRating::None => false,
                 _ => track.rating().as_u8() <= self.skip.as_u8(),
@@ -311,8 +246,8 @@ impl Jukebox {
             .unwrap_or(true)
     }
 
-    fn start_play(&mut self, id: TrackId, index: QueueIndex) {
-        let Some(track) = self.database.get(id) else {
+    fn start_decode(&mut self, id: TrackId, index: QueueIndex, db: &Database) {
+        let Some(track) = db.get(id) else {
             return;
         };
 
@@ -343,25 +278,6 @@ impl Jukebox {
         self.audio_decode_handle = Some((handle, id, index));
     }
 
-    fn write_rating(&mut self, id: TrackId, rating: AudioRating) -> Option<AudioWriteHandle> {
-        let Some(track) = self.database.get(id) else {
-            return None;
-        };
-
-        if track.rating() == rating {
-            return None;
-        }
-
-        let path = track.path().to_path_buf();
-        let extension = track.extension();
-        let handle = std::thread::spawn(move || {
-            let mut audio_file = AudioFile::read_from(path, extension)?;
-            audio_file.write_rating(rating)?;
-            Ok((id, rating))
-        });
-        Some(handle)
-    }
-
     fn sync_queue_index(&mut self) {
         match self.current {
             Some((_, index)) => {
@@ -373,11 +289,7 @@ impl Jukebox {
         }
     }
 
-    pub fn update(&mut self) {
-        self.database.update(|error| {
-            self.events.push(JukeboxEvent::Error(error));
-        });
-
+    pub fn update(&mut self, db: &Database, mut on_event: impl FnMut(JukeboxEvent)) {
         // Poll thread handle for audio decoding
         if let Some((handle, _, _)) = self.audio_decode_handle.as_ref() {
             if handle.is_finished() {
@@ -392,18 +304,18 @@ impl Jukebox {
                             self.device.play();
                         }
                         self.current = Some((id, index));
-                        self.events.push(JukeboxEvent::Play(id));
+                        on_event(JukeboxEvent::Play(id));
                     }
                     // Failed to decode audio
                     Err(err) => {
                         self.faulty.insert(id);
-                        self.events.push(JukeboxEvent::Error(err));
+                        on_event(JukeboxEvent::Error(err));
                         match self.state {
                             PlayState::Play | PlayState::Next => {
-                                self.play_next();
+                                self.play_next(db);
                             }
                             PlayState::Previous => {
-                                self.play_previous();
+                                self.play_previous(db);
                             }
                             PlayState::Track => {
                                 self.state = PlayState::Play;
@@ -416,37 +328,11 @@ impl Jukebox {
             }
         }
 
-        // Poll thread handle for finished tag writing
-        match self.audio_write_handle.as_ref() {
-            Some(handle) => {
-                if handle.is_finished() {
-                    let handle = self.audio_write_handle.take().unwrap();
-                    match handle.join().unwrap() {
-                        Ok((id, new_rating)) => {
-                            if let Some(track) = self.database.get_mut(id) {
-                                track.set_rating(new_rating);
-                                self.events.push(JukeboxEvent::Rating(id));
-                            }
-                        }
-                        Err(err) => {
-                            self.events.push(JukeboxEvent::Error(err));
-                        }
-                    }
-                }
-            }
-            None => {
-                self.audio_write_handle = self
-                    .audio_write_queue
-                    .pop_front()
-                    .and_then(|(id, rating)| self.write_rating(id, rating));
-            }
-        }
-
         // Play next when empty and idle
         if self.device.is_empty() && !self.device.is_paused() {
             match self.state {
                 PlayState::Play => {
-                    self.play_next();
+                    self.play_next(db);
                 }
                 PlayState::Next | PlayState::Previous | PlayState::Track => {
                     self.state = PlayState::Play;
@@ -455,19 +341,219 @@ impl Jukebox {
             }
         }
     }
+}
 
-    pub fn events(&self) -> impl Iterator<Item = &JukeboxEvent> {
-        self.events.iter()
-    }
+// TODO: Max length? Drain from history.
+// TODO: Move up/down.
+// TODO: Remove.
 
-    pub fn clear_events(&mut self) {
-        self.events.clear();
-    }
+struct PlayQueue {
+    list: Vec<TrackId>,
+    index: Option<usize>,
+}
 
-    pub fn shutdown(mut self) {
-        // Gracefully shutdown by waiting for thread to finish writing tag
-        if let Some(handle) = self.audio_write_handle.take() {
-            let _ = handle.join().unwrap();
+impl PlayQueue {
+    const fn new() -> Self {
+        Self {
+            list: Vec::new(),
+            index: None,
         }
+    }
+
+    const fn len(&self) -> usize {
+        self.list.len()
+    }
+
+    const fn queue_len(&self) -> usize {
+        match self.index {
+            Some(index) => (self.list.len() - index).saturating_sub(1),
+            None => self.list.len(),
+        }
+    }
+
+    const fn history_len(&self) -> usize {
+        match self.index {
+            Some(index) => index,
+            None => 0,
+        }
+    }
+
+    const fn is_empty(&self) -> bool {
+        self.list.is_empty()
+    }
+
+    fn get(&self, index: QueueIndex) -> Option<TrackId> {
+        self.list.get(index.0).copied()
+    }
+
+    fn set_index(&mut self, index: usize) -> Option<TrackId> {
+        match self.list.get(index).copied() {
+            Some(id) => {
+                self.index = Some(index);
+                Some(id)
+            }
+            None => None,
+        }
+    }
+
+    fn current(&self) -> Option<(TrackId, QueueIndex)> {
+        self.index
+            .and_then(|i| self.list.get(i).copied().map(|id| (id, QueueIndex(i))))
+    }
+
+    fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, QueueIndex)> {
+        self.list
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (*id, QueueIndex(i)))
+    }
+
+    fn enqueue(&mut self, id: TrackId) -> &mut Self {
+        self.list.push(id);
+        self
+    }
+
+    fn enqueue_next(&mut self, id: TrackId) -> &mut Self {
+        let insert_index = self.index.map(|i| i + 1).unwrap_or_default();
+        self.list.insert(insert_index, id);
+        self
+    }
+
+    fn current_or_next(&mut self) -> Option<(TrackId, QueueIndex)> {
+        self.current().or_else(|| self.next())
+    }
+
+    fn next(&mut self) -> Option<(TrackId, QueueIndex)> {
+        match self.index {
+            Some(mut index) => {
+                let old_index = index;
+                let max_index = self.len().saturating_sub(1);
+                index = usize::min(index + 1, max_index);
+
+                if index != old_index {
+                    self.index = Some(index);
+                    self.list
+                        .get(index)
+                        .copied()
+                        .map(|id| (id, QueueIndex(index)))
+                } else {
+                    None
+                }
+            }
+            None => {
+                if self.list.is_empty() {
+                    None
+                } else {
+                    self.index = Some(0);
+                    self.list.first().copied().map(|id| (id, QueueIndex(0)))
+                }
+            }
+        }
+    }
+
+    fn previous(&mut self) -> Option<(TrackId, QueueIndex)> {
+        match self.index {
+            Some(mut index) => {
+                let old_index = index;
+                index = index.saturating_sub(1);
+
+                if index != old_index {
+                    self.index = Some(index);
+                    self.list
+                        .get(index)
+                        .copied()
+                        .map(|id| (id, QueueIndex(index)))
+                } else {
+                    None
+                }
+            }
+            None => None,
+        }
+    }
+
+    fn shuffle(&mut self, start: usize) {
+        let end = self.list.len();
+        if start >= end {
+            return;
+        }
+
+        for i in start..end {
+            let random = fastrand::usize(start..end);
+            self.list.swap(i, random);
+        }
+    }
+
+    const fn reset(&mut self) {
+        self.index = None;
+    }
+
+    fn clear(&mut self) {
+        self.list.clear();
+        self.index = None;
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct QueueIndex(usize);
+
+impl QueueIndex {
+    pub const fn from(i: usize) -> Self {
+        Self(i)
+    }
+
+    pub const fn raw(self) -> usize {
+        self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn play_queue() {
+        const TRACKS_LEN: usize = 2;
+        let mut queue = PlayQueue::new();
+
+        for i in 0..TRACKS_LEN {
+            queue.enqueue(TrackId(i as u64));
+        }
+
+        assert_eq!(queue.current(), None);
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), TRACKS_LEN);
+        assert_eq!(queue.history_len(), 0);
+
+        // Next
+        assert_eq!(queue.next(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.current(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), TRACKS_LEN - 1);
+        assert_eq!(queue.history_len(), 0);
+
+        assert_eq!(queue.next(), Some((TrackId(1), QueueIndex(1))));
+        assert_eq!(queue.current(), Some((TrackId(1), QueueIndex(1))));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), TRACKS_LEN - 2);
+        assert_eq!(queue.history_len(), 1);
+
+        assert_eq!(queue.next(), None);
+        assert_eq!(queue.current(), Some((TrackId(1), QueueIndex(1))));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), 0);
+        assert_eq!(queue.history_len(), 1);
+
+        // Previous
+        assert_eq!(queue.previous(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.current(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), 1);
+        assert_eq!(queue.history_len(), 0);
+
+        assert_eq!(queue.previous(), None);
+        assert_eq!(queue.current(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.len(), TRACKS_LEN);
+        assert_eq!(queue.queue_len(), 1);
+        assert_eq!(queue.history_len(), 0);
     }
 }

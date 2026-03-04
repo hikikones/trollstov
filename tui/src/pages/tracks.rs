@@ -1,4 +1,4 @@
-use jukebox::{AudioRating, Jukebox, TrackId, TrackSort};
+use jukebox::{AudioRating, Database, Jukebox, TrackId, TrackSort};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -31,14 +31,14 @@ impl TracksPage {
         self.keep_on_sort = value;
     }
 
-    fn is_index_current(&self, jb: &Jukebox) -> bool {
+    fn is_index_current(&self, db: &Database, jb: &Jukebox) -> bool {
         let current = jb.current_track_id();
-        current.is_none() || current == jb.get_id_from_index(self.list.index())
+        current.is_none() || current == db.get_id_from_index(self.list.index())
     }
 
-    pub fn on_enter(&mut self, id: Option<TrackId>, jb: &Jukebox) {
+    pub fn on_enter(&mut self, id: Option<TrackId>, db: &Database) {
         if let Some(id) = id
-            && let Some(index) = jb.get_index_from_id(id)
+            && let Some(index) = db.get_index_from_id(id)
         {
             self.list.move_index(ListMove::Custom(index), false);
         };
@@ -48,11 +48,12 @@ impl TracksPage {
         &mut self,
         area: Rect,
         buf: &mut Buffer,
+        db: &Database,
         jb: &Jukebox,
         colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
-        if jb.is_empty() {
+        if db.is_empty() {
             utils::print_ascii(
                 area,
                 buf,
@@ -64,7 +65,7 @@ impl TracksPage {
         }
 
         // Render tracks table
-        jukebox::utils::format_int(jb.len(), |len| {
+        jukebox::utils::format_int(db.len(), |len| {
             self.title.extend([" All tracks (", len, ") "]);
         });
 
@@ -77,7 +78,7 @@ impl TracksPage {
         block.render(area, buf);
         self.title.clear();
 
-        self.render_tracks(tracks_area, buf, jb, colors);
+        self.render_tracks(tracks_area, buf, db, jb, colors);
 
         // Shortcuts
         shortcuts.extend([
@@ -89,62 +90,68 @@ impl TracksPage {
         ]);
 
         // Add goto when currently playing track is not selected
-        if !self.is_index_current(jb) {
+        if !self.is_index_current(db, jb) {
             shortcuts.push(Shortcut::new("Goto current", "g"));
         }
     }
 
-    pub fn on_input(&mut self, key: KeyCode, modifiers: KeyModifiers, jb: &mut Jukebox) -> Action {
+    pub fn on_input(
+        &mut self,
+        key: KeyCode,
+        modifiers: KeyModifiers,
+        db: &mut Database,
+        jb: &mut Jukebox,
+    ) -> Action {
         match key {
             KeyCode::Enter => {
-                if let Some(id) = jb.get_id_from_index(self.list.index()) {
-                    jb.play_track(id);
+                if let Some(id) = db.get_id_from_index(self.list.index()) {
+                    jb.play_id(id, db);
                 }
             }
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
                     let rating = AudioRating::from_char(c).unwrap();
                     for i in self.list.selection() {
-                        if let Some(id) = jb.get_id_from_index(i) {
-                            jb.set_rating(id, rating);
+                        if let Some(id) = db.get_id_from_index(i) {
+                            db.write_rating(id, rating);
                         }
                     }
                 }
                 'q' => {
                     for i in self.list.selection() {
-                        if let Some(id) = jb.get_id_from_index(i) {
+                        if let Some(id) = db.get_id_from_index(i) {
                             jb.enqueue(id);
                         }
                     }
                 }
                 'n' => {
                     for i in self.list.selection().rev() {
-                        if let Some(id) = jb.get_id_from_index(i) {
+                        if let Some(id) = db.get_id_from_index(i) {
                             jb.enqueue_next(id);
                         }
                     }
                 }
                 's' | 'S' => {
-                    let id = jb.get_id_from_index(self.list.index());
+                    let id = db.get_id_from_index(self.list.index());
 
                     if c == 's' {
-                        jb.sort(jb.get_sort().next());
+                        db.sort(db.get_sort().next());
                     } else {
-                        jb.sort(jb.get_sort().prev());
+                        db.sort(db.get_sort().prev());
                     }
 
                     if self.keep_on_sort
                         && let Some(id) = id
-                        && let Some(i) = jb.get_index_from_id(id)
+                        && let Some(i) = db.get_index_from_id(id)
                     {
                         self.list.move_index(ListMove::Custom(i), false);
                     }
                     return Action::Render;
                 }
                 'g' | 'G' => {
-                    if !self.is_index_current(jb)
+                    if !self.is_index_current(db, jb)
                         && let Some(id) = jb.current_track_id()
-                        && let Some(index) = jb.get_index_from_id(id)
+                        && let Some(index) = db.get_index_from_id(id)
                     {
                         let shift = modifiers.contains(KeyModifiers::SHIFT);
                         self.list.move_index(ListMove::Custom(index), shift);
@@ -169,7 +176,14 @@ impl TracksPage {
 
     pub fn on_exit(&self) {}
 
-    fn render_tracks(&mut self, area: Rect, buf: &mut Buffer, jb: &Jukebox, colors: &Colors) {
+    fn render_tracks(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        db: &Database,
+        jb: &Jukebox,
+        colors: &Colors,
+    ) {
         if area.is_empty() {
             return;
         }
@@ -178,7 +192,7 @@ impl TracksPage {
         let shrink_point = (0.20 * area.width as f32).floor() as u16;
         let time_width = shrink_point.min(5 + spacing);
         let rating_width = shrink_point.min(7);
-        let scrollbar_width = if jb.len() > area.height as usize {
+        let scrollbar_width = if db.len() > area.height as usize {
             1
         } else {
             0
@@ -198,7 +212,7 @@ impl TracksPage {
         };
 
         // Render the header for the table
-        let sort = jb.get_sort();
+        let sort = db.get_sort();
         let mut x = header_area.x;
         for (label, width, spacing) in [
             (
@@ -272,7 +286,7 @@ impl TracksPage {
         self.list.set_colors(colors.neutral, None).render(
             table_area,
             buf,
-            jb.iter(),
+            db.iter(),
             |line, buf, (id, track), item| {
                 let mut style = match item {
                     ListItem::Selected => Style::new().bg(colors.accent).fg(colors.on_accent),
