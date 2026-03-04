@@ -173,7 +173,10 @@ impl SettingsPage {
                 color_preview_area.y = line.y;
 
                 let (symbol, style) = if index == ListItem::Selected {
-                    ("> ", Style::new().bold())
+                    (
+                        symbols::concat!(symbols::SELECTED, " "),
+                        Style::new().bold(),
+                    )
                 } else {
                     ("", Style::new())
                 };

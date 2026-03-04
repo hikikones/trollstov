@@ -370,7 +370,11 @@ impl PlayingPage {
                         style.add_modifier.insert(Modifier::CROSSED_OUT);
                     }
 
-                    let symbol = if item == ListItem::Selected { "> " } else { "" };
+                    let symbol = if item == ListItem::Selected {
+                        symbols::concat!(symbols::SELECTED, " ")
+                    } else {
+                        ""
+                    };
 
                     utils::print_texts_with_styles(
                         line,
