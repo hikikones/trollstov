@@ -39,6 +39,7 @@ enum Setting {
     General,
     SkipRating,
     KeepTrackSort,
+    SearchByPath,
     Colors,
     AccentColor,
     OnAccentColor,
@@ -53,6 +54,7 @@ impl Setting {
             Self::General => false,
             Self::SkipRating => true,
             Self::KeepTrackSort => true,
+            Self::SearchByPath => true,
             Self::Colors => false,
             Self::AccentColor => true,
             Self::OnAccentColor => true,
@@ -63,11 +65,12 @@ impl Setting {
     }
 }
 
-const SETTINGS: [Setting; 11] = [
+const SETTINGS: [Setting; 12] = [
     Setting::General,
     Setting::Empty,
     Setting::SkipRating,
     Setting::KeepTrackSort,
+    Setting::SearchByPath,
     Setting::Empty,
     Setting::Colors,
     Setting::Empty,
@@ -219,12 +222,32 @@ impl SettingsPage {
 
                         // Checkmark
                         let (checkmark, color) = match self.settings.keep_on_sort() {
-                            true => ('🗸', colors.accent),
-                            false => ('𐄂', colors.neutral),
+                            true => (symbols::CHECKMARK_YES, colors.accent),
+                            false => (symbols::CHECKMARK_NO, colors.neutral),
                         };
                         let Rect { x, y, .. } = general_input_area;
                         if let Some(cell) = buf.cell_mut((x, y)) {
-                            cell.set_char(checkmark).set_style(color);
+                            cell.set_symbol(checkmark).set_style(color);
+                        }
+                    }
+                    Setting::SearchByPath => {
+                        let s = "Search by path:";
+                        utils::print_asciis(
+                            general_area,
+                            buf,
+                            [symbol, s],
+                            style,
+                            Some(utils::Alignment::Right),
+                        );
+
+                        // Checkmark
+                        let (checkmark, color) = match self.settings.search_by_path() {
+                            true => (symbols::CHECKMARK_YES, colors.accent),
+                            false => (symbols::CHECKMARK_NO, colors.neutral),
+                        };
+                        let Rect { x, y, .. } = general_input_area;
+                        if let Some(cell) = buf.cell_mut((x, y)) {
+                            cell.set_symbol(checkmark).set_style(color);
                         }
                     }
                     Setting::Colors => {
@@ -348,6 +371,10 @@ impl SettingsPage {
                 shortcuts.push(Shortcut::new("Toggle", symbols::SPACE));
                 "Scrolls to selected track when sorting"
             }
+            Setting::SearchByPath => {
+                shortcuts.push(Shortcut::new("Toggle", symbols::SPACE));
+                "Includes directories and filename when searching"
+            }
             Setting::AccentColor | Setting::NeutralColor => {
                 shortcuts.push(Shortcut::new("Set color", symbols::ENTER));
                 COLOR_DESCRIPTION
@@ -359,7 +386,7 @@ impl SettingsPage {
                 ]);
                 COLOR_DESCRIPTION
             }
-            _ => "",
+            Setting::General | Setting::Colors | Setting::Empty => "",
         };
 
         if !description.is_empty() {
@@ -460,6 +487,14 @@ impl SettingsPage {
                     return Action::Render;
                 }
             }
+            Setting::SearchByPath => {
+                if let KeyCode::Char(' ') = key {
+                    let toggle = !self.settings.search_by_path();
+                    self.settings.set_search_by_path(toggle);
+                    self.update_hash();
+                    return Action::Render;
+                }
+            }
             Setting::AccentColor => {
                 if let KeyCode::Enter = key {
                     match self.accent.parse_color() {
@@ -554,7 +589,7 @@ impl SettingsPage {
                     return Action::Render;
                 }
             }
-            _ => {}
+            Setting::General | Setting::Colors | Setting::Empty => {}
         }
 
         Action::None

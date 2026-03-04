@@ -14,6 +14,8 @@ pub const ARROW_LEFT_RIGHT: &str = "⇆";
 
 pub const STAR_FILLED: &str = "★";
 pub const STAR_OUTLINE: &str = "☆";
+pub const CHECKMARK_YES: &str = "🗸";
+pub const CHECKMARK_NO: &str = "𐄂";
 
 pub const fn stars(rating: AudioRating) -> &'static str {
     match rating {
