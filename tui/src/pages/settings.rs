@@ -173,185 +173,124 @@ impl SettingsPage {
                 color_preview_area.y = line.y;
 
                 let (symbol, style) = if index == ListItem::Selected {
-                    ("> ", Style::new().bold())
+                    (
+                        symbols::concat!(symbols::SELECTED, " "),
+                        Style::new().bold(),
+                    )
                 } else {
                     ("", Style::new())
                 };
 
                 match setting {
                     Setting::General => {
-                        utils::print_ascii(
-                            line,
-                            buf,
-                            "GENERAL",
-                            style,
-                            Some(utils::Alignment::CenterHorizontal),
-                        );
+                        print_section(line, buf, "GENERAL");
                     }
                     Setting::SkipRating => {
-                        let s = "Skip tracks with rating:";
-                        utils::print_asciis(
+                        print_rating(
                             general_area,
-                            buf,
-                            [symbol, s],
-                            style,
-                            Some(utils::Alignment::Right),
-                        );
-
-                        // Stars
-                        let stars = symbols::stars_split(self.settings.skip_rating());
-                        utils::print_texts_with_styles(
                             general_input_area,
                             buf,
-                            [
-                                (stars.0, Style::new().fg(colors.accent)),
-                                (stars.1, Style::new().fg(colors.neutral)),
-                            ],
-                            None,
-                            None,
+                            symbol,
+                            "Skip tracks with rating",
+                            style,
+                            self.settings.skip_rating(),
+                            colors,
                         );
                     }
                     Setting::KeepTrackSort => {
-                        let s = "Keep selected track on sort:";
-                        utils::print_asciis(
+                        print_checkmark(
                             general_area,
+                            general_input_area,
                             buf,
-                            [symbol, s],
+                            symbol,
+                            "Keep selected track on sort",
                             style,
-                            Some(utils::Alignment::Right),
+                            self.settings.keep_on_sort(),
+                            colors,
                         );
-
-                        // Checkmark
-                        let (checkmark, color) = match self.settings.keep_on_sort() {
-                            true => (symbols::CHECKMARK_YES, colors.accent),
-                            false => (symbols::CHECKMARK_NO, colors.neutral),
-                        };
-                        let Rect { x, y, .. } = general_input_area;
-                        if let Some(cell) = buf.cell_mut((x, y)) {
-                            cell.set_symbol(checkmark).set_style(color);
-                        }
                     }
                     Setting::SearchByPath => {
-                        let s = "Search by path:";
-                        utils::print_asciis(
+                        print_checkmark(
                             general_area,
+                            general_input_area,
                             buf,
-                            [symbol, s],
+                            symbol,
+                            "Search by path",
                             style,
-                            Some(utils::Alignment::Right),
+                            self.settings.search_by_path(),
+                            colors,
                         );
-
-                        // Checkmark
-                        let (checkmark, color) = match self.settings.search_by_path() {
-                            true => (symbols::CHECKMARK_YES, colors.accent),
-                            false => (symbols::CHECKMARK_NO, colors.neutral),
-                        };
-                        let Rect { x, y, .. } = general_input_area;
-                        if let Some(cell) = buf.cell_mut((x, y)) {
-                            cell.set_symbol(checkmark).set_style(color);
-                        }
                     }
                     Setting::Colors => {
-                        utils::print_ascii(
-                            line,
-                            buf,
-                            "COLORS",
-                            style,
-                            Some(utils::Alignment::CenterHorizontal),
-                        );
+                        print_section(line, buf, "COLORS");
                     }
                     Setting::AccentColor => {
-                        let s = "Set accent color:";
-                        utils::print_asciis(
+                        print_color(
                             color_area,
-                            buf,
-                            [symbol, s],
-                            style,
-                            Some(utils::Alignment::Right),
-                        );
-
-                        let is_active = current_setting == Setting::AccentColor;
-                        self.accent.set_active(is_active, colors);
-                        self.accent.render(color_input_area, buf);
-
-                        // Preview
-                        utils::print_ascii(
+                            color_input_area,
                             color_preview_area,
                             buf,
+                            symbol,
+                            "Set accent color",
+                            style,
+                            &mut self.accent,
+                            current_setting == Setting::AccentColor,
+                            colors,
                             "accent color",
                             Style::new().fg(self.settings.accent()),
-                            None,
                         );
                     }
                     Setting::OnAccentColor => {
-                        let s = "Set on accent color:";
-                        utils::print_asciis(
+                        print_color(
                             color_area,
-                            buf,
-                            [symbol, s],
-                            style,
-                            Some(utils::Alignment::Right),
-                        );
-
-                        let is_active = current_setting == Setting::OnAccentColor;
-                        self.on_accent.set_active(is_active, colors);
-                        self.on_accent.render(color_input_area, buf);
-
-                        utils::print_ascii(
+                            color_input_area,
                             color_preview_area,
                             buf,
+                            symbol,
+                            "Set on accent color",
+                            style,
+                            &mut self.on_accent,
+                            current_setting == Setting::OnAccentColor,
+                            colors,
                             "on accent color",
                             Style::new()
                                 .bg(self.settings.accent())
                                 .fg(self.settings.on_accent()),
-                            None,
                         );
                     }
 
                     Setting::NeutralColor => {
-                        let s = "Set neutral color:";
-                        utils::print_asciis(
+                        print_color(
                             color_area,
-                            buf,
-                            [symbol, s],
-                            style,
-                            Some(utils::Alignment::Right),
-                        );
-
-                        let is_active = current_setting == Setting::NeutralColor;
-                        self.neutral.set_active(is_active, colors);
-                        self.neutral.render(color_input_area, buf);
-
-                        utils::print_ascii(
+                            color_input_area,
                             color_preview_area,
                             buf,
+                            symbol,
+                            "Set neutral color",
+                            style,
+                            &mut self.neutral,
+                            current_setting == Setting::NeutralColor,
+                            colors,
                             "neutral color",
                             Style::new().fg(self.settings.neutral()),
-                            None,
                         );
                     }
                     Setting::OnNeutralColor => {
-                        let s = "Set on neutral color:";
-                        utils::print_asciis(
+                        print_color(
                             color_area,
-                            buf,
-                            [symbol, s],
-                            style,
-                            Some(utils::Alignment::Right),
-                        );
-
-                        let is_active = current_setting == Setting::OnNeutralColor;
-                        self.on_neutral.set_active(is_active, colors);
-                        self.on_neutral.render(color_input_area, buf);
-
-                        utils::print_ascii(
+                            color_input_area,
                             color_preview_area,
                             buf,
+                            symbol,
+                            "Set on neutral color",
+                            style,
+                            &mut self.on_neutral,
+                            current_setting == Setting::OnNeutralColor,
+                            colors,
                             "on neutral color",
                             Style::new()
                                 .bg(self.settings.neutral())
                                 .fg(self.settings.on_neutral()),
-                            None,
                         );
                     }
                     Setting::Empty => {}
@@ -680,4 +619,108 @@ fn previous(current: usize) -> Option<usize> {
     }
 
     None
+}
+
+fn print_section(line: Rect, buf: &mut Buffer, ascii: &str) {
+    utils::print_ascii(
+        line,
+        buf,
+        ascii,
+        Style::new(),
+        Some(utils::Alignment::CenterHorizontal),
+    );
+}
+
+fn print_rating(
+    text_area: Rect,
+    input_area: Rect,
+    buf: &mut Buffer,
+    symbol: &str,
+    text: &str,
+    style: Style,
+    rating: AudioRating,
+    colors: &Colors,
+) {
+    // Text
+    utils::print_asciis(
+        text_area,
+        buf,
+        [symbol, text, ":"],
+        style,
+        Some(utils::Alignment::Right),
+    );
+
+    // Stars
+    let stars = symbols::stars_split(rating);
+    utils::print_texts_with_styles(
+        input_area,
+        buf,
+        [
+            (stars.0, Style::new().fg(colors.accent)),
+            (stars.1, Style::new().fg(colors.neutral)),
+        ],
+        None,
+        None,
+    );
+}
+
+fn print_checkmark(
+    text_area: Rect,
+    input_area: Rect,
+    buf: &mut Buffer,
+    symbol: &str,
+    text: &str,
+    style: Style,
+    checkmark: bool,
+    colors: &Colors,
+) {
+    // Text
+    utils::print_asciis(
+        text_area,
+        buf,
+        [symbol, text, ":"],
+        style,
+        Some(utils::Alignment::Right),
+    );
+
+    // Checkmark
+    let (checkmark, color) = match checkmark {
+        true => (symbols::CHECKMARK_YES, colors.accent),
+        false => (symbols::CHECKMARK_NO, colors.neutral),
+    };
+    let Rect { x, y, .. } = input_area;
+    if let Some(cell) = buf.cell_mut((x, y)) {
+        cell.set_symbol(checkmark).set_style(color);
+    }
+}
+
+fn print_color(
+    text_area: Rect,
+    input_area: Rect,
+    preview_area: Rect,
+    buf: &mut Buffer,
+    symbol: &str,
+    text: &str,
+    style: Style,
+    color_setting: &mut ColorSetting,
+    color_is_active: bool,
+    colors: &Colors,
+    preview_text: &str,
+    preview_style: Style,
+) {
+    // Text
+    utils::print_asciis(
+        text_area,
+        buf,
+        [symbol, text, ":"],
+        style,
+        Some(utils::Alignment::Right),
+    );
+
+    // Input
+    color_setting.set_active(color_is_active, colors);
+    color_setting.render(input_area, buf);
+
+    // Preview
+    utils::print_ascii(preview_area, buf, preview_text, preview_style, None);
 }

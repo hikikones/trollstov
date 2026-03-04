@@ -8,10 +8,13 @@ pub const SPACE: &str = "Space";
 pub const ESCAPE: &str = "Esc";
 pub const ARROW_UP: &str = "￪";
 pub const ARROW_DOWN: &str = "￬";
-pub const ARROW_RIGHT: &str = "→";
+pub const ARROW_RIGHT: &str = "➔";
 pub const ARROW_DOWN_UP: &str = "⇵";
 pub const ARROW_LEFT_RIGHT: &str = "⇆";
+pub const ARROW_HEAD_UP: &str = "⌃";
+pub const ARROW_HEAD_DOWN: &str = "⌄";
 
+pub const SELECTED: &str = ">";
 pub const STAR_FILLED: &str = "★";
 pub const STAR_OUTLINE: &str = "☆";
 pub const CHECKMARK_YES: &str = "🗸";
@@ -88,6 +91,7 @@ macro_rules! repeat {
 }
 
 pub(crate) use alt;
+pub(crate) use constcat::concat;
 pub(crate) use ctrl;
 pub(crate) use repeat;
 pub(crate) use shift;

@@ -217,9 +217,9 @@ impl TracksPage {
         for (label, width, spacing) in [
             (
                 if sort == TrackSort::TitleAscending {
-                    "Title⌄"
+                    symbols::concat!("Title", symbols::ARROW_HEAD_DOWN)
                 } else if sort == TrackSort::TitleDescending {
-                    "Title⌃"
+                    symbols::concat!("Title", symbols::ARROW_HEAD_UP)
                 } else {
                     "Title"
                 },
@@ -228,9 +228,9 @@ impl TracksPage {
             ),
             (
                 if sort == TrackSort::ArtistAscending {
-                    "Artist⌄"
+                    symbols::concat!("Artist", symbols::ARROW_HEAD_DOWN)
                 } else if sort == TrackSort::ArtistDescending {
-                    "Artist⌃"
+                    symbols::concat!("Artist", symbols::ARROW_HEAD_UP)
                 } else {
                     "Artist"
                 },
@@ -239,9 +239,9 @@ impl TracksPage {
             ),
             (
                 if sort == TrackSort::AlbumAscending {
-                    "Album⌄"
+                    symbols::concat!("Album", symbols::ARROW_HEAD_DOWN)
                 } else if sort == TrackSort::AlbumDescending {
-                    "Album⌃"
+                    symbols::concat!("Album", symbols::ARROW_HEAD_UP)
                 } else {
                     "Album"
                 },
@@ -250,9 +250,9 @@ impl TracksPage {
             ),
             (
                 if sort == TrackSort::TimeAscending {
-                    "Time⌄"
+                    symbols::concat!("Time", symbols::ARROW_HEAD_DOWN)
                 } else if sort == TrackSort::TimeDescending {
-                    "Time⌃"
+                    symbols::concat!("Time", symbols::ARROW_HEAD_UP)
                 } else {
                     "Time"
                 },
@@ -261,9 +261,9 @@ impl TracksPage {
             ),
             (
                 if sort == TrackSort::RatingAscending {
-                    "Rating⌄"
+                    symbols::concat!("Rating", symbols::ARROW_HEAD_DOWN)
                 } else if sort == TrackSort::RatingDescending {
-                    "Rating⌃"
+                    symbols::concat!("Rating", symbols::ARROW_HEAD_UP)
                 } else {
                     "Rating"
                 },
