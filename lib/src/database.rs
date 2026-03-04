@@ -89,15 +89,18 @@ impl Database {
         self.sort = sort;
     }
 
-    pub fn search(&mut self, keywords: &str) -> impl Iterator<Item = (TrackId, u16)> {
-        self.matcher.update(keywords);
-        self.tracks.iter().filter_map(|(id, track)| {
-            self.buffer
-                .extend([track.artist(), " ", track.album(), " ", track.title()]);
-            let score = self.matcher.score(&self.buffer);
-            self.buffer.clear();
-            score.map(|score| (*id, score))
-        })
+    pub fn search(
+        &mut self,
+        keywords: &str,
+        include_path: bool,
+    ) -> impl Iterator<Item = (TrackId, u16)> {
+        search(
+            &mut self.matcher,
+            &mut self.buffer,
+            self.tracks.iter().map(|(id, track)| (*id, track)),
+            keywords,
+            include_path,
+        )
     }
 
     pub fn write_rating(&mut self, id: TrackId, rating: AudioRating) {
@@ -346,6 +349,28 @@ impl TrackSort {
             Self::RatingDescending => t2.rating().cmp(&t1.rating()),
         }
     }
+}
+
+fn search<'a>(
+    matcher: &mut Matcher,
+    buffer: &mut String,
+    tracks: impl Iterator<Item = (TrackId, &'a Track)>,
+    keywords: &str,
+    include_path: bool,
+) -> impl Iterator<Item = (TrackId, u16)> {
+    matcher.update(keywords);
+    tracks.filter_map(move |(id, track)| {
+        buffer.extend([track.artist(), " ", track.album(), " ", track.title()]);
+
+        if include_path {
+            buffer.extend([" ", track.path.to_string_lossy().as_ref()]);
+        }
+
+        let score = matcher.score(&buffer);
+        buffer.clear();
+
+        score.map(|score| (id, score))
+    })
 }
 
 struct Matcher {

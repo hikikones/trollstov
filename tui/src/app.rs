@@ -575,6 +575,7 @@ impl App {
                     buf,
                     &mut self.database,
                     &mut self.jukebox,
+                    self.settings.search_by_path(),
                     colors,
                     &mut self.shortcuts_page,
                 );

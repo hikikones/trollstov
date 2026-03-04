@@ -51,6 +51,7 @@ impl SearchPage {
         buf: &mut Buffer,
         db: &mut Database,
         jb: &Jukebox,
+        include_path: bool,
         colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
@@ -104,7 +105,7 @@ impl SearchPage {
         self.search_input.render(search_line, buf);
 
         // Update search results
-        self.update_search_results(db);
+        self.update_search_results(db, include_path);
 
         // Render search results
         let search_results_area = Rect {
@@ -271,7 +272,7 @@ impl SearchPage {
 
     pub fn on_exit(&self) {}
 
-    fn update_search_results(&mut self, db: &mut Database) {
+    fn update_search_results(&mut self, db: &mut Database, include_path: bool) {
         if !self.is_dirty {
             return;
         }
@@ -284,7 +285,8 @@ impl SearchPage {
             return;
         }
 
-        self.search_results.extend(db.search(keywords));
+        self.search_results
+            .extend(db.search(keywords, include_path));
         self.search_results
             .sort_by_key(|(_, score)| std::cmp::Reverse(*score));
     }

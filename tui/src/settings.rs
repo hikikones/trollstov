@@ -19,8 +19,9 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         let general = General {
-            skip_rating: AudioRating::None,
+            skip_tracks_with_rating: AudioRating::None,
             keep_selected_track_on_sort: false,
+            search_by_path: false,
         };
         let colors =
             match terminal_colorsaurus::theme_mode(terminal_colorsaurus::QueryOptions::default())
@@ -46,19 +47,27 @@ impl Default for Settings {
 
 impl Settings {
     pub const fn skip_rating(&self) -> AudioRating {
-        self.general.skip_rating
+        self.general.skip_tracks_with_rating
     }
 
     pub const fn keep_on_sort(&self) -> bool {
         self.general.keep_selected_track_on_sort
     }
 
+    pub const fn search_by_path(&self) -> bool {
+        self.general.search_by_path
+    }
+
     pub const fn set_skip_rating(&mut self, rating: AudioRating) {
-        self.general.skip_rating = rating;
+        self.general.skip_tracks_with_rating = rating;
     }
 
     pub const fn set_keep_on_sort(&mut self, value: bool) {
         self.general.keep_selected_track_on_sort = value;
+    }
+
+    pub const fn set_search_by_path(&mut self, value: bool) {
+        self.general.search_by_path = value;
     }
 
     pub const fn colors(&self) -> &Colors {
@@ -164,8 +173,9 @@ impl Settings {
 
 #[derive(Clone, Serialize, Deserialize)]
 struct General {
-    skip_rating: AudioRating,
+    skip_tracks_with_rating: AudioRating,
     keep_selected_track_on_sort: bool,
+    search_by_path: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
