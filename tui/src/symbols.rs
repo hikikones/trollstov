@@ -11,6 +11,8 @@ pub const ARROW_DOWN: &str = "￬";
 pub const ARROW_RIGHT: &str = "→";
 pub const ARROW_DOWN_UP: &str = "⇵";
 pub const ARROW_LEFT_RIGHT: &str = "⇆";
+pub const ARROW_HEAD_UP: &str = "⌃";
+pub const ARROW_HEAD_DOWN: &str = "⌄";
 
 pub const SELECTED: &str = ">";
 pub const STAR_FILLED: &str = "★";
