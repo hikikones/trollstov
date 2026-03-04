@@ -289,7 +289,7 @@ impl SearchPage {
         self.is_dirty = false;
         self.search_results.clear();
 
-        let keywords = self.search_input.as_str().trim();
+        let keywords = self.search_input.as_str_trim();
         if keywords.is_empty() {
             return;
         }

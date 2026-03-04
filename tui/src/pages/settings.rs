@@ -618,7 +618,7 @@ impl ColorSetting {
 
     // TODO: More informative error than just "failed to parse".
     fn parse_color(&self) -> Result<Color, ratatui::style::ParseColorError> {
-        Color::from_str(self.0.as_str().trim())
+        Color::from_str(self.0.as_str_trim())
     }
 
     const fn set_active(&mut self, active: bool, colors: &Colors) {
