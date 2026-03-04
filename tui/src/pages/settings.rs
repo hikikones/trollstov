@@ -199,16 +199,17 @@ impl SettingsPage {
                         );
 
                         // Stars
-                        let colored = self.settings.skip_rating().as_u8();
-                        let neutral = 5 - colored;
-                        let stars_area = utils::print_char_repeat(
+                        let stars = symbols::stars_split(self.settings.skip_rating());
+                        utils::print_texts_with_styles(
                             general_input_area,
                             buf,
-                            '★',
-                            colored,
-                            colors.accent,
+                            [
+                                (stars.0, Style::new().fg(colors.accent)),
+                                (stars.1, Style::new().fg(colors.neutral)),
+                            ],
+                            None,
+                            None,
                         );
-                        utils::print_char_repeat(stars_area, buf, '★', neutral, colors.neutral);
                     }
                     Setting::KeepTrackSort => {
                         let s = "Keep selected track on sort:";
