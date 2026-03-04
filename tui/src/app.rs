@@ -3,7 +3,7 @@ use std::{path::PathBuf, time::Duration};
 use image::GenericImageView;
 use jukebox::{
     AudioFileReport, AudioPicture, Database, DatabaseEvent, Jukebox, JukeboxEvent, MediaControls,
-    MediaEvent, Track,
+    MediaEvent, MediaPlayback, Track,
 };
 use ratatui::{
     CompletedFrame,
@@ -227,7 +227,7 @@ impl App {
             }
             KeyCode::Down => {
                 if ctrl {
-                    return self.stop();
+                    self.jukebox.stop();
                 } else if alt {
                     let new_volume = (self.jukebox.volume() - 0.1).max(0.0);
                     self.jukebox.set_volume(new_volume);
@@ -267,7 +267,7 @@ impl App {
                             self.jukebox.pause_or_play();
                         }
                         MediaKeyCode::Stop => {
-                            return self.stop();
+                            self.jukebox.stop();
                         }
                         MediaKeyCode::TrackNext => {
                             self.jukebox.play_next(&self.database);
@@ -303,18 +303,6 @@ impl App {
         Action::None
     }
 
-    fn stop(&mut self) -> Action {
-        if self.jukebox.stop() {
-            self.front_cover = FrontCover::None;
-            if let Some(mpris) = self.mpris.as_mut() {
-                mpris.reset_metadata();
-            }
-            return Action::Render;
-        }
-
-        Action::None
-    }
-
     fn update(&mut self) -> Action {
         let mut render = false;
 
@@ -337,11 +325,7 @@ impl App {
                 MediaEvent::Toggle => self.jukebox.pause_or_play(),
                 MediaEvent::Next => self.jukebox.play_next(&self.database),
                 MediaEvent::Previous => self.jukebox.play_previous(&self.database),
-                MediaEvent::Stop => {
-                    if let Action::Render = self.stop() {
-                        render = true;
-                    }
-                }
+                MediaEvent::Stop => self.jukebox.stop(),
                 MediaEvent::Raise => {
                     // TODO: Focus terminal window.
                 }
@@ -356,7 +340,7 @@ impl App {
             render = true;
             match event {
                 JukeboxEvent::Play(id) => {
-                    if let Some(track) = self.database.get(id) {
+                    if let Some(track) = id.and_then(|id| self.database.get(id)) {
                         // Start loading front cover image
                         let path = track.path().to_path_buf();
                         let picker = self.picker.clone();
@@ -368,6 +352,22 @@ impl App {
                         if let Some(mpris) = self.mpris.as_mut() {
                             mpris.set_metadata(track.title(), track.artist());
                         }
+                    }
+
+                    if let Some(mpris) = self.mpris.as_mut() {
+                        mpris.set_playback(MediaPlayback::Playing);
+                    }
+                }
+                JukeboxEvent::Pause => {
+                    if let Some(mpris) = self.mpris.as_mut() {
+                        mpris.set_playback(MediaPlayback::Paused);
+                    }
+                }
+                JukeboxEvent::Stop => {
+                    self.front_cover = FrontCover::None;
+                    if let Some(mpris) = self.mpris.as_mut() {
+                        mpris.reset_metadata();
+                        mpris.set_playback(MediaPlayback::Stopped);
                     }
                 }
                 JukeboxEvent::Error(err) => {
@@ -776,7 +776,7 @@ fn fill_play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
         Shortcut::new("Play/Pause", symbols::ctrl!(symbols::ARROW_UP)),
         Shortcut::new("Next/Prev", symbols::ctrl!(symbols::ARROW_LEFT_RIGHT)),
         Shortcut::new("Stop", symbols::ctrl!(symbols::ARROW_DOWN)),
-        Shortcut::new("Forward 30s", symbols::ctrl!(symbols::ARROW_RIGHT)),
+        Shortcut::new("Forward 30s", symbols::alt!(symbols::ARROW_RIGHT)),
     ]);
 
     let volume = (volume * 100.0).round() as u8;

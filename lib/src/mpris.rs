@@ -18,6 +18,12 @@ pub enum MediaEvent {
     Quit,
 }
 
+pub enum MediaPlayback {
+    Playing,
+    Paused,
+    Stopped,
+}
+
 impl MediaControls {
     pub fn new(name: &str) -> Result<Self, AudioFileReport> {
         let config = souvlaki::PlatformConfig {
@@ -86,6 +92,15 @@ impl MediaControls {
             // TODO: cover_url?
             ..Default::default()
         });
+    }
+
+    pub fn set_playback(&mut self, playback: MediaPlayback) {
+        let playback = match playback {
+            MediaPlayback::Playing => souvlaki::MediaPlayback::Playing { progress: None },
+            MediaPlayback::Paused => souvlaki::MediaPlayback::Paused { progress: None },
+            MediaPlayback::Stopped => souvlaki::MediaPlayback::Stopped,
+        };
+        let _ = self.controls.set_playback(playback);
     }
 
     pub fn reset_metadata(&mut self) {
