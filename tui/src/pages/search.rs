@@ -13,6 +13,9 @@ use crate::{
     widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles, utils},
 };
 
+// TODO: Add timer for searching?
+// Currently searching on every input, but should probably be a small timeout.
+
 pub struct SearchPage {
     state: State,
     search_input: TextInput,
