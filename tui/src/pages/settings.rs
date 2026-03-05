@@ -18,6 +18,8 @@ use crate::{
     },
 };
 
+// TODO: Add reset to default.
+
 pub struct SettingsPage {
     settings: Settings,
     applied: Settings,

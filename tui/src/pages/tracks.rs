@@ -13,7 +13,6 @@ use crate::{
 };
 
 pub struct TracksPage {
-    title: String,
     list: List,
     keep_on_sort: bool,
 }
@@ -21,7 +20,6 @@ pub struct TracksPage {
 impl TracksPage {
     pub const fn new() -> Self {
         Self {
-            title: String::new(),
             list: List::new(),
             keep_on_sort: false,
         }
@@ -64,20 +62,27 @@ impl TracksPage {
             return;
         }
 
-        // Render tracks table
+        // Bordered block for tracks table
+        let block = Block::bordered().padding(Padding::horizontal(1));
+        let tracks_area = block.inner(area);
+        block.render(area, buf);
+
+        // Title for bordered tracks table
         jukebox::utils::format_int(db.len(), |len| {
-            self.title.extend([" All tracks (", len, ") "]);
+            utils::print_asciis(
+                Rect {
+                    y: area.y,
+                    height: 1,
+                    ..tracks_area
+                },
+                buf,
+                [" All tracks (", len, ") "],
+                Style::new(),
+                Some(utils::Alignment::CenterHorizontal),
+            );
         });
 
-        let block = Block::bordered()
-            .title(self.title.as_str())
-            .title_alignment(Alignment::Center)
-            .padding(Padding::horizontal(1));
-        let tracks_area = block.inner(area);
-
-        block.render(area, buf);
-        self.title.clear();
-
+        // Render tracks table
         self.render_tracks(tracks_area, buf, db, jb, colors);
 
         // Shortcuts
@@ -289,14 +294,17 @@ impl TracksPage {
             db.iter(),
             |line, buf, (id, track), item| {
                 let mut style = match item {
-                    ListItem::Selected => Style::new().bg(colors.accent).fg(colors.on_accent),
+                    ListItem::Selected => Style::new().bg(colors.secondary).fg(colors.on_secondary),
                     ListItem::Selection => Style::new().bg(colors.neutral).fg(colors.on_neutral),
-                    ListItem::Normal => Style::new(),
+                    ListItem::Normal => {
+                        if current == Some(id) {
+                            Style::new().fg(colors.accent)
+                        } else {
+                            Style::new()
+                        }
+                    }
                 };
 
-                if current == Some(id) {
-                    style.add_modifier.insert(Modifier::BOLD);
-                }
                 if jb.is_faulty(id) {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);
                 }

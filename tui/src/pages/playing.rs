@@ -318,7 +318,7 @@ impl PlayingPage {
         colors: &Colors,
     ) {
         let block = Block::bordered()
-            .style(colors.neutral)
+            .border_style(colors.neutral)
             .padding(Padding::horizontal(1));
         let queue_inner_area = block.inner(area);
         block.render(area, buf);
@@ -360,37 +360,39 @@ impl PlayingPage {
             buf,
             jb.iter(),
             |line, buf, (id, qi), item| {
-                if let Some(track) = db.get(id) {
-                    let mut style = Style::new();
+                let Some(track) = db.get(id) else {
+                    return;
+                };
 
-                    if current_queue_index == Some(qi) {
-                        style.fg = Some(colors.accent);
-                    }
-                    if jb.is_faulty(id) {
-                        style.add_modifier.insert(Modifier::CROSSED_OUT);
-                    }
+                let (symbol, mut style) = if item == ListItem::Selected {
+                    (
+                        symbols::concat!(symbols::SELECTED, " "),
+                        Style::new().fg(colors.secondary),
+                    )
+                } else if current_queue_index == Some(qi) {
+                    ("", Style::new().fg(colors.accent))
+                } else {
+                    ("", Style::new().fg(colors.neutral))
+                };
 
-                    let symbol = if item == ListItem::Selected {
-                        symbols::concat!(symbols::SELECTED, " ")
-                    } else {
-                        ""
-                    };
-
-                    utils::print_texts_with_styles(
-                        line,
-                        buf,
-                        [
-                            (symbol, style.not_crossed_out()),
-                            (track.title(), style),
-                            (" ", style),
-                            (track.artist(), style),
-                            (" ", style),
-                            (track.album(), style),
-                        ],
-                        Some(style.not_crossed_out()),
-                        None,
-                    );
+                if jb.is_faulty(id) {
+                    style.add_modifier.insert(Modifier::CROSSED_OUT);
                 }
+
+                utils::print_texts_with_styles(
+                    line,
+                    buf,
+                    [
+                        (symbol, style.not_crossed_out()),
+                        (track.title(), style),
+                        (" ", style),
+                        (track.artist(), style),
+                        (" ", style),
+                        (track.album(), style),
+                    ],
+                    Some(style.not_crossed_out()),
+                    None,
+                );
             },
         );
     }
