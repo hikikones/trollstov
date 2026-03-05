@@ -29,12 +29,16 @@ impl Default for Settings {
                 terminal_colorsaurus::ThemeMode::Dark => Colors {
                     accent: Color::Yellow,
                     on_accent: Color::Black,
+                    secondary: Color::Green,
+                    on_secondary: Color::Black,
                     neutral: Color::Indexed(242),
                     on_neutral: Color::Indexed(252),
                 },
                 terminal_colorsaurus::ThemeMode::Light => Colors {
                     accent: Color::Cyan,
                     on_accent: Color::Black,
+                    secondary: Color::Green,
+                    on_secondary: Color::Black,
                     neutral: Color::Indexed(245),
                     on_neutral: Color::Indexed(255),
                 },
@@ -181,6 +185,8 @@ struct General {
 pub struct Colors {
     pub accent: Color,
     pub on_accent: Color,
+    pub secondary: Color,
+    pub on_secondary: Color,
     pub neutral: Color,
     pub on_neutral: Color,
 }
