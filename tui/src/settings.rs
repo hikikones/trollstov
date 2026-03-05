@@ -85,6 +85,14 @@ impl Settings {
         self.colors.on_accent
     }
 
+    pub const fn secondary(&self) -> Color {
+        self.colors.secondary
+    }
+
+    pub const fn on_secondary(&self) -> Color {
+        self.colors.on_secondary
+    }
+
     pub const fn neutral(&self) -> Color {
         self.colors.neutral
     }
@@ -99,6 +107,14 @@ impl Settings {
 
     pub const fn set_on_accent(&mut self, color: Color) {
         self.colors.on_accent = color;
+    }
+
+    pub const fn set_secondary(&mut self, color: Color) {
+        self.colors.secondary = color;
+    }
+
+    pub const fn set_on_secondary(&mut self, color: Color) {
+        self.colors.on_secondary = color;
     }
 
     pub const fn set_neutral(&mut self, color: Color) {

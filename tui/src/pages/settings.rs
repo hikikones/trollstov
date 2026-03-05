@@ -32,6 +32,8 @@ pub struct SettingsPage {
     text: TextSegment,
     accent: ColorSetting,
     on_accent: ColorSetting,
+    secondary: ColorSetting,
+    on_secondary: ColorSetting,
     neutral: ColorSetting,
     on_neutral: ColorSetting,
 }
@@ -45,6 +47,8 @@ enum Setting {
     Colors,
     AccentColor,
     OnAccentColor,
+    SecondaryColor,
+    OnSecondaryColor,
     NeutralColor,
     OnNeutralColor,
     Empty,
@@ -60,6 +64,8 @@ impl Setting {
             Self::Colors => false,
             Self::AccentColor => true,
             Self::OnAccentColor => true,
+            Self::SecondaryColor => true,
+            Self::OnSecondaryColor => true,
             Self::NeutralColor => true,
             Self::OnNeutralColor => true,
             Self::Empty => false,
@@ -67,7 +73,7 @@ impl Setting {
     }
 }
 
-const SETTINGS: [Setting; 12] = [
+const SETTINGS: [Setting; 14] = [
     Setting::General,
     Setting::Empty,
     Setting::SkipRating,
@@ -78,6 +84,8 @@ const SETTINGS: [Setting; 12] = [
     Setting::Empty,
     Setting::AccentColor,
     Setting::OnAccentColor,
+    Setting::SecondaryColor,
+    Setting::OnSecondaryColor,
     Setting::NeutralColor,
     Setting::OnNeutralColor,
 ];
@@ -104,6 +112,8 @@ impl SettingsPage {
             text: TextSegment::new().with_alignment(Alignment::Center),
             accent: ColorSetting::new(colors.accent),
             on_accent: ColorSetting::new(colors.on_accent),
+            secondary: ColorSetting::new(colors.secondary),
+            on_secondary: ColorSetting::new(colors.on_secondary),
             neutral: ColorSetting::new(colors.neutral),
             on_neutral: ColorSetting::new(colors.on_neutral),
         }
@@ -177,7 +187,7 @@ impl SettingsPage {
                 let (symbol, style) = if index == ListItem::Selected {
                     (
                         symbols::concat!(symbols::SELECTED, " "),
-                        Style::new().bold(),
+                        Style::new().fg(colors.secondary),
                     )
                 } else {
                     ("", Style::new())
@@ -260,7 +270,40 @@ impl SettingsPage {
                                 .fg(self.settings.on_accent()),
                         );
                     }
-
+                    Setting::SecondaryColor => {
+                        print_color(
+                            color_area,
+                            color_input_area,
+                            color_preview_area,
+                            buf,
+                            symbol,
+                            "Set secondary color",
+                            style,
+                            &mut self.secondary,
+                            current_setting == Setting::SecondaryColor,
+                            colors,
+                            "secondary color",
+                            Style::new().fg(self.settings.secondary()),
+                        );
+                    }
+                    Setting::OnSecondaryColor => {
+                        print_color(
+                            color_area,
+                            color_input_area,
+                            color_preview_area,
+                            buf,
+                            symbol,
+                            "Set on secondary color",
+                            style,
+                            &mut self.on_secondary,
+                            current_setting == Setting::OnSecondaryColor,
+                            colors,
+                            "on secondary color",
+                            Style::new()
+                                .bg(self.settings.secondary())
+                                .fg(self.settings.on_secondary()),
+                        );
+                    }
                     Setting::NeutralColor => {
                         print_color(
                             color_area,
@@ -317,11 +360,11 @@ impl SettingsPage {
                 shortcuts.push(Shortcut::new("Toggle", symbols::SPACE));
                 "Includes directories and filename when searching"
             }
-            Setting::AccentColor | Setting::NeutralColor => {
+            Setting::AccentColor | Setting::NeutralColor | Setting::SecondaryColor => {
                 shortcuts.push(Shortcut::new("Set color", symbols::ENTER));
                 COLOR_DESCRIPTION
             }
-            Setting::OnAccentColor | Setting::OnNeutralColor => {
+            Setting::OnAccentColor | Setting::OnNeutralColor | Setting::OnSecondaryColor => {
                 shortcuts.extend([
                     Shortcut::new("Set color", symbols::ENTER),
                     Shortcut::new("Generate color", symbols::ctrl!("g")),
@@ -481,6 +524,53 @@ impl SettingsPage {
                     self.on_accent.reset_with(fg.to_string());
                     return Action::Render;
                 } else if self.on_accent.input(key, modifiers) {
+                    return Action::Render;
+                }
+            }
+            Setting::SecondaryColor => {
+                if let KeyCode::Enter = key {
+                    match self.secondary.parse_color() {
+                        Ok(color) => {
+                            if self.settings.secondary() != color {
+                                self.settings.set_secondary(color);
+                                self.update_hash();
+                                return Action::Render;
+                            }
+                        }
+                        Err(err) => {
+                            let log = Log::new(err);
+                            return Action::Log(log);
+                        }
+                    }
+                } else if self.secondary.input(key, modifiers) {
+                    return Action::Render;
+                }
+            }
+            Setting::OnSecondaryColor => {
+                if let KeyCode::Enter = key {
+                    match self.on_secondary.parse_color() {
+                        Ok(color) => {
+                            if self.settings.on_secondary() != color {
+                                self.settings.set_on_secondary(color);
+                                self.update_hash();
+                                return Action::Render;
+                            }
+                        }
+                        Err(err) => {
+                            let log = Log::new(err);
+                            return Action::Log(log);
+                        }
+                    }
+                } else if modifiers.contains(KeyModifiers::CONTROL)
+                    && let KeyCode::Char('g') = key
+                {
+                    let bg = self.settings.secondary();
+                    let fg = Colors::generate_readable_fg(bg).unwrap_or_default();
+                    self.settings.set_on_secondary(fg);
+                    self.update_hash();
+                    self.on_secondary.reset_with(fg.to_string());
+                    return Action::Render;
+                } else if self.on_secondary.input(key, modifiers) {
                     return Action::Render;
                 }
             }
