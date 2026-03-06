@@ -404,11 +404,11 @@ impl SettingsPage {
                 'r' => {
                     if ctrl {
                         self.settings = self.default.clone();
-                        self.update_hash();
                         self.accent.reset_with(self.settings.accent());
                         self.on_accent.reset_with(self.settings.on_accent());
                         self.neutral.reset_with(self.settings.neutral());
                         self.on_neutral.reset_with(self.settings.on_neutral());
+                        self.update_hash();
                         return Action::Render;
                     } else {
                         return self.handle_setting(key, modifiers);
