@@ -18,6 +18,8 @@ use crate::{
     },
 };
 
+// TODO: Add reset to default.
+
 pub struct SettingsPage {
     settings: Settings,
     applied: Settings,
@@ -258,7 +260,6 @@ impl SettingsPage {
                                 .fg(self.settings.on_accent()),
                         );
                     }
-
                     Setting::NeutralColor => {
                         print_color(
                             color_area,

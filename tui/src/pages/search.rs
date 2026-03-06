@@ -76,7 +76,7 @@ impl SearchPage {
         }
 
         // Determine colors and shortcuts for search input and results
-        let (block_style, border_style) = {
+        let border_style = {
             let neutral = Style::new().fg(colors.neutral);
             match self.state {
                 State::Search => {
@@ -86,12 +86,9 @@ impl SearchPage {
                         selector: Style::new().bg(colors.neutral).fg(colors.on_neutral),
                         placeholder: neutral,
                     });
-                    shortcuts.extend([
-                        Shortcut::new("Browse", symbols::ENTER),
-                        Shortcut::new("Select all", symbols::ctrl!("a")),
-                    ]);
+                    shortcuts.push(Shortcut::new("Browse", symbols::ENTER));
 
-                    (neutral, neutral)
+                    neutral
                 }
                 State::Browse => {
                     self.search_input.set_styles(TextInputStyles::all(neutral));
@@ -103,7 +100,7 @@ impl SearchPage {
                         Shortcut::new("Goto", "g"),
                     ]);
 
-                    (Style::new(), Style::new().fg(colors.accent))
+                    Style::new()
                 }
             }
         };
@@ -123,7 +120,6 @@ impl SearchPage {
             ..area
         };
         let search_results_block = Block::bordered()
-            .style(block_style)
             .border_style(border_style)
             .padding(Padding::horizontal(1));
         let search_results_inner = search_results_block.inner(search_results_area);
@@ -150,43 +146,48 @@ impl SearchPage {
             buf,
             self.search_results.iter().copied(),
             |line, buf, (id, _), item| {
-                if let Some(track) = db.get(id) {
-                    let mut style = Style::new();
-                    if matches!(self.state, State::Browse) {
-                        match item {
-                            ListItem::Selected => {
-                                style.bg = Some(colors.accent);
-                                style.fg = Some(colors.on_accent);
-                            }
-                            ListItem::Selection => {
-                                style.bg = Some(colors.neutral);
-                                style.fg = Some(colors.on_neutral);
-                            }
-                            ListItem::Normal => {}
+                let Some(track) = db.get(id) else {
+                    return;
+                };
+
+                let mut style = match self.state {
+                    State::Search => {
+                        if current == Some(id) {
+                            Style::new().fg(colors.accent)
+                        } else {
+                            Style::new().fg(colors.neutral)
                         }
                     }
+                    State::Browse => match item {
+                        ListItem::Selected => Style::new().bg(colors.accent).fg(colors.on_accent),
+                        ListItem::Selection => {
+                            Style::new().bg(colors.neutral).fg(colors.on_neutral)
+                        }
+                        ListItem::Normal => Style::new(),
+                    },
+                };
 
-                    if current == Some(id) {
-                        style.add_modifier.insert(Modifier::BOLD);
-                    }
-                    if jb.is_faulty(id) {
-                        style.add_modifier.insert(Modifier::CROSSED_OUT);
-                    }
-
-                    utils::print_texts_with_styles(
-                        line,
-                        buf,
-                        [
-                            (track.title(), style),
-                            (" ", style),
-                            (track.artist(), style),
-                            (" ", style),
-                            (track.album(), style),
-                        ],
-                        Some(style.not_crossed_out()),
-                        None,
-                    );
+                if current == Some(id) {
+                    style.add_modifier.insert(Modifier::BOLD);
                 }
+
+                if jb.is_faulty(id) {
+                    style.add_modifier.insert(Modifier::CROSSED_OUT);
+                }
+
+                utils::print_texts_with_styles(
+                    line,
+                    buf,
+                    [
+                        (track.title(), style),
+                        (" ", style),
+                        (track.artist(), style),
+                        (" ", style),
+                        (track.album(), style),
+                    ],
+                    Some(style.not_crossed_out()),
+                    None,
+                );
             },
         );
     }

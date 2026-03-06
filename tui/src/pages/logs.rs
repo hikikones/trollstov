@@ -13,7 +13,6 @@ use crate::{
 // TODO: LogLevel? ERROR/INFO.
 
 pub struct LogsPage {
-    title: String,
     logs: Vec<Log>,
     queue: u32,
     list: List,
@@ -23,7 +22,6 @@ pub struct LogsPage {
 impl LogsPage {
     pub const fn new() -> Self {
         Self {
-            title: String::new(),
             logs: Vec::new(),
             queue: 0,
             list: List::new(),
@@ -62,19 +60,27 @@ impl LogsPage {
             return;
         }
 
+        // Bordered block for logs
+        let block = Block::bordered().padding(Padding::horizontal(1));
+        let logs_area = block.inner(area);
+        block.render(area, buf);
+
+        // Title for bordered logs
         jukebox::utils::format_int(self.logs.len(), |len| {
-            self.title.extend([" Logs (", len, ") "]);
+            utils::print_asciis(
+                Rect {
+                    y: area.y,
+                    height: 1,
+                    ..logs_area
+                },
+                buf,
+                [" Logs (", len, ") "],
+                Style::new(),
+                Some(utils::Alignment::CenterHorizontal),
+            );
         });
 
-        let block = Block::bordered()
-            .title(self.title.as_str())
-            .title_alignment(Alignment::Center)
-            .padding(Padding::horizontal(1));
-        let logs_area = block.inner(area);
-
-        block.render(area, buf);
-        self.title.clear();
-
+        // Render logs
         self.list.set_colors(colors.neutral, None).render(
             logs_area,
             buf,

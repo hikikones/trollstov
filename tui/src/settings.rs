@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 const CONFIG_NAME: &str = "settings.toml";
 
 // TODO: Add version?
-// TODO: Add secondary color?
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Settings {
@@ -29,14 +28,14 @@ impl Default for Settings {
                 terminal_colorsaurus::ThemeMode::Dark => Colors {
                     accent: Color::Yellow,
                     on_accent: Color::Black,
-                    neutral: Color::Indexed(242),
-                    on_neutral: Color::Indexed(252),
+                    neutral: Color::Indexed(245),
+                    on_neutral: Color::Black,
                 },
                 terminal_colorsaurus::ThemeMode::Light => Colors {
                     accent: Color::Cyan,
                     on_accent: Color::Black,
                     neutral: Color::Indexed(245),
-                    on_neutral: Color::Indexed(255),
+                    on_neutral: Color::Black,
                 },
             };
 
