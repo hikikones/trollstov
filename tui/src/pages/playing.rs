@@ -369,11 +369,13 @@ impl PlayingPage {
                         symbols::concat!(symbols::SELECTED, " "),
                         Style::new().fg(colors.accent),
                     )
-                } else if current_qi == Some(qi) {
-                    ("", Style::new().fg(colors.neutral).bold())
                 } else {
                     ("", Style::new().fg(colors.neutral))
                 };
+
+                if current_qi == Some(qi) {
+                    style.add_modifier.insert(Modifier::BOLD);
+                }
 
                 if jb.is_faulty(id) {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);

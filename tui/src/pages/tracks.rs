@@ -296,14 +296,12 @@ impl TracksPage {
                 let mut style = match item {
                     ListItem::Selected => Style::new().bg(colors.accent).fg(colors.on_accent),
                     ListItem::Selection => Style::new().bg(colors.neutral).fg(colors.on_neutral),
-                    ListItem::Normal => {
-                        if current == Some(id) {
-                            Style::new().fg(colors.accent)
-                        } else {
-                            Style::new()
-                        }
-                    }
+                    ListItem::Normal => Style::new(),
                 };
+
+                if current == Some(id) {
+                    style.add_modifier.insert(Modifier::BOLD);
+                }
 
                 if jb.is_faulty(id) {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);
