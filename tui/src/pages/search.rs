@@ -82,7 +82,7 @@ impl SearchPage {
                 State::Search => {
                     self.search_input.set_styles(TextInputStyles {
                         normal: Style::new(),
-                        cursor: Style::new().bg(colors.secondary).fg(colors.on_secondary),
+                        cursor: Style::new().bg(colors.accent).fg(colors.on_accent),
                         selector: Style::new().bg(colors.neutral).fg(colors.on_neutral),
                         placeholder: neutral,
                     });
@@ -159,9 +159,7 @@ impl SearchPage {
                         }
                     }
                     State::Browse => match item {
-                        ListItem::Selected => {
-                            Style::new().bg(colors.secondary).fg(colors.on_secondary)
-                        }
+                        ListItem::Selected => Style::new().bg(colors.accent).fg(colors.on_accent),
                         ListItem::Selection => {
                             Style::new().bg(colors.neutral).fg(colors.on_neutral)
                         }

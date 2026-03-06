@@ -354,7 +354,7 @@ impl PlayingPage {
             .set_margins(scrolloff, scrolloff)
             .set_padding(scrolloff);
 
-        let current_queue_index = jb.current_queue_index();
+        let current_qi = jb.current_queue_index();
         self.list.set_colors(colors.neutral, None).render(
             queue_inner_area,
             buf,
@@ -367,10 +367,10 @@ impl PlayingPage {
                 let (symbol, mut style) = if item == ListItem::Selected {
                     (
                         symbols::concat!(symbols::SELECTED, " "),
-                        Style::new().fg(colors.secondary),
+                        Style::new().fg(colors.accent),
                     )
-                } else if current_queue_index == Some(qi) {
-                    ("", Style::new().fg(colors.accent))
+                } else if current_qi == Some(qi) {
+                    ("", Style::new().fg(colors.neutral).bold())
                 } else {
                     ("", Style::new().fg(colors.neutral))
                 };
