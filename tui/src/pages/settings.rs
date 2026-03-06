@@ -18,12 +18,11 @@ use crate::{
     },
 };
 
-// TODO: Add reset to default.
-
 pub struct SettingsPage {
     settings: Settings,
     applied: Settings,
     written: Settings,
+    default: Settings,
     apply_hash: u64,
     write_hash: u64,
     is_applied: bool,
@@ -96,6 +95,7 @@ impl SettingsPage {
             settings: settings.clone(),
             applied: settings.clone(),
             written: settings.clone(),
+            default: Settings::default(),
             apply_hash: hash,
             write_hash: hash,
             is_applied: true,
@@ -346,6 +346,9 @@ impl SettingsPage {
         if !self.is_written {
             shortcuts.push(Shortcut::new("Save", symbols::ctrl!("s")));
         }
+
+        // Always show reset all
+        shortcuts.push(Shortcut::new("Reset all", symbols::ctrl!("r")));
     }
 
     pub fn on_input(
@@ -394,6 +397,19 @@ impl SettingsPage {
                                 return Action::Log(Log::new(err));
                             }
                         }
+                    } else {
+                        return self.handle_setting(key, modifiers);
+                    }
+                }
+                'r' => {
+                    if ctrl {
+                        self.settings = self.default.clone();
+                        self.accent.reset_with(self.settings.accent());
+                        self.on_accent.reset_with(self.settings.on_accent());
+                        self.neutral.reset_with(self.settings.neutral());
+                        self.on_neutral.reset_with(self.settings.on_neutral());
+                        self.update_hash();
+                        return Action::Render;
                     } else {
                         return self.handle_setting(key, modifiers);
                     }
@@ -477,7 +493,7 @@ impl SettingsPage {
                     let fg = Colors::generate_readable_fg(bg).unwrap_or_default();
                     self.settings.set_on_accent(fg);
                     self.update_hash();
-                    self.on_accent.reset_with(fg.to_string());
+                    self.on_accent.reset_with(fg);
                     return Action::Render;
                 } else if self.on_accent.input(key, modifiers) {
                     return Action::Render;
@@ -524,7 +540,7 @@ impl SettingsPage {
                     let fg = Colors::generate_readable_fg(bg).unwrap_or_default();
                     self.settings.set_on_neutral(fg);
                     self.update_hash();
-                    self.on_neutral.reset_with(fg.to_string());
+                    self.on_neutral.reset_with(fg);
                     return Action::Render;
                 } else if self.on_neutral.input(key, modifiers) {
                     return Action::Render;
@@ -583,9 +599,9 @@ impl ColorSetting {
         self.0.render(line, buf);
     }
 
-    fn reset_with(&mut self, s: impl AsRef<str>) {
+    fn reset_with(&mut self, color: Color) {
         self.0.clear();
-        self.0.push_str(s.as_ref());
+        self.0.push_str(color.to_string().as_str());
     }
 }
 
