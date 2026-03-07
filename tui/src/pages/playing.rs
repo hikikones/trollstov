@@ -372,22 +372,21 @@ impl PlayingPage {
                     return;
                 };
 
-                let (symbol, mut style) = if item == ListItem::Selected {
-                    (
-                        symbols::concat!(symbols::SELECTED, " "),
-                        Style::new().fg(colors.accent),
-                    )
+                let mut style = if current_qi == Some(qi) {
+                    Style::new().fg(colors.accent)
                 } else {
-                    ("", Style::new().fg(colors.neutral))
+                    Style::new().fg(colors.neutral)
                 };
-
-                if current_qi == Some(qi) {
-                    style.add_modifier.insert(Modifier::BOLD);
-                }
 
                 if jb.is_faulty(id) {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);
                 }
+
+                let symbol = if item == ListItem::Selected {
+                    symbols::concat!(symbols::SELECTED, " ")
+                } else {
+                    ""
+                };
 
                 utils::print_texts_with_styles(
                     line,
