@@ -69,7 +69,7 @@ impl Jukebox {
     }
 
     pub fn get(&self, index: QueueIndex) -> Option<TrackId> {
-        self.queue.get(index)
+        self.queue.get(index.0)
     }
 
     pub const fn current_track(&self) -> Option<(TrackId, QueueIndex)> {
@@ -98,6 +98,10 @@ impl Jukebox {
             None => 0,
         };
         self.queue.shuffle(start);
+    }
+
+    pub fn remove(&mut self, index: QueueIndex) -> bool {
+        self.queue.remove(index.0).is_some()
     }
 
     pub fn clear(&mut self) {
@@ -364,7 +368,6 @@ impl Jukebox {
 
 // TODO: Max length? Drain from history.
 // TODO: Move up/down.
-// TODO: Remove.
 
 struct PlayQueue {
     list: Vec<TrackId>,
@@ -401,8 +404,8 @@ impl PlayQueue {
         self.list.is_empty()
     }
 
-    fn get(&self, index: QueueIndex) -> Option<TrackId> {
-        self.list.get(index.0).copied()
+    fn get(&self, index: usize) -> Option<TrackId> {
+        self.list.get(index).copied()
     }
 
     fn set_index(&mut self, index: usize) -> Option<TrackId> {
@@ -500,6 +503,26 @@ impl PlayQueue {
             let random = fastrand::usize(start..end);
             self.list.swap(i, random);
         }
+    }
+
+    fn remove(&mut self, index: usize) -> Option<TrackId> {
+        if index >= self.len() {
+            return None;
+        }
+
+        let Some(current_index) = self.index else {
+            return Some(self.list.remove(index));
+        };
+
+        if index == current_index {
+            return None;
+        }
+
+        if index < current_index {
+            self.index = Some(current_index - 1);
+        }
+
+        Some(self.list.remove(index))
     }
 
     const fn reset(&mut self) {
