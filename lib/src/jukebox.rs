@@ -526,19 +526,17 @@ impl PlayQueue {
             return None;
         }
 
-        let Some(current_index) = self.index else {
-            return Some(self.list.remove(index));
-        };
-
-        if index == current_index {
-            return None;
-        }
-
-        if index < current_index {
-            self.index = Some(current_index - 1);
-        }
-
-        Some(self.list.remove(index))
+        let id = self.list.remove(index);
+        self.index = self.index.and_then(|current| {
+            if self.list.is_empty() {
+                None
+            } else if index < current {
+                Some(current - 1)
+            } else {
+                Some(usize::min(current, self.len().saturating_sub(1)))
+            }
+        });
+        Some(id)
     }
 
     const fn reset(&mut self) {
