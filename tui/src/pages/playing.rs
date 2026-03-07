@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub struct PlayingPage {
-    current_queue_index: Option<QueueIndex>,
+    current_qi: Option<QueueIndex>,
     list: List,
     view_mode: ViewMode,
 }
@@ -28,7 +28,7 @@ enum ViewMode {
 impl PlayingPage {
     pub const fn new() -> Self {
         Self {
-            current_queue_index: None,
+            current_qi: None,
             list: List::new(),
             view_mode: ViewMode::Queue,
         }
@@ -219,6 +219,7 @@ impl PlayingPage {
                 'r' => {
                     let index = self.list.index();
                     if jb.remove(QueueIndex::from(index)) {
+                        self.current_qi = jb.current_queue_index();
                         return Action::Render;
                     }
                 }
@@ -248,8 +249,8 @@ impl PlayingPage {
 
     fn update_scroll_on_new_track(&mut self, jb: &Jukebox) {
         let current_queue_index = jb.current_queue_index();
-        if self.current_queue_index != current_queue_index {
-            self.current_queue_index = current_queue_index;
+        if self.current_qi != current_queue_index {
+            self.current_qi = current_queue_index;
             if let Some(idx) = current_queue_index {
                 self.list.move_index(ListMove::Custom(idx.raw()), false);
             }
