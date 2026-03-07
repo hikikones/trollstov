@@ -175,6 +175,7 @@ impl PlayingPage {
                     Shortcut::new("Play", symbols::ENTER),
                     Shortcut::new("Rating", "0-5"),
                     Shortcut::new("Shuffle", "s"),
+                    Shortcut::new("Remove", "r"),
                     Shortcut::new("Clear", "c"),
                     Shortcut::new("Goto", "g"),
                 ]);
@@ -214,6 +215,12 @@ impl PlayingPage {
                     let index = self.list.index();
                     let id = jb.get(QueueIndex::from(index));
                     return Action::Route(Route::Tracks(id));
+                }
+                'r' => {
+                    let index = self.list.index();
+                    if jb.remove(QueueIndex::from(index)) {
+                        return Action::Render;
+                    }
                 }
                 'v' => {
                     if screen_size == ScreenSize::Small {

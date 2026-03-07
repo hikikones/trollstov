@@ -101,7 +101,23 @@ impl Jukebox {
     }
 
     pub fn remove(&mut self, index: QueueIndex) -> bool {
-        self.queue.remove(index.0).is_some()
+        let Some(current_qi) = self.current_queue_index() else {
+            return self.queue.remove(index.0).is_some();
+        };
+
+        if current_qi == index {
+            return false;
+        }
+
+        self.queue
+            .remove(index.0)
+            .map(|_| {
+                if index.0 < current_qi.0 {
+                    self.current = self.current.map(|(id, qi)| (id, QueueIndex(qi.0 - 1)));
+                }
+                true
+            })
+            .unwrap_or(false)
     }
 
     pub fn clear(&mut self) {
