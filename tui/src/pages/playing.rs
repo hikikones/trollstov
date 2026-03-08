@@ -219,10 +219,21 @@ impl PlayingPage {
                 'r' => {
                     let selection = self.list.selection_inclusive();
                     let (start, end) = (*selection.start(), *selection.end());
-                    if jb.remove_range(QueueIndex::from(start), QueueIndex::from(end)) {
+
+                    let removal = if start == end {
+                        jb.remove(QueueIndex::from(start))
+                    } else {
+                        jb.remove_range(QueueIndex::from(start), QueueIndex::from(end))
+                    };
+
+                    if removal {
                         self.current_qi = jb.current_queue_index();
                         return Action::Render;
                     }
+                    // if jb.remove_range(QueueIndex::from(start), QueueIndex::from(end)) {
+                    //     self.current_qi = jb.current_queue_index();
+                    //     return Action::Render;
+                    // }
                     // let index = self.list.index();
                     // if jb.remove(QueueIndex::from(index)) {
                     //     self.current_qi = jb.current_queue_index();

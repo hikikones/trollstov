@@ -101,42 +101,48 @@ impl Jukebox {
     }
 
     pub fn remove(&mut self, index: QueueIndex) -> bool {
-        let Some(current_qi) = self.current_queue_index() else {
-            return self.queue.remove(index.0).is_some();
-        };
+        let removal = self.queue.remove(index.0).is_some();
+        self.current = self.queue.current();
+        removal
+        // let Some(current_qi) = self.current_queue_index() else {
+        //     return self.queue.remove(index.0).is_some();
+        // };
 
-        if current_qi == index {
-            return false;
-        }
+        // if current_qi == index {
+        //     return false;
+        // }
 
-        self.queue
-            .remove(index.0)
-            .map(|_| {
-                if index.0 < current_qi.0 {
-                    self.current = self.current.map(|(id, qi)| (id, QueueIndex(qi.0 - 1)));
-                }
-                true
-            })
-            .unwrap_or(false)
+        // self.queue
+        //     .remove(index.0)
+        //     .map(|_| {
+        //         if index.0 < current_qi.0 {
+        //             self.current = self.current.map(|(id, qi)| (id, QueueIndex(qi.0 - 1)));
+        //         }
+        //         true
+        //     })
+        //     .unwrap_or(false)
     }
 
     pub fn remove_range(&mut self, start: QueueIndex, end: QueueIndex) -> bool {
-        let Some((current_id, current_qi)) = self.current else {
-            return self.queue.remove_range(start.0..=end.0);
-        };
-
-        let range = start.0..=end.0;
-        let contains_current = range.contains(&current_qi.0);
-        let removal = self.queue.remove_range(range);
-
-        if contains_current {
-            self.queue.previous();
-            self.current = self.queue.enqueue_next(current_id).next();
-        } else {
-            self.current = self.queue.current();
-        }
-
+        let removal = self.queue.remove_range(start.0, end.0);
+        self.current = self.queue.current();
         removal
+        // let Some((current_id, current_qi)) = self.current else {
+        //     return self.queue.remove_range(start.0..=end.0);
+        // };
+
+        // let range = start.0..=end.0;
+        // let contains_current = range.contains(&current_qi.0);
+        // let removal = self.queue.remove_range(range);
+
+        // if contains_current {
+        //     self.queue.previous();
+        //     self.current = self.queue.enqueue_next(current_id).next();
+        // } else {
+        //     self.current = self.queue.current();
+        // }
+
+        // removal
     }
 
     pub fn clear(&mut self) {
@@ -545,6 +551,14 @@ impl PlayQueue {
             return None;
         }
 
+        let Some(current) = self.index else {
+            return Some(self.list.remove(index));
+        };
+
+        if index == current {
+            return None;
+        }
+
         let id = self.list.remove(index);
         self.index = self.index.and_then(|current| {
             if self.list.is_empty() {
@@ -552,36 +566,56 @@ impl PlayQueue {
             } else if index < current {
                 Some(current - 1)
             } else {
-                Some(usize::min(current, self.len().saturating_sub(1)))
+                Some(current.min(self.list.len().saturating_sub(1)))
             }
         });
         Some(id)
     }
 
-    fn remove_range(&mut self, range: std::ops::RangeInclusive<usize>) -> bool {
-        let (start, end) = (*range.start(), *range.end());
+    fn remove_range(&mut self, start: usize, end: usize) -> bool {
+        let end = end.min(self.list.len().saturating_sub(1));
 
-        if end >= self.len() {
+        if start > end {
             return false;
         }
 
         let Some(current) = self.index else {
-            self.list.drain(range);
+            self.list.drain(start..=end);
             return true;
         };
 
+        let id = self.list[current];
+
         let mut offset = 0;
-        for index in self.list.drain(range).enumerate().map(|(i, _)| start + i) {
+        for index in self
+            .list
+            .drain(start..=end)
+            .enumerate()
+            .map(|(i, _)| start + i)
+        {
             if index < current {
                 offset += 1;
             }
         }
 
-        self.index = if self.list.is_empty() {
-            None
+        let contains_current = current >= start && current <= end;
+        if self.list.is_empty() {
+            if contains_current {
+                self.list.push(id);
+                self.index = Some(0);
+            } else {
+                self.index = None;
+            }
         } else {
-            Some(usize::min(current - offset, self.len().saturating_sub(1)))
-        };
+            if contains_current {
+                let index = (current - offset).min(self.list.len());
+                self.list.insert(index, id);
+                self.index = Some(index);
+            } else {
+                let index = (current - offset).min(self.list.len().saturating_sub(1));
+                self.index = Some(index);
+            }
+        }
 
         true
     }
