@@ -120,6 +120,25 @@ impl Jukebox {
             .unwrap_or(false)
     }
 
+    pub fn remove_range(&mut self, start: QueueIndex, end: QueueIndex) -> bool {
+        let Some((current_id, current_qi)) = self.current else {
+            return self.queue.remove_range(start.0..=end.0);
+        };
+
+        let range = start.0..=end.0;
+        let contains_current = range.contains(&current_qi.0);
+        let removal = self.queue.remove_range(range);
+
+        if contains_current {
+            self.queue.previous();
+            self.current = self.queue.enqueue_next(current_id).next();
+        } else {
+            self.current = self.queue.current();
+        }
+
+        removal
+    }
+
     pub fn clear(&mut self) {
         self.queue.clear();
 
@@ -537,6 +556,34 @@ impl PlayQueue {
             }
         });
         Some(id)
+    }
+
+    fn remove_range(&mut self, range: std::ops::RangeInclusive<usize>) -> bool {
+        let (start, end) = (*range.start(), *range.end());
+
+        if end >= self.len() {
+            return false;
+        }
+
+        let Some(current) = self.index else {
+            self.list.drain(range);
+            return true;
+        };
+
+        let mut offset = 0;
+        for index in self.list.drain(range).enumerate().map(|(i, _)| start + i) {
+            if index < current {
+                offset += 1;
+            }
+        }
+
+        self.index = if self.list.is_empty() {
+            None
+        } else {
+            Some(usize::min(current - offset, self.len().saturating_sub(1)))
+        };
+
+        true
     }
 
     const fn reset(&mut self) {

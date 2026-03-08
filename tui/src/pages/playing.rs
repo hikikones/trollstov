@@ -217,11 +217,17 @@ impl PlayingPage {
                     return Action::Route(Route::Tracks(id));
                 }
                 'r' => {
-                    let index = self.list.index();
-                    if jb.remove(QueueIndex::from(index)) {
+                    let selection = self.list.selection_inclusive();
+                    let (start, end) = (*selection.start(), *selection.end());
+                    if jb.remove_range(QueueIndex::from(start), QueueIndex::from(end)) {
                         self.current_qi = jb.current_queue_index();
                         return Action::Render;
                     }
+                    // let index = self.list.index();
+                    // if jb.remove(QueueIndex::from(index)) {
+                    //     self.current_qi = jb.current_queue_index();
+                    //     return Action::Render;
+                    // }
                 }
                 'v' => {
                     if screen_size == ScreenSize::Small {
@@ -233,10 +239,14 @@ impl PlayingPage {
                         return Action::Render;
                     }
                 }
-                _ => {}
+                _ => {
+                    if self.list.input(key, _modifiers) {
+                        return Action::Render;
+                    }
+                }
             },
             _ => {
-                if self.list.input(key, KeyModifiers::empty()) {
+                if self.list.input(key, _modifiers) {
                     return Action::Render;
                 }
             }
@@ -382,7 +392,7 @@ impl PlayingPage {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);
                 }
 
-                let symbol = if item == ListItem::Selected {
+                let symbol = if matches!(item, ListItem::Selected | ListItem::Selection) {
                     symbols::concat!(symbols::SELECTED, " ")
                 } else {
                     ""
