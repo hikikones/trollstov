@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub struct PlayingPage {
-    current_queue_index: Option<QueueIndex>,
+    current_qi: Option<QueueIndex>,
     list: List,
     view_mode: ViewMode,
 }
@@ -28,7 +28,7 @@ enum ViewMode {
 impl PlayingPage {
     pub const fn new() -> Self {
         Self {
-            current_queue_index: None,
+            current_qi: None,
             list: List::new(),
             view_mode: ViewMode::Queue,
         }
@@ -175,6 +175,7 @@ impl PlayingPage {
                     Shortcut::new("Play", symbols::ENTER),
                     Shortcut::new("Rating", "0-5"),
                     Shortcut::new("Shuffle", "s"),
+                    Shortcut::new("Remove", "r"),
                     Shortcut::new("Clear", "c"),
                     Shortcut::new("Goto", "g"),
                 ]);
@@ -215,6 +216,13 @@ impl PlayingPage {
                     let id = jb.get(QueueIndex::from(index));
                     return Action::Route(Route::Tracks(id));
                 }
+                'r' => {
+                    let index = self.list.index();
+                    if jb.remove(QueueIndex::from(index)) {
+                        self.current_qi = jb.current_queue_index();
+                        return Action::Render;
+                    }
+                }
                 'v' => {
                     if screen_size == ScreenSize::Small {
                         let new_mode = match self.view_mode {
@@ -241,8 +249,8 @@ impl PlayingPage {
 
     fn update_scroll_on_new_track(&mut self, jb: &Jukebox) {
         let current_queue_index = jb.current_queue_index();
-        if self.current_queue_index != current_queue_index {
-            self.current_queue_index = current_queue_index;
+        if self.current_qi != current_queue_index {
+            self.current_qi = current_queue_index;
             if let Some(idx) = current_queue_index {
                 self.list.move_index(ListMove::Custom(idx.raw()), false);
             }
@@ -364,22 +372,21 @@ impl PlayingPage {
                     return;
                 };
 
-                let (symbol, mut style) = if item == ListItem::Selected {
-                    (
-                        symbols::concat!(symbols::SELECTED, " "),
-                        Style::new().fg(colors.accent),
-                    )
+                let mut style = if current_qi == Some(qi) {
+                    Style::new().fg(colors.accent)
                 } else {
-                    ("", Style::new().fg(colors.neutral))
+                    Style::new().fg(colors.neutral)
                 };
-
-                if current_qi == Some(qi) {
-                    style.add_modifier.insert(Modifier::BOLD);
-                }
 
                 if jb.is_faulty(id) {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);
                 }
+
+                let symbol = if item == ListItem::Selected {
+                    symbols::concat!(symbols::SELECTED, " ")
+                } else {
+                    ""
+                };
 
                 utils::print_texts_with_styles(
                     line,

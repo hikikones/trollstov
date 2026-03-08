@@ -69,7 +69,7 @@ impl Jukebox {
     }
 
     pub fn get(&self, index: QueueIndex) -> Option<TrackId> {
-        self.queue.get(index)
+        self.queue.get(index.0)
     }
 
     pub const fn current_track(&self) -> Option<(TrackId, QueueIndex)> {
@@ -98,6 +98,26 @@ impl Jukebox {
             None => 0,
         };
         self.queue.shuffle(start);
+    }
+
+    pub fn remove(&mut self, index: QueueIndex) -> bool {
+        let Some(current_qi) = self.current_queue_index() else {
+            return self.queue.remove(index.0).is_some();
+        };
+
+        if current_qi == index {
+            return false;
+        }
+
+        self.queue
+            .remove(index.0)
+            .map(|_| {
+                if index.0 < current_qi.0 {
+                    self.current = self.current.map(|(id, qi)| (id, QueueIndex(qi.0 - 1)));
+                }
+                true
+            })
+            .unwrap_or(false)
     }
 
     pub fn clear(&mut self) {
@@ -364,7 +384,6 @@ impl Jukebox {
 
 // TODO: Max length? Drain from history.
 // TODO: Move up/down.
-// TODO: Remove.
 
 struct PlayQueue {
     list: Vec<TrackId>,
@@ -401,8 +420,8 @@ impl PlayQueue {
         self.list.is_empty()
     }
 
-    fn get(&self, index: QueueIndex) -> Option<TrackId> {
-        self.list.get(index.0).copied()
+    fn get(&self, index: usize) -> Option<TrackId> {
+        self.list.get(index).copied()
     }
 
     fn set_index(&mut self, index: usize) -> Option<TrackId> {
@@ -500,6 +519,24 @@ impl PlayQueue {
             let random = fastrand::usize(start..end);
             self.list.swap(i, random);
         }
+    }
+
+    fn remove(&mut self, index: usize) -> Option<TrackId> {
+        if index >= self.len() {
+            return None;
+        }
+
+        let id = self.list.remove(index);
+        self.index = self.index.and_then(|current| {
+            if self.list.is_empty() {
+                None
+            } else if index < current {
+                Some(current - 1)
+            } else {
+                Some(usize::min(current, self.len().saturating_sub(1)))
+            }
+        });
+        Some(id)
     }
 
     const fn reset(&mut self) {
