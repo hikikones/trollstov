@@ -406,10 +406,10 @@ impl PlayingPage {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);
                 }
 
-                let symbol = if matches!(item, ListItem::Selected | ListItem::Selection) {
-                    symbols::concat!(symbols::SELECTED, " ")
-                } else {
-                    ""
+                let symbol = match item {
+                    ListItem::Selected => symbols::concat!(symbols::SELECTED, " "),
+                    ListItem::Selection => symbols::concat!(symbols::SELECTION, " "),
+                    ListItem::Normal => "",
                 };
 
                 utils::print_texts_with_styles(

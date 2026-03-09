@@ -15,6 +15,7 @@ pub const ARROW_HEAD_UP: &str = "⌃";
 pub const ARROW_HEAD_DOWN: &str = "⌄";
 
 pub const SELECTED: &str = ">";
+pub const SELECTION: &str = "|";
 pub const STAR_FILLED: &str = "★";
 pub const STAR_OUTLINE: &str = "☆";
 pub const CHECKMARK_YES: &str = "🗸";
