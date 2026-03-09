@@ -1,4 +1,4 @@
-use jukebox::{AudioRating, Database, Jukebox, QueueIndex};
+use jukebox::{AudioRating, Database, Jukebox};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub struct PlayingPage {
-    current_qi: Option<QueueIndex>,
+    current_qi: Option<usize>,
     list: List,
     view_mode: ViewMode,
 }
@@ -202,7 +202,7 @@ impl PlayingPage {
         match key {
             KeyCode::Enter => {
                 let index = self.list.index();
-                jb.play_index(QueueIndex::from(index), db);
+                jb.play_index(index, db);
             }
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
@@ -221,7 +221,7 @@ impl PlayingPage {
                 }
                 'g' => {
                     let index = self.list.index();
-                    let id = jb.get(QueueIndex::from(index));
+                    let id = jb.get(index);
                     return Action::Route(Route::Tracks(id));
                 }
                 'r' => {
@@ -229,9 +229,9 @@ impl PlayingPage {
                     let (start, end) = (*selection.start(), *selection.end());
 
                     let removal = if start == end {
-                        jb.remove(QueueIndex::from(start))
+                        jb.remove(start)
                     } else {
-                        jb.remove_range(QueueIndex::from(start), QueueIndex::from(end))
+                        jb.remove_range(start, end)
                     };
 
                     if removal {
@@ -272,7 +272,7 @@ impl PlayingPage {
         if self.current_qi != current_queue_index {
             self.current_qi = current_queue_index;
             if let Some(idx) = current_queue_index {
-                self.list.move_index(ListMove::Custom(idx.raw()), false);
+                self.list.move_index(ListMove::Custom(idx), false);
             }
         }
     }

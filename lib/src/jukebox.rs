@@ -7,11 +7,11 @@ use crate::*;
 type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<File>, AudioFileReport>>;
 
 pub struct Jukebox {
-    current: Option<(TrackId, QueueIndex)>,
+    current: Option<(TrackId, usize)>,
     queue: PlayQueue,
     state: PlayState,
     skip: AudioRating,
-    decode_handle: Option<(AudioDecodeHandle, TrackId, QueueIndex)>,
+    decode_handle: Option<(AudioDecodeHandle, TrackId, usize)>,
     events: Vec<JukeboxEvent>,
     faulty: HashSet<TrackId>,
     device: AudioDevice,
@@ -68,11 +68,11 @@ impl Jukebox {
         self.queue.history_len()
     }
 
-    pub fn get(&self, index: QueueIndex) -> Option<TrackId> {
-        self.queue.get(index.0)
+    pub fn get(&self, index: usize) -> Option<TrackId> {
+        self.queue.get(index)
     }
 
-    pub const fn current_track(&self) -> Option<(TrackId, QueueIndex)> {
+    pub const fn current_track(&self) -> Option<(TrackId, usize)> {
         self.current
     }
 
@@ -80,7 +80,7 @@ impl Jukebox {
         self.current.map(|(id, _)| id)
     }
 
-    pub fn current_queue_index(&self) -> Option<QueueIndex> {
+    pub fn current_queue_index(&self) -> Option<usize> {
         self.current.map(|(_, index)| index)
     }
 
@@ -88,26 +88,26 @@ impl Jukebox {
         self.device.position()
     }
 
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, QueueIndex)> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, usize)> {
         self.queue.iter()
     }
 
     pub fn shuffle(&mut self) {
         let start = match self.current_queue_index() {
-            Some(index) => index.0 + 1,
+            Some(index) => index + 1,
             None => 0,
         };
         self.queue.shuffle(start);
     }
 
-    pub fn remove(&mut self, index: QueueIndex) -> bool {
-        let removal = self.queue.remove(index.0).is_some();
+    pub fn remove(&mut self, index: usize) -> bool {
+        let removal = self.queue.remove(index).is_some();
         self.current = self.queue.current();
         removal
     }
 
-    pub fn remove_range(&mut self, start: QueueIndex, end: QueueIndex) -> bool {
-        let removal = self.queue.remove_range(start.0, end.0);
+    pub fn remove_range(&mut self, start: usize, end: usize) -> bool {
+        let removal = self.queue.remove_range(start, end);
         self.current = self.queue.current();
         removal
     }
@@ -136,10 +136,10 @@ impl Jukebox {
         self.device.set_volume(value);
     }
 
-    pub fn play_index(&mut self, index: QueueIndex, db: &Database) {
-        if let Some(id) = self.queue.set_index(index.0) {
+    pub fn play_index(&mut self, index: usize, db: &Database) {
+        if let Some(id) = self.queue.set_index(index) {
             self.state = PlayState::Track;
-            self.start_decode(id, QueueIndex(index.0), db);
+            self.start_decode(id, index, db);
         }
     }
 
@@ -272,7 +272,7 @@ impl Jukebox {
             .unwrap_or(true)
     }
 
-    fn start_decode(&mut self, id: TrackId, index: QueueIndex, db: &Database) {
+    fn start_decode(&mut self, id: TrackId, index: usize, db: &Database) {
         let Some(track) = db.get(id) else {
             return;
         };
@@ -307,7 +307,7 @@ impl Jukebox {
     fn sync_queue_index(&mut self) {
         match self.current {
             Some((_, index)) => {
-                self.queue.set_index(index.0);
+                self.queue.set_index(index);
             }
             None => {
                 self.queue.reset();
@@ -426,16 +426,13 @@ impl PlayQueue {
         }
     }
 
-    fn current(&self) -> Option<(TrackId, QueueIndex)> {
+    fn current(&self) -> Option<(TrackId, usize)> {
         self.index
-            .and_then(|i| self.list.get(i).copied().map(|id| (id, QueueIndex(i))))
+            .and_then(|i| self.list.get(i).copied().map(|id| (id, i)))
     }
 
-    fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, QueueIndex)> {
-        self.list
-            .iter()
-            .enumerate()
-            .map(|(i, id)| (*id, QueueIndex(i)))
+    fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, usize)> {
+        self.list.iter().enumerate().map(|(i, id)| (*id, i))
     }
 
     fn enqueue(&mut self, id: TrackId) -> &mut Self {
@@ -449,11 +446,11 @@ impl PlayQueue {
         self
     }
 
-    fn current_or_next(&mut self) -> Option<(TrackId, QueueIndex)> {
+    fn current_or_next(&mut self) -> Option<(TrackId, usize)> {
         self.current().or_else(|| self.next())
     }
 
-    fn next(&mut self) -> Option<(TrackId, QueueIndex)> {
+    fn next(&mut self) -> Option<(TrackId, usize)> {
         match self.index {
             Some(mut index) => {
                 let old_index = index;
@@ -462,10 +459,7 @@ impl PlayQueue {
 
                 if index != old_index {
                     self.index = Some(index);
-                    self.list
-                        .get(index)
-                        .copied()
-                        .map(|id| (id, QueueIndex(index)))
+                    self.list.get(index).copied().map(|id| (id, index))
                 } else {
                     None
                 }
@@ -475,13 +469,13 @@ impl PlayQueue {
                     None
                 } else {
                     self.index = Some(0);
-                    self.list.first().copied().map(|id| (id, QueueIndex(0)))
+                    self.list.first().copied().map(|id| (id, 0))
                 }
             }
         }
     }
 
-    fn previous(&mut self) -> Option<(TrackId, QueueIndex)> {
+    fn previous(&mut self) -> Option<(TrackId, usize)> {
         match self.index {
             Some(mut index) => {
                 let old_index = index;
@@ -489,10 +483,7 @@ impl PlayQueue {
 
                 if index != old_index {
                     self.index = Some(index);
-                    self.list
-                        .get(index)
-                        .copied()
-                        .map(|id| (id, QueueIndex(index)))
+                    self.list.get(index).copied().map(|id| (id, index))
                 } else {
                     None
                 }
@@ -597,19 +588,6 @@ impl PlayQueue {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct QueueIndex(usize);
-
-impl QueueIndex {
-    pub const fn from(i: usize) -> Self {
-        Self(i)
-    }
-
-    pub const fn raw(self) -> usize {
-        self.0
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -629,33 +607,33 @@ mod tests {
         assert_eq!(queue.history_len(), 0);
 
         // Next
-        assert_eq!(queue.next(), Some((TrackId(0), QueueIndex(0))));
-        assert_eq!(queue.current(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.next(), Some((TrackId(0), 0)));
+        assert_eq!(queue.current(), Some((TrackId(0), 0)));
         assert_eq!(queue.len(), TRACKS_LEN);
         assert_eq!(queue.queue_len(), TRACKS_LEN - 1);
         assert_eq!(queue.history_len(), 0);
 
-        assert_eq!(queue.next(), Some((TrackId(1), QueueIndex(1))));
-        assert_eq!(queue.current(), Some((TrackId(1), QueueIndex(1))));
+        assert_eq!(queue.next(), Some((TrackId(1), 1)));
+        assert_eq!(queue.current(), Some((TrackId(1), 1)));
         assert_eq!(queue.len(), TRACKS_LEN);
         assert_eq!(queue.queue_len(), TRACKS_LEN - 2);
         assert_eq!(queue.history_len(), 1);
 
         assert_eq!(queue.next(), None);
-        assert_eq!(queue.current(), Some((TrackId(1), QueueIndex(1))));
+        assert_eq!(queue.current(), Some((TrackId(1), 1)));
         assert_eq!(queue.len(), TRACKS_LEN);
         assert_eq!(queue.queue_len(), 0);
         assert_eq!(queue.history_len(), 1);
 
         // Previous
-        assert_eq!(queue.previous(), Some((TrackId(0), QueueIndex(0))));
-        assert_eq!(queue.current(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.previous(), Some((TrackId(0), 0)));
+        assert_eq!(queue.current(), Some((TrackId(0), 0)));
         assert_eq!(queue.len(), TRACKS_LEN);
         assert_eq!(queue.queue_len(), 1);
         assert_eq!(queue.history_len(), 0);
 
         assert_eq!(queue.previous(), None);
-        assert_eq!(queue.current(), Some((TrackId(0), QueueIndex(0))));
+        assert_eq!(queue.current(), Some((TrackId(0), 0)));
         assert_eq!(queue.len(), TRACKS_LEN);
         assert_eq!(queue.queue_len(), 1);
         assert_eq!(queue.history_len(), 0);
