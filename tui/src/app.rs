@@ -351,11 +351,8 @@ impl App {
                         // Update metadata for mpris
                         if let Some(mpris) = self.mpris.as_mut() {
                             mpris.set_metadata(track.title(), track.artist());
+                            mpris.set_playback(MediaPlayback::Playing);
                         }
-                    }
-
-                    if let Some(mpris) = self.mpris.as_mut() {
-                        mpris.set_playback(MediaPlayback::Playing);
                     }
                 }
                 JukeboxEvent::Pause => {
@@ -365,6 +362,8 @@ impl App {
                 }
                 JukeboxEvent::Stop => {
                     self.front_cover = FrontCover::None;
+                    self.front_cover_handle = None;
+
                     if let Some(mpris) = self.mpris.as_mut() {
                         mpris.reset_metadata();
                         mpris.set_playback(MediaPlayback::Stopped);
