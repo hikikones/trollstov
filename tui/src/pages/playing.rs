@@ -223,8 +223,10 @@ impl PlayingPage {
                     return Action::Route(Route::Tracks(id));
                 }
                 'r' => {
-                    let selection = self.list.selection_inclusive();
-                    let (start, end) = (*selection.start(), *selection.end());
+                    let (start, end) = {
+                        let selection = self.list.selection_inclusive();
+                        (*selection.start(), *selection.end())
+                    };
 
                     let removal = if start == end {
                         jb.remove(start)
@@ -234,6 +236,7 @@ impl PlayingPage {
 
                     if removal {
                         self.current_qi = jb.current_queue_index();
+                        self.list.move_index(ListMove::Custom(start), false);
                         return Action::Render;
                     }
                 }
@@ -380,8 +383,8 @@ impl PlayingPage {
             .set_margins(scrolloff, scrolloff)
             .set_padding(scrolloff);
 
-        let current_qi = jb.current_queue_index();
         let hlen = jb.history();
+        let current_qi = jb.current_queue_index();
         self.list.set_colors(colors.neutral, None).render(
             queue_inner_area,
             buf,
@@ -391,10 +394,10 @@ impl PlayingPage {
                     return;
                 };
 
-                let mut style = if current_qi == Some(qi) {
-                    Style::new().fg(colors.accent)
-                } else if qi < hlen {
+                let mut style = if qi < hlen {
                     Style::new().fg(colors.neutral)
+                } else if current_qi == Some(qi) {
+                    Style::new().fg(colors.accent)
                 } else {
                     Style::new()
                 };
