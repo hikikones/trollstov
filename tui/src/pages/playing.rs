@@ -47,9 +47,7 @@ impl PlayingPage {
         colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
-        if self.list.selector().is_none() {
-            self.update_scroll_on_new_track(jb);
-        }
+        self.update_scroll_on_new_track(jb);
 
         match screen_size {
             ScreenSize::Small => {
@@ -383,6 +381,7 @@ impl PlayingPage {
             .set_padding(scrolloff);
 
         let current_qi = jb.current_queue_index();
+        let hlen = jb.history();
         self.list.set_colors(colors.neutral, None).render(
             queue_inner_area,
             buf,
@@ -394,8 +393,10 @@ impl PlayingPage {
 
                 let mut style = if current_qi == Some(qi) {
                     Style::new().fg(colors.accent)
-                } else {
+                } else if qi < hlen {
                     Style::new().fg(colors.neutral)
+                } else {
+                    Style::new()
                 };
 
                 if jb.is_faulty(id) {
