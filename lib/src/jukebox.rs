@@ -101,14 +101,24 @@ impl Jukebox {
     }
 
     pub fn remove(&mut self, index: usize) -> bool {
-        let removal = self.queue.remove(index).is_some();
-        self.current = self.queue.current();
+        let keep_current = self.current.is_some();
+        let removal = self.queue.remove(index, keep_current).is_some();
+
+        if keep_current {
+            self.current = self.queue.current();
+        }
+
         removal
     }
 
     pub fn remove_range(&mut self, start: usize, end: usize) -> bool {
-        let removal = self.queue.remove_range(start, end);
-        self.current = self.queue.current();
+        let keep_current = self.current.is_some();
+        let removal = self.queue.remove_range(start, end, keep_current);
+
+        if keep_current {
+            self.current = self.queue.current();
+        }
+
         removal
     }
 
@@ -504,7 +514,7 @@ impl PlayQueue {
         }
     }
 
-    fn remove(&mut self, index: usize) -> Option<TrackId> {
+    fn remove(&mut self, index: usize, keep_current: bool) -> Option<TrackId> {
         if index >= self.len() {
             return None;
         }
@@ -513,7 +523,7 @@ impl PlayQueue {
             return Some(self.list.remove(index));
         };
 
-        if index == current {
+        if index == current && keep_current {
             return None;
         }
 
@@ -530,7 +540,7 @@ impl PlayQueue {
         Some(id)
     }
 
-    fn remove_range(&mut self, start: usize, end: usize) -> bool {
+    fn remove_range(&mut self, start: usize, end: usize, keep_current: bool) -> bool {
         let end = end.min(self.list.len().saturating_sub(1));
 
         if start > end {
@@ -557,15 +567,16 @@ impl PlayQueue {
         }
 
         let contains_current = current >= start && current <= end;
+        let keep_current = contains_current && keep_current;
         if self.list.is_empty() {
-            if contains_current {
+            if keep_current {
                 self.list.push(id);
                 self.index = Some(0);
             } else {
                 self.index = None;
             }
         } else {
-            if contains_current {
+            if keep_current {
                 let index = (current - offset).min(self.list.len());
                 self.list.insert(index, id);
                 self.index = Some(index);
