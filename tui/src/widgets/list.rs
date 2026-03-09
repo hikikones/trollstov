@@ -78,6 +78,10 @@ impl List {
         self.index
     }
 
+    pub const fn selector(&self) -> Option<usize> {
+        self.selector
+    }
+
     pub fn selection(&self) -> Option<std::ops::Range<usize>> {
         self.selector
             .and_then(|selector| match self.index.cmp(&selector) {
@@ -149,6 +153,8 @@ impl List {
 
         old_index != self.index || old_selector != self.selector
     }
+
+    // TODO: Move selection.
 
     pub fn select_all(&mut self) -> bool {
         let old_index = self.index;

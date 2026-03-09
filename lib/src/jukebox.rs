@@ -104,45 +104,12 @@ impl Jukebox {
         let removal = self.queue.remove(index.0).is_some();
         self.current = self.queue.current();
         removal
-        // let Some(current_qi) = self.current_queue_index() else {
-        //     return self.queue.remove(index.0).is_some();
-        // };
-
-        // if current_qi == index {
-        //     return false;
-        // }
-
-        // self.queue
-        //     .remove(index.0)
-        //     .map(|_| {
-        //         if index.0 < current_qi.0 {
-        //             self.current = self.current.map(|(id, qi)| (id, QueueIndex(qi.0 - 1)));
-        //         }
-        //         true
-        //     })
-        //     .unwrap_or(false)
     }
 
     pub fn remove_range(&mut self, start: QueueIndex, end: QueueIndex) -> bool {
         let removal = self.queue.remove_range(start.0, end.0);
         self.current = self.queue.current();
         removal
-        // let Some((current_id, current_qi)) = self.current else {
-        //     return self.queue.remove_range(start.0..=end.0);
-        // };
-
-        // let range = start.0..=end.0;
-        // let contains_current = range.contains(&current_qi.0);
-        // let removal = self.queue.remove_range(range);
-
-        // if contains_current {
-        //     self.queue.previous();
-        //     self.current = self.queue.enqueue_next(current_id).next();
-        // } else {
-        //     self.current = self.queue.current();
-        // }
-
-        // removal
     }
 
     pub fn clear(&mut self) {

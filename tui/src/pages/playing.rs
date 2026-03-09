@@ -47,7 +47,9 @@ impl PlayingPage {
         colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
-        self.update_scroll_on_new_track(jb);
+        if self.list.selector().is_none() {
+            self.update_scroll_on_new_track(jb);
+        }
 
         match screen_size {
             ScreenSize::Small => {
@@ -171,14 +173,16 @@ impl PlayingPage {
                 self.render_queue(queue_area, buf, db, jb, colors);
 
                 // Shortcuts
-                shortcuts.extend([
-                    Shortcut::new("Play", symbols::ENTER),
-                    Shortcut::new("Rating", "0-5"),
-                    Shortcut::new("Shuffle", "s"),
-                    Shortcut::new("Remove", "r"),
-                    Shortcut::new("Clear", "c"),
-                    Shortcut::new("Goto", "g"),
-                ]);
+                if !jb.is_empty() {
+                    shortcuts.extend([
+                        Shortcut::new("Play", symbols::ENTER),
+                        Shortcut::new("Rating", "0-5"),
+                        Shortcut::new("Shuffle", "s"),
+                        Shortcut::new("Remove", "r"),
+                        Shortcut::new("Clear", "c"),
+                        Shortcut::new("Goto", "g"),
+                    ]);
+                }
             }
         }
     }
@@ -191,6 +195,10 @@ impl PlayingPage {
         jb: &mut Jukebox,
         screen_size: ScreenSize,
     ) -> Action {
+        if jb.is_empty() {
+            return Action::None;
+        }
+
         match key {
             KeyCode::Enter => {
                 let index = self.list.index();
@@ -230,15 +238,6 @@ impl PlayingPage {
                         self.current_qi = jb.current_queue_index();
                         return Action::Render;
                     }
-                    // if jb.remove_range(QueueIndex::from(start), QueueIndex::from(end)) {
-                    //     self.current_qi = jb.current_queue_index();
-                    //     return Action::Render;
-                    // }
-                    // let index = self.list.index();
-                    // if jb.remove(QueueIndex::from(index)) {
-                    //     self.current_qi = jb.current_queue_index();
-                    //     return Action::Render;
-                    // }
                 }
                 'v' => {
                     if screen_size == ScreenSize::Small {
