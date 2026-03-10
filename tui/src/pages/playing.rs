@@ -1,4 +1,4 @@
-use jukebox::{AudioRating, Database, Jukebox, QueueIndex};
+use jukebox::{AudioRating, Database, Jukebox};
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub struct PlayingPage {
-    current_qi: Option<QueueIndex>,
+    current_qi: Option<usize>,
     list: List,
     view_mode: ViewMode,
 }
@@ -171,14 +171,16 @@ impl PlayingPage {
                 self.render_queue(queue_area, buf, db, jb, colors);
 
                 // Shortcuts
-                shortcuts.extend([
-                    Shortcut::new("Play", symbols::ENTER),
-                    Shortcut::new("Rating", "0-5"),
-                    Shortcut::new("Shuffle", "s"),
-                    Shortcut::new("Remove", "r"),
-                    Shortcut::new("Clear", "c"),
-                    Shortcut::new("Goto", "g"),
-                ]);
+                if !jb.is_empty() {
+                    shortcuts.extend([
+                        Shortcut::new("Play", symbols::ENTER),
+                        Shortcut::new("Rating", "0-5"),
+                        Shortcut::new("Shuffle", "s"),
+                        Shortcut::new("Remove", "r"),
+                        Shortcut::new("Clear", "c"),
+                        Shortcut::new("Goto", "g"),
+                    ]);
+                }
             }
         }
     }
@@ -191,10 +193,14 @@ impl PlayingPage {
         jb: &mut Jukebox,
         screen_size: ScreenSize,
     ) -> Action {
+        if jb.is_empty() {
+            return Action::None;
+        }
+
         match key {
             KeyCode::Enter => {
                 let index = self.list.index();
-                jb.play_index(QueueIndex::from(index), db);
+                jb.play_index(index, db);
             }
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
@@ -213,13 +219,24 @@ impl PlayingPage {
                 }
                 'g' => {
                     let index = self.list.index();
-                    let id = jb.get(QueueIndex::from(index));
+                    let id = jb.get(index);
                     return Action::Route(Route::Tracks(id));
                 }
                 'r' => {
-                    let index = self.list.index();
-                    if jb.remove(QueueIndex::from(index)) {
+                    let (start, end) = {
+                        let selection = self.list.selection_inclusive();
+                        (*selection.start(), *selection.end())
+                    };
+
+                    let removal = if start == end {
+                        jb.remove(start)
+                    } else {
+                        jb.remove_range(start, end)
+                    };
+
+                    if removal {
                         self.current_qi = jb.current_queue_index();
+                        self.list.move_index(ListMove::Custom(start), false);
                         return Action::Render;
                     }
                 }
@@ -233,10 +250,14 @@ impl PlayingPage {
                         return Action::Render;
                     }
                 }
-                _ => {}
+                _ => {
+                    if self.list.input(key, _modifiers) {
+                        return Action::Render;
+                    }
+                }
             },
             _ => {
-                if self.list.input(key, KeyModifiers::empty()) {
+                if self.list.input(key, _modifiers) {
                     return Action::Render;
                 }
             }
@@ -252,7 +273,7 @@ impl PlayingPage {
         if self.current_qi != current_queue_index {
             self.current_qi = current_queue_index;
             if let Some(idx) = current_queue_index {
-                self.list.move_index(ListMove::Custom(idx.raw()), false);
+                self.list.move_index(ListMove::Custom(idx), false);
             }
         }
     }
@@ -362,6 +383,7 @@ impl PlayingPage {
             .set_margins(scrolloff, scrolloff)
             .set_padding(scrolloff);
 
+        let hlen = jb.history();
         let current_qi = jb.current_queue_index();
         self.list.set_colors(colors.neutral, None).render(
             queue_inner_area,
@@ -372,20 +394,22 @@ impl PlayingPage {
                     return;
                 };
 
-                let mut style = if current_qi == Some(qi) {
+                let mut style = if qi < hlen {
+                    Style::new().fg(colors.neutral)
+                } else if current_qi == Some(qi) {
                     Style::new().fg(colors.accent)
                 } else {
-                    Style::new().fg(colors.neutral)
+                    Style::new()
                 };
 
                 if jb.is_faulty(id) {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);
                 }
 
-                let symbol = if item == ListItem::Selected {
-                    symbols::concat!(symbols::SELECTED, " ")
-                } else {
-                    ""
+                let symbol = match item {
+                    ListItem::Selected => symbols::concat!(symbols::SELECTED, " "),
+                    ListItem::Selection => symbols::concat!(symbols::SELECTION, " "),
+                    ListItem::Normal => "",
                 };
 
                 utils::print_texts_with_styles(

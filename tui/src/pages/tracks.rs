@@ -116,21 +116,21 @@ impl TracksPage {
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
                     let rating = AudioRating::from_char(c).unwrap();
-                    for i in self.list.selection() {
+                    for i in self.list.selection_inclusive() {
                         if let Some(id) = db.get_id_from_index(i) {
                             db.write_rating(id, rating);
                         }
                     }
                 }
                 'q' => {
-                    for i in self.list.selection() {
+                    for i in self.list.selection_inclusive() {
                         if let Some(id) = db.get_id_from_index(i) {
                             jb.enqueue(id);
                         }
                     }
                 }
                 'n' => {
-                    for i in self.list.selection().rev() {
+                    for i in self.list.selection_inclusive().rev() {
                         if let Some(id) = db.get_id_from_index(i) {
                             jb.enqueue_next(id);
                         }

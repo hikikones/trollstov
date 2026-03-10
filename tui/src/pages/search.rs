@@ -239,7 +239,7 @@ impl SearchPage {
                 KeyCode::Char(c) => match c {
                     'q' => {
                         self.list
-                            .selection()
+                            .selection_inclusive()
                             .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id))
                             .for_each(|id| {
                                 jb.enqueue(id);
@@ -247,7 +247,7 @@ impl SearchPage {
                     }
                     'n' => {
                         self.list
-                            .selection()
+                            .selection_inclusive()
                             .rev()
                             .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id))
                             .for_each(|id| {

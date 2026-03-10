@@ -78,7 +78,20 @@ impl List {
         self.index
     }
 
-    pub fn selection(&self) -> std::ops::RangeInclusive<usize> {
+    pub const fn selector(&self) -> Option<usize> {
+        self.selector
+    }
+
+    pub fn selection(&self) -> Option<std::ops::Range<usize>> {
+        self.selector
+            .and_then(|selector| match self.index.cmp(&selector) {
+                std::cmp::Ordering::Less => Some((self.index + 1)..(selector + 1)),
+                std::cmp::Ordering::Greater => Some(selector..self.index),
+                std::cmp::Ordering::Equal => None,
+            })
+    }
+
+    pub fn selection_inclusive(&self) -> std::ops::RangeInclusive<usize> {
         self.selector
             .map(|selector| {
                 if self.index < selector {
@@ -140,6 +153,8 @@ impl List {
 
         old_index != self.index || old_selector != self.selector
     }
+
+    // TODO: Move selection.
 
     pub fn select_all(&mut self) -> bool {
         let old_index = self.index;
@@ -238,7 +253,7 @@ impl List {
             );
         }
 
-        let selection = self.selection();
+        let selection = self.selection_inclusive();
         let mut line = Rect { height: 1, ..area };
 
         items
