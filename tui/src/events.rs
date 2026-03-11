@@ -1,6 +1,5 @@
 use std::time::{Duration, Instant};
 
-use jukebox::AudioFileReport;
 use ratatui::crossterm::event::{self, Event as CrosstermEvent};
 
 type Sender = std::sync::mpsc::Sender<Event>;
@@ -44,7 +43,7 @@ impl EventHandler {
         &mut self,
         dbus_name: &str,
         display_name: &str,
-    ) -> Result<(), AudioFileReport> {
+    ) -> Result<(), String> {
         let config = souvlaki::PlatformConfig {
             display_name,
             dbus_name,
@@ -52,11 +51,11 @@ impl EventHandler {
         };
 
         let mut controls = souvlaki::MediaControls::new(config).map_err(|err| {
-            AudioFileReport::new(format!(
+            format!(
                 "Failed to create media controls for the Media Player \
                 Remote Interfacing Specification (MPRIS) due to {}",
                 err
-            ))
+            )
         })?;
 
         controls
@@ -67,11 +66,11 @@ impl EventHandler {
                 }
             })
             .map_err(|err| {
-                AudioFileReport::new(format!(
+                format!(
                     "Failed to attach static handler for Media Player \
                     Remote Interfacing Specification (MPRIS) due to {}",
                     err
-                ))
+                )
             })?;
 
         self.media_controls = Some(MediaControls(controls));
