@@ -34,12 +34,12 @@ pub const fn stars(rating: AudioRating) -> &'static str {
 
 pub const fn stars_split(rating: AudioRating) -> (&'static str, &'static str) {
     match rating {
-        AudioRating::None => ("", repeat!(STAR_BIG, 5)),
-        AudioRating::Awful => (STAR_BIG, repeat!(STAR_BIG, 4)),
+        AudioRating::None => (repeat!(STAR_BIG, 0), repeat!(STAR_BIG, 5)),
+        AudioRating::Awful => (repeat!(STAR_BIG, 1), repeat!(STAR_BIG, 4)),
         AudioRating::Bad => (repeat!(STAR_BIG, 2), repeat!(STAR_BIG, 3)),
         AudioRating::Ok => (repeat!(STAR_BIG, 3), repeat!(STAR_BIG, 2)),
-        AudioRating::Good => (repeat!(STAR_BIG, 4), STAR_BIG),
-        AudioRating::Amazing => (repeat!(STAR_BIG, 5), ""),
+        AudioRating::Good => (repeat!(STAR_BIG, 4), repeat!(STAR_BIG, 1)),
+        AudioRating::Amazing => (repeat!(STAR_BIG, 5), repeat!(STAR_BIG, 0)),
     }
 }
 
