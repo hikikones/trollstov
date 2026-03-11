@@ -2,20 +2,17 @@ use std::{path::PathBuf, time::Duration};
 
 use image::GenericImageView;
 use jukebox::{
-    AudioFileReport, AudioPicture, Database, DatabaseEvent, Jukebox, JukeboxEvent, MediaControls,
-    MediaEvent, MediaPlayback, Track,
+    AudioFileReport, AudioPicture, Database, DatabaseEvent, Jukebox, JukeboxEvent, Track,
 };
 use ratatui::{
     CompletedFrame,
-    crossterm::event::{
-        Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MediaKeyCode,
-    },
+    crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     prelude::*,
 };
 use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
 
 use crate::{
-    events::{Event, EventHandler},
+    events::{Event, EventHandler, MediaEvent, MediaPlayback},
     pages::{Log, LogsPage, Pages, PlayingPage, Route, SearchPage, SettingsPage, TracksPage},
     settings::{Colors, Settings},
     symbols,
@@ -35,7 +32,6 @@ pub struct App {
     settings: Settings,
     database: Database,
     jukebox: Jukebox,
-    mpris: Option<MediaControls>,
     picker: Picker,
     screen_size: ScreenSize,
     front_cover: FrontCover,
@@ -89,20 +85,19 @@ impl App {
             })
             .unwrap_or_default();
 
-        let media_controls = {
-            if mpris {
-                match MediaControls::new(crate::APP_NAME) {
-                    Ok(media_controls) => Some(media_controls),
-                    Err(err) => {
-                        let log = Log::new(err);
-                        logs.enqueue(log);
-                        None
-                    }
+        let mut events = EventHandler::new();
+        if mpris {
+            match events.try_establish_media_controls(
+                symbols::concat!("org.hikikones.", crate::APP_NAME),
+                crate::APP_NAME,
+            ) {
+                Ok(_) => {}
+                Err(err) => {
+                    let log = Log::new(err);
+                    logs.enqueue(log);
                 }
-            } else {
-                None
             }
-        };
+        }
 
         let pages = Pages {
             tracks: TracksPage::new(),
@@ -116,11 +111,10 @@ impl App {
             running: true,
             pages,
             route: Route::default(),
-            events: EventHandler::new(),
+            events,
             settings,
             database,
             jukebox,
-            mpris: media_controls,
             picker,
             screen_size: ScreenSize::Large,
             front_cover: FrontCover::None,
@@ -150,6 +144,7 @@ impl App {
             let action = match self.events.next()? {
                 Event::Update => self.update(),
                 Event::Render => Action::Render,
+                Event::Media(event) => self.handle_media_event(event),
                 Event::Terminal(event) => match event {
                     CrosstermEvent::Key(key) if key.kind == KeyEventKind::Press => {
                         self.handle_key_press(key)
@@ -198,6 +193,25 @@ impl App {
         self.pages
             .search
             .set_search_by_path(self.settings.search_by_path());
+    }
+
+    fn handle_media_event(&mut self, event: MediaEvent) -> Action {
+        match event {
+            MediaEvent::Play => self.jukebox.play(),
+            MediaEvent::Pause => self.jukebox.pause(),
+            MediaEvent::Toggle => self.jukebox.pause_or_play(),
+            MediaEvent::Next => self.jukebox.play_next(&self.database),
+            MediaEvent::Previous => self.jukebox.play_previous(&self.database),
+            MediaEvent::Stop => self.jukebox.stop(),
+            MediaEvent::Raise => {
+                // TODO: Focus terminal window.
+            }
+            MediaEvent::Quit => {
+                return Action::Quit;
+            }
+        }
+
+        Action::None
     }
 
     fn handle_key_press(&mut self, key: KeyEvent) -> Action {
@@ -253,35 +267,6 @@ impl App {
                     return self.on_input(key);
                 }
             }
-            KeyCode::Media(media) => {
-                // Ignore when we have media controls through MPRIS
-                if self.mpris.is_none() {
-                    match media {
-                        MediaKeyCode::Play => {
-                            self.jukebox.play();
-                        }
-                        MediaKeyCode::Pause => {
-                            self.jukebox.pause();
-                        }
-                        MediaKeyCode::PlayPause => {
-                            self.jukebox.pause_or_play();
-                        }
-                        MediaKeyCode::Stop => {
-                            self.jukebox.stop();
-                        }
-                        MediaKeyCode::TrackNext => {
-                            self.jukebox.play_next(&self.database);
-                        }
-                        MediaKeyCode::TrackPrevious => {
-                            self.jukebox.play_previous(&self.database);
-                        }
-                        MediaKeyCode::FastForward => {
-                            self.jukebox.fast_forward_by(Duration::from_secs(30));
-                        }
-                        _ => {}
-                    }
-                }
-            }
             KeyCode::Char(c) => match c {
                 '/' => {
                     if self.route == Route::Search {
@@ -317,46 +302,36 @@ impl App {
             }
         });
 
-        // Check for media control events
-        if let Some(event) = self.mpris.as_ref().and_then(|mpris| mpris.try_recv()) {
-            match event {
-                MediaEvent::Play => self.jukebox.play(),
-                MediaEvent::Pause => self.jukebox.pause(),
-                MediaEvent::Toggle => self.jukebox.pause_or_play(),
-                MediaEvent::Next => self.jukebox.play_next(&self.database),
-                MediaEvent::Previous => self.jukebox.play_previous(&self.database),
-                MediaEvent::Stop => self.jukebox.stop(),
-                MediaEvent::Raise => {
-                    // TODO: Focus terminal window.
-                }
-                MediaEvent::Quit => {
-                    self.running = false;
-                }
-            }
-        }
-
         // Update jukebox
         self.jukebox.update(&self.database, |event| {
             render = true;
             match event {
                 JukeboxEvent::Play(id) => {
-                    if let Some(track) = id.and_then(|id| self.database.get(id)) {
-                        // Start loading front cover image
-                        let path = track.path().to_path_buf();
-                        let picker = self.picker.clone();
-                        let handle = load_front_cover(path, picker);
-                        self.front_cover_handle = Some(handle);
-                        self.front_cover = FrontCover::Loading;
+                    match id.and_then(|id| self.database.get(id)) {
+                        Some(track) => {
+                            // Start loading front cover image
+                            let path = track.path().to_path_buf();
+                            let picker = self.picker.clone();
+                            let handle = load_front_cover(path, picker);
+                            self.front_cover_handle = Some(handle);
+                            self.front_cover = FrontCover::Loading;
 
-                        // Update metadata for mpris
-                        if let Some(mpris) = self.mpris.as_mut() {
-                            mpris.set_metadata(track.title(), track.artist());
-                            mpris.set_playback(MediaPlayback::Playing);
+                            // Update metadata and playback status for mpris
+                            if let Some(mpris) = self.events.media_controls() {
+                                mpris.set_metadata(track.title(), track.artist());
+                                mpris.set_playback(MediaPlayback::Playing);
+                            }
+                        }
+                        None => {
+                            // Update only playback status
+                            if let Some(mpris) = self.events.media_controls() {
+                                mpris.set_playback(MediaPlayback::Playing);
+                            }
                         }
                     }
                 }
                 JukeboxEvent::Pause => {
-                    if let Some(mpris) = self.mpris.as_mut() {
+                    if let Some(mpris) = self.events.media_controls() {
                         mpris.set_playback(MediaPlayback::Paused);
                     }
                 }
@@ -364,7 +339,7 @@ impl App {
                     self.front_cover = FrontCover::None;
                     self.front_cover_handle = None;
 
-                    if let Some(mpris) = self.mpris.as_mut() {
+                    if let Some(mpris) = self.events.media_controls() {
                         mpris.reset_metadata();
                         mpris.set_playback(MediaPlayback::Stopped);
                     }
