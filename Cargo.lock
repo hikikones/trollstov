@@ -3836,6 +3836,7 @@ dependencies = [
  "ratatui-image",
  "seahash",
  "serde",
+ "souvlaki",
  "terminal-colorsaurus",
  "toml",
  "unicode-segmentation",
