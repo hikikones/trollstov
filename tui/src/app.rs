@@ -6,9 +6,7 @@ use jukebox::{
 };
 use ratatui::{
     CompletedFrame,
-    crossterm::event::{
-        Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MediaKeyCode,
-    },
+    crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     prelude::*,
 };
 use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
@@ -267,35 +265,6 @@ impl App {
                     self.jukebox.play_previous(&self.database);
                 } else {
                     return self.on_input(key);
-                }
-            }
-            KeyCode::Media(media) => {
-                // Ignore when we have media controls through MPRIS
-                if self.events.media_controls().is_none() {
-                    match media {
-                        MediaKeyCode::Play => {
-                            self.jukebox.play();
-                        }
-                        MediaKeyCode::Pause => {
-                            self.jukebox.pause();
-                        }
-                        MediaKeyCode::PlayPause => {
-                            self.jukebox.pause_or_play();
-                        }
-                        MediaKeyCode::Stop => {
-                            self.jukebox.stop();
-                        }
-                        MediaKeyCode::TrackNext => {
-                            self.jukebox.play_next(&self.database);
-                        }
-                        MediaKeyCode::TrackPrevious => {
-                            self.jukebox.play_previous(&self.database);
-                        }
-                        MediaKeyCode::FastForward => {
-                            self.jukebox.fast_forward_by(Duration::from_secs(30));
-                        }
-                        _ => {}
-                    }
                 }
             }
             KeyCode::Char(c) => match c {
