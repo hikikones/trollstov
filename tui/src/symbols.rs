@@ -16,30 +16,30 @@ pub const ARROW_HEAD_DOWN: &str = "⌄";
 
 pub const SELECTED: &str = ">";
 pub const SELECTION: &str = "|";
-pub const STAR_FILLED: &str = "★";
-pub const STAR_OUTLINE: &str = "☆";
+pub const STAR: &str = "★";
+pub const STAR_BIG: &str = "🟊";
 pub const CHECKMARK_YES: &str = "🗸";
 pub const CHECKMARK_NO: &str = "𐄂";
 
 pub const fn stars(rating: AudioRating) -> &'static str {
     match rating {
         AudioRating::None => "",
-        AudioRating::Awful => STAR_FILLED,
-        AudioRating::Bad => repeat!(STAR_FILLED, 2),
-        AudioRating::Ok => repeat!(STAR_FILLED, 3),
-        AudioRating::Good => repeat!(STAR_FILLED, 4),
-        AudioRating::Amazing => repeat!(STAR_FILLED, 5),
+        AudioRating::Awful => STAR,
+        AudioRating::Bad => repeat!(STAR, 2),
+        AudioRating::Ok => repeat!(STAR, 3),
+        AudioRating::Good => repeat!(STAR, 4),
+        AudioRating::Amazing => repeat!(STAR, 5),
     }
 }
 
 pub const fn stars_split(rating: AudioRating) -> (&'static str, &'static str) {
     match rating {
-        AudioRating::None => ("", repeat!(STAR_OUTLINE, 5)),
-        AudioRating::Awful => (STAR_FILLED, repeat!(STAR_OUTLINE, 4)),
-        AudioRating::Bad => (repeat!(STAR_FILLED, 2), repeat!(STAR_OUTLINE, 3)),
-        AudioRating::Ok => (repeat!(STAR_FILLED, 3), repeat!(STAR_OUTLINE, 2)),
-        AudioRating::Good => (repeat!(STAR_FILLED, 4), STAR_OUTLINE),
-        AudioRating::Amazing => (repeat!(STAR_FILLED, 5), ""),
+        AudioRating::None => (repeat!(STAR_BIG, 0), repeat!(STAR_BIG, 5)),
+        AudioRating::Awful => (repeat!(STAR_BIG, 1), repeat!(STAR_BIG, 4)),
+        AudioRating::Bad => (repeat!(STAR_BIG, 2), repeat!(STAR_BIG, 3)),
+        AudioRating::Ok => (repeat!(STAR_BIG, 3), repeat!(STAR_BIG, 2)),
+        AudioRating::Good => (repeat!(STAR_BIG, 4), repeat!(STAR_BIG, 1)),
+        AudioRating::Amazing => (repeat!(STAR_BIG, 5), repeat!(STAR_BIG, 0)),
     }
 }
 
