@@ -88,14 +88,17 @@ impl App {
             .unwrap_or_default();
 
         let mut events = EventHandler::new();
-        if mpris
-            && let Err(err) = events.try_establish_media_controls(
+        if mpris {
+            match events.try_establish_media_controls(
                 symbols::concat!("org.hikikones.", crate::APP_NAME),
                 crate::APP_NAME,
-            )
-        {
-            let log = Log::new(err);
-            logs.enqueue(log);
+            ) {
+                Ok(_) => {}
+                Err(err) => {
+                    let log = Log::new(err);
+                    logs.enqueue(log);
+                }
+            }
         }
 
         let pages = Pages {
