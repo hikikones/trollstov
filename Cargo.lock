@@ -3859,6 +3859,7 @@ dependencies = [
  "unicode-segmentation",
  "unicode-width",
  "utils",
+ "widgets",
 ]
 
 [[package]]
@@ -4159,6 +4160,16 @@ checksum = "13ca908d26e4786149c48efcf6c0ea09ab0e06d1fe3c17dc1b4b0f1ca4a7e788"
 dependencies = [
  "bytemuck",
  "safe_arch",
+]
+
+[[package]]
+name = "widgets"
+version = "0.1.0"
+dependencies = [
+ "ratatui",
+ "seahash",
+ "unicode-segmentation",
+ "unicode-width",
 ]
 
 [[package]]

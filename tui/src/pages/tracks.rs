@@ -6,13 +6,9 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding},
 };
+use widgets::{List, ListItem, ListMove, Shortcut, Shortcuts};
 
-use crate::{
-    app::Action,
-    settings::Colors,
-    symbols,
-    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
-};
+use crate::{app::Action, settings::Colors, symbols};
 
 pub struct TracksPage {
     list: List,
@@ -54,12 +50,12 @@ impl TracksPage {
         shortcuts: &mut Shortcuts,
     ) {
         if db.is_empty() {
-            utils::print_ascii(
+            widgets::print_ascii(
                 area,
                 buf,
                 "No tracks to be found",
                 Style::new().fg(colors.neutral),
-                Some(utils::Alignment::Center),
+                Some(widgets::Alignment::Center),
             );
             return;
         }
@@ -71,7 +67,7 @@ impl TracksPage {
 
         // Title for bordered tracks table
         ::utils::format_int(db.len(), |len| {
-            utils::print_asciis(
+            widgets::print_asciis(
                 Rect {
                     y: area.y,
                     height: 1,
@@ -80,7 +76,7 @@ impl TracksPage {
                 buf,
                 [" All tracks (", len, ") "],
                 Style::new(),
-                Some(utils::Alignment::CenterHorizontal),
+                Some(widgets::Alignment::CenterHorizontal),
             );
         });
 
@@ -309,7 +305,7 @@ impl TracksPage {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);
                 }
 
-                utils::print_text_segments_with_styles(
+                widgets::print_text_segments_with_styles(
                     line,
                     buf,
                     [

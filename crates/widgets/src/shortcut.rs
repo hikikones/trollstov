@@ -4,7 +4,7 @@ use ratatui::{
     style::{Color, Style},
 };
 
-use crate::widgets::TextSegment;
+use crate::TextSegment;
 
 pub struct Shortcut<'a> {
     name: &'a str,

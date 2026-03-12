@@ -2,7 +2,7 @@ use ratatui::{
     buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
     layout::Rect,
-    style::{Color, Style},
+    style::Color,
 };
 
 use super::utils;

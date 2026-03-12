@@ -3,12 +3,9 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding},
 };
+use widgets::{List, ListItem, ListMove, Shortcut, Shortcuts};
 
-use crate::{
-    app::Action,
-    settings::Colors,
-    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
-};
+use crate::{app::Action, settings::Colors};
 
 // TODO: LogLevel? ERROR/INFO.
 
@@ -50,12 +47,12 @@ impl LogsPage {
         shortcuts: &mut Shortcuts,
     ) {
         if self.logs.is_empty() {
-            utils::print_ascii(
+            widgets::print_ascii(
                 area,
                 buf,
                 "No logs to report",
                 colors.neutral,
-                Some(utils::Alignment::Center),
+                Some(widgets::Alignment::Center),
             );
             return;
         }
@@ -67,7 +64,7 @@ impl LogsPage {
 
         // Title for bordered logs
         ::utils::format_int(self.logs.len(), |len| {
-            utils::print_asciis(
+            widgets::print_asciis(
                 Rect {
                     y: area.y,
                     height: 1,
@@ -76,7 +73,7 @@ impl LogsPage {
                 buf,
                 [" Logs (", len, ") "],
                 Style::new(),
-                Some(utils::Alignment::CenterHorizontal),
+                Some(widgets::Alignment::CenterHorizontal),
             );
         });
 
@@ -97,7 +94,7 @@ impl LogsPage {
                     (0, Style::new())
                 };
 
-                utils::print_text(line, buf, &log.message[scroll..], style, true, None);
+                widgets::print_text(line, buf, &log.message[scroll..], style, true, None);
             },
         );
 

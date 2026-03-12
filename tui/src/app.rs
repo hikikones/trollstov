@@ -10,6 +10,7 @@ use ratatui::{
     prelude::*,
 };
 use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
+use widgets::{Shortcut, Shortcuts, TextSegment};
 
 use crate::{
     events::{Event, EventHandler, MediaEvent, MediaPlayback},
@@ -17,7 +18,6 @@ use crate::{
     settings::{Colors, Settings},
     symbols,
     terminal::Terminal,
-    widgets::{Shortcut, Shortcuts, TextSegment, utils},
 };
 
 // TODO: Add a dynamic playlist page for artists/albums/genres and filtering.
@@ -130,7 +130,7 @@ impl App {
         // Draw logo
         terminal.draw(|frame| {
             let color = self.settings.neutral();
-            frame.render_widget(crate::widgets::LogoWidget(color), frame.area());
+            frame.render_widget(widgets::LogoWidget(color), frame.area());
         })?;
 
         // Apply settings, read events, load music and enter first page
@@ -474,12 +474,12 @@ impl App {
                     .areas(area);
 
                     // Title
-                    utils::print_asciis(
+                    widgets::print_asciis(
                         title_area,
                         buf,
                         [crate::APP_NAME, " v", crate::APP_VERSION],
                         colors.neutral,
-                        Some(utils::Alignment::CenterHorizontal),
+                        Some(widgets::Alignment::CenterHorizontal),
                     );
 
                     // Navigation

@@ -7,13 +7,13 @@ use ratatui::{
     widgets::{Block, Padding},
 };
 use ratatui_image::StatefulImage;
+use widgets::{List, ListItem, ListMove, Shortcut, Shortcuts};
 
 use crate::{
     app::{Action, FrontCover, ScreenSize},
     pages::Route,
     settings::Colors,
     symbols,
-    widgets::{List, ListItem, ListMove, Shortcut, Shortcuts, utils},
 };
 
 pub struct PlayingPage {
@@ -79,7 +79,7 @@ impl PlayingPage {
                                     colors,
                                 );
                                 let stars = symbols::stars_split(rating);
-                                utils::print_texts_with_styles(
+                                widgets::print_texts_with_styles(
                                     Rect {
                                         y: cover_area.y / 2,
                                         ..area
@@ -90,16 +90,16 @@ impl PlayingPage {
                                         (stars.1, Style::new().fg(colors.neutral)),
                                     ],
                                     None,
-                                    Some(utils::Alignment::CenterHorizontal),
+                                    Some(widgets::Alignment::CenterHorizontal),
                                 );
                             }
                             None => {
-                                utils::print_ascii(
+                                widgets::print_ascii(
                                     area,
                                     buf,
                                     "No track currently playing",
                                     colors.neutral,
-                                    Some(utils::Alignment::Center),
+                                    Some(widgets::Alignment::Center),
                                 );
                             }
                         }
@@ -107,7 +107,7 @@ impl PlayingPage {
                 }
 
                 // Shortcut
-                utils::print_asciis_with_styles(
+                widgets::print_asciis_with_styles(
                     Rect {
                         y: area.y + area.height.saturating_sub(1),
                         ..area
@@ -118,7 +118,7 @@ impl PlayingPage {
                         (" ", Style::new()),
                         ("toggle view", Style::new().fg(colors.neutral)),
                     ],
-                    Some(utils::Alignment::CenterHorizontal),
+                    Some(widgets::Alignment::CenterHorizontal),
                 );
             }
             ScreenSize::Medium | ScreenSize::Large => {
@@ -143,7 +143,7 @@ impl PlayingPage {
                             colors,
                         );
                         let stars = symbols::stars_split(rating);
-                        utils::print_texts_with_styles(
+                        widgets::print_texts_with_styles(
                             Rect {
                                 y: cover_area.y + cover_area.height,
                                 height: 1,
@@ -155,16 +155,16 @@ impl PlayingPage {
                                 (stars.1, Style::new().fg(colors.neutral)),
                             ],
                             None,
-                            Some(utils::Alignment::CenterHorizontal),
+                            Some(widgets::Alignment::CenterHorizontal),
                         );
                     }
                     None => {
-                        utils::print_ascii(
+                        widgets::print_ascii(
                             playing_area,
                             buf,
                             "No track currently playing",
                             colors.neutral,
-                            Some(utils::Alignment::Center),
+                            Some(widgets::Alignment::Center),
                         );
                     }
                 }
@@ -298,40 +298,40 @@ impl PlayingPage {
                 height: img_h,
                 ..area
             };
-            utils::align(img_r, area, utils::Alignment::Center)
+            widgets::align(img_r, area, widgets::Alignment::Center)
         };
 
         match front_cover {
             FrontCover::None => {
                 Block::bordered().style(neutral_style).render(img_area, buf);
-                utils::print_ascii(
+                widgets::print_ascii(
                     img_area,
                     buf,
                     "NO IMAGE",
                     neutral_style,
-                    Some(utils::Alignment::Center),
+                    Some(widgets::Alignment::Center),
                 );
             }
             FrontCover::Loading => {
                 Block::bordered().style(neutral_style).render(img_area, buf);
-                utils::print_ascii(
+                widgets::print_ascii(
                     img_area,
                     buf,
                     "LOADING",
                     neutral_style,
-                    Some(utils::Alignment::Center),
+                    Some(widgets::Alignment::Center),
                 );
             }
             FrontCover::Ready(image) => {
                 let resized_img_area = image.size_for(ratatui_image::Resize::default(), img_area);
-                img_area = utils::align(
+                img_area = widgets::align(
                     Rect {
                         width: resized_img_area.width,
                         height: resized_img_area.height,
                         ..area
                     },
                     area,
-                    utils::Alignment::Center,
+                    widgets::Alignment::Center,
                 );
                 StatefulImage::default().render(img_area, buf, image);
             }
@@ -356,7 +356,7 @@ impl PlayingPage {
 
         // Title for bordered play queue
         ::utils::format_int2(jb.history(), jb.queue(), |hlen, qlen| {
-            utils::print_asciis(
+            widgets::print_asciis(
                 Rect {
                     y: area.y,
                     height: 1,
@@ -365,17 +365,17 @@ impl PlayingPage {
                 buf,
                 [" History (", hlen, ") / Queue (", qlen, ") "],
                 colors.neutral,
-                Some(utils::Alignment::CenterHorizontal),
+                Some(widgets::Alignment::CenterHorizontal),
             );
         });
 
         if jb.is_empty() {
-            utils::print_ascii(
+            widgets::print_ascii(
                 queue_inner_area,
                 buf,
                 "No tracks in the queue",
                 colors.neutral,
-                Some(utils::Alignment::Center),
+                Some(widgets::Alignment::Center),
             );
             return;
         }
@@ -414,7 +414,7 @@ impl PlayingPage {
                     ListItem::Normal => "",
                 };
 
-                utils::print_texts_with_styles(
+                widgets::print_texts_with_styles(
                     line,
                     buf,
                     [

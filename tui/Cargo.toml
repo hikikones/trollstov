@@ -24,3 +24,4 @@ toml = { workspace = true }
 unicode-segmentation = { workspace = true }
 unicode-width = { workspace = true }
 utils = { workspace = true }
+widgets = { workspace = true }

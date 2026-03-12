@@ -4,7 +4,6 @@ mod pages;
 mod settings;
 mod symbols;
 mod terminal;
-mod widgets;
 
 const APP_NAME: &str = env!("CARGO_PKG_NAME");
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");

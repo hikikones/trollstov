@@ -37,6 +37,7 @@ unicode-segmentation = "1.12"
 unicode-width = "0.2"
 utils = { path = "crates/utils" }
 walkdir = "2.5"
+widgets = { path = "crates/widgets" }
 
 [profile.dev]
 opt-level = 1

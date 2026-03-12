@@ -6,16 +6,16 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding},
 };
+use widgets::{
+    CursorMove, List, ListItem, ListMove, Shortcut, Shortcuts, TextInput, TextInputStyles,
+    TextSegment,
+};
 
 use crate::{
     app::Action,
     pages::Log,
     settings::{Colors, Settings},
     symbols,
-    widgets::{
-        List, ListItem, ListMove, Shortcut, Shortcuts, TextInput, TextInputStyles, TextSegment,
-        utils,
-    },
 };
 
 pub struct SettingsPage {
@@ -331,12 +331,12 @@ impl SettingsPage {
         };
 
         if !description.is_empty() {
-            utils::print_asciis(
+            widgets::print_asciis(
                 description_area,
                 buf,
                 [" ", description, " "],
                 Style::new(),
-                Some(utils::Alignment::CenterHorizontal),
+                Some(widgets::Alignment::CenterHorizontal),
             );
         }
 
@@ -568,7 +568,7 @@ struct ColorSetting(TextInput);
 impl ColorSetting {
     fn new(color: Color) -> Self {
         let mut input = TextInput::from(color.to_string());
-        input.move_cursor(crate::widgets::CursorMove::End, false);
+        input.move_cursor(CursorMove::End, false);
         Self(input)
     }
 
@@ -639,12 +639,12 @@ fn previous(current: usize) -> Option<usize> {
 }
 
 fn print_section(line: Rect, buf: &mut Buffer, ascii: &str) {
-    utils::print_ascii(
+    widgets::print_ascii(
         line,
         buf,
         ascii,
         Style::new(),
-        Some(utils::Alignment::CenterHorizontal),
+        Some(widgets::Alignment::CenterHorizontal),
     );
 }
 
@@ -659,17 +659,17 @@ fn print_rating(
     colors: &Colors,
 ) {
     // Text
-    utils::print_asciis(
+    widgets::print_asciis(
         text_area,
         buf,
         [symbol, text, ":"],
         style,
-        Some(utils::Alignment::Right),
+        Some(widgets::Alignment::Right),
     );
 
     // Stars
     let stars = symbols::stars_split(rating);
-    utils::print_texts_with_styles(
+    widgets::print_texts_with_styles(
         input_area,
         buf,
         [
@@ -692,12 +692,12 @@ fn print_checkmark(
     colors: &Colors,
 ) {
     // Text
-    utils::print_asciis(
+    widgets::print_asciis(
         text_area,
         buf,
         [symbol, text, ":"],
         style,
-        Some(utils::Alignment::Right),
+        Some(widgets::Alignment::Right),
     );
 
     // Checkmark
@@ -726,12 +726,12 @@ fn print_color(
     preview_style: Style,
 ) {
     // Text
-    utils::print_asciis(
+    widgets::print_asciis(
         text_area,
         buf,
         [symbol, text, ":"],
         style,
-        Some(utils::Alignment::Right),
+        Some(widgets::Alignment::Right),
     );
 
     // Input
@@ -739,5 +739,5 @@ fn print_color(
     color_setting.render(input_area, buf);
 
     // Preview
-    utils::print_ascii(preview_area, buf, preview_text, preview_style, None);
+    widgets::print_ascii(preview_area, buf, preview_text, preview_style, None);
 }

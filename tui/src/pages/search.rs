@@ -6,13 +6,8 @@ use ratatui::{
     widgets::{Block, Padding},
 };
 
-use crate::{
-    app::Action,
-    pages::Route,
-    settings::Colors,
-    symbols,
-    widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles, utils},
-};
+use crate::{app::Action, pages::Route, settings::Colors, symbols};
+use widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles};
 
 // TODO: Add timer for searching?
 // Currently searching on every input, but should probably be a small timeout.
@@ -66,12 +61,12 @@ impl SearchPage {
         shortcuts: &mut Shortcuts,
     ) {
         if db.is_empty() {
-            utils::print_ascii(
+            widgets::print_ascii(
                 area,
                 buf,
                 "No tracks to search for",
                 colors.neutral,
-                Some(utils::Alignment::Center),
+                Some(widgets::Alignment::Center),
             );
             return;
         }
@@ -128,7 +123,7 @@ impl SearchPage {
 
         // Title for bordered search results
         ::utils::format_int(self.search_results.len(), |len| {
-            utils::print_asciis(
+            widgets::print_asciis(
                 Rect {
                     y: search_results_area.y,
                     height: 1,
@@ -137,7 +132,7 @@ impl SearchPage {
                 buf,
                 [" Search results (", len, ") "],
                 border_style,
-                Some(utils::Alignment::CenterHorizontal),
+                Some(widgets::Alignment::CenterHorizontal),
             );
         });
 
@@ -176,7 +171,7 @@ impl SearchPage {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);
                 }
 
-                utils::print_texts_with_styles(
+                widgets::print_texts_with_styles(
                     line,
                     buf,
                     [
