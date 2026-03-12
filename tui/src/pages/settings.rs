@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use jukebox::AudioRating;
+use audio::AudioRating;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,

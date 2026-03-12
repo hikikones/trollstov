@@ -1,4 +1,5 @@
-use jukebox::{Database, Jukebox, TrackId};
+use database::{Database, TrackId};
+use jukebox::Jukebox;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -126,7 +127,7 @@ impl SearchPage {
         search_results_block.render(search_results_area, buf);
 
         // Title for bordered search results
-        jukebox::utils::format_int(self.search_results.len(), |len| {
+        ::utils::format_int(self.search_results.len(), |len| {
             utils::print_asciis(
                 Rect {
                     y: search_results_area.y,

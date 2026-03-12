@@ -194,14 +194,34 @@ impl AudioFile {
 
 #[derive(Debug)]
 pub struct AudioMetadata {
-    pub(crate) title: String,
-    pub(crate) artist: String,
-    pub(crate) album: String,
-    pub(crate) rating: AudioRating,
+    title: String,
+    artist: String,
+    album: String,
+    rating: AudioRating,
 }
 
 impl AudioMetadata {
     const POPM_FRAME_ID: FrameId<'static> = FrameId::Valid(Cow::Borrowed("POPM"));
+
+    pub const fn title(&self) -> &str {
+        self.title.as_str()
+    }
+
+    pub const fn artist(&self) -> &str {
+        self.artist.as_str()
+    }
+
+    pub const fn album(&self) -> &str {
+        self.album.as_str()
+    }
+
+    pub const fn rating(&self) -> AudioRating {
+        self.rating
+    }
+
+    pub const fn set_rating(&mut self, rating: AudioRating) {
+        self.rating = rating;
+    }
 
     fn from_vorbis_comments(vorbis_comments: &VorbisComments) -> Self {
         Self {
@@ -283,10 +303,17 @@ impl AudioMetadata {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde_repr::Serialize_repr, serde_repr::Deserialize_repr)
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    serde_repr::Serialize_repr,
+    serde_repr::Deserialize_repr,
 )]
 #[repr(u8)]
 pub enum AudioRating {
@@ -366,13 +393,29 @@ impl AudioRating {
 
 #[derive(Debug)]
 pub struct AudioProperties {
-    pub(crate) duration: Duration,
-    pub(crate) bit_rate_kbps: u32,
-    pub(crate) bit_depth: Option<u8>,
-    pub(crate) sample_rate_khz: Option<u32>,
+    duration: Duration,
+    bit_rate_kbps: u32,
+    bit_depth: Option<u8>,
+    sample_rate_khz: Option<u32>,
 }
 
 impl AudioProperties {
+    pub const fn duration(&self) -> Duration {
+        self.duration
+    }
+
+    pub const fn bit_rate_kbps(&self) -> u32 {
+        self.bit_rate_kbps
+    }
+
+    pub const fn bit_depth(&self) -> Option<u8> {
+        self.bit_depth
+    }
+
+    pub const fn sample_rate_khz(&self) -> Option<u32> {
+        self.sample_rate_khz
+    }
+
     fn from_audio_file(file: &AudioFile) -> Self {
         let (duration, bit_rate, bit_depth, sample_rate) = match &file.format {
             AudioFileFormat::Flac(flac) => {

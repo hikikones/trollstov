@@ -1,21 +1,14 @@
 [package]
-name = "jukebox"
+name = "database"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-fastrand = "2.3"
-ignore = { version = "0.4", features = ["simd-accel"] }
-indexmap = "2.13"
-itoa = "1.0"
-lofty = "0.23"
-nucleo-matcher = "0.3"
-rodio = "0.21"
-serde = { workspace = true, optional = true }
-serde_repr = { version = "0.1", optional = true }
-walkdir = "2.5"
-
-[features]
-default = []
-serde = ["dep:serde", "dep:serde_repr"]
+audio = { workspace = true }
+fastrand = { workspace = true }
+ignore = { workspace = true }
+indexmap = { workspace = true }
+nucleo-matcher = { workspace = true }
+utils = { workspace = true }
+walkdir = { workspace = true }

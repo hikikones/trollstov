@@ -1,4 +1,6 @@
-use jukebox::{AudioRating, Database, Jukebox};
+use audio::AudioRating;
+use database::Database;
+use jukebox::Jukebox;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -353,7 +355,7 @@ impl PlayingPage {
         block.render(area, buf);
 
         // Title for bordered play queue
-        jukebox::utils::format_int2(jb.history(), jb.queue(), |hlen, qlen| {
+        ::utils::format_int2(jb.history(), jb.queue(), |hlen, qlen| {
             utils::print_asciis(
                 Rect {
                     y: area.y,

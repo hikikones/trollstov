@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["lib", "tui"]
+members = ["crates/*", "tui"]
 
 [workspace.package]
 version = "0.1.0"
@@ -8,8 +8,35 @@ edition = "2024"
 license = "MIT"
 
 [workspace.dependencies]
-jukebox = { path = "lib/" }
+audio = { path = "crates/audio" }
+clap = { version = "4.5", features = ["derive"] }
+clap-cargo = { version = "0.18", default-features = false }
+constcat = "0.6"
+database = { path = "crates/database" }
+directories = "6.0"
+fastrand = "2.3"
+ignore = { version = "0.4", features = ["simd-accel"] }
+image = "0.25"
+indexmap = "2.13"
+itoa = "1.0"
+jukebox = { path = "crates/jukebox" }
+lofty = "0.23"
+nucleo-matcher = "0.3"
+ratatui = { version = "0.30", features = ["serde"] }
+ratatui-image = { version = "10.0", default-features = false, features = [
+  "crossterm"
+] }
+rodio = "0.21"
+seahash = "4.1"
 serde = { version = "1.0", features = ["derive"] }
+serde_repr = "0.1"
+souvlaki = { version = "0.8", default-features = false, features = ["use_zbus"] }
+terminal-colorsaurus = "1.0"
+toml = "1.0"
+unicode-segmentation = "1.12"
+unicode-width = "0.2"
+utils = { path = "crates/utils" }
+walkdir = "2.5"
 
 [profile.dev]
 opt-level = 1

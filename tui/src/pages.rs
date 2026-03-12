@@ -20,7 +20,7 @@ pub struct Pages {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Route {
-    Tracks(Option<jukebox::TrackId>),
+    Tracks(Option<database::TrackId>),
     NowPlaying,
     Search,
     Settings,

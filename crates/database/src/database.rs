@@ -8,7 +8,7 @@ use std::{
 
 use indexmap::IndexMap;
 
-use crate::{
+use audio::{
     AudioFile, AudioFileExtension, AudioFileReport, AudioMetadata, AudioProperties, AudioRating,
 };
 
@@ -208,7 +208,7 @@ impl Database {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TrackId(pub(crate) u64);
+pub struct TrackId(pub u64);
 
 #[derive(Debug)]
 pub struct Track {
@@ -226,7 +226,7 @@ impl Track {
         path: PathBuf,
         extension: AudioFileExtension,
     ) -> Self {
-        let duration_display = crate::utils::format_duration(properties.duration);
+        let duration_display = utils::format_duration(properties.duration());
 
         Self {
             metadata,
@@ -238,27 +238,27 @@ impl Track {
     }
 
     pub const fn title(&self) -> &str {
-        self.metadata.title.as_str()
+        self.metadata.title()
     }
 
     pub const fn artist(&self) -> &str {
-        self.metadata.artist.as_str()
+        self.metadata.artist()
     }
 
     pub const fn album(&self) -> &str {
-        self.metadata.album.as_str()
+        self.metadata.album()
     }
 
     pub const fn rating(&self) -> AudioRating {
-        self.metadata.rating
+        self.metadata.rating()
     }
 
     pub const fn set_rating(&mut self, rating: AudioRating) {
-        self.metadata.rating = rating;
+        self.metadata.set_rating(rating);
     }
 
     pub const fn duration(&self) -> Duration {
-        self.properties.duration
+        self.properties.duration()
     }
 
     pub const fn duration_display(&self) -> &str {
@@ -275,17 +275,17 @@ impl Track {
 
     /// Audio bit rate in kbps.
     pub const fn bit_rate(&self) -> u32 {
-        self.properties.bit_rate_kbps
+        self.properties.bit_rate_kbps()
     }
 
     /// Bits per sample, usually 16 or 24 bit.
     pub const fn bit_depth(&self) -> Option<u8> {
-        self.properties.bit_depth
+        self.properties.bit_depth()
     }
 
     /// Sample rate in kHz.
     pub const fn sample_rate(&self) -> Option<u32> {
-        self.properties.sample_rate_khz
+        self.properties.sample_rate_khz()
     }
 }
 

@@ -1,4 +1,4 @@
-use jukebox::AudioRating;
+use audio::AudioRating;
 
 pub const ALT: &str = "⎇";
 pub const CTRL: &str = "^";

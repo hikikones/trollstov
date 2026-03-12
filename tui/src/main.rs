@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let audio_device = jukebox::AudioDevice::new()?;
     let jukebox = jukebox::Jukebox::new(audio_device);
-    let database = jukebox::Database::new(args.dir);
+    let database = database::Database::new(args.dir);
 
     let mut app = app::App::new(database, jukebox, picker, args.mpris);
     let res = app.run(terminal);

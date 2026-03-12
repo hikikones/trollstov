@@ -1,4 +1,6 @@
-use jukebox::{AudioRating, Database, Jukebox, TrackId, TrackSort};
+use audio::AudioRating;
+use database::{Database, TrackId, TrackSort};
+use jukebox::Jukebox;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -68,7 +70,7 @@ impl TracksPage {
         block.render(area, buf);
 
         // Title for bordered tracks table
-        jukebox::utils::format_int(db.len(), |len| {
+        ::utils::format_int(db.len(), |len| {
             utils::print_asciis(
                 Rect {
                     y: area.y,
