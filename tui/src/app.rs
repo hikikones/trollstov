@@ -647,7 +647,7 @@ fn render_navigation(
         if route == Route::Logs {
             let new_logs = pages.logs.queue_len();
             if new_logs > 0 {
-                ::utils::format_int(new_logs, |new_logs| {
+                utils::format_int(new_logs, |new_logs| {
                     text.extend([("(", style), (new_logs, style), (")", style)]);
                 });
             }
@@ -689,15 +689,15 @@ fn render_playback(
             if let Some(bit_depth) = track.bit_depth()
                 && let Some(sample_rate) = track.sample_rate()
             {
-                ::utils::format_int(bit_depth, |bit_depth| {
+                utils::format_int(bit_depth, |bit_depth| {
                     text.extend_as_one([" ", bit_depth, "bit/"], neutral);
                 });
-                ::utils::format_int(sample_rate, |sample_rate| {
+                utils::format_int(sample_rate, |sample_rate| {
                     text.extend_as_one([sample_rate, "kHz"], neutral);
                 });
             }
 
-            ::utils::format_int(track.bit_rate(), |bit_rate| {
+            utils::format_int(track.bit_rate(), |bit_rate| {
                 text.extend_as_one([" ", bit_rate, "kbps] "], neutral);
             });
 
@@ -711,7 +711,7 @@ fn render_playback(
             text.clear();
 
             // Status
-            text.push_chars(&::utils::format_duration_on_stack(audio_position), neutral);
+            text.push_chars(&utils::format_duration_on_stack(audio_position), neutral);
             text.push_char(' ', Style::new());
 
             let progress = audio_position.as_secs_f32() / track.duration().as_secs_f32();
@@ -726,10 +726,7 @@ fn render_playback(
             }
 
             text.push_char(' ', Style::new());
-            text.push_chars(
-                &::utils::format_duration_on_stack(track.duration()),
-                neutral,
-            );
+            text.push_chars(&utils::format_duration_on_stack(track.duration()), neutral);
         }
         None => {
             text.push_str("00:00 ", neutral);
@@ -751,7 +748,7 @@ fn fill_play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
     ]);
 
     let volume = (volume * 100.0).round() as u8;
-    ::utils::format_int(volume, |volume| {
+    utils::format_int(volume, |volume| {
         shortcuts.push_iter(
             ["Volume ", volume, "%"],
             symbols::alt!(symbols::ARROW_DOWN_UP),

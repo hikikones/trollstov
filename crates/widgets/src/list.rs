@@ -5,7 +5,7 @@ use ratatui::{
     style::Color,
 };
 
-use super::utils;
+use crate::utils;
 
 pub struct List {
     index: usize,

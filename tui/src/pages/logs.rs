@@ -63,7 +63,7 @@ impl LogsPage {
         block.render(area, buf);
 
         // Title for bordered logs
-        ::utils::format_int(self.logs.len(), |len| {
+        utils::format_int(self.logs.len(), |len| {
             widgets::print_asciis(
                 Rect {
                     y: area.y,

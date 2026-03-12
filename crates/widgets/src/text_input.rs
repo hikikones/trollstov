@@ -8,7 +8,7 @@ use ratatui::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-use super::utils;
+use crate::utils;
 
 pub struct TextInput {
     input: String,

@@ -122,7 +122,7 @@ impl SearchPage {
         search_results_block.render(search_results_area, buf);
 
         // Title for bordered search results
-        ::utils::format_int(self.search_results.len(), |len| {
+        utils::format_int(self.search_results.len(), |len| {
             widgets::print_asciis(
                 Rect {
                     y: search_results_area.y,

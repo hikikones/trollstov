@@ -355,7 +355,7 @@ impl PlayingPage {
         block.render(area, buf);
 
         // Title for bordered play queue
-        ::utils::format_int2(jb.history(), jb.queue(), |hlen, qlen| {
+        utils::format_int2(jb.history(), jb.queue(), |hlen, qlen| {
             widgets::print_asciis(
                 Rect {
                     y: area.y,

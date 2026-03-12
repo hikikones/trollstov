@@ -66,7 +66,7 @@ impl TracksPage {
         block.render(area, buf);
 
         // Title for bordered tracks table
-        ::utils::format_int(db.len(), |len| {
+        utils::format_int(db.len(), |len| {
             widgets::print_asciis(
                 Rect {
                     y: area.y,

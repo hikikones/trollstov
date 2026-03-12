@@ -1,5 +1,7 @@
 use ratatui::{buffer::Buffer, layout::Rect, style::Color, text::Text, widgets::Widget};
 
+use crate::utils;
+
 pub struct LogoWidget(pub Color);
 
 impl Widget for LogoWidget {
@@ -12,14 +14,14 @@ impl Widget for LogoWidget {
         let (width, height) = logo.dim();
 
         Text::styled(ascii, self.0).render(
-            super::utils::align(
+            utils::align(
                 Rect {
                     width: width,
                     height: height,
                     ..area
                 },
                 area,
-                super::utils::Alignment::Center,
+                utils::Alignment::Center,
             ),
             buf,
         );
@@ -83,7 +85,7 @@ impl Widget for LogoSunWidget {
         let ascii = logo.ascii();
         let (width, height) = logo.dim();
         Text::styled(ascii, ray_color).render(
-            super::utils::align(
+            utils::align(
                 Rect {
                     width: width,
                     height: height,
@@ -91,7 +93,7 @@ impl Widget for LogoSunWidget {
                     ..area
                 },
                 area,
-                super::utils::Alignment::CenterHorizontal,
+                utils::Alignment::CenterHorizontal,
             ),
             buf,
         );
