@@ -1,0 +1,10 @@
+[package]
+name = "audio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+lofty = { workspace = true }
+serde = { workspace = true }
+serde_repr = { workspace = true }

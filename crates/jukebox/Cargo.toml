@@ -1,0 +1,11 @@
+[package]
+name = "jukebox"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+audio = { workspace = true }
+database = { workspace = true }
+fastrand = { workspace = true }
+rodio = { workspace = true }
