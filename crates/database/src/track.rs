@@ -36,15 +36,15 @@ impl Track {
         }
     }
 
-    pub const fn title(&self) -> &str {
+    pub fn title(&self) -> &str {
         self.metadata.title()
     }
 
-    pub const fn artist(&self) -> &str {
+    pub fn artist(&self) -> &str {
         self.metadata.artist()
     }
 
-    pub const fn album(&self) -> &str {
+    pub fn album(&self) -> &str {
         self.metadata.album()
     }
 
