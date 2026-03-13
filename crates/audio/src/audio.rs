@@ -195,9 +195,9 @@ impl AudioFile {
 #[derive(Debug)]
 pub struct AudioMetadata {
     data: String,
-    title: Option<std::ops::Range<usize>>,
-    artist: Option<std::ops::Range<usize>>,
-    album: Option<std::ops::Range<usize>>,
+    title: (usize, usize),
+    artist: (usize, usize),
+    album: (usize, usize),
     rating: AudioRating,
 }
 
@@ -205,24 +205,30 @@ impl AudioMetadata {
     const POPM_FRAME_ID: FrameId<'static> = FrameId::Valid(Cow::Borrowed("POPM"));
 
     pub fn title(&self) -> &str {
-        match &self.title {
-            Some(range) => &self.data[range.clone()],
-            None => "",
-        }
+        let range = self.title.0..self.title.1;
+        &self.data[range]
+        // match &self.title {
+        //     Some(range) => &self.data[range.clone()],
+        //     None => "",
+        // }
     }
 
     pub fn artist(&self) -> &str {
-        match &self.artist {
-            Some(range) => &self.data[range.clone()],
-            None => "",
-        }
+        let range = self.artist.0..self.artist.1;
+        &self.data[range]
+        // match &self.artist {
+        //     Some(range) => &self.data[range.clone()],
+        //     None => "",
+        // }
     }
 
     pub fn album(&self) -> &str {
-        match &self.album {
-            Some(range) => &self.data[range.clone()],
-            None => "",
-        }
+        let range = self.album.0..self.album.1;
+        &self.data[range]
+        // match &self.album {
+        //     Some(range) => &self.data[range.clone()],
+        //     None => "",
+        // }
     }
 
     pub const fn rating(&self) -> AudioRating {
@@ -235,36 +241,59 @@ impl AudioMetadata {
 
     fn from_vorbis_comments(vorbis_comments: &VorbisComments) -> Self {
         let mut data = String::new();
-        let mut title_range = None;
-        let mut artist_range = None;
-        let mut album_range = None;
+        // let mut title_range = (0, 0);
+        // let mut artist_range = (0, 0);
+        // let mut album_range = (0, 0);
 
-        if let Some(title) = vorbis_comments.get("TITLE")
-            && !title.is_empty()
-        {
-            let start = data.len();
+        let mut start = 0;
+        // let mut end = 0;
+
+        if let Some(title) = vorbis_comments.get("TITLE") {
             data.push_str(title);
-            let end = data.len();
-            title_range = Some(start..end);
         }
+        let title_range = (start, data.len());
 
-        if let Some(artist) = vorbis_comments.get("ARTIST")
-            && !artist.is_empty()
-        {
-            let start = data.len();
+        start = data.len();
+
+        if let Some(artist) = vorbis_comments.get("ARTIST") {
             data.push_str(artist);
-            let end = data.len();
-            artist_range = Some(start..end);
         }
+        let artist_range = (start, data.len());
 
-        if let Some(album) = vorbis_comments.get("ALBUM")
-            && !album.is_empty()
-        {
-            let start = data.len();
+        start = data.len();
+
+        if let Some(album) = vorbis_comments.get("ALBUM") {
             data.push_str(album);
-            let end = data.len();
-            album_range = Some(start..end);
         }
+        let album_range = (start, data.len());
+        // start = data.len();
+
+        // if let Some(title) = vorbis_comments.get("TITLE")
+        //     && !title.is_empty()
+        // {
+        //     let start = data.len();
+        //     data.push_str(title);
+        //     let end = data.len();
+        //     title_range = Some(start..end);
+        // }
+
+        // if let Some(artist) = vorbis_comments.get("ARTIST")
+        //     && !artist.is_empty()
+        // {
+        //     let start = data.len();
+        //     data.push_str(artist);
+        //     let end = data.len();
+        //     artist_range = Some(start..end);
+        // }
+
+        // if let Some(album) = vorbis_comments.get("ALBUM")
+        //     && !album.is_empty()
+        // {
+        //     let start = data.len();
+        //     data.push_str(album);
+        //     let end = data.len();
+        //     album_range = Some(start..end);
+        // }
 
         Self {
             data,
@@ -280,36 +309,57 @@ impl AudioMetadata {
 
     fn from_id3v2(id3v2: &Id3v2Tag) -> Self {
         let mut data = String::new();
-        let mut title_range = None;
-        let mut artist_range = None;
-        let mut album_range = None;
+        // let mut title_range = None;
+        // let mut artist_range = None;
+        // let mut album_range = None;
 
-        if let Some(title) = id3v2.title().as_deref()
-            && !title.is_empty()
-        {
-            let start = data.len();
+        let mut start = 0;
+
+        if let Some(title) = id3v2.title().as_deref() {
             data.push_str(title);
-            let end = data.len();
-            title_range = Some(start..end);
         }
+        let title_range = (start, data.len());
 
-        if let Some(artist) = id3v2.artist().as_deref()
-            && !artist.is_empty()
-        {
-            let start = data.len();
+        start = data.len();
+
+        if let Some(artist) = id3v2.artist().as_deref() {
             data.push_str(artist);
-            let end = data.len();
-            artist_range = Some(start..end);
         }
+        let artist_range = (start, data.len());
 
-        if let Some(album) = id3v2.album().as_deref()
-            && !album.is_empty()
-        {
-            let start = data.len();
+        start = data.len();
+
+        if let Some(album) = id3v2.album().as_deref() {
             data.push_str(album);
-            let end = data.len();
-            album_range = Some(start..end);
         }
+        let album_range = (start, data.len());
+
+        // if let Some(title) = id3v2.title().as_deref()
+        //     && !title.is_empty()
+        // {
+        //     let start = data.len();
+        //     data.push_str(title);
+        //     let end = data.len();
+        //     title_range = Some(start..end);
+        // }
+
+        // if let Some(artist) = id3v2.artist().as_deref()
+        //     && !artist.is_empty()
+        // {
+        //     let start = data.len();
+        //     data.push_str(artist);
+        //     let end = data.len();
+        //     artist_range = Some(start..end);
+        // }
+
+        // if let Some(album) = id3v2.album().as_deref()
+        //     && !album.is_empty()
+        // {
+        //     let start = data.len();
+        //     data.push_str(album);
+        //     let end = data.len();
+        //     album_range = Some(start..end);
+        // }
 
         Self {
             data,
