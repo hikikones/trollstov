@@ -194,25 +194,29 @@ impl AudioFile {
 
 #[derive(Debug)]
 pub struct AudioMetadata {
-    title: String,
-    artist: String,
-    album: String,
+    data: String,
+    title: (usize, usize),
+    artist: (usize, usize),
+    album: (usize, usize),
     rating: AudioRating,
 }
 
 impl AudioMetadata {
     const POPM_FRAME_ID: FrameId<'static> = FrameId::Valid(Cow::Borrowed("POPM"));
 
-    pub const fn title(&self) -> &str {
-        self.title.as_str()
+    pub fn title(&self) -> &str {
+        let range = self.title.0..self.title.1;
+        &self.data[range]
     }
 
-    pub const fn artist(&self) -> &str {
-        self.artist.as_str()
+    pub fn artist(&self) -> &str {
+        let range = self.artist.0..self.artist.1;
+        &self.data[range]
     }
 
-    pub const fn album(&self) -> &str {
-        self.album.as_str()
+    pub fn album(&self) -> &str {
+        let range = self.album.0..self.album.1;
+        &self.data[range]
     }
 
     pub const fn rating(&self) -> AudioRating {
@@ -224,19 +228,33 @@ impl AudioMetadata {
     }
 
     fn from_vorbis_comments(vorbis_comments: &VorbisComments) -> Self {
+        let mut data = String::new();
+        let mut start = 0;
+
+        if let Some(title) = vorbis_comments.get("TITLE") {
+            data.push_str(title);
+        }
+        let title_range = (start, data.len());
+
+        start = data.len();
+
+        if let Some(artist) = vorbis_comments.get("ARTIST") {
+            data.push_str(artist);
+        }
+        let artist_range = (start, data.len());
+
+        start = data.len();
+
+        if let Some(album) = vorbis_comments.get("ALBUM") {
+            data.push_str(album);
+        }
+        let album_range = (start, data.len());
+
         Self {
-            title: vorbis_comments
-                .get("TITLE")
-                .map(str::to_owned)
-                .unwrap_or_default(),
-            artist: vorbis_comments
-                .get("ARTIST")
-                .map(str::to_owned)
-                .unwrap_or_default(),
-            album: vorbis_comments
-                .get("ALBUM")
-                .map(str::to_owned)
-                .unwrap_or_default(),
+            data,
+            title: title_range,
+            artist: artist_range,
+            album: album_range,
             rating: vorbis_comments
                 .get("RATING")
                 .map(AudioRating::from_vorbis_comments)
@@ -245,22 +263,33 @@ impl AudioMetadata {
     }
 
     fn from_id3v2(id3v2: &Id3v2Tag) -> Self {
+        let mut data = String::new();
+        let mut start = 0;
+
+        if let Some(title) = id3v2.title().as_deref() {
+            data.push_str(title);
+        }
+        let title_range = (start, data.len());
+
+        start = data.len();
+
+        if let Some(artist) = id3v2.artist().as_deref() {
+            data.push_str(artist);
+        }
+        let artist_range = (start, data.len());
+
+        start = data.len();
+
+        if let Some(album) = id3v2.album().as_deref() {
+            data.push_str(album);
+        }
+        let album_range = (start, data.len());
+
         Self {
-            title: id3v2
-                .title()
-                .as_deref()
-                .map(str::to_owned)
-                .unwrap_or_default(),
-            artist: id3v2
-                .artist()
-                .as_deref()
-                .map(str::to_owned)
-                .unwrap_or_default(),
-            album: id3v2
-                .album()
-                .as_deref()
-                .map(str::to_owned)
-                .unwrap_or_default(),
+            data,
+            title: title_range,
+            artist: artist_range,
+            album: album_range,
             rating: id3v2
                 .get(&Self::POPM_FRAME_ID)
                 .map(|frame| match frame {
