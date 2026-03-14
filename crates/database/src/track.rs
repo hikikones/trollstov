@@ -15,7 +15,7 @@ pub struct Track {
     properties: AudioProperties,
     path: PathBuf,
     extension: AudioFileExtension,
-    duration_display: String,
+    duration_utf8_bytes: [u8; 20],
 }
 
 impl Track {
@@ -25,14 +25,19 @@ impl Track {
         path: PathBuf,
         extension: AudioFileExtension,
     ) -> Self {
-        let duration_display = utils::format_duration(properties.duration());
+        let chars = utils::format_duration_on_stack(properties.duration());
+        let mut bytes = [0; 20];
+        let mut p = 0;
+        for c in chars {
+            p += c.encode_utf8(&mut bytes[p..]).len();
+        }
 
         Self {
             metadata,
             properties,
             path,
             extension,
-            duration_display,
+            duration_utf8_bytes: bytes,
         }
     }
 
@@ -61,7 +66,7 @@ impl Track {
     }
 
     pub const fn duration_display(&self) -> &str {
-        self.duration_display.as_str()
+        unsafe { std::str::from_utf8_unchecked(&self.duration_utf8_bytes) }
     }
 
     pub fn path(&self) -> &Path {
