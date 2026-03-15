@@ -159,7 +159,8 @@ impl Settings {
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         let Some(dir) = get_config_dir() else {
             return Err(
-                "Unable to save settings due to no valid home directory path that could be retrieved from the operating system",
+                "Unable to save settings due to no valid home directory path \
+                that could be retrieved from the operating system",
             )?;
         };
 
