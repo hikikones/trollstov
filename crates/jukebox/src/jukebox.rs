@@ -109,6 +109,12 @@ impl Jukebox {
         success
     }
 
+    pub fn move_down_range(&mut self, start: usize, end: usize) -> bool {
+        let success = self.queue.move_down_range(start, end);
+        self.current = self.current.and_then(|_| self.queue.current());
+        success
+    }
+
     pub fn remove(&mut self, index: usize) -> bool {
         let keep_current = self.current.is_some();
         let removal = self.queue.remove(index, keep_current).is_some();

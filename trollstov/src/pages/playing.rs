@@ -226,9 +226,21 @@ impl PlayingPage {
                     return Action::Route(Route::Tracks(id));
                 }
                 'm' => {
-                    if jb.move_down(self.list.index()) {
+                    let (start, end) = {
+                        let selection = self.list.selection_inclusive();
+                        (*selection.start(), *selection.end())
+                    };
+
+                    let removal = if start == end {
+                        jb.move_down(start)
+                    } else {
+                        jb.move_down_range(start, end)
+                    };
+
+                    if removal {
                         self.current_qi = jb.current_queue_index();
-                        self.list.move_index(ListMove::Down, false);
+                        // self.list.move_index(ListMove::Down, false);
+                        // TODO move selection
                         return Action::Render;
                     }
                 }

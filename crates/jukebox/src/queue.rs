@@ -151,6 +151,60 @@ impl PlayQueue {
         true
     }
 
+    pub(crate) fn move_down_range(&mut self, start: usize, end: usize) -> bool {
+        let len = self.list.len();
+        if len <= 1 || end + 1 >= len {
+            return false;
+        }
+
+        // let Some(current) = self.index else {
+        //     for i in (start..=end).rev() {
+        //         self.list.swap(i, i + 1);
+        //     }
+        //     return true;
+        // };
+
+        for i in (start..=end).rev() {
+            self.list.swap(i, i + 1);
+        }
+
+        if let Some(current) = self.index {
+            let contains_current = current >= start && current <= end;
+            if contains_current {
+                self.index = Some(current + 1);
+            } else if current == end + 1 {
+                self.index = Some(start);
+            }
+        }
+
+        true
+
+        // self.list.swap(i, i + 1);
+
+        // if current == i {
+        //     self.index = Some(i + 1);
+        // } else if current == i + 1 {
+        //     self.index = Some(i);
+        // }
+
+        // true
+    }
+
+    fn swap_down(&mut self, i: usize) {
+        let Some(current) = self.index else {
+            self.list.swap(i, i + 1);
+            return;
+        };
+
+        self.list.swap(i, i + 1);
+
+        if current == i {
+            self.index = Some(i + 1);
+        } else if current == i + 1 {
+            self.index = Some(i);
+        }
+    }
+
     pub(crate) fn remove(&mut self, index: usize, keep_current: bool) -> Option<TrackId> {
         if index >= self.len() {
             return None;
