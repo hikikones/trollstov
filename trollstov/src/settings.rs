@@ -4,12 +4,12 @@ use audio::AudioRating;
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 
-const CONFIG_NAME: &str = "settings.toml";
-
-// TODO: Add version?
+const FILENAME: &str = "settings.toml";
+const VERSION: u8 = 0;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Settings {
+    version: u8,
     general: General,
     colors: Colors,
 }
@@ -39,7 +39,11 @@ impl Default for Settings {
                 },
             };
 
-        Self { general, colors }
+        Self {
+            version: VERSION,
+            general,
+            colors,
+        }
     }
 }
 
@@ -105,36 +109,62 @@ impl Settings {
     }
 
     pub fn read() -> Result<Self, Box<dyn std::error::Error>> {
-        let Some(file) = get_config_dir().map(|dir| dir.join(CONFIG_NAME)) else {
+        let Some(file) = get_config_dir().map(|dir| dir.join(FILENAME)) else {
             return Ok(Self::default());
         };
 
-        match std::fs::read(&file) {
-            Ok(bytes) => {
-                let toml: Self = toml::from_slice(&bytes).map_err(|err| {
+        let bytes = match std::fs::read(&file) {
+            Ok(bytes) => bytes,
+            Err(err) => match err.kind() {
+                std::io::ErrorKind::NotFound => {
+                    return Ok(Self::default());
+                }
+                _ => {
+                    return Err(format!(
+                        "Failed to read settings from \"{}\" due to {}",
+                        file.display(),
+                        err
+                    ))?;
+                }
+            },
+        };
+
+        #[derive(Deserialize)]
+        struct V {
+            version: u8,
+        }
+
+        let V { version } = toml::from_slice(&bytes).map_err(|err| {
+            format!(
+                "Failed to deserialize settings from \"{}\" due to {}",
+                file.display(),
+                err
+            )
+        })?;
+
+        match version {
+            VERSION => {
+                let settings: Self = toml::from_slice(&bytes).map_err(|err| {
                     format!(
                         "Failed to deserialize settings from \"{}\" due to {}",
                         file.display(),
                         err
                     )
                 })?;
-                Ok(toml)
+                Ok(settings)
             }
-            Err(err) => match err.kind() {
-                std::io::ErrorKind::NotFound => Ok(Self::default()),
-                _ => Err(format!(
-                    "Failed to read settings from \"{}\" due to {}",
-                    file.display(),
-                    err
-                ))?,
-            },
+            _ => Err(format!(
+                "Failed to deserialize settings from \"{}\" due to unknown version",
+                file.display()
+            ))?,
         }
     }
 
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         let Some(dir) = get_config_dir() else {
             return Err(
-                "Unable to save settings due to no valid home directory path that could be retrieved from the operating system",
+                "Unable to save settings due to no valid home directory path \
+                that could be retrieved from the operating system",
             )?;
         };
 
@@ -148,13 +178,13 @@ impl Settings {
             })?;
         }
 
-        let file = dir.join(CONFIG_NAME);
+        let file = dir.join(FILENAME);
         let toml = toml::to_string(self)
             .map_err(|err| format!("Failed to serialize settings due to {}", err))?;
-        std::fs::write(file, toml).map_err(|err| {
+        std::fs::write(&file, toml).map_err(|err| {
             format!(
                 "Failed to write settings to \"{}\" due to {}",
-                dir.display(),
+                file.display(),
                 err
             )
         })?;
