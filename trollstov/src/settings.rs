@@ -181,10 +181,10 @@ impl Settings {
         let file = dir.join(FILENAME);
         let toml = toml::to_string(self)
             .map_err(|err| format!("Failed to serialize settings due to {}", err))?;
-        std::fs::write(file, toml).map_err(|err| {
+        std::fs::write(&file, toml).map_err(|err| {
             format!(
                 "Failed to write settings to \"{}\" due to {}",
-                dir.display(),
+                file.display(),
                 err
             )
         })?;
