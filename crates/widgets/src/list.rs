@@ -154,7 +154,46 @@ impl List {
         old_index != self.index || old_selector != self.selector
     }
 
-    // TODO: Move selection.
+    pub fn move_selection(&mut self, lm: ListMove) -> bool {
+        let Some(selector) = self.selector else {
+            return self.move_index(lm, false);
+        };
+
+        let index = self.index;
+
+        match lm {
+            ListMove::Up => {
+                let i = index.saturating_sub(1);
+                let s = selector.saturating_sub(1);
+
+                if i == self.index || s == selector {
+                    return false;
+                }
+
+                self.index = i;
+                self.selector = Some(s);
+                true
+            }
+            ListMove::Down => {
+                let max_index = self.len.saturating_sub(1);
+                let i = usize::min(index + 1, max_index);
+                let s = usize::min(selector + 1, max_index);
+
+                if i == self.index || s == selector {
+                    return false;
+                }
+
+                self.index = i;
+                self.selector = Some(s);
+                true
+            }
+            ListMove::PageUp => todo!(),
+            ListMove::PageDown => todo!(),
+            ListMove::Start => todo!(),
+            ListMove::End => todo!(),
+            ListMove::Custom(_) => todo!(),
+        }
+    }
 
     pub fn select_all(&mut self) -> bool {
         let old_index = self.index;

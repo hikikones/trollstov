@@ -239,8 +239,7 @@ impl PlayingPage {
 
                     if removal {
                         self.current_qi = jb.current_queue_index();
-                        // self.list.move_index(ListMove::Down, false);
-                        // TODO move selection
+                        self.list.move_selection(ListMove::Down);
                         return Action::Render;
                     }
                 }
