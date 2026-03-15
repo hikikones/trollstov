@@ -1,7 +1,6 @@
 use database::TrackId;
 
 // TODO: Max length? Drain from history.
-// TODO: Move up/down.
 
 pub(crate) struct PlayQueue {
     list: Vec<TrackId>,
@@ -128,6 +127,28 @@ impl PlayQueue {
             let random = fastrand::usize(start..end);
             self.list.swap(i, random);
         }
+    }
+
+    pub(crate) fn move_down(&mut self, i: usize) -> bool {
+        let len = self.list.len();
+        if len <= 1 || i + 1 >= len {
+            return false;
+        }
+
+        let Some(current) = self.index else {
+            self.list.swap(i, i + 1);
+            return true;
+        };
+
+        self.list.swap(i, i + 1);
+
+        if current == i {
+            self.index = Some(i + 1);
+        } else if current == i + 1 {
+            self.index = Some(i);
+        }
+
+        true
     }
 
     pub(crate) fn remove(&mut self, index: usize, keep_current: bool) -> Option<TrackId> {

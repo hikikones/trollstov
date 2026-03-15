@@ -178,6 +178,7 @@ impl PlayingPage {
                         Shortcut::new("Play", symbols::ENTER),
                         Shortcut::new("Rating", "0-5"),
                         Shortcut::new("Shuffle", "s"),
+                        Shortcut::new("Move", "m"),
                         Shortcut::new("Remove", "r"),
                         Shortcut::new("Clear", "c"),
                         Shortcut::new("Goto", "g"),
@@ -223,6 +224,13 @@ impl PlayingPage {
                     let index = self.list.index();
                     let id = jb.get(index);
                     return Action::Route(Route::Tracks(id));
+                }
+                'm' => {
+                    if jb.move_down(self.list.index()) {
+                        self.current_qi = jb.current_queue_index();
+                        self.list.move_index(ListMove::Down, false);
+                        return Action::Render;
+                    }
                 }
                 'r' => {
                     let (start, end) = {
