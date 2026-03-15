@@ -113,46 +113,50 @@ impl Settings {
             return Ok(Self::default());
         };
 
-        match std::fs::read(&file) {
-            Ok(bytes) => {
-                #[derive(Deserialize)]
-                struct V {
-                    version: u8,
+        let bytes = match std::fs::read(&file) {
+            Ok(bytes) => bytes,
+            Err(err) => match err.kind() {
+                std::io::ErrorKind::NotFound => {
+                    return Ok(Self::default());
                 }
+                _ => {
+                    return Err(format!(
+                        "Failed to read settings from \"{}\" due to {}",
+                        file.display(),
+                        err
+                    ))?;
+                }
+            },
+        };
 
-                let V { version } = toml::from_slice(&bytes).map_err(|err| {
+        #[derive(Deserialize)]
+        struct V {
+            version: u8,
+        }
+
+        let V { version } = toml::from_slice(&bytes).map_err(|err| {
+            format!(
+                "Failed to deserialize settings from \"{}\" due to {}",
+                file.display(),
+                err
+            )
+        })?;
+
+        match version {
+            VERSION => {
+                let settings: Self = toml::from_slice(&bytes).map_err(|err| {
                     format!(
                         "Failed to deserialize settings from \"{}\" due to {}",
                         file.display(),
                         err
                     )
                 })?;
-
-                match version {
-                    VERSION => {
-                        let settings: Self = toml::from_slice(&bytes).map_err(|err| {
-                            format!(
-                                "Failed to deserialize settings from \"{}\" due to {}",
-                                file.display(),
-                                err
-                            )
-                        })?;
-                        Ok(settings)
-                    }
-                    _ => Err(format!(
-                        "Failed to deserialize settings from \"{}\" due to unknown version",
-                        file.display()
-                    ))?,
-                }
+                Ok(settings)
             }
-            Err(err) => match err.kind() {
-                std::io::ErrorKind::NotFound => Ok(Self::default()),
-                _ => Err(format!(
-                    "Failed to read settings from \"{}\" due to {}",
-                    file.display(),
-                    err
-                ))?,
-            },
+            _ => Err(format!(
+                "Failed to deserialize settings from \"{}\" due to unknown version",
+                file.display()
+            ))?,
         }
     }
 
