@@ -7,8 +7,7 @@ use ratatui::{
     widgets::{Block, Padding},
 };
 use widgets::{
-    CursorMove, List, ListItem, ListMove, Shortcut, Shortcuts, TextInput, TextInputStyles,
-    TextSegment,
+    CursorMove, List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles, TextSegment,
 };
 
 use crate::{
@@ -362,13 +361,13 @@ impl SettingsPage {
         match key {
             KeyCode::Down => {
                 if let Some(next) = next(self.list.index()) {
-                    self.list.move_index(ListMove::Custom(next), false);
+                    self.list.set_index(next);
                     return Action::Render;
                 }
             }
             KeyCode::Up => {
                 if let Some(prev) = previous(self.list.index()) {
-                    self.list.move_index(ListMove::Custom(prev), false);
+                    self.list.set_index(prev);
                     return Action::Render;
                 }
             }

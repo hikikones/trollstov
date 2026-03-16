@@ -7,7 +7,7 @@ use ratatui::{
     widgets::{Block, Padding},
 };
 use ratatui_image::StatefulImage;
-use widgets::{List, ListItem, ListMove, Shortcut, Shortcuts};
+use widgets::{List, ListItem, Shortcut, Shortcuts};
 
 use crate::{
     app::{Action, FrontCover, ScreenSize},
@@ -239,7 +239,7 @@ impl PlayingPage {
 
                     if removal {
                         self.current_qi = jb.current_queue_index();
-                        self.list.move_selection(ListMove::Down);
+                        self.list.move_selection_down();
                         return Action::Render;
                     }
                 }
@@ -257,7 +257,7 @@ impl PlayingPage {
 
                     if removal {
                         self.current_qi = jb.current_queue_index();
-                        self.list.move_index(ListMove::Custom(start), false);
+                        self.list.set_index(0).set_selector(None);
                         return Action::Render;
                     }
                 }
@@ -294,7 +294,7 @@ impl PlayingPage {
         if self.current_qi != current_queue_index {
             self.current_qi = current_queue_index;
             if let Some(idx) = current_queue_index {
-                self.list.move_index(ListMove::Custom(idx), false);
+                self.list.set_index(idx).set_selector(None);
             }
         }
     }

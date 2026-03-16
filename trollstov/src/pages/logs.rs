@@ -3,7 +3,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding},
 };
-use widgets::{List, ListItem, ListMove, Shortcut, Shortcuts};
+use widgets::{List, ListItem, Shortcut, Shortcuts};
 
 use crate::{app::Action, settings::Colors};
 
@@ -117,7 +117,7 @@ impl LogsPage {
                     if !self.logs.is_empty() {
                         self.logs.clear();
                         self.horizontal_scroll = 0;
-                        self.list.move_index(ListMove::Custom(0), false);
+                        self.list.set_index(0);
                         return Action::Render;
                     }
                 }

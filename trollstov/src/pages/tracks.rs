@@ -36,7 +36,7 @@ impl TracksPage {
         if let Some(id) = id
             && let Some(index) = db.get_index_from_id(id)
         {
-            self.list.move_index(ListMove::Custom(index), false);
+            self.list.set_index(index).set_selector(None);
         };
     }
 
