@@ -94,7 +94,7 @@ impl TracksPage {
 
         // Add goto when currently playing track is not selected
         if !self.is_index_current(db, jb) {
-            shortcuts.push(Shortcut::new("Goto current", "g"));
+            shortcuts.push(Shortcut::new("Goto", "g"));
         }
     }
 

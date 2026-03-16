@@ -124,117 +124,22 @@ impl List {
         self
     }
 
-    // pub fn move_index_up(&mut self, n: usize, shift: bool) -> bool {
-    //     self.set_index_and_selector(self.index.saturating_sub(n), shift)
-    //     // let old_index = self.index;
-    //     // let old_selector = self.selector;
-
-    //     // if shift {
-    //     //     if self.selector.is_none() {
-    //     //         self.selector = Some(self.index);
-    //     //     }
-    //     // } else {
-    //     //     self.selector = None;
-    //     // }
-
-    //     // self.index = self.index.saturating_sub(n);
-    //     // self.selector.take_if(|s| *s == self.index);
-
-    //     // old_index != self.index || old_selector != self.selector
-    // }
-
-    // pub fn move_index_down(&mut self, n: usize, shift: bool) -> bool {
-    //     self.set_index_and_selector(self.index + n, shift)
-    //     // let old_index = self.index;
-    //     // let old_selector = self.selector;
-
-    //     // if shift {
-    //     //     if self.selector.is_none() {
-    //     //         self.selector = Some(self.index);
-    //     //     }
-    //     // } else {
-    //     //     self.selector = None;
-    //     // }
-
-    //     // self.index = usize::min(self.index + n, self.len.saturating_sub(1));
-    //     // self.selector.take_if(|s| *s == self.index);
-
-    //     // old_index != self.index || old_selector != self.selector
-    // }
-
     pub fn move_index(&mut self, lm: ListMove, shift: bool) -> bool {
         match lm {
-            ListMove::Up(n) => {
-                // self.move_index_up(1, shift)
-                self.set_index_and_selector(self.index.saturating_sub(n), shift)
-            }
-            ListMove::Down(n) => {
-                // self.move_index_down(1, shift)
-                self.set_index_and_selector(self.index + n, shift)
-            }
+            ListMove::Up(n) => self.set_index_and_selector(self.index.saturating_sub(n), shift),
+            ListMove::Down(n) => self.set_index_and_selector(self.index + n, shift),
             ListMove::PageUp => {
-                // self.move_index_up(self.height as usize, shift)
                 let n = self.height as usize;
                 self.set_index_and_selector(self.index.saturating_sub(n), shift)
-                // self.index = self.index.saturating_sub(self.height as usize)
             }
             ListMove::PageDown => {
                 let n = self.height as usize;
                 self.set_index_and_selector(self.index + n, shift)
-                // self.move_index_down(self.height as usize, shift)
-                // self.index = usize::min(
-                //     self.index + self.height as usize,
-                //     self.len.saturating_sub(1),
-                // );
             }
-            ListMove::Start => {
-                self.set_index_and_selector(0, shift)
-                // self.index = 0;
-            }
-            ListMove::End => {
-                self.set_index_and_selector(usize::MAX, shift)
-                // self.index = self.len.saturating_sub(1);
-            }
+            ListMove::Start => self.set_index_and_selector(0, shift),
+            ListMove::End => self.set_index_and_selector(usize::MAX, shift),
             ListMove::Custom(i) => self.set_index_and_selector(i, shift),
         }
-
-        // let old_index = self.index;
-        // let old_selector = self.selector;
-
-        // if shift {
-        //     if self.selector.is_none() {
-        //         self.selector = Some(self.index);
-        //     }
-        // } else {
-        //     self.selector = None;
-        // }
-
-        // match lm {
-        //     ListMove::Up => {
-        //         self.index = self.index.saturating_sub(1);
-        //     }
-        //     ListMove::Down => {
-        //         self.index = usize::min(self.index + 1, self.len.saturating_sub(1));
-        //     }
-        //     ListMove::PageUp => self.index = self.index.saturating_sub(self.height as usize),
-        //     ListMove::PageDown => {
-        //         self.index = usize::min(
-        //             self.index + self.height as usize,
-        //             self.len.saturating_sub(1),
-        //         );
-        //     }
-        //     ListMove::Start => {
-        //         self.index = 0;
-        //     }
-        //     ListMove::End => {
-        //         self.index = self.len.saturating_sub(1);
-        //     }
-        //     ListMove::Custom(i) => self.index = i,
-        // }
-
-        // self.selector.take_if(|s| *s == self.index);
-
-        // old_index != self.index || old_selector != self.selector
     }
 
     pub fn move_selection_up(&mut self) -> bool {
