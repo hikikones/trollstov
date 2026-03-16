@@ -129,23 +129,59 @@ impl PlayQueue {
         }
     }
 
+    pub(crate) fn move_up(&mut self, i: usize) -> bool {
+        if i == 0 || self.list.len() <= 1 {
+            return false;
+        }
+
+        self.list.swap(i, i - 1);
+
+        if let Some(current) = self.index {
+            if current == i {
+                self.index = Some(i - 1);
+            } else if current == i - 1 {
+                self.index = Some(i);
+            }
+        }
+
+        true
+    }
+
+    pub(crate) fn move_up_range(&mut self, start: usize, end: usize) -> bool {
+        if start == 0 || self.list.len() <= 1 {
+            return false;
+        }
+
+        for i in start..=end {
+            self.list.swap(i, i - 1);
+        }
+
+        if let Some(current) = self.index {
+            let contains_current = current >= start && current <= end;
+            if contains_current {
+                self.index = Some(current - 1);
+            } else if current == start - 1 {
+                self.index = Some(start);
+            }
+        }
+
+        true
+    }
+
     pub(crate) fn move_down(&mut self, i: usize) -> bool {
         let len = self.list.len();
         if len <= 1 || i + 1 >= len {
             return false;
         }
 
-        let Some(current) = self.index else {
-            self.list.swap(i, i + 1);
-            return true;
-        };
-
         self.list.swap(i, i + 1);
 
-        if current == i {
-            self.index = Some(i + 1);
-        } else if current == i + 1 {
-            self.index = Some(i);
+        if let Some(current) = self.index {
+            if current == i {
+                self.index = Some(i + 1);
+            } else if current == i + 1 {
+                self.index = Some(i);
+            }
         }
 
         true
