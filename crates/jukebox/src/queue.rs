@@ -161,7 +161,7 @@ impl PlayQueue {
             if contains_current {
                 self.index = Some(current - 1);
             } else if current == start - 1 {
-                self.index = Some(start);
+                self.index = Some(end);
             }
         }
 
