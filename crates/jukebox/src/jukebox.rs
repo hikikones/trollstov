@@ -326,9 +326,10 @@ impl Jukebox {
                     err
                 ))
             })?;
-            let source = Decoder::builder()
+            let decoder = Decoder::builder()
                 .with_data(file)
                 .with_hint(extension.as_lower_case())
+                .with_seekable(true)
                 .with_gapless(false)
                 .build()
                 .map_err(|err| {
@@ -338,7 +339,7 @@ impl Jukebox {
                         err
                     ))
                 })?;
-            Ok(source)
+            Ok(decoder)
         });
         self.decode_handle = Some((handle, id, index));
     }
