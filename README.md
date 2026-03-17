@@ -4,7 +4,10 @@
 
 Your music is the database
 
-TODO: image
+<figure>
+<img src="https://github.com/user-attachments/assets/52563831-165f-4eb3-9a9e-e1a8f2472dfe"/>
+<p><em>The music player in the terminal with the Monokai Soda color scheme</em></p>
+</figure>
 
 </div>
 
