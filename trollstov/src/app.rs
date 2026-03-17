@@ -254,9 +254,17 @@ impl App {
                 if ctrl {
                     self.jukebox.play_next(&self.database);
                 } else if alt {
-                    let pos = self.jukebox.current_track_pos() + Duration::from_secs(30);
-                    self.jukebox.seek(pos);
-                    return Action::Render;
+                    if let Some(track) = self
+                        .jukebox
+                        .current_track_id()
+                        .and_then(|id| self.database.get(id))
+                    {
+                        let pos = self.jukebox.current_track_pos();
+                        let min = Duration::from_secs(1);
+                        let secs = track.duration().mul_f32(0.10).max(min);
+                        self.jukebox.seek(pos + secs);
+                        return Action::Render;
+                    }
                 } else {
                     return self.on_input(key);
                 }
@@ -265,12 +273,17 @@ impl App {
                 if ctrl {
                     self.jukebox.play_previous(&self.database);
                 } else if alt {
-                    let pos = self
+                    if let Some(track) = self
                         .jukebox
-                        .current_track_pos()
-                        .saturating_sub(Duration::from_secs(30));
-                    self.jukebox.seek(pos);
-                    return Action::Render;
+                        .current_track_id()
+                        .and_then(|id| self.database.get(id))
+                    {
+                        let pos = self.jukebox.current_track_pos();
+                        let min = Duration::from_secs(2);
+                        let secs = track.duration().mul_f32(0.10).max(min);
+                        self.jukebox.seek(pos.saturating_sub(secs));
+                        return Action::Render;
+                    }
                 } else {
                     return self.on_input(key);
                 }

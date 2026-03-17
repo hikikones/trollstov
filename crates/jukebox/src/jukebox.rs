@@ -319,14 +319,25 @@ impl Jukebox {
         let handle = std::thread::spawn(move || {
             let file = File::open(&path).map_err(|err| {
                 AudioFileReport::new(format!(
-                    "Failed to open \"{}\" due to {}",
+                    "Unable to decode \"{}\" due to {}",
                     path.display(),
                     err
                 ))
             })?;
+            let len = file
+                .metadata()
+                .map_err(|err| {
+                    AudioFileReport::new(format!(
+                        "Unable to decode \"{}\" due to {}",
+                        path.display(),
+                        err
+                    ))
+                })?
+                .len();
             let decoder = Decoder::builder()
                 .with_data(file)
                 .with_hint(extension.as_lower_case())
+                .with_byte_len(len)
                 .with_seekable(true)
                 .with_gapless(false)
                 .build()
