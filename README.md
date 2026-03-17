@@ -5,8 +5,8 @@
 Your music is the database
 
 <figure>
-<img src="https://github.com/user-attachments/assets/52563831-165f-4eb3-9a9e-e1a8f2472dfe"/>
-<p><em>The music player in the terminal with the Monokai Soda color scheme</em></p>
+<img src="https://github.com/user-attachments/assets/326d3fac-9362-45f0-8fff-822788c0780c"/>
+<p><em>The music player with the Monokai Soda color scheme</em></p>
 </figure>
 
 </div>
