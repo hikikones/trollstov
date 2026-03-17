@@ -275,7 +275,7 @@ impl PlayingPage {
 
                     if success {
                         self.current_qi = jb.current_queue_index();
-                        self.list.set_index(0).set_selector(None);
+                        self.list.set_index(start).set_selector(None);
                         return Action::Render;
                     }
                 }
