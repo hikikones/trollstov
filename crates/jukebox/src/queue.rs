@@ -1,7 +1,6 @@
 use database::TrackId;
 
 // TODO: Max length? Drain from history.
-// TODO: Move up/down.
 
 pub(crate) struct PlayQueue {
     list: Vec<TrackId>,
@@ -128,6 +127,86 @@ impl PlayQueue {
             let random = fastrand::usize(start..end);
             self.list.swap(i, random);
         }
+    }
+
+    pub(crate) fn move_up(&mut self, i: usize) -> bool {
+        if i == 0 || self.list.len() <= 1 {
+            return false;
+        }
+
+        self.list.swap(i, i - 1);
+
+        if let Some(current) = self.index {
+            if current == i {
+                self.index = Some(i - 1);
+            } else if current == i - 1 {
+                self.index = Some(i);
+            }
+        }
+
+        true
+    }
+
+    pub(crate) fn move_up_range(&mut self, start: usize, end: usize) -> bool {
+        if start == 0 || self.list.len() <= 1 {
+            return false;
+        }
+
+        for i in start..=end {
+            self.list.swap(i, i - 1);
+        }
+
+        if let Some(current) = self.index {
+            let contains_current = current >= start && current <= end;
+            if contains_current {
+                self.index = Some(current - 1);
+            } else if current == start - 1 {
+                self.index = Some(end);
+            }
+        }
+
+        true
+    }
+
+    pub(crate) fn move_down(&mut self, i: usize) -> bool {
+        let len = self.list.len();
+        if len <= 1 || i + 1 >= len {
+            return false;
+        }
+
+        self.list.swap(i, i + 1);
+
+        if let Some(current) = self.index {
+            if current == i {
+                self.index = Some(i + 1);
+            } else if current == i + 1 {
+                self.index = Some(i);
+            }
+        }
+
+        true
+    }
+
+    pub(crate) fn move_down_range(&mut self, start: usize, end: usize) -> bool {
+        let len = self.list.len();
+        if len <= 1 || end + 1 >= len {
+            return false;
+        }
+
+        for i in (start..=end).rev() {
+            self.list.swap(i, i + 1);
+        }
+
+        if let Some(current) = self.index {
+            let contains_current = current >= start && current <= end;
+            if contains_current {
+                self.index = Some(current + 1);
+            } else if current == end + 1 {
+                self.index = Some(start);
+            }
+        }
+
+        true
     }
 
     pub(crate) fn remove(&mut self, index: usize, keep_current: bool) -> Option<TrackId> {

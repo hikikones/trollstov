@@ -7,7 +7,7 @@ use ratatui::{
     widgets::{Block, Padding},
 };
 use ratatui_image::StatefulImage;
-use widgets::{List, ListItem, ListMove, Shortcut, Shortcuts};
+use widgets::{List, ListItem, Shortcut, Shortcuts};
 
 use crate::{
     app::{Action, FrontCover, ScreenSize},
@@ -177,6 +177,7 @@ impl PlayingPage {
                     shortcuts.extend([
                         Shortcut::new("Play", symbols::ENTER),
                         Shortcut::new("Rating", "0-5"),
+                        Shortcut::new("Move", symbols::shift!("m")),
                         Shortcut::new("Shuffle", "s"),
                         Shortcut::new("Remove", "r"),
                         Shortcut::new("Clear", "c"),
@@ -224,21 +225,57 @@ impl PlayingPage {
                     let id = jb.get(index);
                     return Action::Route(Route::Tracks(id));
                 }
+                'm' => {
+                    let (start, end) = {
+                        let selection = self.list.selection_inclusive();
+                        (*selection.start(), *selection.end())
+                    };
+
+                    let success = if start == end {
+                        jb.move_down(start)
+                    } else {
+                        jb.move_down_range(start, end)
+                    };
+
+                    if success {
+                        self.current_qi = jb.current_queue_index();
+                        self.list.move_selection_down();
+                        return Action::Render;
+                    }
+                }
+                'M' => {
+                    let (start, end) = {
+                        let selection = self.list.selection_inclusive();
+                        (*selection.start(), *selection.end())
+                    };
+
+                    let success = if start == end {
+                        jb.move_up(start)
+                    } else {
+                        jb.move_up_range(start, end)
+                    };
+
+                    if success {
+                        self.current_qi = jb.current_queue_index();
+                        self.list.move_selection_up();
+                        return Action::Render;
+                    }
+                }
                 'r' => {
                     let (start, end) = {
                         let selection = self.list.selection_inclusive();
                         (*selection.start(), *selection.end())
                     };
 
-                    let removal = if start == end {
+                    let success = if start == end {
                         jb.remove(start)
                     } else {
                         jb.remove_range(start, end)
                     };
 
-                    if removal {
+                    if success {
                         self.current_qi = jb.current_queue_index();
-                        self.list.move_index(ListMove::Custom(start), false);
+                        self.list.set_index(0).set_selector(None);
                         return Action::Render;
                     }
                 }
@@ -275,7 +312,7 @@ impl PlayingPage {
         if self.current_qi != current_queue_index {
             self.current_qi = current_queue_index;
             if let Some(idx) = current_queue_index {
-                self.list.move_index(ListMove::Custom(idx), false);
+                self.list.set_index(idx).set_selector(None);
             }
         }
     }

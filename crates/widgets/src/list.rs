@@ -21,8 +21,8 @@ pub struct List {
 }
 
 pub enum ListMove {
-    Up,
-    Down,
+    Up(usize),
+    Down(usize),
     PageUp,
     PageDown,
     Start,
@@ -114,47 +114,70 @@ impl List {
         self
     }
 
-    pub fn move_index(&mut self, lm: ListMove, shift: bool) -> bool {
-        let old_index = self.index;
-        let old_selector = self.selector;
-
-        if shift {
-            if self.selector.is_none() {
-                self.selector = Some(self.index);
-            }
-        } else {
-            self.selector = None;
-        }
-
-        match lm {
-            ListMove::Up => {
-                self.index = self.index.saturating_sub(1);
-            }
-            ListMove::Down => {
-                self.index = usize::min(self.index + 1, self.len.saturating_sub(1));
-            }
-            ListMove::PageUp => self.index = self.index.saturating_sub(self.height as usize),
-            ListMove::PageDown => {
-                self.index = usize::min(
-                    self.index + self.height as usize,
-                    self.len.saturating_sub(1),
-                );
-            }
-            ListMove::Start => {
-                self.index = 0;
-            }
-            ListMove::End => {
-                self.index = self.len.saturating_sub(1);
-            }
-            ListMove::Custom(i) => self.index = i,
-        }
-
-        self.selector.take_if(|s| *s == self.index);
-
-        old_index != self.index || old_selector != self.selector
+    pub const fn set_index(&mut self, i: usize) -> &mut Self {
+        self.index = i;
+        self
     }
 
-    // TODO: Move selection.
+    pub const fn set_selector(&mut self, s: Option<usize>) -> &mut Self {
+        self.selector = s;
+        self
+    }
+
+    pub fn move_index(&mut self, lm: ListMove, shift: bool) -> bool {
+        match lm {
+            ListMove::Up(n) => self.set_index_and_selector(self.index.saturating_sub(n), shift),
+            ListMove::Down(n) => self.set_index_and_selector(self.index + n, shift),
+            ListMove::PageUp => {
+                let n = self.height as usize;
+                self.set_index_and_selector(self.index.saturating_sub(n), shift)
+            }
+            ListMove::PageDown => {
+                let n = self.height as usize;
+                self.set_index_and_selector(self.index + n, shift)
+            }
+            ListMove::Start => self.set_index_and_selector(0, shift),
+            ListMove::End => self.set_index_and_selector(usize::MAX, shift),
+            ListMove::Custom(i) => self.set_index_and_selector(i, shift),
+        }
+    }
+
+    pub fn move_selection_up(&mut self) -> bool {
+        let Some(selector) = self.selector else {
+            return self.set_index_and_selector(self.index.saturating_sub(1), false);
+        };
+
+        let index = self.index;
+        let i = index.saturating_sub(1);
+        let s = selector.saturating_sub(1);
+
+        if i == index || s == selector {
+            return false;
+        }
+
+        self.index = i;
+        self.selector = Some(s);
+        true
+    }
+
+    pub fn move_selection_down(&mut self) -> bool {
+        let Some(selector) = self.selector else {
+            return self.set_index_and_selector(self.index + 1, false);
+        };
+
+        let index = self.index;
+        let max_index = self.len.saturating_sub(1);
+        let i = usize::min(index + 1, max_index);
+        let s = usize::min(selector + 1, max_index);
+
+        if i == index || s == selector {
+            return false;
+        }
+
+        self.index = i;
+        self.selector = Some(s);
+        true
+    }
 
     pub fn select_all(&mut self) -> bool {
         let old_index = self.index;
@@ -172,8 +195,8 @@ impl List {
         let shift = key_modifiers.contains(KeyModifiers::SHIFT);
 
         match key_pressed {
-            KeyCode::Down => self.move_index(ListMove::Down, shift),
-            KeyCode::Up => self.move_index(ListMove::Up, shift),
+            KeyCode::Down => self.move_index(ListMove::Down(1), shift),
+            KeyCode::Up => self.move_index(ListMove::Up(1), shift),
             KeyCode::PageDown => self.move_index(ListMove::PageDown, shift),
             KeyCode::PageUp => self.move_index(ListMove::PageUp, shift),
             KeyCode::End => self.move_index(ListMove::End, shift),
@@ -273,5 +296,23 @@ impl List {
 
                 line.y += 1;
             });
+    }
+
+    fn set_index_and_selector(&mut self, i: usize, shift: bool) -> bool {
+        let old_index = self.index;
+        let old_selector = self.selector;
+
+        if shift {
+            if self.selector.is_none() {
+                self.selector = Some(self.index);
+            }
+        } else {
+            self.selector = None;
+        }
+
+        self.index = usize::min(i, self.len.saturating_sub(1));
+        self.selector.take_if(|s| *s == self.index);
+
+        old_index != self.index || old_selector != self.selector
     }
 }
