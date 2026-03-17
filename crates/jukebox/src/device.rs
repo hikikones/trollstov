@@ -1,14 +1,14 @@
 use std::time::Duration;
 
 pub struct AudioDevice {
-    sink: rodio::Sink,
-    _stream: rodio::OutputStream,
+    sink: rodio::Player,
+    _stream: rodio::MixerDeviceSink,
 }
 
 impl AudioDevice {
-    pub fn new() -> Result<Self, rodio::StreamError> {
-        let mut stream = rodio::OutputStreamBuilder::open_default_stream()?;
-        let sink = rodio::Sink::connect_new(stream.mixer());
+    pub fn new() -> Result<Self, rodio::DeviceSinkError> {
+        let mut stream = rodio::DeviceSinkBuilder::open_default_sink()?;
+        let sink = rodio::Player::connect_new(stream.mixer());
 
         stream.log_on_drop(false);
         sink.pause();
