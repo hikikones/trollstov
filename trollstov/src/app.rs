@@ -254,7 +254,8 @@ impl App {
                 if ctrl {
                     self.jukebox.play_next(&self.database);
                 } else if alt {
-                    self.jukebox.fast_forward_by(Duration::from_secs(30));
+                    let pos = self.jukebox.current_track_pos() + Duration::from_secs(30);
+                    self.jukebox.seek(pos);
                     return Action::Render;
                 } else {
                     return self.on_input(key);
@@ -263,6 +264,13 @@ impl App {
             KeyCode::Left => {
                 if ctrl {
                     self.jukebox.play_previous(&self.database);
+                } else if alt {
+                    let pos = self
+                        .jukebox
+                        .current_track_pos()
+                        .saturating_sub(Duration::from_secs(30));
+                    self.jukebox.seek(pos);
+                    return Action::Render;
                 } else {
                     return self.on_input(key);
                 }
@@ -742,9 +750,9 @@ fn render_playback(
 fn fill_play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
     shortcuts.extend([
         Shortcut::new("Play/Pause", symbols::ctrl!(symbols::ARROW_UP)),
-        Shortcut::new("Next/Prev", symbols::ctrl!(symbols::ARROW_LEFT_RIGHT)),
+        Shortcut::new("Next/Prev", symbols::ctrl!(symbols::ARROW_RIGHT_LEFT)),
         Shortcut::new("Stop", symbols::ctrl!(symbols::ARROW_DOWN)),
-        Shortcut::new("Forward 30s", symbols::alt!(symbols::ARROW_RIGHT)),
+        Shortcut::new("Seek", symbols::alt!(symbols::ARROW_RIGHT_LEFT)),
     ]);
 
     let volume = (volume * 100.0).round() as u8;

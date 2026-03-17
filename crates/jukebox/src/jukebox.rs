@@ -288,14 +288,12 @@ impl Jukebox {
         self.sync_queue_index();
     }
 
-    // TODO: Add rewind/backwards. Currently seek only works forward.
-
-    pub fn fast_forward_by(&mut self, duration: Duration) {
+    pub fn seek(&mut self, position: Duration) {
         if self.player.is_paused() || self.player.is_empty() {
             return;
         }
 
-        self.player.seek(self.player.position() + duration);
+        self.player.seek(position);
     }
 
     pub const fn set_skip(&mut self, rating: AudioRating) {
