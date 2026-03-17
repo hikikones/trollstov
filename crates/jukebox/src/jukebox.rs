@@ -5,7 +5,7 @@ use rodio::decoder::Decoder;
 use audio::*;
 use database::*;
 
-use crate::{AudioDevice, PlayQueue};
+use crate::{AudioPlayer, PlayQueue};
 
 type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<File>, AudioFileReport>>;
 
@@ -17,7 +17,7 @@ pub struct Jukebox {
     decode_handle: Option<(AudioDecodeHandle, TrackId, usize)>,
     events: Vec<JukeboxEvent>,
     faulty: HashSet<TrackId>,
-    device: AudioDevice,
+    player: AudioPlayer,
 }
 
 pub enum JukeboxEvent {
@@ -38,7 +38,7 @@ enum PlayState {
 }
 
 impl Jukebox {
-    pub fn new(device: AudioDevice) -> Self {
+    pub fn new(player: AudioPlayer) -> Self {
         Self {
             current: None,
             queue: PlayQueue::new(),
@@ -47,7 +47,7 @@ impl Jukebox {
             decode_handle: None,
             events: Vec::new(),
             faulty: HashSet::new(),
-            device,
+            player,
         }
     }
 
@@ -88,7 +88,7 @@ impl Jukebox {
     }
 
     pub fn current_track_pos(&self) -> Duration {
-        self.device.position()
+        self.player.position()
     }
 
     pub fn iter(&self) -> impl ExactSizeIterator<Item = (TrackId, usize)> {
@@ -166,11 +166,11 @@ impl Jukebox {
     }
 
     pub fn volume(&self) -> f32 {
-        self.device.volume()
+        self.player.volume()
     }
 
     pub fn set_volume(&mut self, value: f32) {
-        self.device.set_volume(value);
+        self.player.set_volume(value);
     }
 
     pub fn play_index(&mut self, index: usize, db: &Database) {
@@ -192,7 +192,7 @@ impl Jukebox {
         }
 
         self.state = PlayState::Play;
-        self.device.play();
+        self.player.play();
         self.events.push(JukeboxEvent::Play(None));
     }
 
@@ -202,7 +202,7 @@ impl Jukebox {
         }
 
         self.state = PlayState::Pause;
-        self.device.pause();
+        self.player.pause();
         self.events.push(JukeboxEvent::Pause);
     }
 
@@ -221,7 +221,7 @@ impl Jukebox {
         self.state = PlayState::Stop;
         self.current = None;
         self.decode_handle = None;
-        self.device.clear();
+        self.player.clear();
         self.events.push(JukeboxEvent::Stop);
     }
 
@@ -289,11 +289,11 @@ impl Jukebox {
     }
 
     pub fn fast_forward_by(&mut self, duration: Duration) {
-        if self.device.is_empty() {
+        if self.player.is_empty() {
             return;
         }
 
-        self.device.seek(self.device.position() + duration);
+        self.player.seek(self.player.position() + duration);
     }
 
     pub const fn set_skip(&mut self, rating: AudioRating) {
@@ -360,11 +360,11 @@ impl Jukebox {
                 match handle.join().unwrap() {
                     // Play successfully decoded audio and update state
                     Ok(decoded_audio) => {
-                        self.device.clear();
-                        self.device.append(decoded_audio);
+                        self.player.clear();
+                        self.player.append(decoded_audio);
                         if self.state != PlayState::Pause {
                             self.state = PlayState::Play;
-                            self.device.play();
+                            self.player.play();
                         }
                         self.current = Some((id, index));
                         self.events.push(JukeboxEvent::Play(Some(id)));
@@ -392,7 +392,7 @@ impl Jukebox {
         }
 
         // Play next when empty and idle
-        if self.device.is_empty() && !self.device.is_paused() {
+        if self.player.is_empty() && !self.player.is_paused() {
             match self.state {
                 PlayState::Play => {
                     self.play_next(db);

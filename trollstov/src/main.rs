@@ -16,8 +16,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create picker after entering alternate screen, but before reading terminal events
     let picker = ratatui_image::picker::Picker::from_query_stdio()?;
 
-    let audio_device = jukebox::AudioDevice::new()?;
-    let jukebox = jukebox::Jukebox::new(audio_device);
+    let player = jukebox::AudioPlayer::new()?;
+    let jukebox = jukebox::Jukebox::new(player);
     let database = database::Database::new(args.dir);
 
     let mut app = app::App::new(database, jukebox, picker, args.mpris);
