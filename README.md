@@ -5,7 +5,7 @@
 Your music is the database.
 
 <figure>
-<img src="https://github.com/user-attachments/assets/326d3fac-9362-45f0-8fff-822788c0780c"/>
+<img src="https://github.com/user-attachments/assets/21beec4a-259a-4079-bbcd-52675a3590a3"/>
 <p><em>The music player with the Monokai Soda color scheme.</em></p>
 </figure>
 
