@@ -41,12 +41,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     styles = CLAP_STYLING,
     version,
     about,
-    long_about = "
-A music player for the terminal that is built around a simple idea: your music is the database. \
-It treats your audio files — and their metadata — as the single source of truth. \
-Your filesystem is the index, and your tags are the schema. \
-Simply back up your music directory and you have backed up everything. \
-Ratings are part of the metadata, so your favorite songs are always just a few keystrokes away."
 )]
 struct Args {
     /// The directory for your music.

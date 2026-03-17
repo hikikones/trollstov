@@ -4,11 +4,14 @@
 
 Your music is the database
 
-TODO: image
+<figure>
+<img src="https://github.com/user-attachments/assets/326d3fac-9362-45f0-8fff-822788c0780c"/>
+<p><em>The music player with the Monokai Soda color scheme</em></p>
+</figure>
 
 </div>
 
-`trollstov` is a music player for the terminal that is built around a simple idea: your music is the database. It treats your audio files — and their metadata — as the single source of truth. Your filesystem is the index, and your tags are the schema. Simply back up your music directory and you have backed up everything. Ratings are part of the metadata, so your favorite songs are always just a few keystrokes away.
+`trollstov` is a music player for the terminal that is built around a simple idea — your files and their metadata are all you need. Simply back up your music directory and you have backed up everything. Ratings are part of the metadata, so your favorite songs are always just a few keystrokes away.
 
 The name is a norwegian word play for a substance with magical properties. You have "troll", a creature from Norse mythology, and "stov" which is actually "støv", meaning "dust" in english. Hence, you get "troll dust".
 
