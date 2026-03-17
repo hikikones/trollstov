@@ -231,13 +231,13 @@ impl PlayingPage {
                         (*selection.start(), *selection.end())
                     };
 
-                    let removal = if start == end {
+                    let success = if start == end {
                         jb.move_down(start)
                     } else {
                         jb.move_down_range(start, end)
                     };
 
-                    if removal {
+                    if success {
                         self.current_qi = jb.current_queue_index();
                         self.list.move_selection_down();
                         return Action::Render;
@@ -249,13 +249,13 @@ impl PlayingPage {
                         (*selection.start(), *selection.end())
                     };
 
-                    let removal = if start == end {
+                    let success = if start == end {
                         jb.move_up(start)
                     } else {
                         jb.move_up_range(start, end)
                     };
 
-                    if removal {
+                    if success {
                         self.current_qi = jb.current_queue_index();
                         self.list.move_selection_up();
                         return Action::Render;
@@ -267,13 +267,13 @@ impl PlayingPage {
                         (*selection.start(), *selection.end())
                     };
 
-                    let removal = if start == end {
+                    let success = if start == end {
                         jb.remove(start)
                     } else {
                         jb.remove_range(start, end)
                     };
 
-                    if removal {
+                    if success {
                         self.current_qi = jb.current_queue_index();
                         self.list.set_index(0).set_selector(None);
                         return Action::Render;
