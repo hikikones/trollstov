@@ -2,11 +2,11 @@
 
 # trollstov
 
-Your music is the database
+Your music is the database.
 
 <figure>
 <img src="https://github.com/user-attachments/assets/326d3fac-9362-45f0-8fff-822788c0780c"/>
-<p><em>The music player with the Monokai Soda color scheme</em></p>
+<p><em>The music player with the Monokai Soda color scheme.</em></p>
 </figure>
 
 </div>
@@ -39,11 +39,11 @@ In addition, it comes with one optional argument.
 | Format | Metadata | Playback |
 | ------ | -------- | -------- |
 | FLAC | Vorbis Comments | Yes |
-| Opus | Vorbis Comments | [No][1] |
+| Opus | Vorbis Comments | Yes[^1] |
 | Ogg Vorbis | Vorbis Comments | Yes |
 | MP3 | ID3v2 | Yes |
 
-[1]: https://github.com/pdeljanov/Symphonia/issues/8
+[^1]: Requires the `opus` feature.
 
 ## ⚠️ Non-goals
 
@@ -53,8 +53,8 @@ In addition, it comes with one optional argument.
 
 ## 🔖 Install
 
-The application is only available on GitHub for now, but will come to `crates.io` at a later time.
+The application is only available on GitHub for now, but will probably come to `crates.io` at a later time. Do note that for `opus` support you need the `libopus` library installed along with `cmake`.
 
 ```sh
-cargo install --git https://github.com/hikikones/trollstov --tag v0.1.0
+cargo install --git https://github.com/hikikones/trollstov --tag v0.1.0 --features opus
 ```
