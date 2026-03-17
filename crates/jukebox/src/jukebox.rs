@@ -288,14 +288,12 @@ impl Jukebox {
         self.sync_queue_index();
     }
 
-    // TODO: Add rewind/backwards. Currently seek only works forward.
-
-    pub fn fast_forward_by(&mut self, duration: Duration) {
+    pub fn seek(&mut self, position: Duration) {
         if self.player.is_paused() || self.player.is_empty() {
             return;
         }
 
-        self.player.seek(self.player.position() + duration);
+        self.player.seek(position);
     }
 
     pub const fn set_skip(&mut self, rating: AudioRating) {
@@ -321,14 +319,26 @@ impl Jukebox {
         let handle = std::thread::spawn(move || {
             let file = File::open(&path).map_err(|err| {
                 AudioFileReport::new(format!(
-                    "Failed to open \"{}\" due to {}",
+                    "Unable to decode \"{}\" due to {}",
                     path.display(),
                     err
                 ))
             })?;
-            let source = Decoder::builder()
+            let len = file
+                .metadata()
+                .map_err(|err| {
+                    AudioFileReport::new(format!(
+                        "Unable to decode \"{}\" due to {}",
+                        path.display(),
+                        err
+                    ))
+                })?
+                .len();
+            let decoder = Decoder::builder()
                 .with_data(file)
                 .with_hint(extension.as_lower_case())
+                .with_byte_len(len)
+                .with_seekable(true)
                 .with_gapless(false)
                 .build()
                 .map_err(|err| {
@@ -338,7 +348,7 @@ impl Jukebox {
                         err
                     ))
                 })?;
-            Ok(source)
+            Ok(decoder)
         });
         self.decode_handle = Some((handle, id, index));
     }
