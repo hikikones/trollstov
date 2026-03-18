@@ -9,3 +9,7 @@ audio = { workspace = true }
 database = { workspace = true }
 fastrand = { workspace = true }
 rodio = { workspace = true }
+
+[features]
+default = []
+opus = ["rodio/symphonia-libopus"]

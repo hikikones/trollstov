@@ -25,3 +25,7 @@ unicode-segmentation = { workspace = true }
 unicode-width = { workspace = true }
 utils = { workspace = true }
 widgets = { workspace = true }
+
+[features]
+default = []
+opus = ["jukebox/opus"]
