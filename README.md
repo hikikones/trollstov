@@ -53,7 +53,7 @@ In addition, it comes with one optional argument.
 
 ## 🔖 Install
 
-The application is only available on GitHub for now, but will probably come to `crates.io` at a later time. Do note that for `opus` support you need the `libopus` library installed along with `cmake`.
+The application is only available on GitHub for now, but will probably come to `crates.io` at a later time. Do note that for `opus` support you need `libopus` installed along with `cmake`.
 
 ```sh
 cargo install --git https://github.com/hikikones/trollstov --tag v0.1.0 --features opus
