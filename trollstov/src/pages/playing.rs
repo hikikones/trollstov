@@ -441,7 +441,7 @@ fn render_cover_with_stars(
         .and_then(|id| db.get(id).map(|track| track.rating()))
     {
         Some(rating) => {
-            if area.height > 8 {
+            if area.width > 12 && area.height > 10 {
                 let margin = Margin::new(1, 1);
                 let cover_area = render_cover(
                     area.inner(margin),
