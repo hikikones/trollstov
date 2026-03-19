@@ -188,6 +188,11 @@ impl PlayingPage {
         screen_size: ScreenSize,
     ) -> Action {
         if jb.is_empty() {
+            if let KeyCode::Char('v') = key {
+                self.view_mode = self.view_mode.next(screen_size);
+                return Action::Render;
+            }
+
             return Action::None;
         }
 
@@ -294,18 +299,7 @@ impl PlayingPage {
                     }
                 }
                 'v' => {
-                    let new_mode = match screen_size {
-                        ScreenSize::Small => match self.view_mode {
-                            ViewMode::Queue => ViewMode::Cover,
-                            ViewMode::Cover | ViewMode::Both => ViewMode::Queue,
-                        },
-                        ScreenSize::Medium | ScreenSize::Large => match self.view_mode {
-                            ViewMode::Queue => ViewMode::Cover,
-                            ViewMode::Cover => ViewMode::Both,
-                            ViewMode::Both => ViewMode::Queue,
-                        },
-                    };
-                    self.view_mode = new_mode;
+                    self.view_mode = self.view_mode.next(screen_size);
                     return Action::Render;
                 }
                 _ => {
