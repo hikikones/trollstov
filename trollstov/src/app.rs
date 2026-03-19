@@ -1,6 +1,5 @@
 use std::{path::PathBuf, time::Duration};
 
-use audio::{AudioFileReport, AudioPicture};
 use database::{Database, DatabaseEvent, Track};
 use image::GenericImageView;
 use jukebox::{Jukebox, JukeboxEvent};
@@ -22,7 +21,7 @@ use crate::{
 
 // TODO: Add a dynamic playlist page for artists/albums/genres and filtering.
 
-type FrontCoverHandle = std::thread::JoinHandle<Result<FrontCover, AudioFileReport>>;
+type FrontCoverHandle = std::thread::JoinHandle<Result<FrontCover, String>>;
 
 pub struct App {
     running: bool,
@@ -35,6 +34,7 @@ pub struct App {
     picker: Picker,
     screen_size: ScreenSize,
     front_cover: FrontCover,
+    front_cover_status: FrontCoverStatus,
     front_cover_handle: Option<FrontCoverHandle>,
     text_segment: TextSegment,
     shortcuts_page: Shortcuts,
@@ -65,6 +65,13 @@ impl FrontCover {
     pub const fn as_mut(&mut self) -> Option<&mut StatefulProtocol> {
         self.0.as_mut()
     }
+}
+
+#[derive(Clone, Copy)]
+pub enum FrontCoverStatus {
+    None,
+    Loading,
+    Ready,
 }
 
 pub enum Action {
@@ -120,6 +127,7 @@ impl App {
             picker,
             screen_size: ScreenSize::Large,
             front_cover: FrontCover(None),
+            front_cover_status: FrontCoverStatus::Loading,
             front_cover_handle: None,
             text_segment: TextSegment::new().with_alignment(Alignment::Center),
             shortcuts_page: Shortcuts::new(),
@@ -337,6 +345,7 @@ impl App {
                             let picker = self.picker.clone();
                             let handle = load_front_cover(path, picker);
                             self.front_cover_handle = Some(handle);
+                            self.front_cover_status = FrontCoverStatus::Loading;
 
                             // Update metadata and playback status for mpris
                             if let Some(mpris) = self.events.media_controls() {
@@ -360,6 +369,7 @@ impl App {
                 JukeboxEvent::Stop => {
                     self.front_cover = FrontCover(None);
                     self.front_cover_handle = None;
+                    self.front_cover_status = FrontCoverStatus::None;
 
                     if let Some(mpris) = self.events.media_controls() {
                         mpris.reset_metadata();
@@ -378,12 +388,14 @@ impl App {
                 render = true;
                 let handle = self.front_cover_handle.take().unwrap();
                 match handle.join().unwrap() {
-                    Ok(image) => {
-                        self.front_cover = image;
+                    Ok(cover) => {
+                        self.front_cover = cover;
+                        self.front_cover_status = FrontCoverStatus::Ready;
                     }
                     Err(err) => {
                         self.pages.logs.enqueue(Log::new(err));
                         self.front_cover = FrontCover(None);
+                        self.front_cover_status = FrontCoverStatus::Ready;
                     }
                 }
             }
@@ -564,6 +576,7 @@ impl App {
                     &self.jukebox,
                     self.screen_size,
                     &mut self.front_cover,
+                    self.front_cover_status,
                     colors,
                     &mut self.shortcuts_page,
                 );
@@ -788,24 +801,27 @@ fn fill_app_shortcuts(shortcuts: &mut Shortcuts) {
 
 fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
     std::thread::spawn(move || {
-        let picture = AudioPicture::read(&path)?;
-        match picture.bytes() {
-            Some(bytes) => {
-                const MAX_RES: u32 = 1080;
-                let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
-                    AudioFileReport::new(format!(
-                        "Failed to load front cover image for \"{}\" due to {}",
-                        path.display(),
-                        err
-                    ))
-                })?;
-                let (w, h) = dyn_img.dimensions();
-                if w > MAX_RES || h > MAX_RES {
-                    dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
-                }
-                Ok(FrontCover(Some(picker.new_resize_protocol(dyn_img))))
-            }
-            None => Ok(FrontCover(None)),
+        let picture = audio::AudioPicture::read(&path)?;
+
+        let Some(bytes) = picture.bytes() else {
+            return Ok(FrontCover(None));
+        };
+
+        const MAX_RES: u32 = 1080;
+
+        let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
+            format!(
+                "Failed to load front cover image for \"{}\" due to {}",
+                path.display(),
+                err
+            )
+        })?;
+
+        let (w, h) = dyn_img.dimensions();
+        if w > MAX_RES || h > MAX_RES {
+            dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
         }
+
+        Ok(FrontCover(Some(picker.new_resize_protocol(dyn_img))))
     })
 }
