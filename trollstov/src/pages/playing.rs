@@ -52,106 +52,24 @@ impl PlayingPage {
     ) {
         self.update_scroll_on_new_track(jb);
 
+        // Render based on screen size and view mode
         match screen_size {
             ScreenSize::Small => match self.view_mode {
-                // Render play queue only
                 ViewMode::Queue => {
                     self.render_queue(area, buf, db, jb, colors);
                 }
-                // Render cover and maybe stars only
                 ViewMode::Cover | ViewMode::Both => {
                     render_cover_with_stars(area, buf, db, jb, front_cover, colors);
-                    // match jb
-                    //     .current_track_id()
-                    //     .and_then(|id| db.get(id).map(|track| track.rating()))
-                    // {
-                    //     Some(rating) => {
-                    //         if area.height > 8 {
-                    //             let cover_area = render_cover(
-                    //                 area.inner(Margin::new(1, 1)),
-                    //                 buf,
-                    //                 front_cover,
-                    //                 colors,
-                    //             );
-                    //             let stars = symbols::stars_split(rating);
-                    //             widgets::print_texts_with_styles(
-                    //                 Rect {
-                    //                     y: cover_area.y + cover_area.height,
-                    //                     height: 1,
-                    //                     ..cover_area
-                    //                 },
-                    //                 buf,
-                    //                 [
-                    //                     (stars.0, Style::new().fg(colors.accent)),
-                    //                     (stars.1, Style::new().fg(colors.neutral)),
-                    //                 ],
-                    //                 None,
-                    //                 Some(widgets::Alignment::CenterHorizontal),
-                    //             );
-                    //         } else {
-                    //             render_cover(area, buf, front_cover, colors);
-                    //         }
-                    //     }
-                    //     None => {
-                    //         widgets::print_ascii(
-                    //             area,
-                    //             buf,
-                    //             "No track currently playing",
-                    //             colors.neutral,
-                    //             Some(widgets::Alignment::Center),
-                    //         );
-                    //     }
-                    // }
                 }
             },
             ScreenSize::Medium | ScreenSize::Large => {
                 match self.view_mode {
-                    // Render play queue only
                     ViewMode::Queue => {
                         self.render_queue(area, buf, db, jb, colors);
                     }
-                    // Render cover and stars only
                     ViewMode::Cover => {
                         render_cover_with_stars(area, buf, db, jb, front_cover, colors);
-                        // match jb
-                        //     .current_track_id()
-                        //     .and_then(|id| db.get(id).map(|track| track.rating()))
-                        // {
-                        //     Some(rating) => {
-                        //         let cover_area = render_cover(
-                        //             area.inner(Margin::new(0, 1)),
-                        //             buf,
-                        //             front_cover,
-                        //             colors,
-                        //         );
-                        //         let stars = symbols::stars_split(rating);
-                        //         widgets::print_texts_with_styles(
-                        //             Rect {
-                        //                 y: cover_area.y + cover_area.height,
-                        //                 height: 1,
-                        //                 ..cover_area
-                        //             },
-                        //             buf,
-                        //             [
-                        //                 (stars.0, Style::new().fg(colors.accent)),
-                        //                 (stars.1, Style::new().fg(colors.neutral)),
-                        //             ],
-                        //             None,
-                        //             Some(widgets::Alignment::CenterHorizontal),
-                        //         );
-                        //     }
-                        //     None => {
-                        //         widgets::print_ascii(
-                        //             area,
-                        //             buf,
-                        //             "No track currently playing",
-                        //             colors.neutral,
-                        //             Some(widgets::Alignment::Center),
-                        //         );
-                        //     }
-                        // }
                     }
-                    // Render both cover and play queue
                     ViewMode::Both => {
                         let [cover_area, _, queue_area] = Layout::horizontal([
                             Constraint::Percentage(40),
@@ -161,45 +79,6 @@ impl PlayingPage {
                         .areas(area);
 
                         render_cover_with_stars(cover_area, buf, db, jb, front_cover, colors);
-
-                        // match jb
-                        //     .current_track_id()
-                        //     .and_then(|id| db.get(id).map(|track| track.rating()))
-                        // {
-                        //     Some(rating) => {
-                        //         let cover_area = render_cover(
-                        //             playing_area.inner(Margin::new(0, 1)),
-                        //             buf,
-                        //             front_cover,
-                        //             colors,
-                        //         );
-                        //         let stars = symbols::stars_split(rating);
-                        //         widgets::print_texts_with_styles(
-                        //             Rect {
-                        //                 y: cover_area.y + cover_area.height,
-                        //                 height: 1,
-                        //                 ..cover_area
-                        //             },
-                        //             buf,
-                        //             [
-                        //                 (stars.0, Style::new().fg(colors.accent)),
-                        //                 (stars.1, Style::new().fg(colors.neutral)),
-                        //             ],
-                        //             None,
-                        //             Some(widgets::Alignment::CenterHorizontal),
-                        //         );
-                        //     }
-                        //     None => {
-                        //         widgets::print_ascii(
-                        //             playing_area,
-                        //             buf,
-                        //             "No track currently playing",
-                        //             colors.neutral,
-                        //             Some(widgets::Alignment::Center),
-                        //         );
-                        //     }
-                        // }
-
                         self.render_queue(queue_area, buf, db, jb, colors);
                     }
                 }
