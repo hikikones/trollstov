@@ -164,8 +164,9 @@ impl PlayingPage {
                 }
                 's' => {
                     if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
-                        jb.shuffle();
-                        return Action::Render;
+                        if jb.shuffle() {
+                            return Action::Render;
+                        }
                     }
                 }
                 'g' => match self.view_mode {

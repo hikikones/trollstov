@@ -99,12 +99,12 @@ impl Jukebox {
         self.queue.iter()
     }
 
-    pub fn shuffle(&mut self) {
-        let start = match self.current_queue_index() {
-            Some(index) => index + 1,
-            None => 0,
-        };
-        self.queue.shuffle(start);
+    pub fn shuffle(&mut self) -> bool {
+        self.current_queue_index()
+            .map(|i| i + 1)
+            .or(self.queue.index())
+            .map(|i| self.queue.shuffle(i))
+            .unwrap_or(false)
     }
 
     pub fn move_up(&mut self, i: usize) -> bool {
