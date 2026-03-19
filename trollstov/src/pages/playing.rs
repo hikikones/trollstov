@@ -22,10 +22,27 @@ pub struct PlayingPage {
     view_mode: ViewMode,
 }
 
+#[derive(Clone, Copy)]
 enum ViewMode {
     Queue,
     Cover,
     Both,
+}
+
+impl ViewMode {
+    const fn next(self, screen_size: ScreenSize) -> Self {
+        match screen_size {
+            ScreenSize::Small => match self {
+                ViewMode::Queue => ViewMode::Cover,
+                ViewMode::Cover | ViewMode::Both => ViewMode::Queue,
+            },
+            ScreenSize::Medium | ScreenSize::Large => match self {
+                ViewMode::Queue => ViewMode::Cover,
+                ViewMode::Cover => ViewMode::Both,
+                ViewMode::Both => ViewMode::Queue,
+            },
+        }
+    }
 }
 
 impl PlayingPage {
@@ -155,8 +172,9 @@ impl PlayingPage {
                             ]);
                         }
                     }
-                    shortcuts.push(Shortcut::new("View", "v"));
                 }
+
+                shortcuts.push(Shortcut::new("View", "v"));
             }
         }
     }
