@@ -438,22 +438,24 @@ fn render_cover(
     let neutral_style = Style::new().fg(colors.neutral);
 
     const MAX_COVER_SIZE: u16 = 24;
-    let mut img_area = {
-        let img_w = area.width.min(MAX_COVER_SIZE * 2);
-        let img_h = area.height.min(MAX_COVER_SIZE);
-        let img_r = Rect {
-            width: img_w,
-            height: img_h,
+    let mut image_area = {
+        let w = area.width.min(MAX_COVER_SIZE * 2);
+        let h = area.height.min(MAX_COVER_SIZE);
+        let a = Rect {
+            width: w,
+            height: h,
             ..area
         };
-        widgets::align(img_r, area, widgets::Alignment::Center)
+        widgets::align(a, area, widgets::Alignment::Center)
     };
 
     match front_cover {
         FrontCover::None => {
-            Block::bordered().style(neutral_style).render(img_area, buf);
+            Block::bordered()
+                .style(neutral_style)
+                .render(image_area, buf);
             widgets::print_ascii(
-                img_area,
+                image_area,
                 buf,
                 "NO IMAGE",
                 neutral_style,
@@ -461,9 +463,11 @@ fn render_cover(
             );
         }
         FrontCover::Loading => {
-            Block::bordered().style(neutral_style).render(img_area, buf);
+            Block::bordered()
+                .style(neutral_style)
+                .render(image_area, buf);
             widgets::print_ascii(
-                img_area,
+                image_area,
                 buf,
                 "LOADING",
                 neutral_style,
@@ -471,19 +475,19 @@ fn render_cover(
             );
         }
         FrontCover::Ready(image) => {
-            let resized_img_area = image.size_for(ratatui_image::Resize::default(), img_area);
-            img_area = widgets::align(
+            let resized_area = image.size_for(ratatui_image::Resize::default(), image_area);
+            image_area = widgets::align(
                 Rect {
-                    width: resized_img_area.width,
-                    height: resized_img_area.height,
+                    width: resized_area.width,
+                    height: resized_area.height,
                     ..area
                 },
                 area,
                 widgets::Alignment::Center,
             );
-            StatefulImage::default().render(img_area, buf, image);
+            StatefulImage::default().render(image_area, buf, image);
         }
     }
 
-    img_area
+    image_area
 }
