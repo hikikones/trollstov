@@ -58,7 +58,11 @@ impl PlayingPage {
                 ViewMode::Queue => {
                     self.render_queue(area, buf, db, jb, colors);
                 }
-                ViewMode::Cover | ViewMode::Both => {
+                ViewMode::Cover => {
+                    render_cover_with_stars(area, buf, db, jb, front_cover, colors);
+                }
+                ViewMode::Both => {
+                    self.view_mode = ViewMode::Cover;
                     render_cover_with_stars(area, buf, db, jb, front_cover, colors);
                 }
             },
@@ -85,16 +89,40 @@ impl PlayingPage {
 
                 // Shortcuts
                 if !jb.is_empty() {
-                    shortcuts.extend([
-                        Shortcut::new("Play", symbols::ENTER),
-                        Shortcut::new("Rating", "0-5"),
-                        Shortcut::new("Move", symbols::shift!("m")),
-                        Shortcut::new("Shuffle", "s"),
-                        Shortcut::new("Remove", "r"),
-                        Shortcut::new("Clear", "c"),
-                        Shortcut::new("Goto", "g"),
-                        Shortcut::new("View", "v"),
-                    ]);
+                    match self.view_mode {
+                        ViewMode::Queue => {
+                            shortcuts.extend([
+                                Shortcut::new("Play", symbols::ENTER),
+                                Shortcut::new("Move", symbols::shift!("m")),
+                                Shortcut::new("Shuffle", "s"),
+                                Shortcut::new("Remove", "r"),
+                                Shortcut::new("Clear", "c"),
+                                Shortcut::new("Goto", "g"),
+                            ]);
+                        }
+                        ViewMode::Cover => {
+                            if jb.current_track().is_some() {
+                                shortcuts.extend([
+                                    Shortcut::new("Rating", "0-5"),
+                                    Shortcut::new("Goto", "g"),
+                                ]);
+                            }
+                        }
+                        ViewMode::Both => {
+                            shortcuts.push(Shortcut::new("Play", symbols::ENTER));
+                            if jb.current_track().is_some() {
+                                shortcuts.push(Shortcut::new("Rating", "0-5"));
+                            }
+                            shortcuts.extend([
+                                Shortcut::new("Move", symbols::shift!("m")),
+                                Shortcut::new("Shuffle", "s"),
+                                Shortcut::new("Remove", "r"),
+                                Shortcut::new("Clear", "c"),
+                                Shortcut::new("Goto", "g"),
+                            ]);
+                        }
+                    }
+                    shortcuts.push(Shortcut::new("View", "v"));
                 }
             }
         }
@@ -114,81 +142,102 @@ impl PlayingPage {
 
         match key {
             KeyCode::Enter => {
-                let index = self.list.index();
-                jb.play_index(index, db);
+                if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                    let index = self.list.index();
+                    jb.play_index(index, db);
+                }
             }
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
-                    if let Some(id) = jb.current_track_id() {
-                        let rating = AudioRating::from_char(c).unwrap();
-                        db.write_rating(id, rating);
+                    if matches!(self.view_mode, ViewMode::Cover | ViewMode::Both) {
+                        if let Some(id) = jb.current_track_id() {
+                            let rating = AudioRating::from_char(c).unwrap();
+                            db.write_rating(id, rating);
+                        }
                     }
                 }
                 'c' => {
-                    jb.clear();
-                    return Action::Render;
+                    if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                        jb.clear();
+                        return Action::Render;
+                    }
                 }
                 's' => {
-                    jb.shuffle();
-                    return Action::Render;
-                }
-                'g' => {
-                    let index = self.list.index();
-                    let id = jb.get(index);
-                    return Action::Route(Route::Tracks(id));
-                }
-                'm' => {
-                    let (start, end) = {
-                        let selection = self.list.selection_inclusive();
-                        (*selection.start(), *selection.end())
-                    };
-
-                    let success = if start == end {
-                        jb.move_down(start)
-                    } else {
-                        jb.move_down_range(start, end)
-                    };
-
-                    if success {
-                        self.current_qi = jb.current_queue_index();
-                        self.list.move_selection_down();
+                    if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                        jb.shuffle();
                         return Action::Render;
+                    }
+                }
+                'g' => match self.view_mode {
+                    ViewMode::Queue | ViewMode::Both => {
+                        let index = self.list.index();
+                        let id = jb.get(index);
+                        return Action::Route(Route::Tracks(id));
+                    }
+                    ViewMode::Cover => {
+                        if let Some(id) = jb.current_track_id() {
+                            return Action::Route(Route::Tracks(Some(id)));
+                        }
+                    }
+                },
+                'm' => {
+                    if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                        let (start, end) = {
+                            let selection = self.list.selection_inclusive();
+                            (*selection.start(), *selection.end())
+                        };
+
+                        let success = if start == end {
+                            jb.move_down(start)
+                        } else {
+                            jb.move_down_range(start, end)
+                        };
+
+                        if success {
+                            self.current_qi = jb.current_queue_index();
+                            self.list.move_selection_down();
+                            return Action::Render;
+                        }
                     }
                 }
                 'M' => {
-                    let (start, end) = {
-                        let selection = self.list.selection_inclusive();
-                        (*selection.start(), *selection.end())
-                    };
+                    if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                        let (start, end) = {
+                            let selection = self.list.selection_inclusive();
+                            (*selection.start(), *selection.end())
+                        };
 
-                    let success = if start == end {
-                        jb.move_up(start)
-                    } else {
-                        jb.move_up_range(start, end)
-                    };
+                        let success = if start == end {
+                            jb.move_up(start)
+                        } else {
+                            jb.move_up_range(start, end)
+                        };
 
-                    if success {
-                        self.current_qi = jb.current_queue_index();
-                        self.list.move_selection_up();
-                        return Action::Render;
+                        if success {
+                            self.current_qi = jb.current_queue_index();
+                            self.list.move_selection_up();
+                            return Action::Render;
+                        }
                     }
                 }
                 'r' => {
-                    let (start, end) = {
-                        let selection = self.list.selection_inclusive();
-                        (*selection.start(), *selection.end())
-                    };
+                    if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                        let (start, end) = {
+                            let selection = self.list.selection_inclusive();
+                            (*selection.start(), *selection.end())
+                        };
 
-                    let success = if start == end {
-                        jb.remove(start)
-                    } else {
-                        jb.remove_range(start, end)
-                    };
+                        let success = if start == end {
+                            jb.remove(start)
+                        } else {
+                            jb.remove_range(start, end)
+                        };
 
-                    if success {
-                        self.current_qi = jb.current_queue_index();
-                        self.list.set_index(start).set_selector(None);
-                        return Action::Render;
+                        if success {
+                            self.current_qi = jb.current_queue_index();
+                            self.list.set_index(start).set_selector(None);
+                            return Action::Render;
+                        }
                     }
                 }
                 'v' => {
@@ -207,14 +256,18 @@ impl PlayingPage {
                     return Action::Render;
                 }
                 _ => {
-                    if self.list.input(key, _modifiers) {
-                        return Action::Render;
+                    if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                        if self.list.input(key, _modifiers) {
+                            return Action::Render;
+                        }
                     }
                 }
             },
             _ => {
-                if self.list.input(key, _modifiers) {
-                    return Action::Render;
+                if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                    if self.list.input(key, _modifiers) {
+                        return Action::Render;
+                    }
                 }
             }
         }
