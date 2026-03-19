@@ -153,12 +153,19 @@ impl Jukebox {
         removal
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self) -> bool {
+        if self.queue.is_empty() || (self.queue.len() == 1 && self.queue.current() == self.current)
+        {
+            return false;
+        }
+
         self.queue.clear();
 
         if let Some((id, _)) = self.current.take() {
             self.current = self.queue.enqueue(id).next();
         }
+
+        true
     }
 
     pub fn enqueue(&mut self, id: TrackId) {

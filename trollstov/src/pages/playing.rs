@@ -158,8 +158,9 @@ impl PlayingPage {
                 }
                 'c' => {
                     if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
-                        jb.clear();
-                        return Action::Render;
+                        if jb.clear() {
+                            return Action::Render;
+                        }
                     }
                 }
                 's' => {
