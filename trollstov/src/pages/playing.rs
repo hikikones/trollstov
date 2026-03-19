@@ -25,6 +25,7 @@ pub struct PlayingPage {
 enum ViewMode {
     Queue,
     Cover,
+    Both,
 }
 
 impl PlayingPage {
@@ -66,7 +67,7 @@ impl PlayingPage {
                             colors,
                         );
                     }
-                    ViewMode::Cover => {
+                    ViewMode::Cover | ViewMode::Both => {
                         match jb
                             .current_track_id()
                             .and_then(|id| db.get(id).map(|track| track.rating()))
@@ -182,6 +183,7 @@ impl PlayingPage {
                         Shortcut::new("Remove", "r"),
                         Shortcut::new("Clear", "c"),
                         Shortcut::new("Goto", "g"),
+                        Shortcut::new("View", "v"),
                     ]);
                 }
             }
@@ -280,14 +282,19 @@ impl PlayingPage {
                     }
                 }
                 'v' => {
-                    if screen_size == ScreenSize::Small {
-                        let new_mode = match self.view_mode {
+                    let new_mode = match screen_size {
+                        ScreenSize::Small => match self.view_mode {
                             ViewMode::Queue => ViewMode::Cover,
-                            ViewMode::Cover => ViewMode::Queue,
-                        };
-                        self.view_mode = new_mode;
-                        return Action::Render;
-                    }
+                            ViewMode::Cover | ViewMode::Both => ViewMode::Queue,
+                        },
+                        ScreenSize::Medium | ScreenSize::Large => match self.view_mode {
+                            ViewMode::Queue => ViewMode::Cover,
+                            ViewMode::Cover => ViewMode::Both,
+                            ViewMode::Both => ViewMode::Queue,
+                        },
+                    };
+                    self.view_mode = new_mode;
+                    return Action::Render;
                 }
                 _ => {
                     if self.list.input(key, _modifiers) {
