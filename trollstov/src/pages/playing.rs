@@ -10,7 +10,7 @@ use ratatui_image::StatefulImage;
 use widgets::{List, ListItem, Shortcut, Shortcuts};
 
 use crate::{
-    app::{Action, FrontCover, ScreenSize},
+    app::{Action, FrontCover, FrontCoverStatus, ScreenSize},
     pages::Route,
     settings::Colors,
     symbols,
@@ -47,6 +47,7 @@ impl PlayingPage {
         jb: &Jukebox,
         screen_size: ScreenSize,
         front_cover: &mut FrontCover,
+        front_cover_status: FrontCoverStatus,
         colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
@@ -59,11 +60,27 @@ impl PlayingPage {
                     self.render_queue(area, buf, db, jb, colors);
                 }
                 ViewMode::Cover => {
-                    render_cover_with_stars(area, buf, db, jb, front_cover, colors);
+                    render_cover_with_stars(
+                        area,
+                        buf,
+                        db,
+                        jb,
+                        front_cover,
+                        front_cover_status,
+                        colors,
+                    );
                 }
                 ViewMode::Both => {
                     self.view_mode = ViewMode::Cover;
-                    render_cover_with_stars(area, buf, db, jb, front_cover, colors);
+                    render_cover_with_stars(
+                        area,
+                        buf,
+                        db,
+                        jb,
+                        front_cover,
+                        front_cover_status,
+                        colors,
+                    );
                 }
             },
             ScreenSize::Medium | ScreenSize::Large => {
@@ -72,7 +89,15 @@ impl PlayingPage {
                         self.render_queue(area, buf, db, jb, colors);
                     }
                     ViewMode::Cover => {
-                        render_cover_with_stars(area, buf, db, jb, front_cover, colors);
+                        render_cover_with_stars(
+                            area,
+                            buf,
+                            db,
+                            jb,
+                            front_cover,
+                            front_cover_status,
+                            colors,
+                        );
                     }
                     ViewMode::Both => {
                         let [cover_area, _, queue_area] = Layout::horizontal([
@@ -82,7 +107,15 @@ impl PlayingPage {
                         ])
                         .areas(area);
 
-                        render_cover_with_stars(cover_area, buf, db, jb, front_cover, colors);
+                        render_cover_with_stars(
+                            cover_area,
+                            buf,
+                            db,
+                            jb,
+                            front_cover,
+                            front_cover_status,
+                            colors,
+                        );
                         self.render_queue(queue_area, buf, db, jb, colors);
                     }
                 }
@@ -388,6 +421,7 @@ fn render_cover_with_stars(
     db: &Database,
     jb: &Jukebox,
     front_cover: &mut FrontCover,
+    front_cover_status: FrontCoverStatus,
     colors: &Colors,
 ) {
     match jb
@@ -397,7 +431,13 @@ fn render_cover_with_stars(
         Some(rating) => {
             if area.height > 8 {
                 let margin = Margin::new(1, 1);
-                let cover_area = render_cover(area.inner(margin), buf, front_cover, colors);
+                let cover_area = render_cover(
+                    area.inner(margin),
+                    buf,
+                    front_cover,
+                    front_cover_status,
+                    colors,
+                );
                 let stars = symbols::stars_split(rating);
                 widgets::print_texts_with_styles(
                     Rect {
@@ -414,7 +454,7 @@ fn render_cover_with_stars(
                     Some(widgets::Alignment::CenterHorizontal),
                 );
             } else {
-                render_cover(area, buf, front_cover, colors);
+                render_cover(area, buf, front_cover, front_cover_status, colors);
             }
         }
         None => {
@@ -433,57 +473,54 @@ fn render_cover(
     area: Rect,
     buf: &mut Buffer,
     front_cover: &mut FrontCover,
+    front_cover_status: FrontCoverStatus,
     colors: &Colors,
 ) -> Rect {
     let neutral_style = Style::new().fg(colors.neutral);
 
     const MAX_COVER_SIZE: u16 = 24;
-    let mut img_area = {
-        let img_w = area.width.min(MAX_COVER_SIZE * 2);
-        let img_h = area.height.min(MAX_COVER_SIZE);
-        let img_r = Rect {
-            width: img_w,
-            height: img_h,
+    let mut image_area = {
+        let w = area.width.min(MAX_COVER_SIZE * 2);
+        let h = area.height.min(MAX_COVER_SIZE);
+        let s = w.min(h);
+        let a = Rect {
+            width: s * 2,
+            height: s,
             ..area
         };
-        widgets::align(img_r, area, widgets::Alignment::Center)
+        widgets::align(a, area, widgets::Alignment::Center)
     };
 
-    match front_cover {
-        FrontCover::None => {
-            Block::bordered().style(neutral_style).render(img_area, buf);
-            widgets::print_ascii(
-                img_area,
-                buf,
-                "NO IMAGE",
-                neutral_style,
-                Some(widgets::Alignment::Center),
-            );
-        }
-        FrontCover::Loading => {
-            Block::bordered().style(neutral_style).render(img_area, buf);
-            widgets::print_ascii(
-                img_area,
-                buf,
-                "LOADING",
-                neutral_style,
-                Some(widgets::Alignment::Center),
-            );
-        }
-        FrontCover::Ready(image) => {
-            let resized_img_area = image.size_for(ratatui_image::Resize::default(), img_area);
-            img_area = widgets::align(
+    match front_cover.as_mut() {
+        Some(image) => {
+            let resized_area = image.size_for(ratatui_image::Resize::default(), image_area);
+            image_area = widgets::align(
                 Rect {
-                    width: resized_img_area.width,
-                    height: resized_img_area.height,
+                    width: resized_area.width,
+                    height: resized_area.height,
                     ..area
                 },
                 area,
                 widgets::Alignment::Center,
             );
-            StatefulImage::default().render(img_area, buf, image);
+            StatefulImage::default().render(image_area, buf, image);
         }
+        None => match front_cover_status {
+            FrontCoverStatus::None | FrontCoverStatus::Loading => {}
+            FrontCoverStatus::Ready => {
+                Block::bordered()
+                    .style(neutral_style)
+                    .render(image_area, buf);
+                widgets::print_ascii(
+                    image_area,
+                    buf,
+                    "NO IMAGE",
+                    neutral_style,
+                    Some(widgets::Alignment::Center),
+                );
+            }
+        },
     }
 
-    img_area
+    image_area
 }
