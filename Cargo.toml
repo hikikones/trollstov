@@ -8,36 +8,69 @@ edition = "2024"
 license = "MIT"
 
 [workspace.dependencies]
-audio = { path = "crates/audio" }
-clap = { version = "4.5", features = ["derive"] }
+audio = { path = "crates/audio", default-features = false }
+clap = { version = "4.5", default-features = false, features = [
+  "color",
+  "derive",
+  "error-context",
+  "help",
+  "std",
+  "usage"
+] }
 clap-cargo = { version = "0.18", default-features = false }
-constcat = "0.6"
-database = { path = "crates/database" }
-directories = "6.0"
-fastrand = "2.3"
-ignore = { version = "0.4", features = ["simd-accel"] }
-image = "0.25"
-indexmap = "2.13"
-itoa = "1.0"
+constcat = { version = "0.6", default-features = false }
+database = { path = "crates/database", default-features = false }
+directories = { version = "6.0", default-features = false }
+fastrand = { version = "2.3", default-features = false }
+ignore = { version = "0.4", default-features = false, features = ["simd-accel"] }
+image = { version = "0.25", default-features = false, features = [
+  "jpeg",
+  "png",
+  "rayon",
+] }
+indexmap = { version = "2.13", default-features = false, features = ["std"] }
+itoa = { version = "1.0", default-features = false }
 jukebox = { path = "crates/jukebox" }
-lofty = "0.23"
-nucleo-matcher = "0.3"
-ratatui = { version = "0.30", features = ["serde"] }
+lofty = { version = "0.23", default-features = false, features = [
+  "id3v2_compression_support"
+] }
+nucleo-matcher = { version = "0.3", default-features = false, features = [
+  "unicode-casefold",
+  "unicode-normalization",
+  "unicode-segmentation"
+] }
+ratatui = { version = "0.30", default-features = false, features = [
+  "crossterm",
+  "serde"
+] }
 ratatui-image = { version = "10.0", default-features = false, features = [
   "crossterm"
 ] }
-rodio = { git = "https://github.com/RustAudio/rodio.git", rev = "4aa22e85e5ad5565c45dfdda95051158eb6b56c3" }
-seahash = "4.1"
-serde = { version = "1.0", features = ["derive"] }
-serde_repr = "0.1"
+rodio = { git = "https://github.com/RustAudio/rodio.git", rev = "4aa22e85e5ad5565c45dfdda95051158eb6b56c3", default-features = false, features = [
+  "flac",
+  "mp3",
+  "playback",
+  "vorbis"
+] }
+seahash = { version = "4.1", default-features = false }
+serde = { version = "1.0", default-features = false, features = [
+  "derive",
+  "std"
+] }
+serde_repr = { version = "0.1", default-features = false }
 souvlaki = { version = "0.8", default-features = false, features = ["use_zbus"] }
-terminal-colorsaurus = "1.0"
-toml = "1.0"
-unicode-segmentation = "1.12"
-unicode-width = "0.2"
-utils = { path = "crates/utils" }
-walkdir = "2.5"
-widgets = { path = "crates/widgets" }
+terminal-colorsaurus = { version = "1.0", default-features = false }
+toml = { version = "1.0", default-features = false, features = [
+  "display",
+  "parse",
+  "serde",
+  "std"
+] }
+unicode-segmentation = { version = "1.12", default-features = false }
+unicode-width = { version = "0.2", default-features = false }
+utils = { path = "crates/utils", default-features = false }
+walkdir = { version = "2.5", default-features = false }
+widgets = { path = "crates/widgets", default-features = false }
 
 [profile.dev]
 opt-level = 1
