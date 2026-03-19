@@ -25,6 +25,7 @@ pub struct PlayingPage {
 enum ViewMode {
     Queue,
     Cover,
+    Both,
 }
 
 impl PlayingPage {
@@ -32,7 +33,7 @@ impl PlayingPage {
         Self {
             current_qi: None,
             list: List::new(),
-            view_mode: ViewMode::Queue,
+            view_mode: ViewMode::Both,
         }
     }
 
@@ -51,138 +52,77 @@ impl PlayingPage {
     ) {
         self.update_scroll_on_new_track(jb);
 
+        // Render based on screen size and view mode
         match screen_size {
-            ScreenSize::Small => {
+            ScreenSize::Small => match self.view_mode {
+                ViewMode::Queue => {
+                    self.render_queue(area, buf, db, jb, colors);
+                }
+                ViewMode::Cover => {
+                    render_cover_with_stars(area, buf, db, jb, front_cover, colors);
+                }
+                ViewMode::Both => {
+                    self.view_mode = ViewMode::Cover;
+                    render_cover_with_stars(area, buf, db, jb, front_cover, colors);
+                }
+            },
+            ScreenSize::Medium | ScreenSize::Large => {
                 match self.view_mode {
                     ViewMode::Queue => {
-                        self.render_queue(
-                            Rect {
-                                height: area.height.saturating_sub(1),
-                                ..area
-                            },
-                            buf,
-                            db,
-                            jb,
-                            colors,
-                        );
+                        self.render_queue(area, buf, db, jb, colors);
                     }
                     ViewMode::Cover => {
-                        match jb
-                            .current_track_id()
-                            .and_then(|id| db.get(id).map(|track| track.rating()))
-                        {
-                            Some(rating) => {
-                                let cover_area = self.render_cover(
-                                    area.inner(Margin::new(1, 1)),
-                                    buf,
-                                    front_cover,
-                                    colors,
-                                );
-                                let stars = symbols::stars_split(rating);
-                                widgets::print_texts_with_styles(
-                                    Rect {
-                                        y: cover_area.y / 2,
-                                        ..area
-                                    },
-                                    buf,
-                                    [
-                                        (stars.0, Style::new().fg(colors.accent)),
-                                        (stars.1, Style::new().fg(colors.neutral)),
-                                    ],
-                                    None,
-                                    Some(widgets::Alignment::CenterHorizontal),
-                                );
-                            }
-                            None => {
-                                widgets::print_ascii(
-                                    area,
-                                    buf,
-                                    "No track currently playing",
-                                    colors.neutral,
-                                    Some(widgets::Alignment::Center),
-                                );
-                            }
-                        }
+                        render_cover_with_stars(area, buf, db, jb, front_cover, colors);
+                    }
+                    ViewMode::Both => {
+                        let [cover_area, _, queue_area] = Layout::horizontal([
+                            Constraint::Percentage(40),
+                            Constraint::Length(1),
+                            Constraint::Min(3),
+                        ])
+                        .areas(area);
+
+                        render_cover_with_stars(cover_area, buf, db, jb, front_cover, colors);
+                        self.render_queue(queue_area, buf, db, jb, colors);
                     }
                 }
-
-                // Shortcut
-                widgets::print_asciis_with_styles(
-                    Rect {
-                        y: area.y + area.height.saturating_sub(1),
-                        ..area
-                    },
-                    buf,
-                    [
-                        ("v", Style::new().fg(colors.accent)),
-                        (" ", Style::new()),
-                        ("toggle view", Style::new().fg(colors.neutral)),
-                    ],
-                    Some(widgets::Alignment::CenterHorizontal),
-                );
-            }
-            ScreenSize::Medium | ScreenSize::Large => {
-                // Layout
-                let [playing_area, _, queue_area] = Layout::horizontal([
-                    Constraint::Percentage(40),
-                    Constraint::Length(1),
-                    Constraint::Min(3),
-                ])
-                .areas(area);
-
-                // Render track
-                match jb
-                    .current_track_id()
-                    .and_then(|id| db.get(id).map(|track| track.rating()))
-                {
-                    Some(rating) => {
-                        let cover_area = self.render_cover(
-                            playing_area.inner(Margin::new(0, 1)),
-                            buf,
-                            front_cover,
-                            colors,
-                        );
-                        let stars = symbols::stars_split(rating);
-                        widgets::print_texts_with_styles(
-                            Rect {
-                                y: cover_area.y + cover_area.height,
-                                height: 1,
-                                ..cover_area
-                            },
-                            buf,
-                            [
-                                (stars.0, Style::new().fg(colors.accent)),
-                                (stars.1, Style::new().fg(colors.neutral)),
-                            ],
-                            None,
-                            Some(widgets::Alignment::CenterHorizontal),
-                        );
-                    }
-                    None => {
-                        widgets::print_ascii(
-                            playing_area,
-                            buf,
-                            "No track currently playing",
-                            colors.neutral,
-                            Some(widgets::Alignment::Center),
-                        );
-                    }
-                }
-
-                // Render play queue
-                self.render_queue(queue_area, buf, db, jb, colors);
 
                 // Shortcuts
                 if !jb.is_empty() {
-                    shortcuts.extend([
-                        Shortcut::new("Play", symbols::ENTER),
-                        Shortcut::new("Rating", "0-5"),
-                        Shortcut::new("Move", symbols::shift!("m")),
-                        Shortcut::new("Shuffle", "s"),
-                        Shortcut::new("Remove", "r"),
-                        Shortcut::new("Clear", "c"),
-                        Shortcut::new("Goto", "g"),
-                    ]);
+                    match self.view_mode {
+                        ViewMode::Queue => {
+                            shortcuts.extend([
+                                Shortcut::new("Play", symbols::ENTER),
+                                Shortcut::new("Move", symbols::shift!("m")),
+                                Shortcut::new("Shuffle", "s"),
+                                Shortcut::new("Remove", "r"),
+                                Shortcut::new("Clear", "c"),
+                                Shortcut::new("Goto", "g"),
+                            ]);
+                        }
+                        ViewMode::Cover => {
+                            if jb.has_current() {
+                                shortcuts.extend([
+                                    Shortcut::new("Rating", "0-5"),
+                                    Shortcut::new("Goto", "g"),
+                                ]);
+                            }
+                        }
+                        ViewMode::Both => {
+                            shortcuts.push(Shortcut::new("Play", symbols::ENTER));
+                            if jb.has_current() {
+                                shortcuts.push(Shortcut::new("Rating", "0-5"));
+                            }
+                            shortcuts.extend([
+                                Shortcut::new("Move", symbols::shift!("m")),
+                                Shortcut::new("Shuffle", "s"),
+                                Shortcut::new("Remove", "r"),
+                                Shortcut::new("Clear", "c"),
+                                Shortcut::new("Goto", "g"),
+                            ]);
+                        }
+                    }
+                    shortcuts.push(Shortcut::new("View", "v"));
                 }
             }
         }
@@ -202,102 +142,132 @@ impl PlayingPage {
 
         match key {
             KeyCode::Enter => {
-                let index = self.list.index();
-                jb.play_index(index, db);
+                if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                    let index = self.list.index();
+                    jb.play_index(index, db);
+                }
             }
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
-                    if let Some(id) = jb.current_track_id() {
-                        let rating = AudioRating::from_char(c).unwrap();
-                        db.write_rating(id, rating);
+                    if matches!(self.view_mode, ViewMode::Cover | ViewMode::Both) {
+                        if let Some(id) = jb.current_track_id() {
+                            let rating = AudioRating::from_char(c).unwrap();
+                            db.write_rating(id, rating);
+                        }
                     }
                 }
                 'c' => {
-                    jb.clear();
-                    return Action::Render;
+                    if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                        jb.clear();
+                        return Action::Render;
+                    }
                 }
                 's' => {
-                    jb.shuffle();
-                    return Action::Render;
-                }
-                'g' => {
-                    let index = self.list.index();
-                    let id = jb.get(index);
-                    return Action::Route(Route::Tracks(id));
-                }
-                'm' => {
-                    let (start, end) = {
-                        let selection = self.list.selection_inclusive();
-                        (*selection.start(), *selection.end())
-                    };
-
-                    let success = if start == end {
-                        jb.move_down(start)
-                    } else {
-                        jb.move_down_range(start, end)
-                    };
-
-                    if success {
-                        self.current_qi = jb.current_queue_index();
-                        self.list.move_selection_down();
+                    if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                        jb.shuffle();
                         return Action::Render;
+                    }
+                }
+                'g' => match self.view_mode {
+                    ViewMode::Queue | ViewMode::Both => {
+                        let index = self.list.index();
+                        let id = jb.get(index);
+                        return Action::Route(Route::Tracks(id));
+                    }
+                    ViewMode::Cover => {
+                        if let Some(id) = jb.current_track_id() {
+                            return Action::Route(Route::Tracks(Some(id)));
+                        }
+                    }
+                },
+                'm' => {
+                    if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                        let (start, end) = {
+                            let selection = self.list.selection_inclusive();
+                            (*selection.start(), *selection.end())
+                        };
+
+                        let success = if start == end {
+                            jb.move_down(start)
+                        } else {
+                            jb.move_down_range(start, end)
+                        };
+
+                        if success {
+                            self.current_qi = jb.current_queue_index();
+                            self.list.move_selection_down();
+                            return Action::Render;
+                        }
                     }
                 }
                 'M' => {
-                    let (start, end) = {
-                        let selection = self.list.selection_inclusive();
-                        (*selection.start(), *selection.end())
-                    };
+                    if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                        let (start, end) = {
+                            let selection = self.list.selection_inclusive();
+                            (*selection.start(), *selection.end())
+                        };
 
-                    let success = if start == end {
-                        jb.move_up(start)
-                    } else {
-                        jb.move_up_range(start, end)
-                    };
+                        let success = if start == end {
+                            jb.move_up(start)
+                        } else {
+                            jb.move_up_range(start, end)
+                        };
 
-                    if success {
-                        self.current_qi = jb.current_queue_index();
-                        self.list.move_selection_up();
-                        return Action::Render;
+                        if success {
+                            self.current_qi = jb.current_queue_index();
+                            self.list.move_selection_up();
+                            return Action::Render;
+                        }
                     }
                 }
                 'r' => {
-                    let (start, end) = {
-                        let selection = self.list.selection_inclusive();
-                        (*selection.start(), *selection.end())
-                    };
+                    if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                        let (start, end) = {
+                            let selection = self.list.selection_inclusive();
+                            (*selection.start(), *selection.end())
+                        };
 
-                    let success = if start == end {
-                        jb.remove(start)
-                    } else {
-                        jb.remove_range(start, end)
-                    };
+                        let success = if start == end {
+                            jb.remove(start)
+                        } else {
+                            jb.remove_range(start, end)
+                        };
 
-                    if success {
-                        self.current_qi = jb.current_queue_index();
-                        self.list.set_index(start).set_selector(None);
-                        return Action::Render;
+                        if success {
+                            self.current_qi = jb.current_queue_index();
+                            self.list.set_index(start).set_selector(None);
+                            return Action::Render;
+                        }
                     }
                 }
                 'v' => {
-                    if screen_size == ScreenSize::Small {
-                        let new_mode = match self.view_mode {
+                    let new_mode = match screen_size {
+                        ScreenSize::Small => match self.view_mode {
                             ViewMode::Queue => ViewMode::Cover,
-                            ViewMode::Cover => ViewMode::Queue,
-                        };
-                        self.view_mode = new_mode;
-                        return Action::Render;
-                    }
+                            ViewMode::Cover | ViewMode::Both => ViewMode::Queue,
+                        },
+                        ScreenSize::Medium | ScreenSize::Large => match self.view_mode {
+                            ViewMode::Queue => ViewMode::Cover,
+                            ViewMode::Cover => ViewMode::Both,
+                            ViewMode::Both => ViewMode::Queue,
+                        },
+                    };
+                    self.view_mode = new_mode;
+                    return Action::Render;
                 }
                 _ => {
-                    if self.list.input(key, _modifiers) {
-                        return Action::Render;
+                    if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                        if self.list.input(key, _modifiers) {
+                            return Action::Render;
+                        }
                     }
                 }
             },
             _ => {
-                if self.list.input(key, _modifiers) {
-                    return Action::Render;
+                if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
+                    if self.list.input(key, _modifiers) {
+                        return Action::Render;
+                    }
                 }
             }
         }
@@ -315,66 +285,6 @@ impl PlayingPage {
                 self.list.set_index(idx).set_selector(None);
             }
         }
-    }
-
-    fn render_cover(
-        &mut self,
-        area: Rect,
-        buf: &mut Buffer,
-        front_cover: &mut FrontCover,
-        colors: &Colors,
-    ) -> Rect {
-        let neutral_style = Style::new().fg(colors.neutral);
-
-        const MAX_COVER_SIZE: u16 = 24;
-        let mut img_area = {
-            let img_w = area.width.min(MAX_COVER_SIZE * 2);
-            let img_h = area.height.min(MAX_COVER_SIZE);
-            let img_r = Rect {
-                width: img_w,
-                height: img_h,
-                ..area
-            };
-            widgets::align(img_r, area, widgets::Alignment::Center)
-        };
-
-        match front_cover {
-            FrontCover::None => {
-                Block::bordered().style(neutral_style).render(img_area, buf);
-                widgets::print_ascii(
-                    img_area,
-                    buf,
-                    "NO IMAGE",
-                    neutral_style,
-                    Some(widgets::Alignment::Center),
-                );
-            }
-            FrontCover::Loading => {
-                Block::bordered().style(neutral_style).render(img_area, buf);
-                widgets::print_ascii(
-                    img_area,
-                    buf,
-                    "LOADING",
-                    neutral_style,
-                    Some(widgets::Alignment::Center),
-                );
-            }
-            FrontCover::Ready(image) => {
-                let resized_img_area = image.size_for(ratatui_image::Resize::default(), img_area);
-                img_area = widgets::align(
-                    Rect {
-                        width: resized_img_area.width,
-                        height: resized_img_area.height,
-                        ..area
-                    },
-                    area,
-                    widgets::Alignment::Center,
-                );
-                StatefulImage::default().render(img_area, buf, image);
-            }
-        }
-
-        img_area
     }
 
     fn render_queue(
@@ -468,4 +378,110 @@ impl PlayingPage {
             },
         );
     }
+}
+
+fn render_cover_with_stars(
+    area: Rect,
+    buf: &mut Buffer,
+    db: &Database,
+    jb: &Jukebox,
+    front_cover: &mut FrontCover,
+    colors: &Colors,
+) {
+    match jb
+        .current_track_id()
+        .and_then(|id| db.get(id).map(|track| track.rating()))
+    {
+        Some(rating) => {
+            if area.height > 8 {
+                let margin = Margin::new(1, 1);
+                let cover_area = render_cover(area.inner(margin), buf, front_cover, colors);
+                let stars = symbols::stars_split(rating);
+                widgets::print_texts_with_styles(
+                    Rect {
+                        y: cover_area.y + cover_area.height,
+                        height: 1,
+                        ..cover_area
+                    },
+                    buf,
+                    [
+                        (stars.0, Style::new().fg(colors.accent)),
+                        (stars.1, Style::new().fg(colors.neutral)),
+                    ],
+                    None,
+                    Some(widgets::Alignment::CenterHorizontal),
+                );
+            } else {
+                render_cover(area, buf, front_cover, colors);
+            }
+        }
+        None => {
+            widgets::print_ascii(
+                area,
+                buf,
+                "No track currently playing",
+                colors.neutral,
+                Some(widgets::Alignment::Center),
+            );
+        }
+    }
+}
+
+fn render_cover(
+    area: Rect,
+    buf: &mut Buffer,
+    front_cover: &mut FrontCover,
+    colors: &Colors,
+) -> Rect {
+    let neutral_style = Style::new().fg(colors.neutral);
+
+    const MAX_COVER_SIZE: u16 = 24;
+    let mut img_area = {
+        let img_w = area.width.min(MAX_COVER_SIZE * 2);
+        let img_h = area.height.min(MAX_COVER_SIZE);
+        let img_r = Rect {
+            width: img_w,
+            height: img_h,
+            ..area
+        };
+        widgets::align(img_r, area, widgets::Alignment::Center)
+    };
+
+    match front_cover {
+        FrontCover::None => {
+            Block::bordered().style(neutral_style).render(img_area, buf);
+            widgets::print_ascii(
+                img_area,
+                buf,
+                "NO IMAGE",
+                neutral_style,
+                Some(widgets::Alignment::Center),
+            );
+        }
+        FrontCover::Loading => {
+            Block::bordered().style(neutral_style).render(img_area, buf);
+            widgets::print_ascii(
+                img_area,
+                buf,
+                "LOADING",
+                neutral_style,
+                Some(widgets::Alignment::Center),
+            );
+        }
+        FrontCover::Ready(image) => {
+            let resized_img_area = image.size_for(ratatui_image::Resize::default(), img_area);
+            img_area = widgets::align(
+                Rect {
+                    width: resized_img_area.width,
+                    height: resized_img_area.height,
+                    ..area
+                },
+                area,
+                widgets::Alignment::Center,
+            );
+            StatefulImage::default().render(img_area, buf, image);
+        }
+    }
+
+    img_area
 }
