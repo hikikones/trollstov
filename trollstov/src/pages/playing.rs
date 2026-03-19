@@ -441,9 +441,10 @@ fn render_cover(
     let mut image_area = {
         let w = area.width.min(MAX_COVER_SIZE * 2);
         let h = area.height.min(MAX_COVER_SIZE);
+        let s = w.min(h);
         let a = Rect {
-            width: w,
-            height: h,
+            width: s * 2,
+            height: s,
             ..area
         };
         widgets::align(a, area, widgets::Alignment::Center)
