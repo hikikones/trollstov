@@ -79,6 +79,10 @@ impl Jukebox {
         self.current
     }
 
+    pub const fn has_current(&self) -> bool {
+        self.current.is_some()
+    }
+
     pub fn current_track_id(&self) -> Option<TrackId> {
         self.current.map(|(id, _)| id)
     }

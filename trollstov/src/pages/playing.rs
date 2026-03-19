@@ -101,7 +101,7 @@ impl PlayingPage {
                             ]);
                         }
                         ViewMode::Cover => {
-                            if jb.current_track().is_some() {
+                            if jb.has_current() {
                                 shortcuts.extend([
                                     Shortcut::new("Rating", "0-5"),
                                     Shortcut::new("Goto", "g"),
@@ -110,7 +110,7 @@ impl PlayingPage {
                         }
                         ViewMode::Both => {
                             shortcuts.push(Shortcut::new("Play", symbols::ENTER));
-                            if jb.current_track().is_some() {
+                            if jb.has_current() {
                                 shortcuts.push(Shortcut::new("Rating", "0-5"));
                             }
                             shortcuts.extend([
