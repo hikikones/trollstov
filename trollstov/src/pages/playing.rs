@@ -441,7 +441,7 @@ fn render_cover_with_stars(
         .and_then(|id| db.get(id).map(|track| track.rating()))
     {
         Some(rating) => {
-            if area.height > 8 {
+            if area.width > 12 && area.height > 10 {
                 let margin = Margin::new(1, 1);
                 let cover_area = render_cover(
                     area.inner(margin),
@@ -492,12 +492,12 @@ fn render_cover(
 
     const MAX_COVER_SIZE: u16 = 24;
     let mut image_area = {
-        let w = area.width.min(MAX_COVER_SIZE * 2);
-        let h = area.height.min(MAX_COVER_SIZE);
-        let s = w.min(h);
+        let s = area.width.min(area.height).min(MAX_COVER_SIZE);
+        let w = area.width.min(s * 2);
+        let h = s.min(w.div_ceil(2));
         let a = Rect {
-            width: s * 2,
-            height: s,
+            width: w,
+            height: h,
             ..area
         };
         widgets::align(a, area, widgets::Alignment::Center)
