@@ -99,12 +99,12 @@ impl Jukebox {
         self.queue.iter()
     }
 
-    pub fn shuffle(&mut self) {
-        let start = match self.current_queue_index() {
-            Some(index) => index + 1,
-            None => 0,
-        };
-        self.queue.shuffle(start);
+    pub fn shuffle(&mut self) -> bool {
+        self.current_queue_index()
+            .map(|i| i + 1)
+            .or(self.queue.index())
+            .map(|i| self.queue.shuffle(i))
+            .unwrap_or(false)
     }
 
     pub fn move_up(&mut self, i: usize) -> bool {
@@ -153,12 +153,19 @@ impl Jukebox {
         removal
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self) -> bool {
+        if self.queue.is_empty() || (self.queue.len() == 1 && self.queue.current() == self.current)
+        {
+            return false;
+        }
+
         self.queue.clear();
 
         if let Some((id, _)) = self.current.take() {
             self.current = self.queue.enqueue(id).next();
         }
+
+        true
     }
 
     pub fn enqueue(&mut self, id: TrackId) {

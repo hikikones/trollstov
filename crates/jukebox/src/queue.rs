@@ -41,6 +41,10 @@ impl PlayQueue {
         self.list.get(index).copied()
     }
 
+    pub(crate) const fn index(&self) -> Option<usize> {
+        self.index
+    }
+
     pub(crate) fn set_index(&mut self, index: usize) -> Option<TrackId> {
         match self.list.get(index).copied() {
             Some(id) => {
@@ -117,16 +121,17 @@ impl PlayQueue {
         }
     }
 
-    pub(crate) fn shuffle(&mut self, start: usize) {
+    pub(crate) fn shuffle(&mut self, start: usize) -> bool {
         let end = self.list.len();
-        if start >= end {
-            return;
+        if start >= end.saturating_sub(1) {
+            return false;
         }
 
         for i in start..end {
             let random = fastrand::usize(start..end);
             self.list.swap(i, random);
         }
+        true
     }
 
     pub(crate) fn move_up(&mut self, i: usize) -> bool {
