@@ -60,47 +60,48 @@ impl PlayingPage {
                 }
                 // Render cover and maybe stars only
                 ViewMode::Cover | ViewMode::Both => {
-                    match jb
-                        .current_track_id()
-                        .and_then(|id| db.get(id).map(|track| track.rating()))
-                    {
-                        Some(rating) => {
-                            if area.height > 8 {
-                                let cover_area = self.render_cover(
-                                    area.inner(Margin::new(1, 1)),
-                                    buf,
-                                    front_cover,
-                                    colors,
-                                );
-                                let stars = symbols::stars_split(rating);
-                                widgets::print_texts_with_styles(
-                                    Rect {
-                                        y: cover_area.y + cover_area.height,
-                                        height: 1,
-                                        ..cover_area
-                                    },
-                                    buf,
-                                    [
-                                        (stars.0, Style::new().fg(colors.accent)),
-                                        (stars.1, Style::new().fg(colors.neutral)),
-                                    ],
-                                    None,
-                                    Some(widgets::Alignment::CenterHorizontal),
-                                );
-                            } else {
-                                self.render_cover(area, buf, front_cover, colors);
-                            }
-                        }
-                        None => {
-                            widgets::print_ascii(
-                                area,
-                                buf,
-                                "No track currently playing",
-                                colors.neutral,
-                                Some(widgets::Alignment::Center),
-                            );
-                        }
-                    }
+                    render_cover_with_stars(area, buf, db, jb, front_cover, colors);
+                    // match jb
+                    //     .current_track_id()
+                    //     .and_then(|id| db.get(id).map(|track| track.rating()))
+                    // {
+                    //     Some(rating) => {
+                    //         if area.height > 8 {
+                    //             let cover_area = render_cover(
+                    //                 area.inner(Margin::new(1, 1)),
+                    //                 buf,
+                    //                 front_cover,
+                    //                 colors,
+                    //             );
+                    //             let stars = symbols::stars_split(rating);
+                    //             widgets::print_texts_with_styles(
+                    //                 Rect {
+                    //                     y: cover_area.y + cover_area.height,
+                    //                     height: 1,
+                    //                     ..cover_area
+                    //                 },
+                    //                 buf,
+                    //                 [
+                    //                     (stars.0, Style::new().fg(colors.accent)),
+                    //                     (stars.1, Style::new().fg(colors.neutral)),
+                    //                 ],
+                    //                 None,
+                    //                 Some(widgets::Alignment::CenterHorizontal),
+                    //             );
+                    //         } else {
+                    //             render_cover(area, buf, front_cover, colors);
+                    //         }
+                    //     }
+                    //     None => {
+                    //         widgets::print_ascii(
+                    //             area,
+                    //             buf,
+                    //             "No track currently playing",
+                    //             colors.neutral,
+                    //             Some(widgets::Alignment::Center),
+                    //         );
+                    //     }
+                    // }
                 }
             },
             ScreenSize::Medium | ScreenSize::Large => {
@@ -111,90 +112,93 @@ impl PlayingPage {
                     }
                     // Render cover and stars only
                     ViewMode::Cover => {
-                        match jb
-                            .current_track_id()
-                            .and_then(|id| db.get(id).map(|track| track.rating()))
-                        {
-                            Some(rating) => {
-                                let cover_area = self.render_cover(
-                                    area.inner(Margin::new(0, 1)),
-                                    buf,
-                                    front_cover,
-                                    colors,
-                                );
-                                let stars = symbols::stars_split(rating);
-                                widgets::print_texts_with_styles(
-                                    Rect {
-                                        y: cover_area.y + cover_area.height,
-                                        height: 1,
-                                        ..cover_area
-                                    },
-                                    buf,
-                                    [
-                                        (stars.0, Style::new().fg(colors.accent)),
-                                        (stars.1, Style::new().fg(colors.neutral)),
-                                    ],
-                                    None,
-                                    Some(widgets::Alignment::CenterHorizontal),
-                                );
-                            }
-                            None => {
-                                widgets::print_ascii(
-                                    area,
-                                    buf,
-                                    "No track currently playing",
-                                    colors.neutral,
-                                    Some(widgets::Alignment::Center),
-                                );
-                            }
-                        }
+                        render_cover_with_stars(area, buf, db, jb, front_cover, colors);
+                        // match jb
+                        //     .current_track_id()
+                        //     .and_then(|id| db.get(id).map(|track| track.rating()))
+                        // {
+                        //     Some(rating) => {
+                        //         let cover_area = render_cover(
+                        //             area.inner(Margin::new(0, 1)),
+                        //             buf,
+                        //             front_cover,
+                        //             colors,
+                        //         );
+                        //         let stars = symbols::stars_split(rating);
+                        //         widgets::print_texts_with_styles(
+                        //             Rect {
+                        //                 y: cover_area.y + cover_area.height,
+                        //                 height: 1,
+                        //                 ..cover_area
+                        //             },
+                        //             buf,
+                        //             [
+                        //                 (stars.0, Style::new().fg(colors.accent)),
+                        //                 (stars.1, Style::new().fg(colors.neutral)),
+                        //             ],
+                        //             None,
+                        //             Some(widgets::Alignment::CenterHorizontal),
+                        //         );
+                        //     }
+                        //     None => {
+                        //         widgets::print_ascii(
+                        //             area,
+                        //             buf,
+                        //             "No track currently playing",
+                        //             colors.neutral,
+                        //             Some(widgets::Alignment::Center),
+                        //         );
+                        //     }
+                        // }
                     }
                     // Render both cover and play queue
                     ViewMode::Both => {
-                        let [playing_area, _, queue_area] = Layout::horizontal([
+                        let [cover_area, _, queue_area] = Layout::horizontal([
                             Constraint::Percentage(40),
                             Constraint::Length(1),
                             Constraint::Min(3),
                         ])
                         .areas(area);
 
-                        match jb
-                            .current_track_id()
-                            .and_then(|id| db.get(id).map(|track| track.rating()))
-                        {
-                            Some(rating) => {
-                                let cover_area = self.render_cover(
-                                    playing_area.inner(Margin::new(0, 1)),
-                                    buf,
-                                    front_cover,
-                                    colors,
-                                );
-                                let stars = symbols::stars_split(rating);
-                                widgets::print_texts_with_styles(
-                                    Rect {
-                                        y: cover_area.y + cover_area.height,
-                                        height: 1,
-                                        ..cover_area
-                                    },
-                                    buf,
-                                    [
-                                        (stars.0, Style::new().fg(colors.accent)),
-                                        (stars.1, Style::new().fg(colors.neutral)),
-                                    ],
-                                    None,
-                                    Some(widgets::Alignment::CenterHorizontal),
-                                );
-                            }
-                            None => {
-                                widgets::print_ascii(
-                                    playing_area,
-                                    buf,
-                                    "No track currently playing",
-                                    colors.neutral,
-                                    Some(widgets::Alignment::Center),
-                                );
-                            }
-                        }
+                        render_cover_with_stars(cover_area, buf, db, jb, front_cover, colors);
+
+                        // match jb
+                        //     .current_track_id()
+                        //     .and_then(|id| db.get(id).map(|track| track.rating()))
+                        // {
+                        //     Some(rating) => {
+                        //         let cover_area = render_cover(
+                        //             playing_area.inner(Margin::new(0, 1)),
+                        //             buf,
+                        //             front_cover,
+                        //             colors,
+                        //         );
+                        //         let stars = symbols::stars_split(rating);
+                        //         widgets::print_texts_with_styles(
+                        //             Rect {
+                        //                 y: cover_area.y + cover_area.height,
+                        //                 height: 1,
+                        //                 ..cover_area
+                        //             },
+                        //             buf,
+                        //             [
+                        //                 (stars.0, Style::new().fg(colors.accent)),
+                        //                 (stars.1, Style::new().fg(colors.neutral)),
+                        //             ],
+                        //             None,
+                        //             Some(widgets::Alignment::CenterHorizontal),
+                        //         );
+                        //     }
+                        //     None => {
+                        //         widgets::print_ascii(
+                        //             playing_area,
+                        //             buf,
+                        //             "No track currently playing",
+                        //             colors.neutral,
+                        //             Some(widgets::Alignment::Center),
+                        //         );
+                        //     }
+                        // }
 
                         self.render_queue(queue_area, buf, db, jb, colors);
                     }
@@ -351,66 +355,6 @@ impl PlayingPage {
         }
     }
 
-    fn render_cover(
-        &mut self,
-        area: Rect,
-        buf: &mut Buffer,
-        front_cover: &mut FrontCover,
-        colors: &Colors,
-    ) -> Rect {
-        let neutral_style = Style::new().fg(colors.neutral);
-
-        const MAX_COVER_SIZE: u16 = 24;
-        let mut img_area = {
-            let img_w = area.width.min(MAX_COVER_SIZE * 2);
-            let img_h = area.height.min(MAX_COVER_SIZE);
-            let img_r = Rect {
-                width: img_w,
-                height: img_h,
-                ..area
-            };
-            widgets::align(img_r, area, widgets::Alignment::Center)
-        };
-
-        match front_cover {
-            FrontCover::None => {
-                Block::bordered().style(neutral_style).render(img_area, buf);
-                widgets::print_ascii(
-                    img_area,
-                    buf,
-                    "NO IMAGE",
-                    neutral_style,
-                    Some(widgets::Alignment::Center),
-                );
-            }
-            FrontCover::Loading => {
-                Block::bordered().style(neutral_style).render(img_area, buf);
-                widgets::print_ascii(
-                    img_area,
-                    buf,
-                    "LOADING",
-                    neutral_style,
-                    Some(widgets::Alignment::Center),
-                );
-            }
-            FrontCover::Ready(image) => {
-                let resized_img_area = image.size_for(ratatui_image::Resize::default(), img_area);
-                img_area = widgets::align(
-                    Rect {
-                        width: resized_img_area.width,
-                        height: resized_img_area.height,
-                        ..area
-                    },
-                    area,
-                    widgets::Alignment::Center,
-                );
-                StatefulImage::default().render(img_area, buf, image);
-            }
-        }
-
-        img_area
-    }
-
     fn render_queue(
         &mut self,
         area: Rect,
@@ -502,4 +446,110 @@ impl PlayingPage {
             },
         );
     }
+}
+
+fn render_cover_with_stars(
+    area: Rect,
+    buf: &mut Buffer,
+    db: &Database,
+    jb: &Jukebox,
+    front_cover: &mut FrontCover,
+    colors: &Colors,
+) {
+    match jb
+        .current_track_id()
+        .and_then(|id| db.get(id).map(|track| track.rating()))
+    {
+        Some(rating) => {
+            if area.height > 8 {
+                let margin = Margin::new(1, 1);
+                let cover_area = render_cover(area.inner(margin), buf, front_cover, colors);
+                let stars = symbols::stars_split(rating);
+                widgets::print_texts_with_styles(
+                    Rect {
+                        y: cover_area.y + cover_area.height,
+                        height: 1,
+                        ..cover_area
+                    },
+                    buf,
+                    [
+                        (stars.0, Style::new().fg(colors.accent)),
+                        (stars.1, Style::new().fg(colors.neutral)),
+                    ],
+                    None,
+                    Some(widgets::Alignment::CenterHorizontal),
+                );
+            } else {
+                render_cover(area, buf, front_cover, colors);
+            }
+        }
+        None => {
+            widgets::print_ascii(
+                area,
+                buf,
+                "No track currently playing",
+                colors.neutral,
+                Some(widgets::Alignment::Center),
+            );
+        }
+    }
+}
+
+fn render_cover(
+    area: Rect,
+    buf: &mut Buffer,
+    front_cover: &mut FrontCover,
+    colors: &Colors,
+) -> Rect {
+    let neutral_style = Style::new().fg(colors.neutral);
+
+    const MAX_COVER_SIZE: u16 = 24;
+    let mut img_area = {
+        let img_w = area.width.min(MAX_COVER_SIZE * 2);
+        let img_h = area.height.min(MAX_COVER_SIZE);
+        let img_r = Rect {
+            width: img_w,
+            height: img_h,
+            ..area
+        };
+        widgets::align(img_r, area, widgets::Alignment::Center)
+    };
+
+    match front_cover {
+        FrontCover::None => {
+            Block::bordered().style(neutral_style).render(img_area, buf);
+            widgets::print_ascii(
+                img_area,
+                buf,
+                "NO IMAGE",
+                neutral_style,
+                Some(widgets::Alignment::Center),
+            );
+        }
+        FrontCover::Loading => {
+            Block::bordered().style(neutral_style).render(img_area, buf);
+            widgets::print_ascii(
+                img_area,
+                buf,
+                "LOADING",
+                neutral_style,
+                Some(widgets::Alignment::Center),
+            );
+        }
+        FrontCover::Ready(image) => {
+            let resized_img_area = image.size_for(ratatui_image::Resize::default(), img_area);
+            img_area = widgets::align(
+                Rect {
+                    width: resized_img_area.width,
+                    height: resized_img_area.height,
+                    ..area
+                },
+                area,
+                widgets::Alignment::Center,
+            );
+            StatefulImage::default().render(img_area, buf, image);
+        }
+    }
+
+    img_area
 }
