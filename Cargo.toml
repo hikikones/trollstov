@@ -30,7 +30,7 @@ image = { version = "0.25", default-features = false, features = [
 ] }
 indexmap = { version = "2.13", default-features = false, features = ["std"] }
 itoa = { version = "1.0", default-features = false }
-jukebox = { path = "crates/jukebox" }
+jukebox = { path = "crates/jukebox", default-features = false }
 lofty = { version = "0.23", default-features = false, features = [
   "id3v2_compression_support"
 ] }
