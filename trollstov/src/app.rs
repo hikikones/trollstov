@@ -127,7 +127,7 @@ impl App {
             picker,
             screen_size: ScreenSize::Large,
             front_cover: FrontCover(None),
-            front_cover_status: FrontCoverStatus::Loading,
+            front_cover_status: FrontCoverStatus::None,
             front_cover_handle: None,
             text_segment: TextSegment::new().with_alignment(Alignment::Center),
             shortcuts_page: Shortcuts::new(),
