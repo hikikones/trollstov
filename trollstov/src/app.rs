@@ -59,10 +59,12 @@ impl ScreenSize {
     }
 }
 
-pub enum FrontCover {
-    None,
-    Loading,
-    Ready(StatefulProtocol),
+pub struct FrontCover(Option<StatefulProtocol>);
+
+impl FrontCover {
+    pub const fn as_mut(&mut self) -> Option<&mut StatefulProtocol> {
+        self.0.as_mut()
+    }
 }
 
 pub enum Action {
@@ -117,7 +119,7 @@ impl App {
             jukebox,
             picker,
             screen_size: ScreenSize::Large,
-            front_cover: FrontCover::None,
+            front_cover: FrontCover(None),
             front_cover_handle: None,
             text_segment: TextSegment::new().with_alignment(Alignment::Center),
             shortcuts_page: Shortcuts::new(),
@@ -335,7 +337,6 @@ impl App {
                             let picker = self.picker.clone();
                             let handle = load_front_cover(path, picker);
                             self.front_cover_handle = Some(handle);
-                            self.front_cover = FrontCover::Loading;
 
                             // Update metadata and playback status for mpris
                             if let Some(mpris) = self.events.media_controls() {
@@ -357,7 +358,7 @@ impl App {
                     }
                 }
                 JukeboxEvent::Stop => {
-                    self.front_cover = FrontCover::None;
+                    self.front_cover = FrontCover(None);
                     self.front_cover_handle = None;
 
                     if let Some(mpris) = self.events.media_controls() {
@@ -382,7 +383,7 @@ impl App {
                     }
                     Err(err) => {
                         self.pages.logs.enqueue(Log::new(err));
-                        self.front_cover = FrontCover::None;
+                        self.front_cover = FrontCover(None);
                     }
                 }
             }
@@ -802,9 +803,9 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
                 if w > MAX_RES || h > MAX_RES {
                     dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
                 }
-                Ok(FrontCover::Ready(picker.new_resize_protocol(dyn_img)))
+                Ok(FrontCover(Some(picker.new_resize_protocol(dyn_img))))
             }
-            None => Ok(FrontCover::None),
+            None => Ok(FrontCover(None)),
         }
     })
 }

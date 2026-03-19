@@ -450,32 +450,8 @@ fn render_cover(
         widgets::align(a, area, widgets::Alignment::Center)
     };
 
-    match front_cover {
-        FrontCover::None => {
-            Block::bordered()
-                .style(neutral_style)
-                .render(image_area, buf);
-            widgets::print_ascii(
-                image_area,
-                buf,
-                "NO IMAGE",
-                neutral_style,
-                Some(widgets::Alignment::Center),
-            );
-        }
-        FrontCover::Loading => {
-            Block::bordered()
-                .style(neutral_style)
-                .render(image_area, buf);
-            widgets::print_ascii(
-                image_area,
-                buf,
-                "LOADING",
-                neutral_style,
-                Some(widgets::Alignment::Center),
-            );
-        }
-        FrontCover::Ready(image) => {
+    match front_cover.as_mut() {
+        Some(image) => {
             let resized_area = image.size_for(ratatui_image::Resize::default(), image_area);
             image_area = widgets::align(
                 Rect {
@@ -487,6 +463,18 @@ fn render_cover(
                 widgets::Alignment::Center,
             );
             StatefulImage::default().render(image_area, buf, image);
+        }
+        None => {
+            Block::bordered()
+                .style(neutral_style)
+                .render(image_area, buf);
+            widgets::print_ascii(
+                image_area,
+                buf,
+                "NO IMAGE",
+                neutral_style,
+                Some(widgets::Alignment::Center),
+            );
         }
     }
 
