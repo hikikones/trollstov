@@ -26,14 +26,14 @@ impl Default for Settings {
                 .unwrap_or(terminal_colorsaurus::ThemeMode::Dark)
             {
                 terminal_colorsaurus::ThemeMode::Dark => Colors {
-                    accent: Color::Yellow,
-                    on_accent: Color::Black,
+                    primary: Color::Yellow,
+                    on_primary: Color::Black,
                     neutral: Color::Indexed(245),
                     on_neutral: Color::Black,
                 },
                 terminal_colorsaurus::ThemeMode::Light => Colors {
-                    accent: Color::Cyan,
-                    on_accent: Color::Black,
+                    primary: Color::Cyan,
+                    on_primary: Color::Black,
                     neutral: Color::Indexed(245),
                     on_neutral: Color::Black,
                 },
@@ -76,12 +76,12 @@ impl Settings {
         &self.colors
     }
 
-    pub const fn accent(&self) -> Color {
-        self.colors.accent
+    pub const fn primary(&self) -> Color {
+        self.colors.primary
     }
 
-    pub const fn on_accent(&self) -> Color {
-        self.colors.on_accent
+    pub const fn on_primary(&self) -> Color {
+        self.colors.on_primary
     }
 
     pub const fn neutral(&self) -> Color {
@@ -92,12 +92,12 @@ impl Settings {
         self.colors.on_neutral
     }
 
-    pub const fn set_accent(&mut self, color: Color) {
-        self.colors.accent = color;
+    pub const fn set_primary(&mut self, color: Color) {
+        self.colors.primary = color;
     }
 
-    pub const fn set_on_accent(&mut self, color: Color) {
-        self.colors.on_accent = color;
+    pub const fn set_on_primary(&mut self, color: Color) {
+        self.colors.on_primary = color;
     }
 
     pub const fn set_neutral(&mut self, color: Color) {
@@ -208,8 +208,8 @@ struct General {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Colors {
-    pub accent: Color,
-    pub on_accent: Color,
+    pub primary: Color,
+    pub on_primary: Color,
     pub neutral: Color,
     pub on_neutral: Color,
 }

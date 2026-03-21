@@ -78,7 +78,7 @@ impl SearchPage {
                 State::Search => {
                     self.search_input.set_styles(TextInputStyles {
                         normal: Style::new(),
-                        cursor: Style::new().bg(colors.accent).fg(colors.on_accent),
+                        cursor: Style::new().bg(colors.primary).fg(colors.on_primary),
                         selector: Style::new().bg(colors.neutral).fg(colors.on_neutral),
                         placeholder: neutral,
                     });
@@ -149,13 +149,13 @@ impl SearchPage {
                 let mut style = match self.state {
                     State::Search => {
                         if current == Some(id) {
-                            Style::new().fg(colors.accent)
+                            Style::new().fg(colors.primary)
                         } else {
                             Style::new().fg(colors.neutral)
                         }
                     }
                     State::Browse => match item {
-                        ListItem::Selected => Style::new().bg(colors.accent).fg(colors.on_accent),
+                        ListItem::Selected => Style::new().bg(colors.primary).fg(colors.on_primary),
                         ListItem::Selection => {
                             Style::new().bg(colors.neutral).fg(colors.on_neutral)
                         }

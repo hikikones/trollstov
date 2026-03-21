@@ -28,8 +28,8 @@ pub struct SettingsPage {
     is_written: bool,
     list: List,
     text: TextSegment,
-    accent: ColorSetting,
-    on_accent: ColorSetting,
+    primary: ColorSetting,
+    on_primary: ColorSetting,
     neutral: ColorSetting,
     on_neutral: ColorSetting,
 }
@@ -41,8 +41,8 @@ enum Setting {
     KeepTrackSort,
     SearchByPath,
     Colors,
-    AccentColor,
-    OnAccentColor,
+    PrimaryColor,
+    OnPrimaryColor,
     NeutralColor,
     OnNeutralColor,
     Empty,
@@ -56,8 +56,8 @@ impl Setting {
             Self::KeepTrackSort => true,
             Self::SearchByPath => true,
             Self::Colors => false,
-            Self::AccentColor => true,
-            Self::OnAccentColor => true,
+            Self::PrimaryColor => true,
+            Self::OnPrimaryColor => true,
             Self::NeutralColor => true,
             Self::OnNeutralColor => true,
             Self::Empty => false,
@@ -74,8 +74,8 @@ const SETTINGS: [Setting; 12] = [
     Setting::Empty,
     Setting::Colors,
     Setting::Empty,
-    Setting::AccentColor,
-    Setting::OnAccentColor,
+    Setting::PrimaryColor,
+    Setting::OnPrimaryColor,
     Setting::NeutralColor,
     Setting::OnNeutralColor,
 ];
@@ -101,8 +101,8 @@ impl SettingsPage {
             is_written: true,
             list: List::new().with_index(selected).with_margins(3, 3),
             text: TextSegment::new().with_alignment(Alignment::Center),
-            accent: ColorSetting::new(colors.accent),
-            on_accent: ColorSetting::new(colors.on_accent),
+            primary: ColorSetting::new(colors.primary),
+            on_primary: ColorSetting::new(colors.on_primary),
             neutral: ColorSetting::new(colors.neutral),
             on_neutral: ColorSetting::new(colors.on_neutral),
         }
@@ -225,38 +225,38 @@ impl SettingsPage {
                     Setting::Colors => {
                         print_section(line, buf, "COLORS");
                     }
-                    Setting::AccentColor => {
+                    Setting::PrimaryColor => {
                         print_color(
                             color_area,
                             color_input_area,
                             color_preview_area,
                             buf,
                             symbol,
-                            "Set accent color",
+                            "Set primary color",
                             style,
-                            &mut self.accent,
-                            current_setting == Setting::AccentColor,
+                            &mut self.primary,
+                            current_setting == Setting::PrimaryColor,
                             colors,
-                            "accent color",
-                            Style::new().fg(self.settings.accent()),
+                            "primary color",
+                            Style::new().fg(self.settings.primary()),
                         );
                     }
-                    Setting::OnAccentColor => {
+                    Setting::OnPrimaryColor => {
                         print_color(
                             color_area,
                             color_input_area,
                             color_preview_area,
                             buf,
                             symbol,
-                            "Set on accent color",
+                            "Set on primary color",
                             style,
-                            &mut self.on_accent,
-                            current_setting == Setting::OnAccentColor,
+                            &mut self.on_primary,
+                            current_setting == Setting::OnPrimaryColor,
                             colors,
-                            "on accent color",
+                            "on primary color",
                             Style::new()
-                                .bg(self.settings.accent())
-                                .fg(self.settings.on_accent()),
+                                .bg(self.settings.primary())
+                                .fg(self.settings.on_primary()),
                         );
                     }
                     Setting::NeutralColor => {
@@ -315,11 +315,11 @@ impl SettingsPage {
                 shortcuts.push(Shortcut::new("Toggle", symbols::SPACE));
                 "Includes directories and filename when searching"
             }
-            Setting::AccentColor | Setting::NeutralColor => {
+            Setting::PrimaryColor | Setting::NeutralColor => {
                 shortcuts.push(Shortcut::new("Set color", symbols::ENTER));
                 COLOR_DESCRIPTION
             }
-            Setting::OnAccentColor | Setting::OnNeutralColor => {
+            Setting::OnPrimaryColor | Setting::OnNeutralColor => {
                 shortcuts.extend([
                     Shortcut::new("Set color", symbols::ENTER),
                     Shortcut::new("Generate color", symbols::ctrl!("g")),
@@ -403,8 +403,8 @@ impl SettingsPage {
                 'r' => {
                     if ctrl {
                         self.settings = self.default.clone();
-                        self.accent.reset_with(self.settings.accent());
-                        self.on_accent.reset_with(self.settings.on_accent());
+                        self.primary.reset_with(self.settings.primary());
+                        self.on_primary.reset_with(self.settings.on_primary());
                         self.neutral.reset_with(self.settings.neutral());
                         self.on_neutral.reset_with(self.settings.on_neutral());
                         self.update_hash();
@@ -451,12 +451,12 @@ impl SettingsPage {
                     return Action::Render;
                 }
             }
-            Setting::AccentColor => {
+            Setting::PrimaryColor => {
                 if let KeyCode::Enter = key {
-                    match self.accent.parse_color() {
+                    match self.primary.parse_color() {
                         Ok(color) => {
-                            if self.settings.accent() != color {
-                                self.settings.set_accent(color);
+                            if self.settings.primary() != color {
+                                self.settings.set_primary(color);
                                 self.update_hash();
                                 return Action::Render;
                             }
@@ -466,16 +466,16 @@ impl SettingsPage {
                             return Action::Log(log);
                         }
                     }
-                } else if self.accent.input(key, modifiers) {
+                } else if self.primary.input(key, modifiers) {
                     return Action::Render;
                 }
             }
-            Setting::OnAccentColor => {
+            Setting::OnPrimaryColor => {
                 if let KeyCode::Enter = key {
-                    match self.on_accent.parse_color() {
+                    match self.on_primary.parse_color() {
                         Ok(color) => {
-                            if self.settings.on_accent() != color {
-                                self.settings.set_on_accent(color);
+                            if self.settings.on_primary() != color {
+                                self.settings.set_on_primary(color);
                                 self.update_hash();
                                 return Action::Render;
                             }
@@ -488,13 +488,13 @@ impl SettingsPage {
                 } else if modifiers.contains(KeyModifiers::CONTROL)
                     && let KeyCode::Char('g') = key
                 {
-                    let bg = self.settings.accent();
+                    let bg = self.settings.primary();
                     let fg = Colors::generate_readable_fg(bg).unwrap_or_default();
-                    self.settings.set_on_accent(fg);
+                    self.settings.set_on_primary(fg);
                     self.update_hash();
-                    self.on_accent.reset_with(fg);
+                    self.on_primary.reset_with(fg);
                     return Action::Render;
-                } else if self.on_accent.input(key, modifiers) {
+                } else if self.on_primary.input(key, modifiers) {
                     return Action::Render;
                 }
             }
@@ -580,7 +580,7 @@ impl ColorSetting {
         let styles = if active {
             TextInputStyles {
                 normal: Style::new(),
-                cursor: Style::new().bg(colors.accent).fg(colors.on_accent),
+                cursor: Style::new().bg(colors.primary).fg(colors.on_primary),
                 selector: Style::new().bg(colors.neutral).fg(colors.on_neutral),
                 placeholder: Style::new(),
             }
@@ -672,7 +672,7 @@ fn print_rating(
         input_area,
         buf,
         [
-            (stars.0, Style::new().fg(colors.accent)),
+            (stars.0, Style::new().fg(colors.primary)),
             (stars.1, Style::new().fg(colors.neutral)),
         ],
         None,
@@ -701,7 +701,7 @@ fn print_checkmark(
 
     // Checkmark
     let (checkmark, color) = match checkmark {
-        true => (symbols::CHECKMARK_YES, colors.accent),
+        true => (symbols::CHECKMARK_YES, colors.primary),
         false => (symbols::CHECKMARK_NO, colors.neutral),
     };
     let Rect { x, y, .. } = input_area;
