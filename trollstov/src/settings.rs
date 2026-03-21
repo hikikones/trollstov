@@ -5,7 +5,7 @@ use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 
 const FILENAME: &str = "settings.toml";
-const VERSION: u8 = 0;
+const VERSION: u8 = 1;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Settings {
