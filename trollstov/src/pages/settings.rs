@@ -108,38 +108,21 @@ impl SettingsPage {
         let settings_area = block.inner(area);
         block.render(area, buf);
 
+        let mut setting_area = Rect {
+            width: settings_area.width / 2,
+            ..settings_area
+        };
+        let mut input_area = Rect {
+            x: setting_area.x + setting_area.width + 1,
+            width: setting_area.width.saturating_sub(1),
+            ..setting_area
+        };
+
         let description_area = Rect {
             y: area.y + area.height.saturating_sub(1),
             height: 1,
             ..settings_area
         };
-
-        // General areas
-        let mut general_area = Rect {
-            width: settings_area.width / 2,
-            ..settings_area
-        };
-        let mut general_input_area = Rect {
-            x: general_area.x + general_area.width + 1,
-            width: general_area.width.saturating_sub(1),
-            ..general_area
-        };
-
-        // Color areas
-        let [
-            mut color_area,
-            _,
-            mut color_input_area,
-            _,
-            mut color_preview_area,
-        ] = Layout::horizontal([
-            Constraint::Percentage(42),
-            Constraint::Length(1),
-            Constraint::Max(8),
-            Constraint::Length(2),
-            Constraint::Fill(0),
-        ])
-        .areas(settings_area);
 
         let colors = settings.colors();
         let current_setting = self.current();
@@ -149,11 +132,8 @@ impl SettingsPage {
             buf,
             SETTINGS,
             |line, buf, setting, index| {
-                general_area.y = line.y;
-                general_input_area.y = line.y;
-                color_area.y = line.y;
-                color_input_area.y = line.y;
-                color_preview_area.y = line.y;
+                setting_area.y = line.y;
+                input_area.y = line.y;
 
                 let (symbol, style) = if index == ListItem::Selected {
                     (
@@ -170,8 +150,8 @@ impl SettingsPage {
                     }
                     Setting::SkipRating => {
                         print_rating(
-                            general_area,
-                            general_input_area,
+                            setting_area,
+                            input_area,
                             buf,
                             symbol,
                             "Skip tracks with rating",
@@ -182,8 +162,8 @@ impl SettingsPage {
                     }
                     Setting::KeepTrackSort => {
                         print_checkmark(
-                            general_area,
-                            general_input_area,
+                            setting_area,
+                            input_area,
                             buf,
                             symbol,
                             "Keep selected track on sort",
@@ -194,8 +174,8 @@ impl SettingsPage {
                     }
                     Setting::SearchByPath => {
                         print_checkmark(
-                            general_area,
-                            general_input_area,
+                            setting_area,
+                            input_area,
                             buf,
                             symbol,
                             "Search by path",
@@ -209,9 +189,8 @@ impl SettingsPage {
                     }
                     Setting::PrimaryColor => {
                         print_color(
-                            color_area,
-                            color_input_area,
-                            color_preview_area,
+                            setting_area,
+                            input_area,
                             buf,
                             symbol,
                             "Set primary color",
@@ -219,15 +198,12 @@ impl SettingsPage {
                             &mut self.primary,
                             current_setting == Setting::PrimaryColor,
                             colors,
-                            "primary color",
-                            Style::new().fg(settings.primary()),
                         );
                     }
                     Setting::NeutralColor => {
                         print_color(
-                            color_area,
-                            color_input_area,
-                            color_preview_area,
+                            setting_area,
+                            input_area,
                             buf,
                             symbol,
                             "Set neutral color",
@@ -235,8 +211,6 @@ impl SettingsPage {
                             &mut self.neutral,
                             current_setting == Setting::NeutralColor,
                             colors,
-                            "neutral color",
-                            Style::new().fg(settings.neutral()),
                         );
                     }
                     Setting::Empty => {}
@@ -583,7 +557,6 @@ fn print_checkmark(
 fn print_color(
     text_area: Rect,
     input_area: Rect,
-    preview_area: Rect,
     buf: &mut Buffer,
     symbol: &str,
     text: &str,
@@ -591,8 +564,6 @@ fn print_color(
     color_setting: &mut ColorSetting,
     color_is_active: bool,
     colors: &Colors,
-    preview_text: &str,
-    preview_style: Style,
 ) {
     // Text
     widgets::print_asciis(
@@ -606,7 +577,4 @@ fn print_color(
     // Input
     color_setting.set_active(color_is_active, colors);
     color_setting.render(input_area, buf);
-
-    // Preview
-    widgets::print_ascii(preview_area, buf, preview_text, preview_style, None);
 }
