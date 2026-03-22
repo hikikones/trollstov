@@ -146,7 +146,7 @@ impl SettingsPage {
 
                 match setting {
                     Setting::General => {
-                        print_section(line, buf, "GENERAL");
+                        print_section(line, buf, "GENERAL", colors.neutral);
                     }
                     Setting::SkipRating => {
                         print_rating(
@@ -185,7 +185,7 @@ impl SettingsPage {
                         );
                     }
                     Setting::Colors => {
-                        print_section(line, buf, "COLORS");
+                        print_section(line, buf, "COLORS", colors.neutral);
                     }
                     Setting::PrimaryColor => {
                         print_color(
@@ -247,7 +247,7 @@ impl SettingsPage {
                 description_area,
                 buf,
                 [" ", description, " "],
-                Style::new(),
+                colors.neutral,
                 Some(widgets::Alignment::CenterHorizontal),
             );
         }
@@ -481,12 +481,12 @@ fn previous(current: usize) -> Option<usize> {
     None
 }
 
-fn print_section(line: Rect, buf: &mut Buffer, ascii: &str) {
+fn print_section(line: Rect, buf: &mut Buffer, ascii: &str, color: Color) {
     widgets::print_ascii(
         line,
         buf,
         ascii,
-        Style::new(),
+        color,
         Some(widgets::Alignment::CenterHorizontal),
     );
 }
