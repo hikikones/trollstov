@@ -29,9 +29,7 @@ pub struct SettingsPage {
     list: List,
     text: TextSegment,
     primary: ColorSetting,
-    on_primary: ColorSetting,
     neutral: ColorSetting,
-    on_neutral: ColorSetting,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -42,9 +40,7 @@ enum Setting {
     SearchByPath,
     Colors,
     PrimaryColor,
-    OnPrimaryColor,
     NeutralColor,
-    OnNeutralColor,
     Empty,
 }
 
@@ -57,15 +53,13 @@ impl Setting {
             Self::SearchByPath => true,
             Self::Colors => false,
             Self::PrimaryColor => true,
-            Self::OnPrimaryColor => true,
             Self::NeutralColor => true,
-            Self::OnNeutralColor => true,
             Self::Empty => false,
         }
     }
 }
 
-const SETTINGS: [Setting; 12] = [
+const SETTINGS: [Setting; 10] = [
     Setting::General,
     Setting::Empty,
     Setting::SkipRating,
@@ -75,9 +69,7 @@ const SETTINGS: [Setting; 12] = [
     Setting::Colors,
     Setting::Empty,
     Setting::PrimaryColor,
-    Setting::OnPrimaryColor,
     Setting::NeutralColor,
-    Setting::OnNeutralColor,
 ];
 
 impl SettingsPage {
@@ -102,9 +94,7 @@ impl SettingsPage {
             list: List::new().with_index(selected).with_margins(3, 3),
             text: TextSegment::new().with_alignment(Alignment::Center),
             primary: ColorSetting::new(colors.primary),
-            on_primary: ColorSetting::new(colors.on_primary),
             neutral: ColorSetting::new(colors.neutral),
-            on_neutral: ColorSetting::new(colors.on_neutral),
         }
     }
 
@@ -241,24 +231,6 @@ impl SettingsPage {
                             Style::new().fg(self.settings.primary()),
                         );
                     }
-                    Setting::OnPrimaryColor => {
-                        print_color(
-                            color_area,
-                            color_input_area,
-                            color_preview_area,
-                            buf,
-                            symbol,
-                            "Set on primary color",
-                            style,
-                            &mut self.on_primary,
-                            current_setting == Setting::OnPrimaryColor,
-                            colors,
-                            "on primary color",
-                            Style::new()
-                                .bg(self.settings.primary())
-                                .fg(self.settings.on_primary()),
-                        );
-                    }
                     Setting::NeutralColor => {
                         print_color(
                             color_area,
@@ -273,24 +245,6 @@ impl SettingsPage {
                             colors,
                             "neutral color",
                             Style::new().fg(self.settings.neutral()),
-                        );
-                    }
-                    Setting::OnNeutralColor => {
-                        print_color(
-                            color_area,
-                            color_input_area,
-                            color_preview_area,
-                            buf,
-                            symbol,
-                            "Set on neutral color",
-                            style,
-                            &mut self.on_neutral,
-                            current_setting == Setting::OnNeutralColor,
-                            colors,
-                            "on neutral color",
-                            Style::new()
-                                .bg(self.settings.neutral())
-                                .fg(self.settings.on_neutral()),
                         );
                     }
                     Setting::Empty => {}
@@ -317,13 +271,6 @@ impl SettingsPage {
             }
             Setting::PrimaryColor | Setting::NeutralColor => {
                 shortcuts.push(Shortcut::new("Set color", symbols::ENTER));
-                COLOR_DESCRIPTION
-            }
-            Setting::OnPrimaryColor | Setting::OnNeutralColor => {
-                shortcuts.extend([
-                    Shortcut::new("Set color", symbols::ENTER),
-                    Shortcut::new("Generate color", symbols::ctrl!("g")),
-                ]);
                 COLOR_DESCRIPTION
             }
             Setting::General | Setting::Colors | Setting::Empty => "",
@@ -404,9 +351,7 @@ impl SettingsPage {
                     if ctrl {
                         self.settings = self.default.clone();
                         self.primary.reset_with(self.settings.primary());
-                        self.on_primary.reset_with(self.settings.on_primary());
                         self.neutral.reset_with(self.settings.neutral());
-                        self.on_neutral.reset_with(self.settings.on_neutral());
                         self.update_hash();
                         return Action::Render;
                     } else {
@@ -470,34 +415,6 @@ impl SettingsPage {
                     return Action::Render;
                 }
             }
-            Setting::OnPrimaryColor => {
-                if let KeyCode::Enter = key {
-                    match self.on_primary.parse_color() {
-                        Ok(color) => {
-                            if self.settings.on_primary() != color {
-                                self.settings.set_on_primary(color);
-                                self.update_hash();
-                                return Action::Render;
-                            }
-                        }
-                        Err(err) => {
-                            let log = Log::new(err);
-                            return Action::Log(log);
-                        }
-                    }
-                } else if modifiers.contains(KeyModifiers::CONTROL)
-                    && let KeyCode::Char('g') = key
-                {
-                    let bg = self.settings.primary();
-                    let fg = Colors::generate_readable_fg(bg).unwrap_or_default();
-                    self.settings.set_on_primary(fg);
-                    self.update_hash();
-                    self.on_primary.reset_with(fg);
-                    return Action::Render;
-                } else if self.on_primary.input(key, modifiers) {
-                    return Action::Render;
-                }
-            }
             Setting::NeutralColor => {
                 if let KeyCode::Enter = key {
                     match self.neutral.parse_color() {
@@ -514,34 +431,6 @@ impl SettingsPage {
                         }
                     }
                 } else if self.neutral.input(key, modifiers) {
-                    return Action::Render;
-                }
-            }
-            Setting::OnNeutralColor => {
-                if let KeyCode::Enter = key {
-                    match self.on_neutral.parse_color() {
-                        Ok(color) => {
-                            if self.settings.on_neutral() != color {
-                                self.settings.set_on_neutral(color);
-                                self.update_hash();
-                                return Action::Render;
-                            }
-                        }
-                        Err(err) => {
-                            let log = Log::new(err);
-                            return Action::Log(log);
-                        }
-                    }
-                } else if modifiers.contains(KeyModifiers::CONTROL)
-                    && let KeyCode::Char('g') = key
-                {
-                    let bg = self.settings.neutral();
-                    let fg = Colors::generate_readable_fg(bg).unwrap_or_default();
-                    self.settings.set_on_neutral(fg);
-                    self.update_hash();
-                    self.on_neutral.reset_with(fg);
-                    return Action::Render;
-                } else if self.on_neutral.input(key, modifiers) {
                     return Action::Render;
                 }
             }
@@ -580,8 +469,8 @@ impl ColorSetting {
         let styles = if active {
             TextInputStyles {
                 normal: Style::new(),
-                cursor: Style::new().bg(colors.primary).fg(colors.on_primary),
-                selector: Style::new().bg(colors.neutral).fg(colors.on_neutral),
+                cursor: Style::new().fg(colors.primary).reversed(),
+                selector: Style::new().fg(colors.neutral).reversed(),
                 placeholder: Style::new(),
             }
         } else {

@@ -78,8 +78,8 @@ impl SearchPage {
                 State::Search => {
                     self.search_input.set_styles(TextInputStyles {
                         normal: Style::new(),
-                        cursor: Style::new().bg(colors.primary).fg(colors.on_primary),
-                        selector: Style::new().bg(colors.neutral).fg(colors.on_neutral),
+                        cursor: Style::new().fg(colors.primary).reversed(),
+                        selector: Style::new().fg(colors.neutral).reversed(),
                         placeholder: neutral,
                     });
                     shortcuts.push(Shortcut::new("Browse", symbols::ENTER));
@@ -155,10 +155,8 @@ impl SearchPage {
                         }
                     }
                     State::Browse => match item {
-                        ListItem::Selected => Style::new().bg(colors.primary).fg(colors.on_primary),
-                        ListItem::Selection => {
-                            Style::new().bg(colors.neutral).fg(colors.on_neutral)
-                        }
+                        ListItem::Selected => Style::new().fg(colors.primary).reversed(),
+                        ListItem::Selection => Style::new().fg(colors.neutral).reversed(),
                         ListItem::Normal => Style::new(),
                     },
                 };
