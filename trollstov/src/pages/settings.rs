@@ -18,14 +18,10 @@ use crate::{
 };
 
 pub struct SettingsPage {
-    settings: Settings,
-    applied: Settings,
-    written: Settings,
     default: Settings,
-    apply_hash: u64,
-    write_hash: u64,
-    is_applied: bool,
-    is_written: bool,
+    saved: Settings,
+    saved_hash: u64,
+    is_saved: bool,
     list: List,
     text: TextSegment,
     primary: ColorSetting,
@@ -83,14 +79,10 @@ impl SettingsPage {
         };
 
         Self {
-            settings: settings.clone(),
-            applied: settings.clone(),
-            written: settings.clone(),
             default: Settings::default(),
-            apply_hash: hash,
-            write_hash: hash,
-            is_applied: true,
-            is_written: true,
+            saved: settings.clone(),
+            saved_hash: hash,
+            is_saved: true,
             list: List::new().with_index(selected).with_margins(3, 3),
             text: TextSegment::new().with_alignment(Alignment::Center),
             primary: ColorSetting::new(colors.primary),
@@ -104,7 +96,7 @@ impl SettingsPage {
         &mut self,
         area: Rect,
         buf: &mut Buffer,
-        settings: &Settings,
+        settings: &mut Settings,
         shortcuts: &mut Shortcuts,
     ) {
         let area = area.centered_horizontally(Constraint::Max(80));
@@ -184,7 +176,7 @@ impl SettingsPage {
                             symbol,
                             "Skip tracks with rating",
                             style,
-                            self.settings.skip_rating(),
+                            settings.skip_rating(),
                             colors,
                         );
                     }
@@ -196,7 +188,7 @@ impl SettingsPage {
                             symbol,
                             "Keep selected track on sort",
                             style,
-                            self.settings.keep_on_sort(),
+                            settings.keep_on_sort(),
                             colors,
                         );
                     }
@@ -208,7 +200,7 @@ impl SettingsPage {
                             symbol,
                             "Search by path",
                             style,
-                            self.settings.search_by_path(),
+                            settings.search_by_path(),
                             colors,
                         );
                     }
@@ -228,7 +220,7 @@ impl SettingsPage {
                             current_setting == Setting::PrimaryColor,
                             colors,
                             "primary color",
-                            Style::new().fg(self.settings.primary()),
+                            Style::new().fg(settings.primary()),
                         );
                     }
                     Setting::NeutralColor => {
@@ -244,7 +236,7 @@ impl SettingsPage {
                             current_setting == Setting::NeutralColor,
                             colors,
                             "neutral color",
-                            Style::new().fg(self.settings.neutral()),
+                            Style::new().fg(settings.neutral()),
                         );
                     }
                     Setting::Empty => {}
@@ -286,10 +278,7 @@ impl SettingsPage {
             );
         }
 
-        if !self.is_applied {
-            shortcuts.push(Shortcut::new("Apply", symbols::ctrl!("a")));
-        }
-        if !self.is_written {
+        if !self.is_saved {
             shortcuts.push(Shortcut::new("Save", symbols::ctrl!("s")));
         }
 
@@ -319,24 +308,13 @@ impl SettingsPage {
                 }
             }
             KeyCode::Char(c) => match c {
-                'a' => {
-                    if ctrl && !self.is_applied {
-                        *settings = self.settings.clone();
-                        self.applied = self.settings.clone();
-                        self.apply_hash = self.settings.hash();
-                        self.is_applied = true;
-                        return Action::ApplySettings;
-                    } else {
-                        return self.handle_setting(key, modifiers);
-                    }
-                }
                 's' => {
-                    if ctrl && !self.is_written {
+                    if ctrl && !self.is_saved {
                         match settings.save() {
                             Ok(_) => {
-                                self.written = self.settings.clone();
-                                self.write_hash = self.settings.hash();
-                                self.is_written = true;
+                                self.saved = settings.clone();
+                                self.saved_hash = settings.hash();
+                                self.is_saved = true;
                                 return Action::Render;
                             }
                             Err(err) => {
@@ -344,23 +322,23 @@ impl SettingsPage {
                             }
                         }
                     } else {
-                        return self.handle_setting(key, modifiers);
+                        return self.handle_setting(key, modifiers, settings);
                     }
                 }
                 'r' => {
                     if ctrl {
-                        self.settings = self.default.clone();
-                        self.primary.reset_with(self.settings.primary());
-                        self.neutral.reset_with(self.settings.neutral());
-                        self.update_hash();
-                        return Action::Render;
+                        *settings = self.default.clone();
+                        self.primary.reset_with(settings.primary());
+                        self.neutral.reset_with(settings.neutral());
+                        self.update_is_saved(settings);
+                        return Action::ApplySettings;
                     } else {
-                        return self.handle_setting(key, modifiers);
+                        return self.handle_setting(key, modifiers, settings);
                     }
                 }
-                _ => return self.handle_setting(key, modifiers),
+                _ => return self.handle_setting(key, modifiers, settings),
             },
-            _ => return self.handle_setting(key, modifiers),
+            _ => return self.handle_setting(key, modifiers, settings),
         }
 
         Action::None
@@ -368,41 +346,46 @@ impl SettingsPage {
 
     pub fn on_exit(&self) {}
 
-    fn handle_setting(&mut self, key: KeyCode, modifiers: KeyModifiers) -> Action {
+    fn handle_setting(
+        &mut self,
+        key: KeyCode,
+        modifiers: KeyModifiers,
+        settings: &mut Settings,
+    ) -> Action {
         match self.current() {
             Setting::SkipRating => {
                 if let KeyCode::Char(c) = key
                     && let Some(rating) = AudioRating::from_char(c)
-                    && self.settings.skip_rating() != rating
+                    && settings.skip_rating() != rating
                 {
-                    self.settings.set_skip_rating(rating);
-                    self.update_hash();
-                    return Action::Render;
+                    settings.set_skip_rating(rating);
+                    self.update_is_saved(settings);
+                    return Action::ApplySettings;
                 }
             }
             Setting::KeepTrackSort => {
                 if let KeyCode::Char(' ') = key {
-                    let toggle = !self.settings.keep_on_sort();
-                    self.settings.set_keep_on_sort(toggle);
-                    self.update_hash();
-                    return Action::Render;
+                    let toggle = !settings.keep_on_sort();
+                    settings.set_keep_on_sort(toggle);
+                    self.update_is_saved(settings);
+                    return Action::ApplySettings;
                 }
             }
             Setting::SearchByPath => {
                 if let KeyCode::Char(' ') = key {
-                    let toggle = !self.settings.search_by_path();
-                    self.settings.set_search_by_path(toggle);
-                    self.update_hash();
-                    return Action::Render;
+                    let toggle = !settings.search_by_path();
+                    settings.set_search_by_path(toggle);
+                    self.update_is_saved(settings);
+                    return Action::ApplySettings;
                 }
             }
             Setting::PrimaryColor => {
                 if let KeyCode::Enter = key {
                     match self.primary.parse_color() {
                         Ok(color) => {
-                            if self.settings.primary() != color {
-                                self.settings.set_primary(color);
-                                self.update_hash();
+                            if settings.primary() != color {
+                                settings.set_primary(color);
+                                self.update_is_saved(settings);
                                 return Action::Render;
                             }
                         }
@@ -419,9 +402,9 @@ impl SettingsPage {
                 if let KeyCode::Enter = key {
                     match self.neutral.parse_color() {
                         Ok(color) => {
-                            if self.settings.neutral() != color {
-                                self.settings.set_neutral(color);
-                                self.update_hash();
+                            if settings.neutral() != color {
+                                settings.set_neutral(color);
+                                self.update_is_saved(settings);
                                 return Action::Render;
                             }
                         }
@@ -440,10 +423,8 @@ impl SettingsPage {
         Action::None
     }
 
-    fn update_hash(&mut self) {
-        let hash = self.settings.hash();
-        self.is_applied = self.apply_hash == hash;
-        self.is_written = self.write_hash == hash;
+    fn update_is_saved(&mut self, settings: &Settings) {
+        self.is_saved = self.saved_hash == settings.hash();
     }
 
     const fn current(&self) -> Setting {

@@ -592,9 +592,12 @@ impl App {
                 );
             }
             Route::Settings => {
-                self.pages
-                    .settings
-                    .on_render(body, buf, &self.settings, &mut self.shortcuts_page);
+                self.pages.settings.on_render(
+                    body,
+                    buf,
+                    &mut self.settings,
+                    &mut self.shortcuts_page,
+                );
             }
             Route::Logs => {
                 self.pages
