@@ -18,20 +18,14 @@ use crate::{
 };
 
 pub struct SettingsPage {
-    settings: Settings,
-    applied: Settings,
-    written: Settings,
     default: Settings,
-    apply_hash: u64,
-    write_hash: u64,
-    is_applied: bool,
-    is_written: bool,
+    saved: Settings,
+    saved_hash: u64,
+    is_saved: bool,
     list: List,
     text: TextSegment,
-    accent: ColorSetting,
-    on_accent: ColorSetting,
+    primary: ColorSetting,
     neutral: ColorSetting,
-    on_neutral: ColorSetting,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -41,10 +35,8 @@ enum Setting {
     KeepTrackSort,
     SearchByPath,
     Colors,
-    AccentColor,
-    OnAccentColor,
+    PrimaryColor,
     NeutralColor,
-    OnNeutralColor,
     Empty,
 }
 
@@ -56,16 +48,14 @@ impl Setting {
             Self::KeepTrackSort => true,
             Self::SearchByPath => true,
             Self::Colors => false,
-            Self::AccentColor => true,
-            Self::OnAccentColor => true,
+            Self::PrimaryColor => true,
             Self::NeutralColor => true,
-            Self::OnNeutralColor => true,
             Self::Empty => false,
         }
     }
 }
 
-const SETTINGS: [Setting; 12] = [
+const SETTINGS: [Setting; 10] = [
     Setting::General,
     Setting::Empty,
     Setting::SkipRating,
@@ -74,10 +64,8 @@ const SETTINGS: [Setting; 12] = [
     Setting::Empty,
     Setting::Colors,
     Setting::Empty,
-    Setting::AccentColor,
-    Setting::OnAccentColor,
+    Setting::PrimaryColor,
     Setting::NeutralColor,
-    Setting::OnNeutralColor,
 ];
 
 impl SettingsPage {
@@ -91,20 +79,14 @@ impl SettingsPage {
         };
 
         Self {
-            settings: settings.clone(),
-            applied: settings.clone(),
-            written: settings.clone(),
             default: Settings::default(),
-            apply_hash: hash,
-            write_hash: hash,
-            is_applied: true,
-            is_written: true,
+            saved: settings.clone(),
+            saved_hash: hash,
+            is_saved: true,
             list: List::new().with_index(selected).with_margins(3, 3),
             text: TextSegment::new().with_alignment(Alignment::Center),
-            accent: ColorSetting::new(colors.accent),
-            on_accent: ColorSetting::new(colors.on_accent),
+            primary: ColorSetting::new(colors.primary),
             neutral: ColorSetting::new(colors.neutral),
-            on_neutral: ColorSetting::new(colors.on_neutral),
         }
     }
 
@@ -114,7 +96,7 @@ impl SettingsPage {
         &mut self,
         area: Rect,
         buf: &mut Buffer,
-        settings: &Settings,
+        settings: &mut Settings,
         shortcuts: &mut Shortcuts,
     ) {
         let area = area.centered_horizontally(Constraint::Max(80));
@@ -126,38 +108,21 @@ impl SettingsPage {
         let settings_area = block.inner(area);
         block.render(area, buf);
 
+        let mut setting_area = Rect {
+            width: settings_area.width / 2,
+            ..settings_area
+        };
+        let mut input_area = Rect {
+            x: setting_area.x + setting_area.width + 1,
+            width: setting_area.width.saturating_sub(1),
+            ..setting_area
+        };
+
         let description_area = Rect {
             y: area.y + area.height.saturating_sub(1),
             height: 1,
             ..settings_area
         };
-
-        // General areas
-        let mut general_area = Rect {
-            width: settings_area.width / 2,
-            ..settings_area
-        };
-        let mut general_input_area = Rect {
-            x: general_area.x + general_area.width + 1,
-            width: general_area.width.saturating_sub(1),
-            ..general_area
-        };
-
-        // Color areas
-        let [
-            mut color_area,
-            _,
-            mut color_input_area,
-            _,
-            mut color_preview_area,
-        ] = Layout::horizontal([
-            Constraint::Percentage(42),
-            Constraint::Length(1),
-            Constraint::Max(8),
-            Constraint::Length(2),
-            Constraint::Fill(0),
-        ])
-        .areas(settings_area);
 
         let colors = settings.colors();
         let current_setting = self.current();
@@ -167,11 +132,8 @@ impl SettingsPage {
             buf,
             SETTINGS,
             |line, buf, setting, index| {
-                general_area.y = line.y;
-                general_input_area.y = line.y;
-                color_area.y = line.y;
-                color_input_area.y = line.y;
-                color_preview_area.y = line.y;
+                setting_area.y = line.y;
+                input_area.y = line.y;
 
                 let (symbol, style) = if index == ListItem::Selected {
                     (
@@ -184,86 +146,64 @@ impl SettingsPage {
 
                 match setting {
                     Setting::General => {
-                        print_section(line, buf, "GENERAL");
+                        print_section(line, buf, "GENERAL", colors.neutral);
                     }
                     Setting::SkipRating => {
                         print_rating(
-                            general_area,
-                            general_input_area,
+                            setting_area,
+                            input_area,
                             buf,
                             symbol,
                             "Skip tracks with rating",
                             style,
-                            self.settings.skip_rating(),
+                            settings.skip_rating(),
                             colors,
                         );
                     }
                     Setting::KeepTrackSort => {
                         print_checkmark(
-                            general_area,
-                            general_input_area,
+                            setting_area,
+                            input_area,
                             buf,
                             symbol,
                             "Keep selected track on sort",
                             style,
-                            self.settings.keep_on_sort(),
+                            settings.keep_on_sort(),
                             colors,
                         );
                     }
                     Setting::SearchByPath => {
                         print_checkmark(
-                            general_area,
-                            general_input_area,
+                            setting_area,
+                            input_area,
                             buf,
                             symbol,
                             "Search by path",
                             style,
-                            self.settings.search_by_path(),
+                            settings.search_by_path(),
                             colors,
                         );
                     }
                     Setting::Colors => {
-                        print_section(line, buf, "COLORS");
+                        print_section(line, buf, "COLORS", colors.neutral);
                     }
-                    Setting::AccentColor => {
+                    Setting::PrimaryColor => {
                         print_color(
-                            color_area,
-                            color_input_area,
-                            color_preview_area,
+                            setting_area,
+                            input_area,
                             buf,
                             symbol,
-                            "Set accent color",
+                            "Set primary color",
                             style,
-                            &mut self.accent,
-                            current_setting == Setting::AccentColor,
+                            &mut self.primary,
+                            current_setting == Setting::PrimaryColor,
                             colors,
-                            "accent color",
-                            Style::new().fg(self.settings.accent()),
-                        );
-                    }
-                    Setting::OnAccentColor => {
-                        print_color(
-                            color_area,
-                            color_input_area,
-                            color_preview_area,
-                            buf,
-                            symbol,
-                            "Set on accent color",
-                            style,
-                            &mut self.on_accent,
-                            current_setting == Setting::OnAccentColor,
-                            colors,
-                            "on accent color",
-                            Style::new()
-                                .bg(self.settings.accent())
-                                .fg(self.settings.on_accent()),
                         );
                     }
                     Setting::NeutralColor => {
                         print_color(
-                            color_area,
-                            color_input_area,
-                            color_preview_area,
+                            setting_area,
+                            input_area,
                             buf,
                             symbol,
                             "Set neutral color",
@@ -271,26 +211,6 @@ impl SettingsPage {
                             &mut self.neutral,
                             current_setting == Setting::NeutralColor,
                             colors,
-                            "neutral color",
-                            Style::new().fg(self.settings.neutral()),
-                        );
-                    }
-                    Setting::OnNeutralColor => {
-                        print_color(
-                            color_area,
-                            color_input_area,
-                            color_preview_area,
-                            buf,
-                            symbol,
-                            "Set on neutral color",
-                            style,
-                            &mut self.on_neutral,
-                            current_setting == Setting::OnNeutralColor,
-                            colors,
-                            "on neutral color",
-                            Style::new()
-                                .bg(self.settings.neutral())
-                                .fg(self.settings.on_neutral()),
                         );
                     }
                     Setting::Empty => {}
@@ -315,15 +235,8 @@ impl SettingsPage {
                 shortcuts.push(Shortcut::new("Toggle", symbols::SPACE));
                 "Includes directories and filename when searching"
             }
-            Setting::AccentColor | Setting::NeutralColor => {
+            Setting::PrimaryColor | Setting::NeutralColor => {
                 shortcuts.push(Shortcut::new("Set color", symbols::ENTER));
-                COLOR_DESCRIPTION
-            }
-            Setting::OnAccentColor | Setting::OnNeutralColor => {
-                shortcuts.extend([
-                    Shortcut::new("Set color", symbols::ENTER),
-                    Shortcut::new("Generate color", symbols::ctrl!("g")),
-                ]);
                 COLOR_DESCRIPTION
             }
             Setting::General | Setting::Colors | Setting::Empty => "",
@@ -334,15 +247,12 @@ impl SettingsPage {
                 description_area,
                 buf,
                 [" ", description, " "],
-                Style::new(),
+                colors.neutral,
                 Some(widgets::Alignment::CenterHorizontal),
             );
         }
 
-        if !self.is_applied {
-            shortcuts.push(Shortcut::new("Apply", symbols::ctrl!("a")));
-        }
-        if !self.is_written {
+        if !self.is_saved {
             shortcuts.push(Shortcut::new("Save", symbols::ctrl!("s")));
         }
 
@@ -372,24 +282,13 @@ impl SettingsPage {
                 }
             }
             KeyCode::Char(c) => match c {
-                'a' => {
-                    if ctrl && !self.is_applied {
-                        *settings = self.settings.clone();
-                        self.applied = self.settings.clone();
-                        self.apply_hash = self.settings.hash();
-                        self.is_applied = true;
-                        return Action::ApplySettings;
-                    } else {
-                        return self.handle_setting(key, modifiers);
-                    }
-                }
                 's' => {
-                    if ctrl && !self.is_written {
+                    if ctrl && !self.is_saved {
                         match settings.save() {
                             Ok(_) => {
-                                self.written = self.settings.clone();
-                                self.write_hash = self.settings.hash();
-                                self.is_written = true;
+                                self.saved = settings.clone();
+                                self.saved_hash = settings.hash();
+                                self.is_saved = true;
                                 return Action::Render;
                             }
                             Err(err) => {
@@ -397,25 +296,23 @@ impl SettingsPage {
                             }
                         }
                     } else {
-                        return self.handle_setting(key, modifiers);
+                        return self.handle_setting(key, modifiers, settings);
                     }
                 }
                 'r' => {
                     if ctrl {
-                        self.settings = self.default.clone();
-                        self.accent.reset_with(self.settings.accent());
-                        self.on_accent.reset_with(self.settings.on_accent());
-                        self.neutral.reset_with(self.settings.neutral());
-                        self.on_neutral.reset_with(self.settings.on_neutral());
-                        self.update_hash();
-                        return Action::Render;
+                        *settings = self.default.clone();
+                        self.primary.reset_with(settings.primary());
+                        self.neutral.reset_with(settings.neutral());
+                        self.update_is_saved(settings);
+                        return Action::ApplySettings;
                     } else {
-                        return self.handle_setting(key, modifiers);
+                        return self.handle_setting(key, modifiers, settings);
                     }
                 }
-                _ => return self.handle_setting(key, modifiers),
+                _ => return self.handle_setting(key, modifiers, settings),
             },
-            _ => return self.handle_setting(key, modifiers),
+            _ => return self.handle_setting(key, modifiers, settings),
         }
 
         Action::None
@@ -423,41 +320,46 @@ impl SettingsPage {
 
     pub fn on_exit(&self) {}
 
-    fn handle_setting(&mut self, key: KeyCode, modifiers: KeyModifiers) -> Action {
+    fn handle_setting(
+        &mut self,
+        key: KeyCode,
+        modifiers: KeyModifiers,
+        settings: &mut Settings,
+    ) -> Action {
         match self.current() {
             Setting::SkipRating => {
                 if let KeyCode::Char(c) = key
                     && let Some(rating) = AudioRating::from_char(c)
-                    && self.settings.skip_rating() != rating
+                    && settings.skip_rating() != rating
                 {
-                    self.settings.set_skip_rating(rating);
-                    self.update_hash();
-                    return Action::Render;
+                    settings.set_skip_rating(rating);
+                    self.update_is_saved(settings);
+                    return Action::ApplySettings;
                 }
             }
             Setting::KeepTrackSort => {
                 if let KeyCode::Char(' ') = key {
-                    let toggle = !self.settings.keep_on_sort();
-                    self.settings.set_keep_on_sort(toggle);
-                    self.update_hash();
-                    return Action::Render;
+                    let toggle = !settings.keep_on_sort();
+                    settings.set_keep_on_sort(toggle);
+                    self.update_is_saved(settings);
+                    return Action::ApplySettings;
                 }
             }
             Setting::SearchByPath => {
                 if let KeyCode::Char(' ') = key {
-                    let toggle = !self.settings.search_by_path();
-                    self.settings.set_search_by_path(toggle);
-                    self.update_hash();
-                    return Action::Render;
+                    let toggle = !settings.search_by_path();
+                    settings.set_search_by_path(toggle);
+                    self.update_is_saved(settings);
+                    return Action::ApplySettings;
                 }
             }
-            Setting::AccentColor => {
+            Setting::PrimaryColor => {
                 if let KeyCode::Enter = key {
-                    match self.accent.parse_color() {
+                    match self.primary.parse_color() {
                         Ok(color) => {
-                            if self.settings.accent() != color {
-                                self.settings.set_accent(color);
-                                self.update_hash();
+                            if settings.primary() != color {
+                                settings.set_primary(color);
+                                self.update_is_saved(settings);
                                 return Action::Render;
                             }
                         }
@@ -466,35 +368,7 @@ impl SettingsPage {
                             return Action::Log(log);
                         }
                     }
-                } else if self.accent.input(key, modifiers) {
-                    return Action::Render;
-                }
-            }
-            Setting::OnAccentColor => {
-                if let KeyCode::Enter = key {
-                    match self.on_accent.parse_color() {
-                        Ok(color) => {
-                            if self.settings.on_accent() != color {
-                                self.settings.set_on_accent(color);
-                                self.update_hash();
-                                return Action::Render;
-                            }
-                        }
-                        Err(err) => {
-                            let log = Log::new(err);
-                            return Action::Log(log);
-                        }
-                    }
-                } else if modifiers.contains(KeyModifiers::CONTROL)
-                    && let KeyCode::Char('g') = key
-                {
-                    let bg = self.settings.accent();
-                    let fg = Colors::generate_readable_fg(bg).unwrap_or_default();
-                    self.settings.set_on_accent(fg);
-                    self.update_hash();
-                    self.on_accent.reset_with(fg);
-                    return Action::Render;
-                } else if self.on_accent.input(key, modifiers) {
+                } else if self.primary.input(key, modifiers) {
                     return Action::Render;
                 }
             }
@@ -502,9 +376,9 @@ impl SettingsPage {
                 if let KeyCode::Enter = key {
                     match self.neutral.parse_color() {
                         Ok(color) => {
-                            if self.settings.neutral() != color {
-                                self.settings.set_neutral(color);
-                                self.update_hash();
+                            if settings.neutral() != color {
+                                settings.set_neutral(color);
+                                self.update_is_saved(settings);
                                 return Action::Render;
                             }
                         }
@@ -517,44 +391,14 @@ impl SettingsPage {
                     return Action::Render;
                 }
             }
-            Setting::OnNeutralColor => {
-                if let KeyCode::Enter = key {
-                    match self.on_neutral.parse_color() {
-                        Ok(color) => {
-                            if self.settings.on_neutral() != color {
-                                self.settings.set_on_neutral(color);
-                                self.update_hash();
-                                return Action::Render;
-                            }
-                        }
-                        Err(err) => {
-                            let log = Log::new(err);
-                            return Action::Log(log);
-                        }
-                    }
-                } else if modifiers.contains(KeyModifiers::CONTROL)
-                    && let KeyCode::Char('g') = key
-                {
-                    let bg = self.settings.neutral();
-                    let fg = Colors::generate_readable_fg(bg).unwrap_or_default();
-                    self.settings.set_on_neutral(fg);
-                    self.update_hash();
-                    self.on_neutral.reset_with(fg);
-                    return Action::Render;
-                } else if self.on_neutral.input(key, modifiers) {
-                    return Action::Render;
-                }
-            }
             Setting::General | Setting::Colors | Setting::Empty => {}
         }
 
         Action::None
     }
 
-    fn update_hash(&mut self) {
-        let hash = self.settings.hash();
-        self.is_applied = self.apply_hash == hash;
-        self.is_written = self.write_hash == hash;
+    fn update_is_saved(&mut self, settings: &Settings) {
+        self.is_saved = self.saved_hash == settings.hash();
     }
 
     const fn current(&self) -> Setting {
@@ -580,8 +424,8 @@ impl ColorSetting {
         let styles = if active {
             TextInputStyles {
                 normal: Style::new(),
-                cursor: Style::new().bg(colors.accent).fg(colors.on_accent),
-                selector: Style::new().bg(colors.neutral).fg(colors.on_neutral),
+                cursor: Style::new().fg(colors.primary).reversed(),
+                selector: Style::new().fg(colors.neutral).reversed(),
                 placeholder: Style::new(),
             }
         } else {
@@ -637,12 +481,12 @@ fn previous(current: usize) -> Option<usize> {
     None
 }
 
-fn print_section(line: Rect, buf: &mut Buffer, ascii: &str) {
+fn print_section(line: Rect, buf: &mut Buffer, ascii: &str, color: Color) {
     widgets::print_ascii(
         line,
         buf,
         ascii,
-        Style::new(),
+        color,
         Some(widgets::Alignment::CenterHorizontal),
     );
 }
@@ -672,7 +516,7 @@ fn print_rating(
         input_area,
         buf,
         [
-            (stars.0, Style::new().fg(colors.accent)),
+            (stars.0, Style::new().fg(colors.primary)),
             (stars.1, Style::new().fg(colors.neutral)),
         ],
         None,
@@ -701,7 +545,7 @@ fn print_checkmark(
 
     // Checkmark
     let (checkmark, color) = match checkmark {
-        true => (symbols::CHECKMARK_YES, colors.accent),
+        true => (symbols::CHECKMARK_YES, colors.primary),
         false => (symbols::CHECKMARK_NO, colors.neutral),
     };
     let Rect { x, y, .. } = input_area;
@@ -713,7 +557,6 @@ fn print_checkmark(
 fn print_color(
     text_area: Rect,
     input_area: Rect,
-    preview_area: Rect,
     buf: &mut Buffer,
     symbol: &str,
     text: &str,
@@ -721,8 +564,6 @@ fn print_color(
     color_setting: &mut ColorSetting,
     color_is_active: bool,
     colors: &Colors,
-    preview_text: &str,
-    preview_style: Style,
 ) {
     // Text
     widgets::print_asciis(
@@ -736,7 +577,4 @@ fn print_color(
     // Input
     color_setting.set_active(color_is_active, colors);
     color_setting.render(input_area, buf);
-
-    // Preview
-    widgets::print_ascii(preview_area, buf, preview_text, preview_style, None);
 }

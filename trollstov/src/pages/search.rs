@@ -78,8 +78,8 @@ impl SearchPage {
                 State::Search => {
                     self.search_input.set_styles(TextInputStyles {
                         normal: Style::new(),
-                        cursor: Style::new().bg(colors.accent).fg(colors.on_accent),
-                        selector: Style::new().bg(colors.neutral).fg(colors.on_neutral),
+                        cursor: Style::new().fg(colors.primary).reversed(),
+                        selector: Style::new().fg(colors.neutral).reversed(),
                         placeholder: neutral,
                     });
                     shortcuts.push(Shortcut::new("Browse", symbols::ENTER));
@@ -149,16 +149,14 @@ impl SearchPage {
                 let mut style = match self.state {
                     State::Search => {
                         if current == Some(id) {
-                            Style::new().fg(colors.accent)
+                            Style::new().fg(colors.primary)
                         } else {
                             Style::new().fg(colors.neutral)
                         }
                     }
                     State::Browse => match item {
-                        ListItem::Selected => Style::new().bg(colors.accent).fg(colors.on_accent),
-                        ListItem::Selection => {
-                            Style::new().bg(colors.neutral).fg(colors.on_neutral)
-                        }
+                        ListItem::Selected => Style::new().fg(colors.primary).reversed(),
+                        ListItem::Selection => Style::new().fg(colors.neutral).reversed(),
                         ListItem::Normal => Style::new(),
                     },
                 };
