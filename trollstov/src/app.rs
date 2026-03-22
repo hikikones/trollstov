@@ -457,7 +457,7 @@ impl App {
                         &mut self.text_segment,
                         self.route,
                         &self.pages,
-                        colors.primary,
+                        colors,
                     );
 
                     // Body
@@ -474,8 +474,7 @@ impl App {
                         self.jukebox
                             .current_track_id()
                             .and_then(|id| self.database.get(id)),
-                        colors.primary,
-                        colors.neutral,
+                        colors,
                     );
 
                     // Shortcuts
@@ -523,7 +522,7 @@ impl App {
                         &mut self.text_segment,
                         self.route,
                         &self.pages,
-                        colors.primary,
+                        colors,
                     );
 
                     // Body
@@ -543,8 +542,7 @@ impl App {
                         self.jukebox
                             .current_track_id()
                             .and_then(|id| self.database.get(id)),
-                        colors.primary,
-                        colors.neutral,
+                        colors,
                     );
 
                     // Shortcuts
@@ -664,7 +662,7 @@ fn render_navigation(
     text: &mut TextSegment,
     current_route: Route,
     pages: &Pages,
-    primary: Color,
+    colors: &Colors,
 ) {
     const SPACING: &str = "   ";
     for (route, name, spacing) in [
@@ -676,7 +674,7 @@ fn render_navigation(
     ] {
         let is_current = std::mem::discriminant(&route) == std::mem::discriminant(&current_route);
         let style = if is_current {
-            Style::new().fg(primary).bold()
+            Style::new().fg(colors.primary).bold()
         } else {
             Style::new()
         };
@@ -703,11 +701,10 @@ fn render_playback(
     text: &mut TextSegment,
     audio_position: Duration,
     track: Option<&Track>,
-    primary: Color,
-    neutral: Color,
+    colors: &Colors,
 ) {
-    let primary = Style::new().fg(primary);
-    let neutral = Style::new().fg(neutral);
+    let primary = Style::new().fg(colors.primary);
+    let neutral = Style::new().fg(colors.neutral);
 
     let title_line = Rect { height: 1, ..area };
     let status_line = Rect {
