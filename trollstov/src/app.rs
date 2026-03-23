@@ -495,14 +495,7 @@ impl App {
                     .areas(area);
 
                     // Navigation
-                    render_navigation(
-                        nav_area,
-                        buf,
-                        &mut self.text,
-                        self.route,
-                        &self.pages,
-                        colors,
-                    );
+                    render_navigation(nav_area, buf, &mut self.text, self.route, colors);
 
                     // Body
                     let body = body_area.inner(Margin::new(MARGIN, MARGIN));
@@ -567,14 +560,7 @@ impl App {
                     );
 
                     // Navigation
-                    render_navigation(
-                        nav_area,
-                        buf,
-                        &mut self.text,
-                        self.route,
-                        &self.pages,
-                        colors,
-                    );
+                    render_navigation(nav_area, buf, &mut self.text, self.route, colors);
 
                     // Body
                     const MAX_WIDTH: u16 = 160;
@@ -642,11 +628,6 @@ impl App {
                         &mut self.shortcuts,
                     );
                 }
-                Route::Logs => {
-                    self.pages
-                        .logs
-                        .on_render(body, buf, colors, &mut self.shortcuts);
-                }
             },
             State::Search => {
                 self.pages.search.on_render(
@@ -671,7 +652,6 @@ impl App {
             Route::Tracks(id) => self.pages.tracks.on_enter(id, &self.database),
             Route::NowPlaying => self.pages.playing.on_enter(),
             Route::Settings => self.pages.settings.on_enter(),
-            Route::Logs => self.pages.logs.on_enter(),
         }
     }
 
@@ -680,7 +660,6 @@ impl App {
             Route::Tracks(_) => self.pages.tracks.on_exit(),
             Route::NowPlaying => self.pages.playing.on_exit(),
             Route::Settings => self.pages.settings.on_exit(),
-            Route::Logs => self.pages.logs.on_exit(),
         }
     }
 
@@ -705,7 +684,6 @@ impl App {
                         .settings
                         .on_input(key.code, key.modifiers, &mut self.settings)
                 }
-                Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
             },
             State::Search => {
                 match self.pages.search.on_input(
@@ -738,15 +716,13 @@ fn render_navigation(
     buf: &mut Buffer,
     text: &mut TextSegment,
     current_route: Route,
-    pages: &Pages,
     colors: &Colors,
 ) {
     const SPACING: &str = "   ";
     for (route, name, spacing) in [
         (Route::Tracks(None), "Tracks", SPACING),
         (Route::NowPlaying, "Now Playing", SPACING),
-        (Route::Settings, "Settings", SPACING),
-        (Route::Logs, "Logs", ""),
+        (Route::Settings, "Settings", ""),
     ] {
         let is_current = std::mem::discriminant(&route) == std::mem::discriminant(&current_route);
         let style = if is_current {
@@ -754,17 +730,17 @@ fn render_navigation(
         } else {
             Style::new()
         };
-
-        text.push_str(name, style);
-        if route == Route::Logs {
-            let new_logs = pages.logs.queue_len();
-            if new_logs > 0 {
-                utils::format_int(new_logs, |new_logs| {
-                    text.extend([("(", style), (new_logs, style), (")", style)]);
-                });
-            }
-        }
-        text.push_str(spacing, Style::new());
+        text.extend([(name, style), (spacing, Style::new())]);
+        // text.push_str(name, style);
+        // if route == Route::Logs {
+        //     let new_logs = pages.logs.queue_len();
+        //     if new_logs > 0 {
+        //         utils::format_int(new_logs, |new_logs| {
+        //             text.extend([("(", style), (new_logs, style), (")", style)]);
+        //         });
+        //     }
+        // }
+        // text.push_str(spacing, Style::new());
     }
 
     text.render(line, buf);
