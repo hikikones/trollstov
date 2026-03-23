@@ -26,6 +26,13 @@ enum State {
     Browse,
 }
 
+pub enum SearchAction {
+    None,
+    Render,
+    Goto(Option<TrackId>),
+    Done,
+}
+
 impl SearchPage {
     pub const fn new() -> Self {
         Self {
@@ -272,6 +279,95 @@ impl SearchPage {
         }
 
         Action::None
+    }
+
+    pub fn on_input2(
+        &mut self,
+        key: KeyCode,
+        modifiers: KeyModifiers,
+        db: &Database,
+        jb: &mut Jukebox,
+    ) -> SearchAction {
+        if db.is_empty() {
+            return SearchAction::None;
+        }
+
+        match self.state {
+            State::Search => match key {
+                KeyCode::Enter | KeyCode::Down => {
+                    if !self.search_results.is_empty() {
+                        self.list.reset();
+                        self.state = State::Browse;
+                        return SearchAction::Render;
+                    }
+                }
+                KeyCode::Up => {}
+                _ => {
+                    let hash_old = self.search_input.hash_trim();
+                    if self.search_input.input(key, modifiers) {
+                        let hash_new = self.search_input.hash_trim();
+                        self.is_dirty = hash_old != hash_new;
+                        return SearchAction::Render;
+                    }
+                }
+            },
+            State::Browse => match key {
+                KeyCode::Enter => {
+                    if let Some((id, _)) = self.search_results.get(self.list.index()).copied() {
+                        jb.play_id(id, db);
+                        return SearchAction::Done;
+                    }
+                }
+                KeyCode::Up => {
+                    if self.list.index() == 0 {
+                        self.state = State::Search;
+                        return SearchAction::Render;
+                    } else if self.list.input(key, modifiers) {
+                        return SearchAction::Render;
+                    }
+                }
+                KeyCode::Char(c) => match c {
+                    'q' => {
+                        self.list
+                            .selection_inclusive()
+                            .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id))
+                            .for_each(|id| {
+                                jb.enqueue(id);
+                            });
+                    }
+                    'n' => {
+                        self.list
+                            .selection_inclusive()
+                            .rev()
+                            .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id))
+                            .for_each(|id| {
+                                jb.enqueue_next(id);
+                            });
+                    }
+                    'g' => {
+                        let index = self.list.index();
+                        let id = self.search_results.get(index).map(|(id, _)| *id);
+                        return SearchAction::Goto(id);
+                    }
+                    's' | '/' => {
+                        self.state = State::Search;
+                        return SearchAction::Render;
+                    }
+                    _ => {
+                        if self.list.input(key, modifiers) {
+                            return SearchAction::Render;
+                        }
+                    }
+                },
+                _ => {
+                    if self.list.input(key, modifiers) {
+                        return SearchAction::Render;
+                    }
+                }
+            },
+        }
+
+        SearchAction::None
     }
 
     pub fn on_exit(&self) {}
