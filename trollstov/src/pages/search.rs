@@ -39,7 +39,7 @@ impl SearchPage {
             state: State::Search,
             search_input: TextInput::new()
                 .with_placeholder("Search...")
-                .with_margins(2, 2),
+                .with_margins(2, 2), // TODO: Make default (also for list)
             search_results: Vec::new(),
             include_path: false,
             list: List::new(),
@@ -85,6 +85,7 @@ impl SearchPage {
                         cursor: colors.primary,
                         selector: colors.neutral,
                         placeholder: colors.neutral,
+                        disabled: colors.neutral,
                     });
                     shortcuts.push(Shortcut::new("Browse", symbols::ENTER));
                     (Style::new().fg(colors.neutral), colors.neutral)

@@ -16,6 +16,7 @@ pub struct TextInput {
     cursor: usize,
     selector: Option<usize>,
     scroll: usize,
+    disabled: bool,
     margin_top: usize,
     margin_bottom: usize,
     colors: TextInputColors,
@@ -47,6 +48,7 @@ impl TextInput {
             cursor: 0,
             selector: None,
             scroll: 0,
+            disabled: false,
             margin_top: 0,
             margin_bottom: 0,
             colors: TextInputColors::new(),
@@ -58,6 +60,11 @@ impl TextInput {
         self
     }
 
+    pub const fn with_colors(mut self, colors: TextInputColors) -> Self {
+        self.set_colors(colors);
+        self
+    }
+
     pub const fn with_margins(mut self, top: usize, bottom: usize) -> Self {
         self.margin_top = top;
         self.margin_bottom = bottom;
@@ -66,6 +73,11 @@ impl TextInput {
 
     pub const fn set_colors(&mut self, colors: TextInputColors) -> &mut Self {
         self.colors = colors;
+        self
+    }
+
+    pub const fn set_disabled(&mut self, value: bool) -> &mut Self {
+        self.disabled = value;
         self
     }
 
@@ -86,6 +98,10 @@ impl TextInput {
     }
 
     pub fn input(&mut self, key_pressed: KeyCode, key_modifiers: KeyModifiers) -> bool {
+        if self.disabled {
+            return false;
+        }
+
         let ctrl = key_modifiers.contains(KeyModifiers::CONTROL);
         let shift = key_modifiers.contains(KeyModifiers::SHIFT);
 
@@ -219,6 +235,12 @@ impl TextInput {
     }
 
     pub fn render(&mut self, line: Rect, buf: &mut Buffer) {
+        if self.disabled {
+            let Rect { x, y, .. } = line;
+            buf.set_string(x, y, self.input.as_str(), self.colors.disabled);
+            return;
+        }
+
         if self.input.is_empty() {
             let Rect { x, y, .. } = line;
             buf.set_string(x, y, self.placeholder, self.colors.placeholder);
@@ -304,6 +326,7 @@ pub struct TextInputColors {
     pub cursor: Color,
     pub selector: Color,
     pub placeholder: Color,
+    pub disabled: Color,
 }
 
 impl TextInputColors {
@@ -313,6 +336,7 @@ impl TextInputColors {
             cursor: Color::White,
             selector: Color::DarkGray,
             placeholder: Color::DarkGray,
+            disabled: Color::DarkGray,
         }
     }
 
@@ -322,6 +346,7 @@ impl TextInputColors {
             cursor: color,
             selector: color,
             placeholder: color,
+            disabled: color,
         }
     }
 }

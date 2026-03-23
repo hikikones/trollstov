@@ -459,17 +459,13 @@ impl ColorSetting {
     }
 
     const fn set_active(&mut self, active: bool, colors: &Colors) {
-        let styles = if active {
-            TextInputColors {
-                normal: Color::Reset,
-                cursor: colors.primary,
-                selector: colors.neutral,
-                placeholder: Color::Reset,
-            }
-        } else {
-            TextInputColors::all(Color::Reset)
-        };
-        self.0.set_colors(styles);
+        self.0.set_disabled(!active).set_colors(TextInputColors {
+            normal: Color::Reset,
+            cursor: colors.primary,
+            selector: colors.neutral,
+            placeholder: colors.neutral,
+            disabled: colors.neutral,
+        });
     }
 
     fn input(&mut self, key: KeyCode, modifiers: KeyModifiers) -> bool {
