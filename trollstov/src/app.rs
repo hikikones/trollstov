@@ -503,6 +503,7 @@ impl App {
                             .current_track_id()
                             .and_then(|id| self.database.get(id)),
                         colors,
+                        self.jukebox.is_paused(),
                     );
 
                     // Shortcuts
@@ -571,6 +572,7 @@ impl App {
                             .current_track_id()
                             .and_then(|id| self.database.get(id)),
                         colors,
+                        self.jukebox.is_paused(),
                     );
 
                     // Shortcuts
@@ -746,8 +748,13 @@ fn render_playback(
     audio_position: Duration,
     track: Option<&Track>,
     colors: &Colors,
+    is_paused: bool,
 ) {
-    let normal_style = Style::new();
+    let normal_style = if track.is_none() || is_paused {
+        Style::new().fg(colors.neutral)
+    } else {
+        Style::new()
+    };
     let highlight_style = Style::new().fg(colors.primary);
 
     let title_line = Rect { height: 1, ..area };
