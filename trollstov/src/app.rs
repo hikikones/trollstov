@@ -40,10 +40,8 @@ pub struct App {
     front_cover: FrontCover,
     front_cover_status: FrontCoverStatus,
     front_cover_handle: Option<FrontCoverHandle>,
-    text_segment: TextSegment,
-    shortcuts_page: Shortcuts,
-    shortcuts_play: Shortcuts,
-    shortcuts_app: Shortcuts,
+    text: TextSegment,
+    shortcuts: Shortcuts,
 }
 
 enum State {
@@ -139,10 +137,8 @@ impl App {
             front_cover: FrontCover(None),
             front_cover_status: FrontCoverStatus::None,
             front_cover_handle: None,
-            text_segment: TextSegment::new().with_alignment(Alignment::Center),
-            shortcuts_page: Shortcuts::new(),
-            shortcuts_play: Shortcuts::new(),
-            shortcuts_app: Shortcuts::new(),
+            text: TextSegment::new().with_alignment(Alignment::Center),
+            shortcuts: Shortcuts::new(),
         }
     }
 
@@ -437,20 +433,9 @@ impl App {
             let area = frame.area();
             let buf = frame.buffer_mut();
 
-            let colors = &self.settings.colors().clone();
-
-            self.shortcuts_page
-                .set_colors(Color::Reset, colors.secondary)
-                .clear();
-            self.shortcuts_play
-                .set_colors(Color::Reset, colors.primary)
-                .clear();
-            self.shortcuts_app
-                .set_colors(Color::Reset, colors.primary)
-                .clear();
-
             const MARGIN: u16 = 1;
             self.screen_size = ScreenSize::from_rect(area);
+            let colors = &self.settings.colors().clone();
 
             match self.screen_size {
                 ScreenSize::Small => {
@@ -482,7 +467,7 @@ impl App {
                     render_navigation(
                         nav_area,
                         buf,
-                        &mut self.text_segment,
+                        &mut self.text,
                         self.route,
                         &self.pages,
                         colors,
@@ -490,14 +475,16 @@ impl App {
 
                     // Body
                     let body = body_area.inner(Margin::new(MARGIN, MARGIN));
+                    self.shortcuts.set_colors(Color::Reset, colors.secondary);
                     self.on_render(body, buf, colors);
-                    self.shortcuts_page.render(shortcuts_page_area, buf);
+                    self.shortcuts.render(shortcuts_page_area, buf);
+                    self.shortcuts.clear();
 
                     // Playback
                     render_playback(
                         playback_area,
                         buf,
-                        &mut self.text_segment,
+                        &mut self.text,
                         self.jukebox.current_track_pos(),
                         self.jukebox
                             .current_track_id()
@@ -507,10 +494,14 @@ impl App {
                     );
 
                     // Shortcuts
-                    fill_play_shortcuts(&mut self.shortcuts_play, self.jukebox.volume());
-                    fill_app_shortcuts(&mut self.shortcuts_app);
-                    self.shortcuts_play.render(shortcuts_play_area, buf);
-                    self.shortcuts_app.render(shortcuts_app_area, buf);
+                    self.shortcuts.set_colors(Color::Reset, colors.primary);
+                    fill_play_shortcuts(&mut self.shortcuts, self.jukebox.volume());
+                    self.shortcuts.render(shortcuts_play_area, buf);
+                    self.shortcuts.clear();
+
+                    fill_app_shortcuts(&mut self.shortcuts);
+                    self.shortcuts.render(shortcuts_app_area, buf);
+                    self.shortcuts.clear();
                 }
                 ScreenSize::Large => {
                     // Layout
@@ -522,7 +513,7 @@ impl App {
                         shortcuts_page_area,
                         _,
                         playback_area,
-                        shortcuts_app_area,
+                        shortcuts_area,
                     ] = Layout::vertical([
                         Constraint::Length(1),
                         Constraint::Length(1),
@@ -548,7 +539,7 @@ impl App {
                     render_navigation(
                         nav_area,
                         buf,
-                        &mut self.text_segment,
+                        &mut self.text,
                         self.route,
                         &self.pages,
                         colors,
@@ -560,13 +551,13 @@ impl App {
                         .centered_horizontally(Constraint::Length(MAX_WIDTH + MARGIN))
                         .inner(Margin::new(MARGIN, MARGIN));
                     self.on_render(body, buf, colors);
-                    self.shortcuts_page.render(shortcuts_page_area, buf);
+                    self.shortcuts.render(shortcuts_page_area, buf);
 
                     // Playback
                     render_playback(
                         playback_area,
                         buf,
-                        &mut self.text_segment,
+                        &mut self.text,
                         self.jukebox.current_track_pos(),
                         self.jukebox
                             .current_track_id()
@@ -576,9 +567,11 @@ impl App {
                     );
 
                     // Shortcuts
-                    fill_app_shortcuts(&mut self.shortcuts_app);
-                    fill_play_shortcuts(&mut self.shortcuts_app, self.jukebox.volume());
-                    self.shortcuts_app.render(shortcuts_app_area, buf);
+                    self.shortcuts.set_colors(Color::Reset, colors.primary);
+                    fill_app_shortcuts(&mut self.shortcuts);
+                    fill_play_shortcuts(&mut self.shortcuts, self.jukebox.volume());
+                    self.shortcuts.render(shortcuts_area, buf);
+                    self.shortcuts.clear();
                 }
             }
         })
@@ -594,7 +587,7 @@ impl App {
                         &self.database,
                         &self.jukebox,
                         colors,
-                        &mut self.shortcuts_page,
+                        &mut self.shortcuts,
                     );
                 }
                 Route::NowPlaying => {
@@ -607,7 +600,7 @@ impl App {
                         &mut self.front_cover,
                         self.front_cover_status,
                         colors,
-                        &mut self.shortcuts_page,
+                        &mut self.shortcuts,
                     );
                 }
                 Route::Settings => {
@@ -615,13 +608,13 @@ impl App {
                         body,
                         buf,
                         &mut self.settings,
-                        &mut self.shortcuts_page,
+                        &mut self.shortcuts,
                     );
                 }
                 Route::Logs => {
                     self.pages
                         .logs
-                        .on_render(body, buf, colors, &mut self.shortcuts_page);
+                        .on_render(body, buf, colors, &mut self.shortcuts);
                 }
             },
             State::Search => {
@@ -631,7 +624,7 @@ impl App {
                     &mut self.database,
                     &mut self.jukebox,
                     colors,
-                    &mut self.shortcuts_page,
+                    &mut self.shortcuts,
                 );
             }
         }
