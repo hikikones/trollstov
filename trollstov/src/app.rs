@@ -47,7 +47,7 @@ pub struct App {
 }
 
 enum State {
-    Page,
+    Route,
     Search,
 }
 
@@ -129,7 +129,7 @@ impl App {
             running: true,
             pages,
             route: Route::default(),
-            state: State::Page,
+            state: State::Route,
             events,
             settings,
             database,
@@ -243,7 +243,7 @@ impl App {
                 return Action::Quit;
             }
             KeyCode::Tab | KeyCode::BackTab => match self.state {
-                State::Page => {
+                State::Route => {
                     let next_route = if key.code == KeyCode::Tab {
                         self.route.next()
                     } else {
@@ -252,7 +252,7 @@ impl App {
                     return Action::Route(next_route);
                 }
                 State::Search => {
-                    self.state = State::Page;
+                    self.state = State::Route;
                     self.pages.search.on_exit();
                     return Action::Render;
                 }
@@ -321,12 +321,12 @@ impl App {
                 'f' => {
                     if ctrl {
                         match self.state {
-                            State::Page => {
+                            State::Route => {
                                 self.state = State::Search;
                                 self.pages.search.on_enter();
                             }
                             State::Search => {
-                                self.state = State::Page;
+                                self.state = State::Route;
                                 self.pages.search.on_exit();
                             }
                         }
@@ -584,7 +584,7 @@ impl App {
 
     fn on_render(&mut self, body: Rect, buf: &mut Buffer, colors: &Colors) {
         match self.state {
-            State::Page => match self.route {
+            State::Route => match self.route {
                 Route::Tracks(_) => {
                     self.pages.tracks.on_render(
                         body,
@@ -655,7 +655,7 @@ impl App {
 
     fn on_input(&mut self, key: KeyEvent) -> Action {
         match self.state {
-            State::Page => match self.route {
+            State::Route => match self.route {
                 Route::Tracks(_) => self.pages.tracks.on_input(
                     key.code,
                     key.modifiers,
@@ -686,12 +686,12 @@ impl App {
                     SearchAction::None => Action::None,
                     SearchAction::Render => Action::Render,
                     SearchAction::Goto(id) => {
-                        self.state = State::Page;
+                        self.state = State::Route;
                         self.pages.search.on_exit();
                         Action::Route(Route::Tracks(id))
                     }
                     SearchAction::Done => {
-                        self.state = State::Page;
+                        self.state = State::Route;
                         self.pages.search.on_exit();
                         Action::Render
                     }
