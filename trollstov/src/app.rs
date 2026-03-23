@@ -318,14 +318,6 @@ impl App {
                 }
             }
             KeyCode::Char(c) => match c {
-                '/' => {
-                    if self.route == Route::Search {
-                        return self.on_input(key);
-                    } else {
-                        self.pages.search.set_search();
-                        return Action::Route(Route::Search);
-                    }
-                }
                 'f' => {
                     if ctrl {
                         match self.state {
@@ -616,16 +608,6 @@ impl App {
                         &mut self.shortcuts_page,
                     );
                 }
-                Route::Search => {
-                    self.pages.search.on_render(
-                        body,
-                        buf,
-                        &mut self.database,
-                        &mut self.jukebox,
-                        colors,
-                        &mut self.shortcuts_page,
-                    );
-                }
                 Route::Settings => {
                     self.pages.settings.on_render(
                         body,
@@ -657,7 +639,6 @@ impl App {
         match self.route {
             Route::Tracks(id) => self.pages.tracks.on_enter(id, &self.database),
             Route::NowPlaying => self.pages.playing.on_enter(),
-            Route::Search => self.pages.search.on_enter(),
             Route::Settings => self.pages.settings.on_enter(),
             Route::Logs => self.pages.logs.on_enter(),
         }
@@ -667,7 +648,6 @@ impl App {
         match self.route {
             Route::Tracks(_) => self.pages.tracks.on_exit(),
             Route::NowPlaying => self.pages.playing.on_exit(),
-            Route::Search => self.pages.search.on_exit(),
             Route::Settings => self.pages.settings.on_exit(),
             Route::Logs => self.pages.logs.on_exit(),
         }
@@ -689,12 +669,6 @@ impl App {
                     &mut self.jukebox,
                     self.screen_size,
                 ),
-                Route::Search => self.pages.search.on_input(
-                    key.code,
-                    key.modifiers,
-                    &self.database,
-                    &mut self.jukebox,
-                ),
                 Route::Settings => {
                     self.pages
                         .settings
@@ -703,7 +677,7 @@ impl App {
                 Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
             },
             State::Search => {
-                match self.pages.search.on_input2(
+                match self.pages.search.on_input(
                     key.code,
                     key.modifiers,
                     &self.database,
@@ -735,7 +709,6 @@ fn render_navigation(
     for (route, name, spacing) in [
         (Route::Tracks(None), "Tracks", SPACING),
         (Route::NowPlaying, "Now Playing", SPACING),
-        (Route::Search, "Search", SPACING),
         (Route::Settings, "Settings", SPACING),
         (Route::Logs, "Logs", ""),
     ] {

@@ -5,9 +5,9 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding},
 };
-
-use crate::{app::Action, pages::Route, settings::Colors, symbols};
 use widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles};
+
+use crate::{settings::Colors, symbols};
 
 // TODO: Add timer for searching?
 // Currently searching on every input, but should probably be a small timeout.
@@ -47,16 +47,14 @@ impl SearchPage {
         }
     }
 
-    pub const fn set_search(&mut self) {
-        self.state = State::Search;
-    }
-
     pub const fn set_search_by_path(&mut self, value: bool) {
         self.include_path = value;
         self.is_dirty = true;
     }
 
-    pub fn on_enter(&self) {}
+    pub fn on_enter(&mut self) {
+        self.state = State::Search;
+    }
 
     pub fn on_render(
         &mut self,
@@ -199,94 +197,6 @@ impl SearchPage {
         modifiers: KeyModifiers,
         db: &Database,
         jb: &mut Jukebox,
-    ) -> Action {
-        if db.is_empty() {
-            return Action::None;
-        }
-
-        match self.state {
-            State::Search => match key {
-                KeyCode::Enter | KeyCode::Down => {
-                    if !self.search_results.is_empty() {
-                        self.list.reset();
-                        self.state = State::Browse;
-                        return Action::Render;
-                    }
-                }
-                KeyCode::Up => {}
-                _ => {
-                    let hash_old = self.search_input.hash_trim();
-                    if self.search_input.input(key, modifiers) {
-                        let hash_new = self.search_input.hash_trim();
-                        self.is_dirty = hash_old != hash_new;
-                        return Action::Render;
-                    }
-                }
-            },
-            State::Browse => match key {
-                KeyCode::Enter => {
-                    if let Some((id, _)) = self.search_results.get(self.list.index()).copied() {
-                        jb.play_id(id, db);
-                    }
-                }
-                KeyCode::Up => {
-                    if self.list.index() == 0 {
-                        self.state = State::Search;
-                        return Action::Render;
-                    } else if self.list.input(key, modifiers) {
-                        return Action::Render;
-                    }
-                }
-                KeyCode::Char(c) => match c {
-                    'q' => {
-                        self.list
-                            .selection_inclusive()
-                            .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id))
-                            .for_each(|id| {
-                                jb.enqueue(id);
-                            });
-                    }
-                    'n' => {
-                        self.list
-                            .selection_inclusive()
-                            .rev()
-                            .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id))
-                            .for_each(|id| {
-                                jb.enqueue_next(id);
-                            });
-                    }
-                    'g' => {
-                        let index = self.list.index();
-                        let id = self.search_results.get(index).map(|(id, _)| *id);
-                        return Action::Route(Route::Tracks(id));
-                    }
-                    's' | '/' => {
-                        self.state = State::Search;
-                        return Action::Render;
-                    }
-                    _ => {
-                        if self.list.input(key, modifiers) {
-                            return Action::Render;
-                        }
-                    }
-                },
-                _ => {
-                    if self.list.input(key, modifiers) {
-                        return Action::Render;
-                    }
-                }
-            },
-        }
-
-        Action::None
-    }
-
-    pub fn on_input2(
-        &mut self,
-        key: KeyCode,
-        modifiers: KeyModifiers,
-        db: &Database,
-        jb: &mut Jukebox,
     ) -> SearchAction {
         if db.is_empty() {
             return SearchAction::None;
@@ -370,7 +280,10 @@ impl SearchPage {
         SearchAction::None
     }
 
-    pub fn on_exit(&self) {}
+    pub fn on_exit(&mut self) {
+        self.search_input.clear();
+        self.search_results.clear();
+    }
 
     fn update_search_results(&mut self, db: &mut Database) {
         if !self.is_dirty {
