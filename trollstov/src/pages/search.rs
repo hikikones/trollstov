@@ -77,7 +77,7 @@ impl SearchPage {
         }
 
         // Determine colors and shortcuts for search input and results
-        let border_style = {
+        let (border_style, border_text_color) = {
             let neutral = Style::new().fg(colors.neutral);
             match self.state {
                 State::Search => {
@@ -88,7 +88,7 @@ impl SearchPage {
                         placeholder: neutral,
                     });
                     shortcuts.push(Shortcut::new("Browse", symbols::ENTER));
-                    neutral
+                    (neutral, colors.neutral)
                 }
                 State::Browse => {
                     self.search_input.set_styles(TextInputStyles::all(neutral));
@@ -99,7 +99,7 @@ impl SearchPage {
                         Shortcut::new("Search", "s"),
                         Shortcut::new("Goto", "g"),
                     ]);
-                    Style::new()
+                    (Style::new().fg(colors.secondary), Color::Reset)
                 }
             }
         };
@@ -134,7 +134,7 @@ impl SearchPage {
                 },
                 buf,
                 [" Search Results (", len, ") "],
-                border_style,
+                border_text_color,
                 Some(widgets::Alignment::CenterHorizontal),
             );
         });

@@ -58,7 +58,9 @@ impl LogsPage {
         }
 
         // Bordered block for logs
-        let block = Block::bordered().padding(Padding::horizontal(1));
+        let block = Block::bordered()
+            .border_style(colors.secondary)
+            .padding(Padding::horizontal(1));
         let logs_area = block.inner(area);
         block.render(area, buf);
 
@@ -72,7 +74,7 @@ impl LogsPage {
                 },
                 buf,
                 [" Logs (", len, ") "],
-                Style::new(),
+                Color::Reset,
                 Some(widgets::Alignment::CenterHorizontal),
             );
         });

@@ -343,7 +343,7 @@ impl PlayingPage {
         colors: &Colors,
     ) {
         let block = Block::bordered()
-            .border_style(colors.neutral)
+            .border_style(colors.secondary)
             .padding(Padding::horizontal(1));
         let queue_inner_area = block.inner(area);
         block.render(area, buf);
@@ -358,7 +358,7 @@ impl PlayingPage {
                 },
                 buf,
                 [" History (", hlen, ") / Queue (", qlen, ") "],
-                colors.neutral,
+                Color::Reset,
                 Some(widgets::Alignment::CenterHorizontal),
             );
         });

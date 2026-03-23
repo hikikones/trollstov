@@ -105,10 +105,13 @@ impl SettingsPage {
         shortcuts: &mut Shortcuts,
     ) {
         let area = area.centered_horizontally(Constraint::Max(80));
+        let colors = settings.colors();
 
         let block = Block::bordered()
             .title(" Settings ")
             .title_alignment(Alignment::Center)
+            .title_style(Color::Reset)
+            .border_style(colors.secondary)
             .padding(Padding::uniform(1));
         let settings_area = block.inner(area);
         block.render(area, buf);
@@ -129,9 +132,7 @@ impl SettingsPage {
             ..settings_area
         };
 
-        let colors = settings.colors();
         let current_setting = self.current();
-
         self.list.set_colors(colors.neutral, None).render(
             settings_area,
             buf,

@@ -61,7 +61,9 @@ impl TracksPage {
         }
 
         // Bordered block for tracks table
-        let block = Block::bordered().padding(Padding::horizontal(1));
+        let block = Block::bordered()
+            .border_style(colors.secondary)
+            .padding(Padding::horizontal(1));
         let tracks_area = block.inner(area);
         block.render(area, buf);
 
@@ -75,7 +77,7 @@ impl TracksPage {
                 },
                 buf,
                 [" All Tracks (", len, ") "],
-                Style::new(),
+                Color::Reset,
                 Some(widgets::Alignment::CenterHorizontal),
             );
         });
