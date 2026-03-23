@@ -14,8 +14,8 @@ use widgets::{Shortcut, Shortcuts, TextSegment};
 use crate::{
     events::{Event, EventHandler, MediaEvent, MediaPlayback},
     pages::{
-        Log, LogsPage, Pages, PlayingPage, Route, SearchAction, SearchPage, SettingsPage,
-        TracksPage,
+        Log, LogsAction, LogsPage, Pages, PlayingPage, Route, SearchAction, SearchPage,
+        SettingsPage, TracksPage,
     },
     settings::{Colors, Settings},
     symbols,
@@ -706,7 +706,15 @@ impl App {
                     }
                 }
             }
-            State::Logs => self.pages.logs.on_input(key.code, key.modifiers),
+            State::Logs => match self.pages.logs.on_input(key.code, key.modifiers) {
+                LogsAction::None => Action::None,
+                LogsAction::Render => Action::Render,
+                LogsAction::Done => {
+                    self.state = State::Route;
+                    self.pages.logs.on_exit();
+                    Action::Render
+                }
+            },
         }
     }
 }
