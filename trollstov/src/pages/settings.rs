@@ -25,6 +25,7 @@ pub struct SettingsPage {
     list: List,
     text: TextSegment,
     primary: ColorSetting,
+    secondary: ColorSetting,
     neutral: ColorSetting,
 }
 
@@ -36,6 +37,7 @@ enum Setting {
     SearchByPath,
     Colors,
     PrimaryColor,
+    SecondaryColor,
     NeutralColor,
     Empty,
 }
@@ -49,13 +51,14 @@ impl Setting {
             Self::SearchByPath => true,
             Self::Colors => false,
             Self::PrimaryColor => true,
+            Self::SecondaryColor => true,
             Self::NeutralColor => true,
             Self::Empty => false,
         }
     }
 }
 
-const SETTINGS: [Setting; 10] = [
+const SETTINGS: [Setting; 11] = [
     Setting::General,
     Setting::Empty,
     Setting::SkipRating,
@@ -65,6 +68,7 @@ const SETTINGS: [Setting; 10] = [
     Setting::Colors,
     Setting::Empty,
     Setting::PrimaryColor,
+    Setting::SecondaryColor,
     Setting::NeutralColor,
 ];
 
@@ -86,6 +90,7 @@ impl SettingsPage {
             list: List::new().with_index(selected).with_margins(3, 3),
             text: TextSegment::new().with_alignment(Alignment::Center),
             primary: ColorSetting::new(colors.primary),
+            secondary: ColorSetting::new(colors.secondary),
             neutral: ColorSetting::new(colors.neutral),
         }
     }
@@ -200,6 +205,19 @@ impl SettingsPage {
                             colors,
                         );
                     }
+                    Setting::SecondaryColor => {
+                        print_color(
+                            setting_area,
+                            input_area,
+                            buf,
+                            symbol,
+                            "Set secondary color",
+                            style,
+                            &mut self.secondary,
+                            current_setting == Setting::SecondaryColor,
+                            colors,
+                        );
+                    }
                     Setting::NeutralColor => {
                         print_color(
                             setting_area,
@@ -235,7 +253,7 @@ impl SettingsPage {
                 shortcuts.push(Shortcut::new("Toggle", symbols::SPACE));
                 "Includes directories and filename when searching"
             }
-            Setting::PrimaryColor | Setting::NeutralColor => {
+            Setting::PrimaryColor | Setting::SecondaryColor | Setting::NeutralColor => {
                 shortcuts.push(Shortcut::new("Set color", symbols::ENTER));
                 COLOR_DESCRIPTION
             }
@@ -369,6 +387,25 @@ impl SettingsPage {
                         }
                     }
                 } else if self.primary.input(key, modifiers) {
+                    return Action::Render;
+                }
+            }
+            Setting::SecondaryColor => {
+                if let KeyCode::Enter = key {
+                    match self.secondary.parse_color() {
+                        Ok(color) => {
+                            if settings.secondary() != color {
+                                settings.set_secondary(color);
+                                self.update_is_saved(settings);
+                                return Action::Render;
+                            }
+                        }
+                        Err(err) => {
+                            let log = Log::new(err);
+                            return Action::Log(log);
+                        }
+                    }
+                } else if self.secondary.input(key, modifiers) {
                     return Action::Render;
                 }
             }
