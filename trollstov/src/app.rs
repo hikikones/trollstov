@@ -569,8 +569,10 @@ impl App {
                     let body = body_area
                         .centered_horizontally(Constraint::Length(MAX_WIDTH + MARGIN))
                         .inner(Margin::new(MARGIN, MARGIN));
+                    self.shortcuts.set_colors(Color::Reset, colors.secondary);
                     self.on_render(body, buf, colors);
                     self.shortcuts.render(shortcuts_page_area, buf);
+                    self.shortcuts.clear();
 
                     // Playback
                     render_playback(
