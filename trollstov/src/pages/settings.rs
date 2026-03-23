@@ -322,6 +322,7 @@ impl SettingsPage {
                     if ctrl {
                         *settings = self.default.clone();
                         self.primary.reset_with(settings.primary());
+                        self.secondary.reset_with(settings.secondary());
                         self.neutral.reset_with(settings.neutral());
                         self.update_is_saved(settings);
                         return Action::ApplySettings;
