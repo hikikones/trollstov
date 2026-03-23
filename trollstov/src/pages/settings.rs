@@ -7,7 +7,7 @@ use ratatui::{
     widgets::{Block, Padding},
 };
 use widgets::{
-    CursorMove, List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles, TextSegment,
+    CursorMove, List, ListItem, Shortcut, Shortcuts, TextInput, TextInputColors, TextSegment,
 };
 
 use crate::{
@@ -460,16 +460,16 @@ impl ColorSetting {
 
     const fn set_active(&mut self, active: bool, colors: &Colors) {
         let styles = if active {
-            TextInputStyles {
-                normal: Style::new(),
-                cursor: Style::new().fg(colors.primary).reversed(),
-                selector: Style::new().fg(colors.neutral).reversed(),
-                placeholder: Style::new(),
+            TextInputColors {
+                normal: Color::Reset,
+                cursor: colors.primary,
+                selector: colors.neutral,
+                placeholder: Color::Reset,
             }
         } else {
-            TextInputStyles::all(Style::new())
+            TextInputColors::all(Color::Reset)
         };
-        self.0.set_styles(styles);
+        self.0.set_colors(styles);
     }
 
     fn input(&mut self, key: KeyCode, modifiers: KeyModifiers) -> bool {
