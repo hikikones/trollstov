@@ -26,6 +26,10 @@ impl LogsPage {
         }
     }
 
+    pub const fn is_empty(&self) -> bool {
+        self.logs.is_empty()
+    }
+
     pub fn enqueue(&mut self, log: Log) {
         self.logs.push(log);
         self.queue += 1;

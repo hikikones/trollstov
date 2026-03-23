@@ -523,7 +523,7 @@ impl App {
                     self.shortcuts.render(shortcuts_play_area, buf);
                     self.shortcuts.clear();
 
-                    fill_app_shortcuts(&mut self.shortcuts);
+                    fill_app_shortcuts(&mut self.shortcuts, &self.pages.logs);
                     self.shortcuts.render(shortcuts_app_area, buf);
                     self.shortcuts.clear();
                 }
@@ -585,7 +585,7 @@ impl App {
 
                     // Shortcuts
                     self.shortcuts.set_colors(Color::Reset, colors.primary);
-                    fill_app_shortcuts(&mut self.shortcuts);
+                    fill_app_shortcuts(&mut self.shortcuts, &self.pages.logs);
                     fill_play_shortcuts(&mut self.shortcuts, self.jukebox.volume());
                     self.shortcuts.render(shortcuts_area, buf);
                     self.shortcuts.clear();
@@ -731,16 +731,6 @@ fn render_navigation(
             Style::new()
         };
         text.extend([(name, style), (spacing, Style::new())]);
-        // text.push_str(name, style);
-        // if route == Route::Logs {
-        //     let new_logs = pages.logs.queue_len();
-        //     if new_logs > 0 {
-        //         utils::format_int(new_logs, |new_logs| {
-        //             text.extend([("(", style), (new_logs, style), (")", style)]);
-        //         });
-        //     }
-        // }
-        // text.push_str(spacing, Style::new());
     }
 
     text.render(line, buf);
@@ -854,12 +844,23 @@ fn fill_play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
     });
 }
 
-fn fill_app_shortcuts(shortcuts: &mut Shortcuts) {
+fn fill_app_shortcuts(shortcuts: &mut Shortcuts, logs: &LogsPage) {
     shortcuts.extend([
         Shortcut::new("Quit", symbols::ESCAPE),
         Shortcut::new("Navigate", symbols::shift!("Tab")),
         Shortcut::new("Find", symbols::ctrl!("f")),
     ]);
+
+    if !logs.is_empty() {
+        let new_logs = logs.queue_len();
+        if new_logs > 0 {
+            utils::format_int(new_logs, |new_logs| {
+                shortcuts.push_iter(["Logs(", new_logs, ")"], symbols::ctrl!("l"));
+            });
+        } else {
+            shortcuts.push(Shortcut::new("Logs", symbols::ctrl!("l")));
+        }
+    }
 }
 
 fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
