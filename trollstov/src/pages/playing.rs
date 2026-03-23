@@ -393,7 +393,7 @@ impl PlayingPage {
                 let mut style = if qi < hlen {
                     Style::new().fg(colors.neutral)
                 } else if current_qi == Some(qi) {
-                    Style::new().fg(colors.accent)
+                    Style::new().fg(colors.primary)
                 } else {
                     Style::new()
                 };
@@ -459,7 +459,7 @@ fn render_cover_with_stars(
                     },
                     buf,
                     [
-                        (stars.0, Style::new().fg(colors.accent)),
+                        (stars.0, Style::new().fg(colors.primary)),
                         (stars.1, Style::new().fg(colors.neutral)),
                     ],
                     None,

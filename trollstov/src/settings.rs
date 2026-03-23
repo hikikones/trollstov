@@ -26,16 +26,12 @@ impl Default for Settings {
                 .unwrap_or(terminal_colorsaurus::ThemeMode::Dark)
             {
                 terminal_colorsaurus::ThemeMode::Dark => Colors {
-                    accent: Color::Yellow,
-                    on_accent: Color::Black,
+                    primary: Color::Yellow,
                     neutral: Color::Indexed(245),
-                    on_neutral: Color::Black,
                 },
                 terminal_colorsaurus::ThemeMode::Light => Colors {
-                    accent: Color::Cyan,
-                    on_accent: Color::Black,
+                    primary: Color::Cyan,
                     neutral: Color::Indexed(245),
-                    on_neutral: Color::Black,
                 },
             };
 
@@ -76,36 +72,20 @@ impl Settings {
         &self.colors
     }
 
-    pub const fn accent(&self) -> Color {
-        self.colors.accent
-    }
-
-    pub const fn on_accent(&self) -> Color {
-        self.colors.on_accent
+    pub const fn primary(&self) -> Color {
+        self.colors.primary
     }
 
     pub const fn neutral(&self) -> Color {
         self.colors.neutral
     }
 
-    pub const fn on_neutral(&self) -> Color {
-        self.colors.on_neutral
-    }
-
-    pub const fn set_accent(&mut self, color: Color) {
-        self.colors.accent = color;
-    }
-
-    pub const fn set_on_accent(&mut self, color: Color) {
-        self.colors.on_accent = color;
+    pub const fn set_primary(&mut self, color: Color) {
+        self.colors.primary = color;
     }
 
     pub const fn set_neutral(&mut self, color: Color) {
         self.colors.neutral = color;
-    }
-
-    pub const fn set_on_neutral(&mut self, color: Color) {
-        self.colors.on_neutral = color;
     }
 
     pub fn read() -> Result<Self, Box<dyn std::error::Error>> {
@@ -208,15 +188,13 @@ struct General {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Colors {
-    pub accent: Color,
-    pub on_accent: Color,
+    pub primary: Color,
     pub neutral: Color,
-    pub on_neutral: Color,
 }
 
 impl Colors {
-    pub fn generate_readable_fg(bg: Color) -> Option<Color> {
-        readable_fg(bg)
+    pub fn _generate_readable_fg(bg: Color) -> Option<Color> {
+        _readable_fg(bg)
     }
 }
 
@@ -225,13 +203,13 @@ fn get_config_dir() -> Option<PathBuf> {
         .map(|project_dirs| project_dirs.config_dir().to_path_buf())
 }
 
-fn readable_fg(mut bg: Color) -> Option<Color> {
+fn _readable_fg(mut bg: Color) -> Option<Color> {
     if bg == Color::Reset {
         return None;
     }
 
     if let Color::Indexed(i) = bg {
-        bg = indexed_to_color(i);
+        bg = _indexed_to_color(i);
     }
 
     let readable_fg = match bg {
@@ -251,7 +229,7 @@ fn readable_fg(mut bg: Color) -> Option<Color> {
         Color::LightMagenta => Color::White,
         Color::LightCyan => Color::Black,
         Color::White => Color::Black,
-        Color::Rgb(r, g, b) => relative_luminance_color(r, g, b),
+        Color::Rgb(r, g, b) => _relative_luminance_color(r, g, b),
         Color::Reset | Color::Indexed(_) => {
             unreachable!()
         }
@@ -260,7 +238,7 @@ fn readable_fg(mut bg: Color) -> Option<Color> {
     Some(readable_fg)
 }
 
-fn indexed_to_color(i: u8) -> Color {
+fn _indexed_to_color(i: u8) -> Color {
     match i {
         // 0-15: standard ANSI colors
         0 => Color::Black,
@@ -300,7 +278,7 @@ fn indexed_to_color(i: u8) -> Color {
     }
 }
 
-fn relative_luminance_color(r: u8, g: u8, b: u8) -> Color {
+fn _relative_luminance_color(r: u8, g: u8, b: u8) -> Color {
     fn srgb_to_linear(c: u8) -> f64 {
         let c = c as f64 / 255.0;
         if c <= 0.04045 {

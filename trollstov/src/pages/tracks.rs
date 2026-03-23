@@ -292,8 +292,8 @@ impl TracksPage {
             db.iter(),
             |line, buf, (id, track), item| {
                 let mut style = match item {
-                    ListItem::Selected => Style::new().bg(colors.accent).fg(colors.on_accent),
-                    ListItem::Selection => Style::new().bg(colors.neutral).fg(colors.on_neutral),
+                    ListItem::Selected => Style::new().fg(colors.primary).reversed(),
+                    ListItem::Selection => Style::new().fg(colors.neutral).reversed(),
                     ListItem::Normal => Style::new(),
                 };
 
