@@ -13,7 +13,10 @@ use widgets::{Shortcut, Shortcuts, TextSegment};
 
 use crate::{
     events::{Event, EventHandler, MediaEvent, MediaPlayback},
-    pages::{Log, LogsPage, Pages, PlayingPage, Route, SearchPage, SettingsPage, TracksPage},
+    pages::{
+        Log, LogsPage, Pages, PlayingPage, Route, SearchAction, SearchPage, SettingsPage,
+        TracksPage,
+    },
     settings::{Colors, Settings},
     symbols,
     terminal::Terminal,
@@ -27,6 +30,7 @@ pub struct App {
     running: bool,
     pages: Pages,
     route: Route,
+    state: State,
     events: EventHandler,
     settings: Settings,
     database: Database,
@@ -40,6 +44,11 @@ pub struct App {
     shortcuts_page: Shortcuts,
     shortcuts_play: Shortcuts,
     shortcuts_app: Shortcuts,
+}
+
+enum State {
+    Route,
+    Search,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -120,6 +129,7 @@ impl App {
             running: true,
             pages,
             route: Route::default(),
+            state: State::Route,
             events,
             settings,
             database,
@@ -232,12 +242,21 @@ impl App {
             KeyCode::Esc => {
                 return Action::Quit;
             }
-            KeyCode::Tab => {
-                return Action::Route(self.route.next());
-            }
-            KeyCode::BackTab => {
-                return Action::Route(self.route.prev());
-            }
+            KeyCode::Tab | KeyCode::BackTab => match self.state {
+                State::Route => {
+                    let next_route = if key.code == KeyCode::Tab {
+                        self.route.next()
+                    } else {
+                        self.route.prev()
+                    };
+                    return Action::Route(next_route);
+                }
+                State::Search => {
+                    self.state = State::Route;
+                    self.pages.search.on_exit();
+                    return Action::Render;
+                }
+            },
             KeyCode::Up => {
                 if ctrl {
                     self.jukebox.pause_or_play();
@@ -299,12 +318,21 @@ impl App {
                 }
             }
             KeyCode::Char(c) => match c {
-                '/' => {
-                    if self.route == Route::Search {
-                        return self.on_input(key);
+                'f' => {
+                    if ctrl {
+                        match self.state {
+                            State::Route => {
+                                self.state = State::Search;
+                                self.pages.search.on_enter();
+                            }
+                            State::Search => {
+                                self.state = State::Route;
+                                self.pages.search.on_exit();
+                            }
+                        }
+                        return Action::Render;
                     } else {
-                        self.pages.search.set_search();
-                        return Action::Route(Route::Search);
+                        return self.on_input(key);
                     }
                 }
                 _ => {
@@ -555,31 +583,46 @@ impl App {
     }
 
     fn on_render(&mut self, body: Rect, buf: &mut Buffer, colors: &Colors) {
-        match self.route {
-            Route::Tracks(_) => {
-                self.pages.tracks.on_render(
-                    body,
-                    buf,
-                    &self.database,
-                    &self.jukebox,
-                    colors,
-                    &mut self.shortcuts_page,
-                );
-            }
-            Route::NowPlaying => {
-                self.pages.playing.on_render(
-                    body,
-                    buf,
-                    &self.database,
-                    &self.jukebox,
-                    self.screen_size,
-                    &mut self.front_cover,
-                    self.front_cover_status,
-                    colors,
-                    &mut self.shortcuts_page,
-                );
-            }
-            Route::Search => {
+        match self.state {
+            State::Route => match self.route {
+                Route::Tracks(_) => {
+                    self.pages.tracks.on_render(
+                        body,
+                        buf,
+                        &self.database,
+                        &self.jukebox,
+                        colors,
+                        &mut self.shortcuts_page,
+                    );
+                }
+                Route::NowPlaying => {
+                    self.pages.playing.on_render(
+                        body,
+                        buf,
+                        &self.database,
+                        &self.jukebox,
+                        self.screen_size,
+                        &mut self.front_cover,
+                        self.front_cover_status,
+                        colors,
+                        &mut self.shortcuts_page,
+                    );
+                }
+                Route::Settings => {
+                    self.pages.settings.on_render(
+                        body,
+                        buf,
+                        &mut self.settings,
+                        &mut self.shortcuts_page,
+                    );
+                }
+                Route::Logs => {
+                    self.pages
+                        .logs
+                        .on_render(body, buf, colors, &mut self.shortcuts_page);
+                }
+            },
+            State::Search => {
                 self.pages.search.on_render(
                     body,
                     buf,
@@ -589,19 +632,6 @@ impl App {
                     &mut self.shortcuts_page,
                 );
             }
-            Route::Settings => {
-                self.pages.settings.on_render(
-                    body,
-                    buf,
-                    &mut self.settings,
-                    &mut self.shortcuts_page,
-                );
-            }
-            Route::Logs => {
-                self.pages
-                    .logs
-                    .on_render(body, buf, colors, &mut self.shortcuts_page);
-            }
         }
     }
 
@@ -609,7 +639,6 @@ impl App {
         match self.route {
             Route::Tracks(id) => self.pages.tracks.on_enter(id, &self.database),
             Route::NowPlaying => self.pages.playing.on_enter(),
-            Route::Search => self.pages.search.on_enter(),
             Route::Settings => self.pages.settings.on_enter(),
             Route::Logs => self.pages.logs.on_enter(),
         }
@@ -619,39 +648,55 @@ impl App {
         match self.route {
             Route::Tracks(_) => self.pages.tracks.on_exit(),
             Route::NowPlaying => self.pages.playing.on_exit(),
-            Route::Search => self.pages.search.on_exit(),
             Route::Settings => self.pages.settings.on_exit(),
             Route::Logs => self.pages.logs.on_exit(),
         }
     }
 
     fn on_input(&mut self, key: KeyEvent) -> Action {
-        match self.route {
-            Route::Tracks(_) => self.pages.tracks.on_input(
-                key.code,
-                key.modifiers,
-                &mut self.database,
-                &mut self.jukebox,
-            ),
-            Route::NowPlaying => self.pages.playing.on_input(
-                key.code,
-                key.modifiers,
-                &mut self.database,
-                &mut self.jukebox,
-                self.screen_size,
-            ),
-            Route::Search => self.pages.search.on_input(
-                key.code,
-                key.modifiers,
-                &self.database,
-                &mut self.jukebox,
-            ),
-            Route::Settings => {
-                self.pages
-                    .settings
-                    .on_input(key.code, key.modifiers, &mut self.settings)
+        match self.state {
+            State::Route => match self.route {
+                Route::Tracks(_) => self.pages.tracks.on_input(
+                    key.code,
+                    key.modifiers,
+                    &mut self.database,
+                    &mut self.jukebox,
+                ),
+                Route::NowPlaying => self.pages.playing.on_input(
+                    key.code,
+                    key.modifiers,
+                    &mut self.database,
+                    &mut self.jukebox,
+                    self.screen_size,
+                ),
+                Route::Settings => {
+                    self.pages
+                        .settings
+                        .on_input(key.code, key.modifiers, &mut self.settings)
+                }
+                Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
+            },
+            State::Search => {
+                match self.pages.search.on_input(
+                    key.code,
+                    key.modifiers,
+                    &self.database,
+                    &mut self.jukebox,
+                ) {
+                    SearchAction::None => Action::None,
+                    SearchAction::Render => Action::Render,
+                    SearchAction::Goto(id) => {
+                        self.state = State::Route;
+                        self.pages.search.on_exit();
+                        Action::Route(Route::Tracks(id))
+                    }
+                    SearchAction::Done => {
+                        self.state = State::Route;
+                        self.pages.search.on_exit();
+                        Action::Render
+                    }
+                }
             }
-            Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
         }
     }
 }
@@ -668,7 +713,6 @@ fn render_navigation(
     for (route, name, spacing) in [
         (Route::Tracks(None), "Tracks", SPACING),
         (Route::NowPlaying, "Now Playing", SPACING),
-        (Route::Search, "Search", SPACING),
         (Route::Settings, "Settings", SPACING),
         (Route::Logs, "Logs", ""),
     ] {
@@ -795,7 +839,7 @@ fn fill_app_shortcuts(shortcuts: &mut Shortcuts) {
     shortcuts.extend([
         Shortcut::new("Quit", symbols::ESCAPE),
         Shortcut::new("Navigate", symbols::shift!("Tab")),
-        Shortcut::new("Search", "/"),
+        Shortcut::new("Find", symbols::ctrl!("f")),
     ]);
 }
 

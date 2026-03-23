@@ -22,7 +22,6 @@ pub struct Pages {
 pub enum Route {
     Tracks(Option<database::TrackId>),
     NowPlaying,
-    Search,
     Settings,
     Logs,
 }
@@ -31,8 +30,7 @@ impl Route {
     pub const fn next(self) -> Self {
         match self {
             Self::Tracks(_) => Self::NowPlaying,
-            Self::NowPlaying => Self::Search,
-            Self::Search => Self::Settings,
+            Self::NowPlaying => Self::Settings,
             Self::Settings => Self::Logs,
             Self::Logs => Self::Tracks(None),
         }
@@ -42,8 +40,7 @@ impl Route {
         match self {
             Self::Tracks(_) => Self::Logs,
             Self::NowPlaying => Self::Tracks(None),
-            Self::Search => Self::NowPlaying,
-            Self::Settings => Self::Search,
+            Self::Settings => Self::NowPlaying,
             Self::Logs => Self::Settings,
         }
     }

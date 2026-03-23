@@ -5,9 +5,9 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding},
 };
-
-use crate::{app::Action, pages::Route, settings::Colors, symbols};
 use widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles};
+
+use crate::{settings::Colors, symbols};
 
 // TODO: Add timer for searching?
 // Currently searching on every input, but should probably be a small timeout.
@@ -26,6 +26,13 @@ enum State {
     Browse,
 }
 
+pub enum SearchAction {
+    None,
+    Render,
+    Goto(Option<TrackId>),
+    Done,
+}
+
 impl SearchPage {
     pub const fn new() -> Self {
         Self {
@@ -40,16 +47,14 @@ impl SearchPage {
         }
     }
 
-    pub const fn set_search(&mut self) {
-        self.state = State::Search;
-    }
-
     pub const fn set_search_by_path(&mut self, value: bool) {
         self.include_path = value;
         self.is_dirty = true;
     }
 
-    pub fn on_enter(&self) {}
+    pub fn on_enter(&mut self) {
+        self.state = State::Search;
+    }
 
     pub fn on_render(
         &mut self,
@@ -83,7 +88,6 @@ impl SearchPage {
                         placeholder: neutral,
                     });
                     shortcuts.push(Shortcut::new("Browse", symbols::ENTER));
-
                     neutral
                 }
                 State::Browse => {
@@ -95,50 +99,48 @@ impl SearchPage {
                         Shortcut::new("Search", "s"),
                         Shortcut::new("Goto", "g"),
                     ]);
-
                     Style::new()
                 }
             }
         };
 
-        // Render search input
+        // Render input
         let search_line =
             Rect { height: 1, ..area }.centered_horizontally(Constraint::Percentage(64));
         self.search_input.render(search_line, buf);
 
-        // Update search results
+        // Update results
         self.update_search_results(db);
 
-        // Render search results
-        let search_results_area = Rect {
+        // Render results
+        let results_area = Rect {
             y: area.y + search_line.height + 1,
             height: area.height.saturating_sub(search_line.height + 1),
             ..area
         };
-        let search_results_block = Block::bordered()
+        let results_block = Block::bordered()
             .border_style(border_style)
             .padding(Padding::horizontal(1));
-        let search_results_inner = search_results_block.inner(search_results_area);
-        search_results_block.render(search_results_area, buf);
+        let results_inner = results_block.inner(results_area);
+        results_block.render(results_area, buf);
 
         // Title for bordered search results
         utils::format_int(self.search_results.len(), |len| {
             widgets::print_asciis(
                 Rect {
-                    y: search_results_area.y,
+                    y: results_area.y,
                     height: 1,
-                    ..search_results_inner
+                    ..results_inner
                 },
                 buf,
-                [" Search results (", len, ") "],
+                [" Search Results (", len, ") "],
                 border_style,
                 Some(widgets::Alignment::CenterHorizontal),
             );
         });
 
-        let current = jb.current_track_id();
         self.list.set_colors(colors.neutral, None).render(
-            search_results_inner,
+            results_inner,
             buf,
             self.search_results.iter().copied(),
             |line, buf, (id, _), item| {
@@ -147,23 +149,13 @@ impl SearchPage {
                 };
 
                 let mut style = match self.state {
-                    State::Search => {
-                        if current == Some(id) {
-                            Style::new().fg(colors.primary)
-                        } else {
-                            Style::new().fg(colors.neutral)
-                        }
-                    }
+                    State::Search => Style::new().fg(colors.neutral),
                     State::Browse => match item {
                         ListItem::Selected => Style::new().fg(colors.primary).reversed(),
                         ListItem::Selection => Style::new().fg(colors.neutral).reversed(),
                         ListItem::Normal => Style::new(),
                     },
                 };
-
-                if current == Some(id) {
-                    style.add_modifier.insert(Modifier::BOLD);
-                }
 
                 if jb.is_faulty(id) {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);
@@ -192,9 +184,9 @@ impl SearchPage {
         modifiers: KeyModifiers,
         db: &Database,
         jb: &mut Jukebox,
-    ) -> Action {
+    ) -> SearchAction {
         if db.is_empty() {
-            return Action::None;
+            return SearchAction::None;
         }
 
         match self.state {
@@ -203,7 +195,7 @@ impl SearchPage {
                     if !self.search_results.is_empty() {
                         self.list.reset();
                         self.state = State::Browse;
-                        return Action::Render;
+                        return SearchAction::Render;
                     }
                 }
                 KeyCode::Up => {}
@@ -212,7 +204,7 @@ impl SearchPage {
                     if self.search_input.input(key, modifiers) {
                         let hash_new = self.search_input.hash_trim();
                         self.is_dirty = hash_old != hash_new;
-                        return Action::Render;
+                        return SearchAction::Render;
                     }
                 }
             },
@@ -220,14 +212,15 @@ impl SearchPage {
                 KeyCode::Enter => {
                     if let Some((id, _)) = self.search_results.get(self.list.index()).copied() {
                         jb.play_id(id, db);
+                        return SearchAction::Done;
                     }
                 }
                 KeyCode::Up => {
                     if self.list.index() == 0 {
                         self.state = State::Search;
-                        return Action::Render;
+                        return SearchAction::Render;
                     } else if self.list.input(key, modifiers) {
-                        return Action::Render;
+                        return SearchAction::Render;
                     }
                 }
                 KeyCode::Char(c) => match c {
@@ -251,30 +244,33 @@ impl SearchPage {
                     'g' => {
                         let index = self.list.index();
                         let id = self.search_results.get(index).map(|(id, _)| *id);
-                        return Action::Route(Route::Tracks(id));
+                        return SearchAction::Goto(id);
                     }
-                    's' | '/' => {
+                    's' => {
                         self.state = State::Search;
-                        return Action::Render;
+                        return SearchAction::Render;
                     }
                     _ => {
                         if self.list.input(key, modifiers) {
-                            return Action::Render;
+                            return SearchAction::Render;
                         }
                     }
                 },
                 _ => {
                     if self.list.input(key, modifiers) {
-                        return Action::Render;
+                        return SearchAction::Render;
                     }
                 }
             },
         }
 
-        Action::None
+        SearchAction::None
     }
 
-    pub fn on_exit(&self) {}
+    pub fn on_exit(&mut self) {
+        self.search_input.clear();
+        self.search_results.clear();
+    }
 
     fn update_search_results(&mut self, db: &mut Database) {
         if !self.is_dirty {
