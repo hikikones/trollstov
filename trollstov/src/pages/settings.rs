@@ -449,7 +449,7 @@ struct ColorSetting(TextInput);
 
 impl ColorSetting {
     fn new(color: Color) -> Self {
-        let mut input = TextInput::from(color.to_string()).with_margins(2, 2);
+        let mut input = TextInput::from(color.to_string());
         input.move_cursor(CursorMove::End, false);
         Self(input)
     }

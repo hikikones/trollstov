@@ -43,8 +43,8 @@ impl List {
             index: 0,
             selector: None,
             scroll: 0,
-            margin_top: 0,
-            margin_bottom: 0,
+            margin_top: 2,
+            margin_bottom: 2,
             padding_bottom: 0,
             thumb_color: Color::Gray,
             track_color: Some(Color::DarkGray),
@@ -65,12 +65,6 @@ impl List {
 
     pub const fn with_padding(mut self, bottom: usize) -> Self {
         self.set_padding(bottom);
-        self
-    }
-
-    pub const fn set_colors(&mut self, thumb: Color, track: Option<Color>) -> &mut Self {
-        self.thumb_color = thumb;
-        self.track_color = track;
         self
     }
 
@@ -101,6 +95,12 @@ impl List {
                 }
             })
             .unwrap_or(self.index..=self.index)
+    }
+
+    pub const fn set_colors(&mut self, thumb: Color, track: Option<Color>) -> &mut Self {
+        self.thumb_color = thumb;
+        self.track_color = track;
+        self
     }
 
     pub const fn set_margins(&mut self, top: usize, bottom: usize) -> &mut Self {

@@ -49,8 +49,8 @@ impl TextInput {
             selector: None,
             scroll: 0,
             disabled: false,
-            margin_top: 0,
-            margin_bottom: 0,
+            margin_top: 2,
+            margin_bottom: 2,
             colors: TextInputColors::new(),
         }
     }
