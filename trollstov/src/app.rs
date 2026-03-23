@@ -342,7 +342,7 @@ impl App {
                     }
                 }
                 'l' => {
-                    if ctrl {
+                    if ctrl && !self.pages.logs.is_empty() {
                         match self.state {
                             State::Route => {
                                 self.state = State::Logs;
