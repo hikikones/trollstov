@@ -47,6 +47,7 @@ pub struct App {
 enum State {
     Route,
     Search,
+    Logs,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -252,6 +253,11 @@ impl App {
                     self.pages.search.on_exit();
                     return Action::Render;
                 }
+                State::Logs => {
+                    self.state = State::Route;
+                    self.pages.logs.on_exit();
+                    return Action::Render;
+                }
             },
             KeyCode::Up => {
                 if ctrl {
@@ -324,6 +330,31 @@ impl App {
                             State::Search => {
                                 self.state = State::Route;
                                 self.pages.search.on_exit();
+                            }
+                            State::Logs => {
+                                self.state = State::Search;
+                                self.pages.logs.on_exit();
+                            }
+                        }
+                        return Action::Render;
+                    } else {
+                        return self.on_input(key);
+                    }
+                }
+                'l' => {
+                    if ctrl {
+                        match self.state {
+                            State::Route => {
+                                self.state = State::Logs;
+                                self.pages.logs.on_enter();
+                            }
+                            State::Search => {
+                                self.state = State::Logs;
+                                self.pages.search.on_exit();
+                            }
+                            State::Logs => {
+                                self.state = State::Route;
+                                self.pages.logs.on_exit();
                             }
                         }
                         return Action::Render;
@@ -627,6 +658,11 @@ impl App {
                     &mut self.shortcuts,
                 );
             }
+            State::Logs => {
+                self.pages
+                    .logs
+                    .on_render(body, buf, colors, &mut self.shortcuts);
+            }
         }
     }
 
@@ -692,6 +728,7 @@ impl App {
                     }
                 }
             }
+            State::Logs => self.pages.logs.on_input(key.code, key.modifiers),
         }
     }
 }
