@@ -5,7 +5,7 @@ use ratatui::{
 };
 use widgets::{List, ListItem, Shortcut, Shortcuts};
 
-use crate::{app::Action, settings::Colors};
+use crate::settings::Colors;
 
 // TODO: LogLevel? ERROR/INFO.
 
@@ -16,6 +16,12 @@ pub struct LogsPage {
     horizontal_scroll: usize,
 }
 
+pub enum LogsAction {
+    None,
+    Render,
+    Done,
+}
+
 impl LogsPage {
     pub const fn new() -> Self {
         Self {
@@ -24,6 +30,10 @@ impl LogsPage {
             list: List::new(),
             horizontal_scroll: 0,
         }
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        self.logs.is_empty()
     }
 
     pub fn enqueue(&mut self, log: Log) {
@@ -104,15 +114,15 @@ impl LogsPage {
         shortcuts.push(Shortcut::new("Clear", "c"));
     }
 
-    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) -> Action {
+    pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) -> LogsAction {
         match key {
             KeyCode::Right => {
                 self.horizontal_scroll += 1;
-                return Action::Render;
+                return LogsAction::Render;
             }
             KeyCode::Left => {
                 self.horizontal_scroll = self.horizontal_scroll.saturating_sub(1);
-                return Action::Render;
+                return LogsAction::Render;
             }
             KeyCode::Char(c) => match c {
                 'c' => {
@@ -120,7 +130,7 @@ impl LogsPage {
                         self.logs.clear();
                         self.horizontal_scroll = 0;
                         self.list.set_index(0);
-                        return Action::Render;
+                        return LogsAction::Done;
                     }
                 }
                 _ => {}
@@ -128,12 +138,12 @@ impl LogsPage {
             _ => {
                 if self.list.input(key, KeyModifiers::empty()) {
                     self.horizontal_scroll = 0;
-                    return Action::Render;
+                    return LogsAction::Render;
                 }
             }
         }
 
-        Action::None
+        LogsAction::None
     }
 
     pub fn on_exit(&self) {}

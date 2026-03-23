@@ -14,8 +14,8 @@ use widgets::{Shortcut, Shortcuts, TextSegment};
 use crate::{
     events::{Event, EventHandler, MediaEvent, MediaPlayback},
     pages::{
-        Log, LogsPage, Pages, PlayingPage, Route, SearchAction, SearchPage, SettingsPage,
-        TracksPage,
+        Log, LogsAction, LogsPage, Pages, PlayingPage, Route, SearchAction, SearchPage,
+        SettingsPage, TracksPage,
     },
     settings::{Colors, Settings},
     symbols,
@@ -40,15 +40,14 @@ pub struct App {
     front_cover: FrontCover,
     front_cover_status: FrontCoverStatus,
     front_cover_handle: Option<FrontCoverHandle>,
-    text_segment: TextSegment,
-    shortcuts_page: Shortcuts,
-    shortcuts_play: Shortcuts,
-    shortcuts_app: Shortcuts,
+    text: TextSegment,
+    shortcuts: Shortcuts,
 }
 
 enum State {
     Route,
     Search,
+    Logs,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,10 +138,8 @@ impl App {
             front_cover: FrontCover(None),
             front_cover_status: FrontCoverStatus::None,
             front_cover_handle: None,
-            text_segment: TextSegment::new().with_alignment(Alignment::Center),
-            shortcuts_page: Shortcuts::new(),
-            shortcuts_play: Shortcuts::new(),
-            shortcuts_app: Shortcuts::new(),
+            text: TextSegment::new().with_alignment(Alignment::Center),
+            shortcuts: Shortcuts::new(),
         }
     }
 
@@ -256,6 +253,11 @@ impl App {
                     self.pages.search.on_exit();
                     return Action::Render;
                 }
+                State::Logs => {
+                    self.state = State::Route;
+                    self.pages.logs.on_exit();
+                    return Action::Render;
+                }
             },
             KeyCode::Up => {
                 if ctrl {
@@ -328,6 +330,33 @@ impl App {
                             State::Search => {
                                 self.state = State::Route;
                                 self.pages.search.on_exit();
+                            }
+                            State::Logs => {
+                                self.state = State::Search;
+                                self.pages.logs.on_exit();
+                                self.pages.search.on_enter();
+                            }
+                        }
+                        return Action::Render;
+                    } else {
+                        return self.on_input(key);
+                    }
+                }
+                'l' => {
+                    if ctrl && !self.pages.logs.is_empty() {
+                        match self.state {
+                            State::Route => {
+                                self.state = State::Logs;
+                                self.pages.logs.on_enter();
+                            }
+                            State::Search => {
+                                self.state = State::Logs;
+                                self.pages.search.on_exit();
+                                self.pages.logs.on_enter();
+                            }
+                            State::Logs => {
+                                self.state = State::Route;
+                                self.pages.logs.on_exit();
                             }
                         }
                         return Action::Render;
@@ -437,20 +466,9 @@ impl App {
             let area = frame.area();
             let buf = frame.buffer_mut();
 
-            let colors = &self.settings.colors().clone();
-
-            self.shortcuts_page
-                .set_colors(Color::Reset, colors.secondary)
-                .clear();
-            self.shortcuts_play
-                .set_colors(Color::Reset, colors.primary)
-                .clear();
-            self.shortcuts_app
-                .set_colors(Color::Reset, colors.primary)
-                .clear();
-
             const MARGIN: u16 = 1;
             self.screen_size = ScreenSize::from_rect(area);
+            let colors = &self.settings.colors().clone();
 
             match self.screen_size {
                 ScreenSize::Small => {
@@ -479,25 +497,20 @@ impl App {
                     .areas(area);
 
                     // Navigation
-                    render_navigation(
-                        nav_area,
-                        buf,
-                        &mut self.text_segment,
-                        self.route,
-                        &self.pages,
-                        colors,
-                    );
+                    render_navigation(nav_area, buf, &mut self.text, self.route, colors);
 
                     // Body
                     let body = body_area.inner(Margin::new(MARGIN, MARGIN));
+                    self.shortcuts.set_colors(Color::Reset, colors.secondary);
                     self.on_render(body, buf, colors);
-                    self.shortcuts_page.render(shortcuts_page_area, buf);
+                    self.shortcuts.render(shortcuts_page_area, buf);
+                    self.shortcuts.clear();
 
                     // Playback
                     render_playback(
                         playback_area,
                         buf,
-                        &mut self.text_segment,
+                        &mut self.text,
                         self.jukebox.current_track_pos(),
                         self.jukebox
                             .current_track_id()
@@ -507,10 +520,14 @@ impl App {
                     );
 
                     // Shortcuts
-                    fill_play_shortcuts(&mut self.shortcuts_play, self.jukebox.volume());
-                    fill_app_shortcuts(&mut self.shortcuts_app);
-                    self.shortcuts_play.render(shortcuts_play_area, buf);
-                    self.shortcuts_app.render(shortcuts_app_area, buf);
+                    self.shortcuts.set_colors(Color::Reset, colors.primary);
+                    fill_play_shortcuts(&mut self.shortcuts, self.jukebox.volume());
+                    self.shortcuts.render(shortcuts_play_area, buf);
+                    self.shortcuts.clear();
+
+                    fill_app_shortcuts(&mut self.shortcuts, &self.pages.logs);
+                    self.shortcuts.render(shortcuts_app_area, buf);
+                    self.shortcuts.clear();
                 }
                 ScreenSize::Large => {
                     // Layout
@@ -522,7 +539,7 @@ impl App {
                         shortcuts_page_area,
                         _,
                         playback_area,
-                        shortcuts_app_area,
+                        shortcuts_area,
                     ] = Layout::vertical([
                         Constraint::Length(1),
                         Constraint::Length(1),
@@ -545,28 +562,23 @@ impl App {
                     );
 
                     // Navigation
-                    render_navigation(
-                        nav_area,
-                        buf,
-                        &mut self.text_segment,
-                        self.route,
-                        &self.pages,
-                        colors,
-                    );
+                    render_navigation(nav_area, buf, &mut self.text, self.route, colors);
 
                     // Body
                     const MAX_WIDTH: u16 = 160;
                     let body = body_area
                         .centered_horizontally(Constraint::Length(MAX_WIDTH + MARGIN))
                         .inner(Margin::new(MARGIN, MARGIN));
+                    self.shortcuts.set_colors(Color::Reset, colors.secondary);
                     self.on_render(body, buf, colors);
-                    self.shortcuts_page.render(shortcuts_page_area, buf);
+                    self.shortcuts.render(shortcuts_page_area, buf);
+                    self.shortcuts.clear();
 
                     // Playback
                     render_playback(
                         playback_area,
                         buf,
-                        &mut self.text_segment,
+                        &mut self.text,
                         self.jukebox.current_track_pos(),
                         self.jukebox
                             .current_track_id()
@@ -576,9 +588,11 @@ impl App {
                     );
 
                     // Shortcuts
-                    fill_app_shortcuts(&mut self.shortcuts_app);
-                    fill_play_shortcuts(&mut self.shortcuts_app, self.jukebox.volume());
-                    self.shortcuts_app.render(shortcuts_app_area, buf);
+                    self.shortcuts.set_colors(Color::Reset, colors.primary);
+                    fill_app_shortcuts(&mut self.shortcuts, &self.pages.logs);
+                    fill_play_shortcuts(&mut self.shortcuts, self.jukebox.volume());
+                    self.shortcuts.render(shortcuts_area, buf);
+                    self.shortcuts.clear();
                 }
             }
         })
@@ -594,7 +608,7 @@ impl App {
                         &self.database,
                         &self.jukebox,
                         colors,
-                        &mut self.shortcuts_page,
+                        &mut self.shortcuts,
                     );
                 }
                 Route::NowPlaying => {
@@ -607,7 +621,7 @@ impl App {
                         &mut self.front_cover,
                         self.front_cover_status,
                         colors,
-                        &mut self.shortcuts_page,
+                        &mut self.shortcuts,
                     );
                 }
                 Route::Settings => {
@@ -615,13 +629,8 @@ impl App {
                         body,
                         buf,
                         &mut self.settings,
-                        &mut self.shortcuts_page,
+                        &mut self.shortcuts,
                     );
-                }
-                Route::Logs => {
-                    self.pages
-                        .logs
-                        .on_render(body, buf, colors, &mut self.shortcuts_page);
                 }
             },
             State::Search => {
@@ -631,8 +640,13 @@ impl App {
                     &mut self.database,
                     &mut self.jukebox,
                     colors,
-                    &mut self.shortcuts_page,
+                    &mut self.shortcuts,
                 );
+            }
+            State::Logs => {
+                self.pages
+                    .logs
+                    .on_render(body, buf, colors, &mut self.shortcuts);
             }
         }
     }
@@ -642,7 +656,6 @@ impl App {
             Route::Tracks(id) => self.pages.tracks.on_enter(id, &self.database),
             Route::NowPlaying => self.pages.playing.on_enter(),
             Route::Settings => self.pages.settings.on_enter(),
-            Route::Logs => self.pages.logs.on_enter(),
         }
     }
 
@@ -651,7 +664,6 @@ impl App {
             Route::Tracks(_) => self.pages.tracks.on_exit(),
             Route::NowPlaying => self.pages.playing.on_exit(),
             Route::Settings => self.pages.settings.on_exit(),
-            Route::Logs => self.pages.logs.on_exit(),
         }
     }
 
@@ -676,7 +688,6 @@ impl App {
                         .settings
                         .on_input(key.code, key.modifiers, &mut self.settings)
                 }
-                Route::Logs => self.pages.logs.on_input(key.code, key.modifiers),
             },
             State::Search => {
                 match self.pages.search.on_input(
@@ -699,6 +710,15 @@ impl App {
                     }
                 }
             }
+            State::Logs => match self.pages.logs.on_input(key.code, key.modifiers) {
+                LogsAction::None => Action::None,
+                LogsAction::Render => Action::Render,
+                LogsAction::Done => {
+                    self.state = State::Route;
+                    self.pages.logs.on_exit();
+                    Action::Render
+                }
+            },
         }
     }
 }
@@ -708,15 +728,13 @@ fn render_navigation(
     buf: &mut Buffer,
     text: &mut TextSegment,
     current_route: Route,
-    pages: &Pages,
     colors: &Colors,
 ) {
     const SPACING: &str = "   ";
     for (route, name, spacing) in [
         (Route::Tracks(None), "Tracks", SPACING),
         (Route::NowPlaying, "Now Playing", SPACING),
-        (Route::Settings, "Settings", SPACING),
-        (Route::Logs, "Logs", ""),
+        (Route::Settings, "Settings", ""),
     ] {
         let is_current = std::mem::discriminant(&route) == std::mem::discriminant(&current_route);
         let style = if is_current {
@@ -724,17 +742,7 @@ fn render_navigation(
         } else {
             Style::new()
         };
-
-        text.push_str(name, style);
-        if route == Route::Logs {
-            let new_logs = pages.logs.queue_len();
-            if new_logs > 0 {
-                utils::format_int(new_logs, |new_logs| {
-                    text.extend([("(", style), (new_logs, style), (")", style)]);
-                });
-            }
-        }
-        text.push_str(spacing, Style::new());
+        text.extend([(name, style), (spacing, Style::new())]);
     }
 
     text.render(line, buf);
@@ -848,12 +856,23 @@ fn fill_play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
     });
 }
 
-fn fill_app_shortcuts(shortcuts: &mut Shortcuts) {
+fn fill_app_shortcuts(shortcuts: &mut Shortcuts, logs: &LogsPage) {
     shortcuts.extend([
         Shortcut::new("Quit", symbols::ESCAPE),
         Shortcut::new("Navigate", symbols::shift!("Tab")),
         Shortcut::new("Find", symbols::ctrl!("f")),
     ]);
+
+    if !logs.is_empty() {
+        let new_logs = logs.queue_len();
+        if new_logs > 0 {
+            utils::format_int(new_logs, |new_logs| {
+                shortcuts.push_iter(["Logs(", new_logs, ")"], symbols::ctrl!("l"));
+            });
+        } else {
+            shortcuts.push(Shortcut::new("Logs", symbols::ctrl!("l")));
+        }
+    }
 }
 
 fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {

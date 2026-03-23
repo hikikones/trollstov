@@ -23,7 +23,6 @@ pub enum Route {
     Tracks(Option<database::TrackId>),
     NowPlaying,
     Settings,
-    Logs,
 }
 
 impl Route {
@@ -31,17 +30,15 @@ impl Route {
         match self {
             Self::Tracks(_) => Self::NowPlaying,
             Self::NowPlaying => Self::Settings,
-            Self::Settings => Self::Logs,
-            Self::Logs => Self::Tracks(None),
+            Self::Settings => Self::Tracks(None),
         }
     }
 
     pub const fn prev(self) -> Self {
         match self {
-            Self::Tracks(_) => Self::Logs,
+            Self::Tracks(_) => Self::Settings,
             Self::NowPlaying => Self::Tracks(None),
             Self::Settings => Self::NowPlaying,
-            Self::Logs => Self::Settings,
         }
     }
 }
