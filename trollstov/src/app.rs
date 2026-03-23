@@ -440,13 +440,13 @@ impl App {
             let colors = &self.settings.colors().clone();
 
             self.shortcuts_page
-                .set_colors(Color::Reset, colors.primary)
+                .set_colors(Color::Reset, colors.secondary)
                 .clear();
             self.shortcuts_play
-                .set_colors(colors.neutral, colors.primary)
+                .set_colors(Color::Reset, colors.primary)
                 .clear();
             self.shortcuts_app
-                .set_colors(colors.neutral, colors.primary)
+                .set_colors(Color::Reset, colors.primary)
                 .clear();
 
             const MARGIN: u16 = 1;
@@ -503,6 +503,7 @@ impl App {
                             .current_track_id()
                             .and_then(|id| self.database.get(id)),
                         colors,
+                        self.jukebox.is_paused(),
                     );
 
                     // Shortcuts
@@ -571,6 +572,7 @@ impl App {
                             .current_track_id()
                             .and_then(|id| self.database.get(id)),
                         colors,
+                        self.jukebox.is_paused(),
                     );
 
                     // Shortcuts
@@ -746,9 +748,14 @@ fn render_playback(
     audio_position: Duration,
     track: Option<&Track>,
     colors: &Colors,
+    is_paused: bool,
 ) {
-    let primary = Style::new().fg(colors.primary);
-    let neutral = Style::new().fg(colors.neutral);
+    let normal_style = if track.is_none() || is_paused {
+        Style::new().fg(colors.neutral)
+    } else {
+        Style::new()
+    };
+    let highlight_style = Style::new().fg(colors.primary);
 
     let title_line = Rect { height: 1, ..area };
     let status_line = Rect {
@@ -763,54 +770,60 @@ fn render_playback(
     match track {
         Some(track) => {
             // Title
-            text.extend_as_one(["[", track.extension().as_upper_case()], neutral);
+            text.extend_as_one(["[", track.extension().as_upper_case()], normal_style);
 
             if let Some(bit_depth) = track.bit_depth()
                 && let Some(sample_rate) = track.sample_rate()
             {
                 utils::format_int(bit_depth, |bit_depth| {
-                    text.extend_as_one([" ", bit_depth, "bit/"], neutral);
+                    text.extend_as_one([" ", bit_depth, "bit/"], normal_style);
                 });
                 utils::format_int(sample_rate, |sample_rate| {
-                    text.extend_as_one([sample_rate, "kHz"], neutral);
+                    text.extend_as_one([sample_rate, "kHz"], normal_style);
                 });
             }
 
             utils::format_int(track.bit_rate(), |bit_rate| {
-                text.extend_as_one([" ", bit_rate, "kbps] "], neutral);
+                text.extend_as_one([" ", bit_rate, "kbps] "], normal_style);
             });
 
-            text.push_str(track.artist(), neutral);
+            text.push_str(track.artist(), normal_style);
             if !(track.artist().is_empty() || track.title().is_empty()) {
-                text.push_str(" - ", neutral);
+                text.push_str(" - ", normal_style);
             }
-            text.push_str(track.title(), neutral);
+            text.push_str(track.title(), normal_style);
 
             text.render(title_line, buf);
             text.clear();
 
             // Status
-            text.push_chars(&utils::format_duration_on_stack(audio_position), neutral);
+            text.push_chars(
+                &utils::format_duration_on_stack(audio_position),
+                normal_style,
+            );
             text.push_char(' ', Style::new());
 
             let progress = audio_position.as_secs_f32() / track.duration().as_secs_f32();
             let max_highlight_bound = (status_width as f32 * progress) as u16;
             for i in 0..status_width {
                 let (ch, style) = if i <= max_highlight_bound {
-                    (progress_highlight_ch, primary)
+                    (progress_highlight_ch, highlight_style)
                 } else {
-                    (progress_ch, neutral)
+                    (progress_ch, normal_style)
                 };
                 text.push_char(ch, style);
             }
 
             text.push_char(' ', Style::new());
-            text.push_chars(&utils::format_duration_on_stack(track.duration()), neutral);
+            text.push_chars(
+                &utils::format_duration_on_stack(track.duration()),
+                normal_style,
+            );
         }
         None => {
-            text.push_str("00:00 ", neutral);
-            text.repeat_char(progress_ch, status_width as usize, neutral);
-            text.push_str(" 00:00", neutral);
+            text.push_str("00:00 ", normal_style);
+            text.repeat_char(progress_ch, status_width as usize, normal_style);
+            text.push_str(" 00:00", normal_style);
         }
     }
 

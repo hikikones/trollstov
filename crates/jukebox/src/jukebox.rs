@@ -55,6 +55,10 @@ impl Jukebox {
         self.queue.is_empty()
     }
 
+    pub fn is_paused(&self) -> bool {
+        self.player.is_paused()
+    }
+
     pub fn is_faulty(&self, id: TrackId) -> bool {
         self.faulty.contains(&id)
     }
