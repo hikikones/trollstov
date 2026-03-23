@@ -685,7 +685,11 @@ impl App {
                 ) {
                     SearchAction::None => Action::None,
                     SearchAction::Render => Action::Render,
-                    SearchAction::Goto(id) => Action::Route(Route::Tracks(id)),
+                    SearchAction::Goto(id) => {
+                        self.state = State::Page;
+                        self.pages.search.on_exit();
+                        Action::Route(Route::Tracks(id))
+                    }
                     SearchAction::Done => {
                         self.state = State::Page;
                         self.pages.search.on_exit();
