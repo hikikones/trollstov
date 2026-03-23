@@ -839,7 +839,7 @@ fn fill_app_shortcuts(shortcuts: &mut Shortcuts) {
     shortcuts.extend([
         Shortcut::new("Quit", symbols::ESCAPE),
         Shortcut::new("Navigate", symbols::shift!("Tab")),
-        Shortcut::new("Search", "/"),
+        Shortcut::new("Find", symbols::ctrl!("f")),
     ]);
 }
 
