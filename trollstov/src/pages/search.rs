@@ -139,7 +139,6 @@ impl SearchPage {
             );
         });
 
-        let current = jb.current_track_id();
         self.list.set_colors(colors.neutral, None).render(
             results_inner,
             buf,
@@ -150,23 +149,13 @@ impl SearchPage {
                 };
 
                 let mut style = match self.state {
-                    State::Search => {
-                        if current == Some(id) {
-                            Style::new().fg(colors.primary)
-                        } else {
-                            Style::new().fg(colors.neutral)
-                        }
-                    }
+                    State::Search => Style::new().fg(colors.neutral),
                     State::Browse => match item {
                         ListItem::Selected => Style::new().fg(colors.primary).reversed(),
                         ListItem::Selection => Style::new().fg(colors.neutral).reversed(),
                         ListItem::Normal => Style::new(),
                     },
                 };
-
-                if current == Some(id) {
-                    style.add_modifier.insert(Modifier::BOLD);
-                }
 
                 if jb.is_faulty(id) {
                     style.add_modifier.insert(Modifier::CROSSED_OUT);
