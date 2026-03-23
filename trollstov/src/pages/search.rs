@@ -88,7 +88,6 @@ impl SearchPage {
                         placeholder: neutral,
                     });
                     shortcuts.push(Shortcut::new("Browse", symbols::ENTER));
-
                     neutral
                 }
                 State::Browse => {
@@ -100,42 +99,41 @@ impl SearchPage {
                         Shortcut::new("Search", "s"),
                         Shortcut::new("Goto", "g"),
                     ]);
-
                     Style::new()
                 }
             }
         };
 
-        // Render search input
+        // Render input
         let search_line =
             Rect { height: 1, ..area }.centered_horizontally(Constraint::Percentage(64));
         self.search_input.render(search_line, buf);
 
-        // Update search results
+        // Update results
         self.update_search_results(db);
 
-        // Render search results
-        let search_results_area = Rect {
+        // Render results
+        let results_area = Rect {
             y: area.y + search_line.height + 1,
             height: area.height.saturating_sub(search_line.height + 1),
             ..area
         };
-        let search_results_block = Block::bordered()
+        let results_block = Block::bordered()
             .border_style(border_style)
             .padding(Padding::horizontal(1));
-        let search_results_inner = search_results_block.inner(search_results_area);
-        search_results_block.render(search_results_area, buf);
+        let results_inner = results_block.inner(results_area);
+        results_block.render(results_area, buf);
 
         // Title for bordered search results
         utils::format_int(self.search_results.len(), |len| {
             widgets::print_asciis(
                 Rect {
-                    y: search_results_area.y,
+                    y: results_area.y,
                     height: 1,
-                    ..search_results_inner
+                    ..results_inner
                 },
                 buf,
-                [" Search results (", len, ") "],
+                [" Search Results (", len, ") "],
                 border_style,
                 Some(widgets::Alignment::CenterHorizontal),
             );
@@ -143,7 +141,7 @@ impl SearchPage {
 
         let current = jb.current_track_id();
         self.list.set_colors(colors.neutral, None).render(
-            search_results_inner,
+            results_inner,
             buf,
             self.search_results.iter().copied(),
             |line, buf, (id, _), item| {
@@ -259,7 +257,7 @@ impl SearchPage {
                         let id = self.search_results.get(index).map(|(id, _)| *id);
                         return SearchAction::Goto(id);
                     }
-                    's' | '/' => {
+                    's' => {
                         self.state = State::Search;
                         return SearchAction::Render;
                     }

@@ -74,7 +74,7 @@ impl TracksPage {
                     ..tracks_area
                 },
                 buf,
-                [" All tracks (", len, ") "],
+                [" All Tracks (", len, ") "],
                 Style::new(),
                 Some(widgets::Alignment::CenterHorizontal),
             );
