@@ -334,6 +334,7 @@ impl App {
                             State::Logs => {
                                 self.state = State::Search;
                                 self.pages.logs.on_exit();
+                                self.pages.search.on_enter();
                             }
                         }
                         return Action::Render;
@@ -351,6 +352,7 @@ impl App {
                             State::Search => {
                                 self.state = State::Logs;
                                 self.pages.search.on_exit();
+                                self.pages.logs.on_enter();
                             }
                             State::Logs => {
                                 self.state = State::Route;
