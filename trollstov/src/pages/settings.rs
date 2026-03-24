@@ -7,7 +7,7 @@ use ratatui::{
     widgets::{Block, Padding},
 };
 use widgets::{
-    CursorMove, List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles, TextSegment,
+    CursorMove, List, ListItem, Shortcut, Shortcuts, TextInput, TextInputColors, TextSegment,
 };
 
 use crate::{
@@ -322,6 +322,7 @@ impl SettingsPage {
                     if ctrl {
                         *settings = self.default.clone();
                         self.primary.reset_with(settings.primary());
+                        self.secondary.reset_with(settings.secondary());
                         self.neutral.reset_with(settings.neutral());
                         self.update_is_saved(settings);
                         return Action::ApplySettings;
@@ -448,7 +449,7 @@ struct ColorSetting(TextInput);
 
 impl ColorSetting {
     fn new(color: Color) -> Self {
-        let mut input = TextInput::from(color.to_string()).with_margins(2, 2);
+        let mut input = TextInput::from(color.to_string());
         input.move_cursor(CursorMove::End, false);
         Self(input)
     }
@@ -459,17 +460,13 @@ impl ColorSetting {
     }
 
     const fn set_active(&mut self, active: bool, colors: &Colors) {
-        let styles = if active {
-            TextInputStyles {
-                normal: Style::new(),
-                cursor: Style::new().fg(colors.primary).reversed(),
-                selector: Style::new().fg(colors.neutral).reversed(),
-                placeholder: Style::new(),
-            }
-        } else {
-            TextInputStyles::all(Style::new())
-        };
-        self.0.set_styles(styles);
+        self.0.set_disabled(!active).set_colors(TextInputColors {
+            normal: Color::Reset,
+            cursor: colors.primary,
+            selector: colors.neutral,
+            placeholder: colors.neutral,
+            disabled: colors.neutral,
+        });
     }
 
     fn input(&mut self, key: KeyCode, modifiers: KeyModifiers) -> bool {

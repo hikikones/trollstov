@@ -39,14 +39,16 @@ impl EventHandler {
         Ok(self.receiver.recv()?)
     }
 
-    pub fn try_establish_media_controls(
-        &mut self,
-        dbus_name: &str,
-        display_name: &str,
-    ) -> Result<(), String> {
+    pub fn try_establish_media_controls(&mut self) -> Result<(), String> {
         let config = souvlaki::PlatformConfig {
-            display_name,
-            dbus_name,
+            display_name: crate::APP_NAME,
+            dbus_name: crate::symbols::concat!(
+                crate::APP_QUALIFIER,
+                ".",
+                crate::APP_ORGANIZATION,
+                ".",
+                crate::APP_NAME
+            ),
             hwnd: None,
         };
 

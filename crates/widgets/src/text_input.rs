@@ -16,9 +16,10 @@ pub struct TextInput {
     cursor: usize,
     selector: Option<usize>,
     scroll: usize,
+    disabled: bool,
     margin_top: usize,
     margin_bottom: usize,
-    styles: TextInputStyles,
+    colors: TextInputColors,
 }
 
 pub enum CursorMove {
@@ -47,14 +48,20 @@ impl TextInput {
             cursor: 0,
             selector: None,
             scroll: 0,
-            margin_top: 0,
-            margin_bottom: 0,
-            styles: TextInputStyles::new(),
+            disabled: false,
+            margin_top: 2,
+            margin_bottom: 2,
+            colors: TextInputColors::new(),
         }
     }
 
     pub const fn with_placeholder(mut self, s: &'static str) -> Self {
         self.placeholder = s;
+        self
+    }
+
+    pub const fn with_colors(mut self, colors: TextInputColors) -> Self {
+        self.set_colors(colors);
         self
     }
 
@@ -64,8 +71,13 @@ impl TextInput {
         self
     }
 
-    pub const fn set_styles(&mut self, styles: TextInputStyles) -> &mut Self {
-        self.styles = styles;
+    pub const fn set_colors(&mut self, colors: TextInputColors) -> &mut Self {
+        self.colors = colors;
+        self
+    }
+
+    pub const fn set_disabled(&mut self, value: bool) -> &mut Self {
+        self.disabled = value;
         self
     }
 
@@ -86,6 +98,10 @@ impl TextInput {
     }
 
     pub fn input(&mut self, key_pressed: KeyCode, key_modifiers: KeyModifiers) -> bool {
+        if self.disabled {
+            return false;
+        }
+
         let ctrl = key_modifiers.contains(KeyModifiers::CONTROL);
         let shift = key_modifiers.contains(KeyModifiers::SHIFT);
 
@@ -219,10 +235,16 @@ impl TextInput {
     }
 
     pub fn render(&mut self, line: Rect, buf: &mut Buffer) {
+        if self.disabled {
+            let Rect { x, y, .. } = line;
+            buf.set_string(x, y, self.input.as_str(), self.colors.disabled);
+            return;
+        }
+
         if self.input.is_empty() {
             let Rect { x, y, .. } = line;
-            buf.set_string(x, y, self.placeholder, self.styles.placeholder);
-            buf[(x, y)].set_style(self.styles.cursor);
+            buf.set_string(x, y, self.placeholder, self.colors.placeholder);
+            buf[(x, y)].set_style(Style::new().fg(self.colors.cursor).reversed());
             return;
         }
 
@@ -254,11 +276,11 @@ impl TextInput {
                 let is_cursor = i == self.cursor;
                 let is_selected = selection.contains(&i);
                 let style = if is_cursor {
-                    self.styles.cursor
+                    Style::new().fg(self.colors.cursor).reversed()
                 } else if is_selected {
-                    self.styles.selector
+                    Style::new().fg(self.colors.selector).reversed()
                 } else {
-                    self.styles.normal
+                    Style::new().fg(self.colors.normal)
                 };
                 (x, _) = buf.set_stringn(x, y, g, grapheme_width, style);
             }
@@ -267,7 +289,7 @@ impl TextInput {
         if self.cursor == self.input.len()
             && let Some(cell) = buf.cell_mut((x, y))
         {
-            cell.set_style(self.styles.cursor);
+            cell.set_style(Style::new().fg(self.colors.cursor).reversed());
         }
     }
 
@@ -299,34 +321,37 @@ impl TextInput {
     }
 }
 
-pub struct TextInputStyles {
-    pub normal: Style,
-    pub cursor: Style,
-    pub selector: Style,
-    pub placeholder: Style,
+pub struct TextInputColors {
+    pub normal: Color,
+    pub cursor: Color,
+    pub selector: Color,
+    pub placeholder: Color,
+    pub disabled: Color,
 }
 
-impl TextInputStyles {
+impl TextInputColors {
     pub const fn new() -> Self {
         Self {
-            normal: Style::new(),
-            cursor: Style::new().bg(Color::White).fg(Color::Black),
-            selector: Style::new().bg(Color::DarkGray).fg(Color::Gray),
-            placeholder: Style::new().fg(Color::DarkGray).italic(),
+            normal: Color::Reset,
+            cursor: Color::White,
+            selector: Color::DarkGray,
+            placeholder: Color::DarkGray,
+            disabled: Color::DarkGray,
         }
     }
 
-    pub const fn all(style: Style) -> Self {
+    pub const fn all(color: Color) -> Self {
         Self {
-            normal: style,
-            cursor: style,
-            selector: style,
-            placeholder: style,
+            normal: color,
+            cursor: color,
+            selector: color,
+            placeholder: color,
+            disabled: color,
         }
     }
 }
 
-impl Default for TextInputStyles {
+impl Default for TextInputColors {
     fn default() -> Self {
         Self::new()
     }

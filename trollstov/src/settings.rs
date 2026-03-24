@@ -210,8 +210,12 @@ impl Colors {
 }
 
 fn get_config_dir() -> Option<PathBuf> {
-    directories::ProjectDirs::from("org", "hikikones", crate::APP_NAME)
-        .map(|project_dirs| project_dirs.config_dir().to_path_buf())
+    directories::ProjectDirs::from(
+        crate::APP_QUALIFIER,
+        crate::APP_ORGANIZATION,
+        crate::APP_NAME,
+    )
+    .map(|project_dirs| project_dirs.config_dir().to_path_buf())
 }
 
 fn _readable_fg(mut bg: Color) -> Option<Color> {

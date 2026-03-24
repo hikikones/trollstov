@@ -5,7 +5,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding},
 };
-use widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputStyles};
+use widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputColors};
 
 use crate::{settings::Colors, symbols};
 
@@ -37,9 +37,7 @@ impl SearchPage {
     pub const fn new() -> Self {
         Self {
             state: State::Search,
-            search_input: TextInput::new()
-                .with_placeholder("Search...")
-                .with_margins(2, 2),
+            search_input: TextInput::new().with_placeholder("Search..."),
             search_results: Vec::new(),
             include_path: false,
             list: List::new(),
@@ -78,20 +76,21 @@ impl SearchPage {
 
         // Determine colors and shortcuts for search input and results
         let (border_style, border_text_color) = {
-            let neutral = Style::new().fg(colors.neutral);
             match self.state {
                 State::Search => {
-                    self.search_input.set_styles(TextInputStyles {
-                        normal: Style::new(),
-                        cursor: Style::new().fg(colors.primary).reversed(),
-                        selector: Style::new().fg(colors.neutral).reversed(),
-                        placeholder: neutral,
+                    self.search_input.set_colors(TextInputColors {
+                        normal: Color::Reset,
+                        cursor: colors.primary,
+                        selector: colors.neutral,
+                        placeholder: colors.neutral,
+                        disabled: colors.neutral,
                     });
                     shortcuts.push(Shortcut::new("Browse", symbols::ENTER));
-                    (neutral, colors.neutral)
+                    (Style::new().fg(colors.neutral), colors.neutral)
                 }
                 State::Browse => {
-                    self.search_input.set_styles(TextInputStyles::all(neutral));
+                    self.search_input
+                        .set_colors(TextInputColors::all(colors.neutral));
                     shortcuts.extend([
                         Shortcut::new("Play", symbols::ENTER),
                         Shortcut::new("Add to queue", "q"),

@@ -115,6 +115,10 @@ impl LogsPage {
     }
 
     pub fn on_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) -> LogsAction {
+        if self.logs.is_empty() {
+            return LogsAction::None;
+        }
+
         match key {
             KeyCode::Right => {
                 self.horizontal_scroll += 1;
@@ -126,12 +130,10 @@ impl LogsPage {
             }
             KeyCode::Char(c) => match c {
                 'c' => {
-                    if !self.logs.is_empty() {
-                        self.logs.clear();
-                        self.horizontal_scroll = 0;
-                        self.list.set_index(0);
-                        return LogsAction::Done;
-                    }
+                    self.logs.clear();
+                    self.horizontal_scroll = 0;
+                    self.list.set_index(0);
+                    return LogsAction::Done;
                 }
                 _ => {}
             },

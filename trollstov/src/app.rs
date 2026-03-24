@@ -104,10 +104,7 @@ impl App {
 
         let mut events = EventHandler::new();
         if mpris {
-            match events.try_establish_media_controls(
-                symbols::concat!("org.hikikones.", crate::APP_NAME),
-                crate::APP_NAME,
-            ) {
+            match events.try_establish_media_controls() {
                 Ok(_) => {}
                 Err(err) => {
                     let log = Log::new(err);

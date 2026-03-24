@@ -27,11 +27,6 @@ impl TracksPage {
         self.keep_on_sort = value;
     }
 
-    fn is_index_current(&self, db: &Database, jb: &Jukebox) -> bool {
-        let current = jb.current_track_id();
-        current.is_none() || current == db.get_id_from_index(self.list.index())
-    }
-
     pub fn on_enter(&mut self, id: Option<TrackId>, db: &Database) {
         if let Some(id) = id
             && let Some(index) = db.get_index_from_id(id)
@@ -93,11 +88,6 @@ impl TracksPage {
             Shortcut::new("Rating", "0-5"),
             Shortcut::new("Sort", symbols::shift!("s")),
         ]);
-
-        // Add goto when currently playing track is not selected
-        if !self.is_index_current(db, jb) {
-            shortcuts.push(Shortcut::new("Goto", "g"));
-        }
     }
 
     pub fn on_input(
@@ -152,16 +142,6 @@ impl TracksPage {
                         self.list.move_index(ListMove::Custom(i), false);
                     }
                     return Action::Render;
-                }
-                'g' | 'G' => {
-                    if !self.is_index_current(db, jb)
-                        && let Some(id) = jb.current_track_id()
-                        && let Some(index) = db.get_index_from_id(id)
-                    {
-                        let shift = modifiers.contains(KeyModifiers::SHIFT);
-                        self.list.move_index(ListMove::Custom(index), shift);
-                        return Action::Render;
-                    }
                 }
                 _ => {
                     if self.list.input(key, modifiers) {
