@@ -479,14 +479,14 @@ impl AudioProperties {
     }
 }
 
-pub struct AudioPicture(TaggedFile);
+pub struct AudioFrontCover(TaggedFile);
 
-impl AudioPicture {
+impl AudioFrontCover {
     pub fn read(audio_file: impl AsRef<Path>) -> Result<Self, AudioFileReport> {
         let path = audio_file.as_ref();
         let tagged_file = lofty::read_from_path(path).map_err(|err| {
             AudioFileReport(format!(
-                "Failed to read \"{}\" due to {}",
+                "Failed to read front cover from \"{}\" due to {}",
                 path.display(),
                 err
             ))
@@ -494,12 +494,17 @@ impl AudioPicture {
         Ok(Self(tagged_file))
     }
 
-    pub fn bytes(&self) -> Option<&[u8]> {
+    pub fn bytes_and_mime_type(&self) -> Option<(&[u8], MimeType)> {
         self.0
             .primary_tag()
             .or_else(|| self.0.first_tag())
             .and_then(|tag| tag.get_picture_type(PictureType::CoverFront))
-            .map(|pic| pic.data())
+            .and_then(|pic| pic.mime_type().zip(Some(pic.data())))
+            .and_then(|(mime, data)| match mime {
+                lofty::picture::MimeType::Jpeg => Some((data, MimeType::Jpeg)),
+                lofty::picture::MimeType::Png => Some((data, MimeType::Png)),
+                _ => None,
+            })
     }
 }
 
@@ -545,6 +550,11 @@ impl AudioFileExtension {
             Self::Mp3 => "MP3",
         }
     }
+}
+
+pub enum MimeType {
+    Jpeg,
+    Png,
 }
 
 #[derive(Debug)]

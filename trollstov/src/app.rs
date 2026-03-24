@@ -874,27 +874,32 @@ fn fill_app_shortcuts(shortcuts: &mut Shortcuts, logs: &LogsPage) {
 
 fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
     std::thread::spawn(move || {
-        let picture = audio::AudioPicture::read(&path)?;
+        let picture = audio::AudioFrontCover::read(&path)?;
 
-        let Some(bytes) = picture.bytes() else {
+        let Some((bytes, mime_type)) = picture.bytes_and_mime_type() else {
             return Ok(FrontCover(None));
         };
 
+        let image_format = match mime_type {
+            audio::MimeType::Jpeg => image::ImageFormat::Jpeg,
+            audio::MimeType::Png => image::ImageFormat::Png,
+        };
+
+        let mut image =
+            image::load_from_memory_with_format(bytes, image_format).map_err(|err| {
+                format!(
+                    "Failed to load front cover image from \"{}\" due to {}",
+                    path.display(),
+                    err
+                )
+            })?;
+
         const MAX_RES: u32 = 1080;
-
-        let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
-            format!(
-                "Failed to load front cover image for \"{}\" due to {}",
-                path.display(),
-                err
-            )
-        })?;
-
-        let (w, h) = dyn_img.dimensions();
+        let (w, h) = image.dimensions();
         if w > MAX_RES || h > MAX_RES {
-            dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
+            image = image.thumbnail(MAX_RES, MAX_RES);
         }
 
-        Ok(FrontCover(Some(picker.new_resize_protocol(dyn_img))))
+        Ok(FrontCover(Some(picker.new_resize_protocol(image))))
     })
 }
