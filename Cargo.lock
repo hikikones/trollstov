@@ -3811,6 +3811,7 @@ name = "trollstov"
 version = "0.1.0"
 dependencies = [
  "audio",
+ "base64",
  "clap",
  "clap-cargo",
  "constcat",

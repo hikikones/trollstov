@@ -12,6 +12,7 @@ categories = ["audio", "command-line-utilities", "multimedia"]
 
 [dependencies]
 audio = { workspace = true }
+base64 = { workspace = true }
 clap = { workspace = true }
 clap-cargo = { workspace = true }
 constcat = { workspace = true }

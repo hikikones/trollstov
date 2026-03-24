@@ -24,7 +24,7 @@ use crate::{
 
 // TODO: Add a dynamic playlist page for artists/albums/genres and filtering.
 
-type FrontCoverHandle = std::thread::JoinHandle<Result<FrontCover, String>>;
+type FrontCoverHandle = std::thread::JoinHandle<Result<(FrontCover, CoverUrl), String>>;
 
 pub struct App {
     running: bool,
@@ -74,6 +74,8 @@ impl FrontCover {
         self.0.as_mut()
     }
 }
+
+struct CoverUrl(Option<String>);
 
 #[derive(Clone, Copy)]
 pub enum FrontCoverStatus {
@@ -397,13 +399,14 @@ impl App {
                             // Start loading front cover image
                             let path = track.path().to_path_buf();
                             let picker = self.picker.clone();
-                            let handle = load_front_cover(path, picker);
+                            let mpris = self.events.has_media_controls();
+                            let handle = load_front_cover(path, picker, mpris);
                             self.front_cover_handle = Some(handle);
                             self.front_cover_status = FrontCoverStatus::Loading;
 
                             // Update metadata and playback status for mpris
                             if let Some(mpris) = self.events.media_controls() {
-                                mpris.set_metadata(track.title(), track.artist());
+                                mpris.set_metadata(track.title(), track.artist(), None);
                                 mpris.set_playback(MediaPlayback::Playing);
                             }
                         }
@@ -442,9 +445,15 @@ impl App {
                 render = true;
                 let handle = self.front_cover_handle.take().unwrap();
                 match handle.join().unwrap() {
-                    Ok(cover) => {
-                        self.front_cover = cover;
+                    Ok((front_cover, cover_url)) => {
+                        self.front_cover = front_cover;
                         self.front_cover_status = FrontCoverStatus::Ready;
+
+                        self.events.media_controls().unwrap().set_metadata(
+                            "title",
+                            "artist",
+                            Some(cover_url.0.unwrap().as_str()),
+                        );
                     }
                     Err(err) => {
                         self.pages.logs.enqueue(Log::new(err));
@@ -872,12 +881,12 @@ fn fill_app_shortcuts(shortcuts: &mut Shortcuts, logs: &LogsPage) {
     }
 }
 
-fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
+fn load_front_cover(path: PathBuf, picker: Picker, mpris: bool) -> FrontCoverHandle {
     std::thread::spawn(move || {
         let picture = audio::AudioFrontCover::read(&path)?;
 
         let Some((bytes, mime_type)) = picture.bytes_and_mime_type() else {
-            return Ok(FrontCover(None));
+            return Ok((FrontCover(None), CoverUrl(None)));
         };
 
         let image_format = match mime_type {
@@ -894,12 +903,38 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
                 )
             })?;
 
-        const MAX_RES: u32 = 1080;
         let (w, h) = image.dimensions();
-        if w > MAX_RES || h > MAX_RES {
-            image = image.thumbnail(MAX_RES, MAX_RES);
+
+        let mut cover_url = CoverUrl(None);
+        if mpris {
+            const MAX_THUMBNAIL_RES: u32 = 512;
+            let image = if w > MAX_THUMBNAIL_RES || h > MAX_THUMBNAIL_RES {
+                &image.resize(
+                    MAX_THUMBNAIL_RES,
+                    MAX_THUMBNAIL_RES,
+                    image::imageops::FilterType::Nearest,
+                )
+            } else {
+                &image
+            };
+            use base64::{Engine as _, engine::general_purpose::STANDARD_NO_PAD};
+            cover_url = CoverUrl(Some(format!(
+                "data:{};base64,{}",
+                mime_type.as_str(),
+                STANDARD_NO_PAD.encode(image.as_bytes())
+            )));
         }
 
-        Ok(FrontCover(Some(picker.new_resize_protocol(image))))
+        const MAX_COVER_RES: u32 = 1080;
+        if w > MAX_COVER_RES || h > MAX_COVER_RES {
+            image = image.resize(
+                MAX_COVER_RES,
+                MAX_COVER_RES,
+                image::imageops::FilterType::Nearest,
+            );
+        }
+        let front_cover = FrontCover(Some(picker.new_resize_protocol(image)));
+
+        Ok((front_cover, cover_url))
     })
 }

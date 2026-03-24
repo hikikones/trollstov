@@ -13,6 +13,10 @@ license = "MIT"
 
 [workspace.dependencies]
 audio = { path = "crates/audio", default-features = false }
+base64 = { version = "0.22", default-features = false, features = [
+  "alloc",
+  "std"
+] }
 clap = { version = "4.6", default-features = false, features = [
   "color",
   "derive",

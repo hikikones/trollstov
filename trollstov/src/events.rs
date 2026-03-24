@@ -80,6 +80,10 @@ impl EventHandler {
         Ok(())
     }
 
+    pub const fn has_media_controls(&self) -> bool {
+        self.media_controls.is_some()
+    }
+
     pub fn media_controls(&mut self) -> Option<&mut MediaControls> {
         self.media_controls.as_mut()
     }
@@ -179,11 +183,11 @@ pub enum MediaPlayback {
 }
 
 impl MediaControls {
-    pub fn set_metadata(&mut self, title: &str, artist: &str) {
+    pub fn set_metadata(&mut self, title: &str, artist: &str, cover_url: Option<&str>) {
         let _ = self.0.set_metadata(souvlaki::MediaMetadata {
             title: Some(title),
             artist: Some(artist),
-            // TODO: cover_url?
+            cover_url,
             ..Default::default()
         });
     }

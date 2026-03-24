@@ -557,6 +557,15 @@ pub enum MimeType {
     Png,
 }
 
+impl MimeType {
+    pub const fn as_str(&self) -> &str {
+        match self {
+            Self::Jpeg => "image/jpeg",
+            Self::Png => "image/png",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct AudioFileReport(String);
 
