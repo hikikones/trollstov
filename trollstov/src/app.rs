@@ -1,5 +1,6 @@
 use std::{path::PathBuf, time::Duration};
 
+use audio::MimeType;
 use database::{Database, DatabaseEvent, Track};
 use image::GenericImageView;
 use jukebox::{Jukebox, JukeboxEvent};
@@ -876,17 +877,37 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
     std::thread::spawn(move || {
         let front_cover = audio::AudioFrontCover::read(&path)?;
 
-        let Some(bytes) = front_cover.bytes() else {
+        let Some((bytes, mime_type)) = front_cover.bytes_and_mime_type() else {
             return Ok(FrontCover(None));
         };
 
-        let mut image = image::load_from_memory(bytes).map_err(|err| {
-            format!(
-                "Failed to load front cover image for \"{}\" due to {}",
-                path.display(),
-                err
-            )
-        })?;
+        let Some(mime_type) = mime_type else {
+            return Err(format!(
+                "Failed to load front cover image from \"{}\" due to no mime type found",
+                path.display()
+            ))?;
+        };
+
+        let image_format = match mime_type {
+            MimeType::Jpeg => image::ImageFormat::Jpeg,
+            MimeType::Png => image::ImageFormat::Png,
+            _ => {
+                return Err(format!(
+                    "Failed to load front cover image from \"{}\" due to unsoppurted or uknown mime type: {}",
+                    path.display(),
+                    mime_type.as_str()
+                ))?;
+            }
+        };
+
+        let mut image =
+            image::load_from_memory_with_format(bytes, image_format).map_err(|err| {
+                format!(
+                    "Failed to load front cover image from \"{}\" due to {}",
+                    path.display(),
+                    err
+                )
+            })?;
 
         const MAX_RES: u32 = 1080;
         let (w, h) = image.dimensions();

@@ -96,7 +96,7 @@ impl AudioFile {
             AudioFileFormat::Flac(flac) => match flac.vorbis_comments() {
                 Some(vorbis_comments) => Ok(AudioMetadata::from_vorbis_comments(vorbis_comments)),
                 None => Err(AudioFileReport(format!(
-                    "Unable to extract metadata from \"{}\" due to missing Vorbis comments",
+                    "Unable to extract metadata from \"{}\" due to missing Vorbis Comments container",
                     self.path.display()
                 ))),
             },
@@ -138,7 +138,7 @@ impl AudioFile {
                         })?)
                 }
                 None => Err(AudioFileReport(format!(
-                    "Unable to write rating for \"{}\" due to missing Vorbis tag",
+                    "Unable to write rating for \"{}\" due to missing Vorbis Comments container",
                     self.path.display()
                 ))),
             },
@@ -494,12 +494,45 @@ impl AudioFrontCover {
         Ok(Self(tagged_file))
     }
 
-    pub fn bytes(&self) -> Option<&[u8]> {
+    pub fn bytes_and_mime_type<'a>(&'a self) -> Option<(&'a [u8], Option<MimeType<'a>>)> {
         self.0
             .primary_tag()
             .or_else(|| self.0.first_tag())
             .and_then(|tag| tag.get_picture_type(PictureType::CoverFront))
-            .map(|pic| pic.data())
+            .map(|pic| {
+                let mime_type = pic.mime_type().map(|mime| match mime {
+                    lofty::picture::MimeType::Jpeg => MimeType::Jpeg,
+                    lofty::picture::MimeType::Png => MimeType::Png,
+                    lofty::picture::MimeType::Tiff => MimeType::Tiff,
+                    lofty::picture::MimeType::Bmp => MimeType::Bmp,
+                    lofty::picture::MimeType::Gif => MimeType::Gif,
+                    lofty::picture::MimeType::Unknown(s) => MimeType::Unknown(s),
+                    _ => MimeType::Unknown("Unknown"),
+                });
+                (pic.data(), mime_type)
+            })
+    }
+}
+
+pub enum MimeType<'a> {
+    Jpeg,
+    Png,
+    Tiff,
+    Bmp,
+    Gif,
+    Unknown(&'a str),
+}
+
+impl<'a> MimeType<'a> {
+    pub const fn as_str(&self) -> &str {
+        match self {
+            MimeType::Jpeg => "image/jpeg",
+            MimeType::Png => "image/png",
+            MimeType::Tiff => "image/tiff",
+            MimeType::Bmp => "image/bmp",
+            MimeType::Gif => "image/gif",
+            MimeType::Unknown(s) => s,
+        }
     }
 }
 
