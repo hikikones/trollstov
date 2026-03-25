@@ -1,6 +1,5 @@
 use std::{path::PathBuf, time::Duration};
 
-use audio::MimeType;
 use database::{Database, DatabaseEvent, Track};
 use image::GenericImageView;
 use jukebox::{Jukebox, JukeboxEvent};
@@ -889,8 +888,8 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
         };
 
         let image_format = match mime_type {
-            MimeType::Jpeg => image::ImageFormat::Jpeg,
-            MimeType::Png => image::ImageFormat::Png,
+            audio::MimeType::Jpeg => image::ImageFormat::Jpeg,
+            audio::MimeType::Png => image::ImageFormat::Png,
             _ => {
                 return Err(format!(
                     "Failed to load front cover image from \"{}\" due to unsupported or unknown mime type: {}",
