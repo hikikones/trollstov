@@ -28,10 +28,11 @@ The `trollstov` command takes one mandatory argument, which is the path to your 
 trollstov /path/to/my/music
 ```
 
-In addition, it comes with one optional argument.
+In addition, it comes with two optional arguments.
 
 | Option | Description |
 | ------ | ----------- |
+| `--settings` | Custom path for the settings file. |
 | `--mpris` | Add media controls through the Media Player Remote Interfacing Specification (MPRIS). |
 
 ## 💡 Supported Audio Formats

@@ -47,7 +47,7 @@ struct Args {
     #[arg(value_name = "MUSIC_DIR", value_hint = clap::ValueHint::DirPath)]
     dir: std::path::PathBuf,
 
-    /// The path for your settings file. If not set,
+    /// Custom path for the settings file. If not set,
     /// the location will be determined by the conventions of your operating system.
     #[arg(long, value_name = "SETTINGS_FILE.toml", value_hint = clap::ValueHint::FilePath)]
     settings: Option<std::path::PathBuf>,
