@@ -399,7 +399,7 @@ impl App {
                 JukeboxEvent::Play(id) => {
                     match id.and_then(|id| self.database.get(id)) {
                         Some(track) => {
-                            // Start loading front cover image
+                            // Start loading front cover
                             let path = track.path().to_path_buf();
                             let picker = self.picker.clone();
                             let handle = load_front_cover(path, picker);
@@ -887,7 +887,7 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
 
         let Some(mime_type) = mime_type else {
             return Err(format!(
-                "Unable to load front cover image from \"{}\" due to no mime type found",
+                "Unable to load front cover from \"{}\" due to no mime type found",
                 path.display()
             ))?;
         };
@@ -897,7 +897,7 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
             audio::MimeType::Png => image::ImageFormat::Png,
             _ => {
                 return Err(format!(
-                    "Unable to load front cover image from \"{}\" due to unsupported or unknown mime type: {}",
+                    "Unable to load front cover from \"{}\" due to unsupported or unknown mime type: {}",
                     path.display(),
                     mime_type.as_str()
                 ))?;
@@ -907,7 +907,7 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
         let mut image =
             image::load_from_memory_with_format(bytes, image_format).map_err(|err| {
                 format!(
-                    "Failed to load front cover image from \"{}\" due to {}",
+                    "Failed to load front cover from \"{}\" due to {}",
                     path.display(),
                     err
                 )
