@@ -101,7 +101,7 @@ impl Settings {
         self.colors.neutral = color;
     }
 
-    pub fn read(path: Option<PathBuf>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn read(path: Option<PathBuf>) -> Result<Self, String> {
         let Some(file) = path.or_else(|| get_config_file()) else {
             return Ok(Self::default());
         };
@@ -153,7 +153,7 @@ impl Settings {
         Ok(settings)
     }
 
-    pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save(&self) -> Result<(), String> {
         let Some(file) = self.path.clone().or_else(|| get_config_file()) else {
             return Err("Unable to save settings due to no path found \
                 either manually or from the operating system")?;
