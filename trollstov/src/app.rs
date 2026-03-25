@@ -909,10 +909,14 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
                 )
             })?;
 
-        const MAX_RES: u32 = 1080;
+        const MAX_COVER_RES: u32 = 1080;
         let (w, h) = image.dimensions();
-        if w > MAX_RES || h > MAX_RES {
-            image = image.thumbnail(MAX_RES, MAX_RES);
+        if w > MAX_COVER_RES || h > MAX_COVER_RES {
+            image = image.resize(
+                MAX_COVER_RES,
+                MAX_COVER_RES,
+                image::imageops::FilterType::Nearest,
+            );
         }
 
         Ok(FrontCover(Some(picker.new_resize_protocol(image))))
