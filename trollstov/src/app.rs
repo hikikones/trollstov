@@ -893,7 +893,7 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
             MimeType::Png => image::ImageFormat::Png,
             _ => {
                 return Err(format!(
-                    "Failed to load front cover image from \"{}\" due to unsoppurted or uknown mime type: {}",
+                    "Failed to load front cover image from \"{}\" due to unsupported or unknown mime type: {}",
                     path.display(),
                     mime_type.as_str()
                 ))?;
