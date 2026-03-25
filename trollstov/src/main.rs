@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 struct Args {
     /// The directory for your music.
     #[arg(value_name = "MUSIC_DIR", value_hint = clap::ValueHint::DirPath)]
-    dir: std::path::PathBuf,
+    dir: std::path::PathBuf, // TODO: Use vec so we can do "/my/music a.flac *.mp3 dir/**/*.opus".
 
     /// Try to establish media controls through the Media Player Remote Interfacing Specification (MPRIS),
     /// allowing music control with media keys and visually in your desktop environment.
