@@ -260,8 +260,7 @@ impl App {
                 if ctrl {
                     self.jukebox.pause_or_play();
                 } else if alt {
-                    let new_volume = (self.jukebox.volume() + 0.1).min(2.0);
-                    self.jukebox.set_volume(new_volume);
+                    self.jukebox.set_volume(self.jukebox.volume() + 0.1);
                     return Action::Render;
                 } else {
                     return self.on_input(key);
@@ -271,8 +270,7 @@ impl App {
                 if ctrl {
                     self.jukebox.stop();
                 } else if alt {
-                    let new_volume = (self.jukebox.volume() - 0.1).max(0.0);
-                    self.jukebox.set_volume(new_volume);
+                    self.jukebox.set_volume(self.jukebox.volume() - 0.1);
                     return Action::Render;
                 } else {
                     return self.on_input(key);

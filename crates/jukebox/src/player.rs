@@ -32,7 +32,8 @@ impl AudioPlayer {
     }
 
     pub fn set_volume(&self, value: f32) {
-        self.player.set_volume(value);
+        let v = value.clamp(0.0, 2.0);
+        self.player.set_volume(v);
     }
 
     pub fn position(&self) -> Duration {
