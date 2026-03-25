@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let jukebox = jukebox::Jukebox::new(player);
     let database = database::Database::new(args.dir);
 
-    let mut app = app::App::new(database, jukebox, picker, args.mpris);
+    let mut app = app::App::new(database, jukebox, picker, args.settings, args.mpris);
     let res = app.run(terminal);
     app.quit();
 
@@ -47,8 +47,13 @@ struct Args {
     #[arg(value_name = "MUSIC_DIR", value_hint = clap::ValueHint::DirPath)]
     dir: std::path::PathBuf,
 
+    /// The path for your settings file. If not set,
+    /// the location will be determined by the conventions of your operating system.
+    #[arg(long, value_name = "SETTINGS_FILE.toml", value_hint = clap::ValueHint::FilePath)]
+    settings: Option<std::path::PathBuf>,
+
     /// Try to establish media controls through the Media Player Remote Interfacing Specification (MPRIS),
-    /// allowing music control with media keys and visually in your desktop environment.
+    /// allowing music control with media keys and in your desktop environment.
     #[clap(long, action)]
     mpris: bool,
 }

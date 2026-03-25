@@ -92,15 +92,22 @@ pub enum Action {
 }
 
 impl App {
-    pub fn new(database: Database, jukebox: Jukebox, picker: Picker, mpris: bool) -> Self {
+    pub fn new(
+        database: Database,
+        jukebox: Jukebox,
+        picker: Picker,
+        settings_path: Option<PathBuf>,
+        mpris: bool,
+    ) -> Self {
         let mut logs = LogsPage::new();
 
-        let settings = Settings::read()
+        let settings = Settings::read(settings_path.clone())
             .inspect_err(|err| {
                 let log = Log::new(err);
                 logs.enqueue(log);
             })
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .with_path(settings_path);
 
         let mut events = EventHandler::new();
         if mpris {
