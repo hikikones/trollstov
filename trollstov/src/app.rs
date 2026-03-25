@@ -882,7 +882,7 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
 
         let Some(mime_type) = mime_type else {
             return Err(format!(
-                "Failed to load front cover image from \"{}\" due to no mime type found",
+                "Unable to load front cover image from \"{}\" due to no mime type found",
                 path.display()
             ))?;
         };
@@ -892,7 +892,7 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
             audio::MimeType::Png => image::ImageFormat::Png,
             _ => {
                 return Err(format!(
-                    "Failed to load front cover image from \"{}\" due to unsupported or unknown mime type: {}",
+                    "Unable to load front cover image from \"{}\" due to unsupported or unknown mime type: {}",
                     path.display(),
                     mime_type.as_str()
                 ))?;
