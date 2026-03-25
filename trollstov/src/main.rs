@@ -24,16 +24,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut app = app::App::new(database, jukebox, picker, args.mpris);
     let res = app.run(terminal);
+    app.quit();
 
-    match terminal::Terminal::restore() {
-        Ok(_) => {
-            app.quit();
-        }
-        Err(err) => {
-            app.quit();
-            return Err(err)?;
-        }
-    }
+    terminal::Terminal::restore()?;
 
     res
 }
