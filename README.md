@@ -30,10 +30,10 @@ trollstov /path/to/my/music
 
 In addition, it comes with two optional arguments.
 
-| Option | Description |
-| ------ | ----------- |
-| `--settings` | Custom path for the settings file. |
-| `--mpris` | Add media controls through the Media Player Remote Interfacing Specification (MPRIS). |
+| Option | Value | Description |
+| ------ | ----- | ----------- |
+| `--settings` | `/path/to/my/settings.toml` | Custom path for the settings file. |
+| `--mpris` |  | Add media controls through the Media Player Remote Interfacing Specification (MPRIS). |
 
 ## 💡 Supported Audio Formats
 
