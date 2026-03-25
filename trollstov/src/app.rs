@@ -874,15 +874,13 @@ fn fill_app_shortcuts(shortcuts: &mut Shortcuts, logs: &LogsPage) {
 
 fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
     std::thread::spawn(move || {
-        let picture = audio::AudioPicture::read(&path)?;
+        let front_cover = audio::AudioFrontCover::read(&path)?;
 
-        let Some(bytes) = picture.bytes() else {
+        let Some(bytes) = front_cover.bytes() else {
             return Ok(FrontCover(None));
         };
 
-        const MAX_RES: u32 = 1080;
-
-        let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
+        let mut image = image::load_from_memory(bytes).map_err(|err| {
             format!(
                 "Failed to load front cover image for \"{}\" due to {}",
                 path.display(),
@@ -890,11 +888,12 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
             )
         })?;
 
-        let (w, h) = dyn_img.dimensions();
+        const MAX_RES: u32 = 1080;
+        let (w, h) = image.dimensions();
         if w > MAX_RES || h > MAX_RES {
-            dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
+            image = image.thumbnail(MAX_RES, MAX_RES);
         }
 
-        Ok(FrontCover(Some(picker.new_resize_protocol(dyn_img))))
+        Ok(FrontCover(Some(picker.new_resize_protocol(image))))
     })
 }

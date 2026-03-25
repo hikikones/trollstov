@@ -479,14 +479,14 @@ impl AudioProperties {
     }
 }
 
-pub struct AudioPicture(TaggedFile);
+pub struct AudioFrontCover(TaggedFile);
 
-impl AudioPicture {
+impl AudioFrontCover {
     pub fn read(audio_file: impl AsRef<Path>) -> Result<Self, AudioFileReport> {
         let path = audio_file.as_ref();
         let tagged_file = lofty::read_from_path(path).map_err(|err| {
             AudioFileReport(format!(
-                "Failed to read \"{}\" due to {}",
+                "Failed to read front cover from \"{}\" due to {}",
                 path.display(),
                 err
             ))
