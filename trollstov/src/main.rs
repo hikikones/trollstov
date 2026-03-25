@@ -38,6 +38,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     res
 }
 
+// TODO: Use a list for paths so we can do "trollstov /my/music a.flac *.mp3 dir/**/*.opus".
+
+// TODO: Add some sort of daemon flag? Starts the app without showing anything.
+// Can only play music, and interaction is done with media keys (mpris).
+
 #[derive(Debug, clap::Parser)]
 #[command(
     styles = CLAP_STYLING,
@@ -47,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 struct Args {
     /// The directory for your music.
     #[arg(value_name = "MUSIC_DIR", value_hint = clap::ValueHint::DirPath)]
-    dir: std::path::PathBuf, // TODO: Use vec so we can do "/my/music a.flac *.mp3 dir/**/*.opus".
+    dir: std::path::PathBuf,
 
     /// Try to establish media controls through the Media Player Remote Interfacing Specification (MPRIS),
     /// allowing music control with media keys and visually in your desktop environment.
