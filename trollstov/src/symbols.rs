@@ -20,7 +20,7 @@ pub const SELECTION: &str = "|";
 pub const STAR: &str = "★";
 pub const STAR_BIG: &str = "🟊";
 pub const CHECKMARK_YES: &str = "🗸";
-pub const CHECKMARK_NO: &str = "𐄂";
+pub const CHECKMARK_NO: &str = "✗";
 
 pub const fn stars(rating: AudioRating) -> &'static str {
     match rating {
