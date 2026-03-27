@@ -5,13 +5,15 @@ use database::TrackId;
 pub(crate) struct PlayQueue {
     list: Vec<TrackId>,
     index: Option<usize>,
+    rng: fastrand::Rng,
 }
 
 impl PlayQueue {
-    pub(crate) const fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             list: Vec::new(),
             index: None,
+            rng: fastrand::Rng::new(),
         }
     }
 
@@ -128,7 +130,7 @@ impl PlayQueue {
         }
 
         for i in start..end {
-            let random = fastrand::usize(start..end);
+            let random = self.rng.usize(start..end);
             self.list.swap(i, random);
         }
         true
