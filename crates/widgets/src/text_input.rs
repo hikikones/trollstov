@@ -81,6 +81,14 @@ impl TextInput {
         self
     }
 
+    pub const fn is_empty(&self) -> bool {
+        self.input.is_empty()
+    }
+
+    pub fn is_empty_trim(&self) -> bool {
+        self.input.as_str().trim().is_empty()
+    }
+
     pub const fn as_str(&self) -> &str {
         self.input.as_str()
     }
