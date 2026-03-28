@@ -861,7 +861,7 @@ fn fill_play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
 fn fill_app_shortcuts(shortcuts: &mut Shortcuts, logs: &LogsPage) {
     shortcuts.extend([
         Shortcut::new("Quit", symbols::ESCAPE),
-        Shortcut::new("Navigate", symbols::shift!("Tab")),
+        Shortcut::new("Navigate", symbols::shift!(symbols::TAB)),
         Shortcut::new("Find", symbols::ctrl!("f")),
     ]);
 
