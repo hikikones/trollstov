@@ -34,6 +34,7 @@ pub enum CursorMove {
 pub enum CursorDelete {
     Forward,
     Back,
+    Selection,
 }
 
 impl TextInput {
@@ -232,6 +233,7 @@ impl TextInput {
                 }
                 None => false,
             },
+            CursorDelete::Selection => self.delete_selection(),
         }
     }
 
