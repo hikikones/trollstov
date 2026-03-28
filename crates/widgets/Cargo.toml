@@ -8,6 +8,7 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+itoa = { workspace = true }
 ratatui = { workspace = true }
 seahash = { workspace = true }
 unicode-segmentation = { workspace = true }
