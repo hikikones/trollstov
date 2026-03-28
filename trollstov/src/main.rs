@@ -37,11 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 // Can only play music, and interaction is done with media keys (mpris).
 
 #[derive(Debug, clap::Parser)]
-#[command(
-    styles = CLAP_STYLING,
-    version,
-    about,
-)]
+#[command(version, about, styles = CLAP_STYLING)]
 struct Args {
     /// The directory for your music.
     #[arg(value_name = "MUSIC_DIR", value_hint = clap::ValueHint::DirPath)]
