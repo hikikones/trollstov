@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use audio::AudioRating;
 
 pub const TAB: &str = "Tab";
@@ -7,13 +9,13 @@ pub const SHIFT: &str = "⇧";
 pub const ENTER: &str = "↵";
 pub const SPACE: &str = "Space";
 pub const ESCAPE: &str = "Esc";
-pub const _DELETE: &str = "Del";
+pub const DELETE: &str = "Del";
 pub const ARROW_UP: &str = "￪";
 pub const ARROW_DOWN: &str = "￬";
-pub const _ARROW_RIGHT: &str = "➔";
+pub const ARROW_RIGHT: &str = "➔";
 pub const ARROW_DOWN_UP: &str = "⇵";
 pub const ARROW_RIGHT_LEFT: &str = "⇄";
-pub const _ARROW_LEFT_RIGHT: &str = "⇆";
+pub const ARROW_LEFT_RIGHT: &str = "⇆";
 pub const ARROW_HEAD_UP: &str = "⌃";
 pub const ARROW_HEAD_DOWN: &str = "⌄";
 
