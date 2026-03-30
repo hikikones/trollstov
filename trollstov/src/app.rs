@@ -1,7 +1,6 @@
 use std::{path::PathBuf, time::Duration};
 
 use database::{Database, DatabaseEvent, Track};
-use image::GenericImageView;
 use jukebox::{Jukebox, JukeboxEvent};
 use ratatui::{
     CompletedFrame,
@@ -873,6 +872,8 @@ fn fill_app_shortcuts(shortcuts: &mut Shortcuts, logs: &LogsPage) {
     }
 }
 
+// TODO: Also do resize and encoding in another thread.
+// https://github.com/ratatui/ratatui-image/blob/master/examples/thread.rs
 fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
     std::thread::spawn(move || {
         let front_cover = database::AudioFrontCover::read(&path)?;
@@ -900,24 +901,13 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
             }
         };
 
-        let mut image =
-            image::load_from_memory_with_format(bytes, image_format).map_err(|err| {
-                format!(
-                    "Failed to load front cover from \"{}\" due to {}",
-                    path.display(),
-                    err
-                )
-            })?;
-
-        const MAX_COVER_RES: u32 = 1080;
-        let (w, h) = image.dimensions();
-        if w > MAX_COVER_RES || h > MAX_COVER_RES {
-            image = image.resize(
-                MAX_COVER_RES,
-                MAX_COVER_RES,
-                image::imageops::FilterType::Nearest,
-            );
-        }
+        let image = image::load_from_memory_with_format(bytes, image_format).map_err(|err| {
+            format!(
+                "Failed to load front cover from \"{}\" due to {}",
+                path.display(),
+                err
+            )
+        })?;
 
         Ok(FrontCover::new(
             Some(picker.new_resize_protocol(image)),
