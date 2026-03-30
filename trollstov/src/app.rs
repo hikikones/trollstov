@@ -38,7 +38,6 @@ pub struct App {
     picker: Picker,
     screen_size: ScreenSize,
     front_cover: FrontCover,
-    front_cover_status: FrontCoverStatus,
     front_cover_handle: Option<FrontCoverHandle>,
     text: TextSegment,
     shortcuts: Shortcuts,
@@ -67,19 +66,31 @@ impl ScreenSize {
     }
 }
 
-pub struct FrontCover(Option<StatefulProtocol>);
-
-impl FrontCover {
-    pub const fn as_mut(&mut self) -> Option<&mut StatefulProtocol> {
-        self.0.as_mut()
-    }
+pub struct FrontCover {
+    image: Option<StatefulProtocol>,
+    has_loaded: bool,
 }
 
-#[derive(Clone, Copy)]
-pub enum FrontCoverStatus {
-    None,
-    Loading,
-    Ready,
+impl FrontCover {
+    const fn new(image: Option<StatefulProtocol>, has_loaded: bool) -> Self {
+        Self { image, has_loaded }
+    }
+
+    const fn default() -> Self {
+        Self::new(None, false)
+    }
+
+    const fn empty() -> Self {
+        Self::new(None, true)
+    }
+
+    pub const fn has_loaded(&self) -> bool {
+        self.has_loaded
+    }
+
+    pub const fn as_mut(&mut self) -> Option<&mut StatefulProtocol> {
+        self.image.as_mut()
+    }
 }
 
 pub enum Action {
@@ -133,8 +144,7 @@ impl App {
             jukebox,
             picker,
             screen_size: ScreenSize::Large,
-            front_cover: FrontCover(None),
-            front_cover_status: FrontCoverStatus::None,
+            front_cover: FrontCover::default(),
             front_cover_handle: None,
             text: TextSegment::new().with_alignment(Alignment::Center),
             shortcuts: Shortcuts::new(),
@@ -398,7 +408,6 @@ impl App {
                             let picker = self.picker.clone();
                             let handle = load_front_cover(path, picker);
                             self.front_cover_handle = Some(handle);
-                            self.front_cover_status = FrontCoverStatus::Loading;
 
                             // Update metadata and playback status for mpris
                             if let Some(mpris) = self.events.media_controls() {
@@ -420,9 +429,8 @@ impl App {
                     }
                 }
                 JukeboxEvent::Stop => {
-                    self.front_cover = FrontCover(None);
+                    self.front_cover = FrontCover::default();
                     self.front_cover_handle = None;
-                    self.front_cover_status = FrontCoverStatus::None;
 
                     if let Some(mpris) = self.events.media_controls() {
                         mpris.reset_metadata();
@@ -443,12 +451,10 @@ impl App {
                 match handle.join().unwrap() {
                     Ok(cover) => {
                         self.front_cover = cover;
-                        self.front_cover_status = FrontCoverStatus::Ready;
                     }
                     Err(err) => {
+                        self.front_cover = FrontCover::empty();
                         self.pages.logs.enqueue(Log::new(err));
-                        self.front_cover = FrontCover(None);
-                        self.front_cover_status = FrontCoverStatus::Ready;
                     }
                 }
             }
@@ -615,7 +621,6 @@ impl App {
                         &self.jukebox,
                         self.screen_size,
                         &mut self.front_cover,
-                        self.front_cover_status,
                         colors,
                         &mut self.shortcuts,
                     );
@@ -873,7 +878,7 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
         let front_cover = database::AudioFrontCover::read(&path)?;
 
         let Some((bytes, mime_type)) = front_cover.bytes_and_mime_type() else {
-            return Ok(FrontCover(None));
+            return Ok(FrontCover::empty());
         };
 
         let Some(mime_type) = mime_type else {
@@ -914,6 +919,9 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
             );
         }
 
-        Ok(FrontCover(Some(picker.new_resize_protocol(image))))
+        Ok(FrontCover::new(
+            Some(picker.new_resize_protocol(image)),
+            true,
+        ))
     })
 }
