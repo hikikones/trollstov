@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use audio::AudioRating;
+use database::AudioRating;
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 

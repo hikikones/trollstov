@@ -870,7 +870,7 @@ fn fill_app_shortcuts(shortcuts: &mut Shortcuts, logs: &LogsPage) {
 
 fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
     std::thread::spawn(move || {
-        let front_cover = audio::AudioFrontCover::read(&path)?;
+        let front_cover = database::AudioFrontCover::read(&path)?;
 
         let Some((bytes, mime_type)) = front_cover.bytes_and_mime_type() else {
             return Ok(FrontCover(None));
@@ -884,8 +884,8 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
         };
 
         let image_format = match mime_type {
-            audio::MimeType::Jpeg => image::ImageFormat::Jpeg,
-            audio::MimeType::Png => image::ImageFormat::Png,
+            database::MimeType::Jpeg => image::ImageFormat::Jpeg,
+            database::MimeType::Png => image::ImageFormat::Png,
             _ => {
                 return Err(format!(
                     "Unable to load front cover from \"{}\" due to unsupported or unknown mime type: {}",

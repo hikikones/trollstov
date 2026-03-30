@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use audio::{AudioFileExtension, AudioMetadata, AudioProperties, AudioRating};
+use crate::{AudioFileExtension, AudioMetadata, AudioProperties, AudioRating};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TrackId(pub u64);

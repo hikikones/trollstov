@@ -336,15 +336,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
-name = "audio"
-version = "0.1.0"
-dependencies = [
- "lofty",
- "serde",
- "serde_repr",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1007,11 +998,13 @@ checksum = "d7a1e2f27636f116493b8b860f5546edb47c8d8f8ea73e1d2a20be88e28d1fea"
 name = "database"
 version = "0.1.0"
 dependencies = [
- "audio",
  "fastrand 2.3.0",
  "ignore",
  "indexmap",
+ "lofty",
  "nucleo-matcher",
+ "serde",
+ "serde_repr",
  "utils",
  "walkdir",
 ]
@@ -1747,7 +1740,6 @@ dependencies = [
 name = "jukebox"
 version = "0.1.0"
 dependencies = [
- "audio",
  "database",
  "fastrand 2.3.0",
  "rodio",
@@ -3810,7 +3802,6 @@ dependencies = [
 name = "trollstov"
 version = "0.1.0"
 dependencies = [
- "audio",
  "clap",
  "clap-cargo",
  "constcat",

@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use audio::AudioRating;
+use database::AudioRating;
 
 pub const TAB: &str = "Tab";
 pub const ALT: &str = "⎇";

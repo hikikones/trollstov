@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use audio::AudioRating;
+use database::AudioRating;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,

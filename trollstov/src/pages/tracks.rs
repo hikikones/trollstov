@@ -1,5 +1,4 @@
-use audio::AudioRating;
-use database::{Database, TrackId, TrackSort};
+use database::{AudioRating, Database, TrackId, TrackSort};
 use jukebox::Jukebox;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},

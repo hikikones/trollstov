@@ -2,8 +2,6 @@ use std::{collections::VecDeque, path::PathBuf, sync::mpsc};
 
 use indexmap::IndexMap;
 
-use audio::{AudioFile, AudioFileExtension, AudioFileReport, AudioRating};
-
 use crate::*;
 
 type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileReport>>;
