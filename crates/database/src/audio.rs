@@ -83,6 +83,12 @@ impl AudioFile {
                 })?;
                 AudioFileFormat::Mpeg(mpeg)
             }
+            _ => {
+                return Err(format!(
+                    "Unable to read unsupported audio format: \"{}\"",
+                    path.display()
+                ))?;
+            }
         };
 
         Ok(Self {
@@ -542,6 +548,11 @@ pub enum AudioFileExtension {
     Opus,
     Ogg,
     Mp3,
+    Aac,
+    Ape,
+    M4a,
+    Wav,
+    Wma,
 }
 
 impl AudioFileExtension {
@@ -555,6 +566,16 @@ impl AudioFileExtension {
                 Some(Self::Ogg)
             } else if ext.eq_ignore_ascii_case("mp3") {
                 Some(Self::Mp3)
+            } else if ext.eq_ignore_ascii_case("aac") {
+                Some(Self::Aac)
+            } else if ext.eq_ignore_ascii_case("ape") {
+                Some(Self::Ape)
+            } else if ext.eq_ignore_ascii_case("m4a") {
+                Some(Self::M4a)
+            } else if ext.eq_ignore_ascii_case("wav") {
+                Some(Self::Wav)
+            } else if ext.eq_ignore_ascii_case("wma") {
+                Some(Self::Wma)
             } else {
                 None
             }
@@ -567,6 +588,11 @@ impl AudioFileExtension {
             Self::Opus => "opus",
             Self::Ogg => "ogg",
             Self::Mp3 => "mp3",
+            Self::Aac => "aac",
+            Self::Ape => "ape",
+            Self::M4a => "m4a",
+            Self::Wav => "wav",
+            Self::Wma => "wma",
         }
     }
 
@@ -576,6 +602,11 @@ impl AudioFileExtension {
             Self::Opus => "OPUS",
             Self::Ogg => "OGG",
             Self::Mp3 => "MP3",
+            Self::Aac => "AAC",
+            Self::Ape => "APE",
+            Self::M4a => "M4A",
+            Self::Wav => "WAV",
+            Self::Wma => "WMA",
         }
     }
 }

@@ -239,7 +239,15 @@ fn traverse_and_process_audio_files(
                 let res = match extension {
                     #[cfg(not(feature = "opus"))]
                     AudioFileExtension::Opus => Err(AudioFileReport::new(format!(
-                        "Unsupported audio format: \"{}\"",
+                        "Skipping unsupported audio format: \"{}\"",
+                        path.display()
+                    ))),
+                    AudioFileExtension::Aac
+                    | AudioFileExtension::Ape
+                    | AudioFileExtension::M4a
+                    | AudioFileExtension::Wav
+                    | AudioFileExtension::Wma => Err(AudioFileReport::new(format!(
+                        "Skipping unsupported audio format: \"{}\"",
                         path.display()
                     ))),
                     _ => AudioFile::read_from(path, extension)
@@ -265,13 +273,30 @@ fn _traverse_and_process_audio_files_in_parallel(
                     if let Ok(dir_entry) = result {
                         if let Some(file_type) = dir_entry.file_type() {
                             if file_type.is_file() {
-                                if let Some(extension) =
-                                    AudioFileExtension::from_path(dir_entry.path())
-                                {
-                                    let audio_file =
-                                        AudioFile::read_from(dir_entry.into_path(), extension)
-                                            .map(|audio_file| (audio_file, extension));
-                                    let _ = sender.send(audio_file);
+                                let path = dir_entry.path();
+                                if let Some(extension) = AudioFileExtension::from_path(path) {
+                                    let res = match extension {
+                                        #[cfg(not(feature = "opus"))]
+                                        AudioFileExtension::Opus => {
+                                            Err(AudioFileReport::new(format!(
+                                                "Skipping unsupported audio format: \"{}\"",
+                                                path.display()
+                                            )))
+                                        }
+                                        AudioFileExtension::Aac
+                                        | AudioFileExtension::Ape
+                                        | AudioFileExtension::M4a
+                                        | AudioFileExtension::Wav
+                                        | AudioFileExtension::Wma => {
+                                            Err(AudioFileReport::new(format!(
+                                                "Skipping unsupported audio format: \"{}\"",
+                                                path.display()
+                                            )))
+                                        }
+                                        _ => AudioFile::read_from(path, extension)
+                                            .map(|audio_file| (audio_file, extension)),
+                                    };
+                                    let _ = sender.send(res);
                                 }
                             }
                         }
