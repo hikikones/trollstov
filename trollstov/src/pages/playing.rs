@@ -148,7 +148,7 @@ impl PlayingPage {
     pub fn on_input(
         &mut self,
         key: KeyCode,
-        _modifiers: KeyModifiers,
+        modifiers: KeyModifiers,
         db: &mut Database,
         jb: &mut Jukebox,
         screen_size: ScreenSize,
@@ -270,7 +270,7 @@ impl PlayingPage {
                 }
                 _ => {
                     if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
-                        if self.list.input(key, _modifiers) {
+                        if self.list.input(key, modifiers) {
                             return Action::Render;
                         }
                     }
@@ -278,7 +278,7 @@ impl PlayingPage {
             },
             _ => {
                 if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
-                    if self.list.input(key, _modifiers) {
+                    if self.list.input(key, modifiers) {
                         return Action::Render;
                     }
                 }

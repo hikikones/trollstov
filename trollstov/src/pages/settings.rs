@@ -300,38 +300,35 @@ impl SettingsPage {
                     return Action::Render;
                 }
             }
-            KeyCode::Char(c) => match c {
-                's' => {
-                    if ctrl && !self.is_saved {
-                        match settings.save() {
-                            Ok(_) => {
-                                self.saved = settings.clone();
-                                self.saved_hash = settings.hash();
-                                self.is_saved = true;
-                                return Action::Render;
-                            }
-                            Err(err) => {
-                                return Action::Log(Log::new(err));
-                            }
+            KeyCode::Char('s') => {
+                if ctrl && !self.is_saved {
+                    match settings.save() {
+                        Ok(_) => {
+                            self.saved = settings.clone();
+                            self.saved_hash = settings.hash();
+                            self.is_saved = true;
+                            return Action::Render;
                         }
-                    } else {
-                        return self.handle_setting(key, modifiers, settings);
+                        Err(err) => {
+                            return Action::Log(Log::new(err));
+                        }
                     }
+                } else {
+                    return self.handle_setting(key, modifiers, settings);
                 }
-                'r' => {
-                    if ctrl {
-                        *settings = self.default.clone();
-                        self.primary.reset_with(settings.primary());
-                        self.secondary.reset_with(settings.secondary());
-                        self.neutral.reset_with(settings.neutral());
-                        self.update_is_saved(settings);
-                        return Action::ApplySettings;
-                    } else {
-                        return self.handle_setting(key, modifiers, settings);
-                    }
+            }
+            KeyCode::Char('r') => {
+                if ctrl {
+                    *settings = self.default.clone();
+                    self.primary.reset_with(settings.primary());
+                    self.secondary.reset_with(settings.secondary());
+                    self.neutral.reset_with(settings.neutral());
+                    self.update_is_saved(settings);
+                    return Action::ApplySettings;
+                } else {
+                    return self.handle_setting(key, modifiers, settings);
                 }
-                _ => return self.handle_setting(key, modifiers, settings),
-            },
+            }
             _ => return self.handle_setting(key, modifiers, settings),
         }
 

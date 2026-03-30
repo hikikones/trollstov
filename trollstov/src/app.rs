@@ -324,55 +324,50 @@ impl App {
                     return self.on_input(key);
                 }
             }
-            KeyCode::Char(c) => match c {
-                'f' => {
-                    if ctrl {
-                        match self.state {
-                            State::Route => {
-                                self.state = State::Search;
-                                self.pages.search.on_enter();
-                            }
-                            State::Search => {
-                                self.state = State::Route;
-                                self.pages.search.on_exit();
-                            }
-                            State::Logs => {
-                                self.state = State::Search;
-                                self.pages.logs.on_exit();
-                                self.pages.search.on_enter();
-                            }
+            KeyCode::Char('f') => {
+                if ctrl {
+                    match self.state {
+                        State::Route => {
+                            self.state = State::Search;
+                            self.pages.search.on_enter();
                         }
-                        return Action::Render;
-                    } else {
-                        return self.on_input(key);
-                    }
-                }
-                'l' => {
-                    if ctrl && !self.pages.logs.is_empty() {
-                        match self.state {
-                            State::Route => {
-                                self.state = State::Logs;
-                                self.pages.logs.on_enter();
-                            }
-                            State::Search => {
-                                self.state = State::Logs;
-                                self.pages.search.on_exit();
-                                self.pages.logs.on_enter();
-                            }
-                            State::Logs => {
-                                self.state = State::Route;
-                                self.pages.logs.on_exit();
-                            }
+                        State::Search => {
+                            self.state = State::Route;
+                            self.pages.search.on_exit();
                         }
-                        return Action::Render;
-                    } else {
-                        return self.on_input(key);
+                        State::Logs => {
+                            self.state = State::Search;
+                            self.pages.logs.on_exit();
+                            self.pages.search.on_enter();
+                        }
                     }
-                }
-                _ => {
+                    return Action::Render;
+                } else {
                     return self.on_input(key);
                 }
-            },
+            }
+            KeyCode::Char('l') => {
+                if ctrl && !self.pages.logs.is_empty() {
+                    match self.state {
+                        State::Route => {
+                            self.state = State::Logs;
+                            self.pages.logs.on_enter();
+                        }
+                        State::Search => {
+                            self.state = State::Logs;
+                            self.pages.search.on_exit();
+                            self.pages.logs.on_enter();
+                        }
+                        State::Logs => {
+                            self.state = State::Route;
+                            self.pages.logs.on_exit();
+                        }
+                    }
+                    return Action::Render;
+                } else {
+                    return self.on_input(key);
+                }
+            }
             _ => {
                 return self.on_input(key);
             }
@@ -861,13 +856,14 @@ fn fill_app_shortcuts(shortcuts: &mut Shortcuts, logs: &LogsPage) {
     ]);
 
     if !logs.is_empty() {
+        let key = symbols::ctrl!("l");
         let new_logs = logs.queue_len();
         if new_logs > 0 {
             utils::format_int(new_logs, |new_logs| {
-                shortcuts.push_iter(["Logs(", new_logs, ")"], symbols::ctrl!("l"));
+                shortcuts.push_iter(["Logs(", new_logs, ")"], key);
             });
         } else {
-            shortcuts.push(Shortcut::new("Logs", symbols::ctrl!("l")));
+            shortcuts.push(Shortcut::new("Logs", key));
         }
     }
 }
