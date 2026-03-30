@@ -32,4 +32,4 @@ widgets = { workspace = true }
 
 [features]
 default = []
-opus = ["jukebox/opus"]
+opus = ["database/opus", "jukebox/opus"]

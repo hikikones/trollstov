@@ -17,3 +17,7 @@ serde = { workspace = true }
 serde_repr = { workspace = true }
 utils = { workspace = true }
 walkdir = { workspace = true }
+
+[features]
+default = []
+opus = []

@@ -236,9 +236,16 @@ fn traverse_and_process_audio_files(
                 AudioFileExtension::from_path(file.path()).map(|ext| (file.into_path(), ext))
             })
             .for_each(|(path, extension)| {
-                let audio_file =
-                    AudioFile::read_from(path, extension).map(|audio_file| (audio_file, extension));
-                let _ = sender.send(audio_file);
+                let res = match extension {
+                    #[cfg(not(feature = "opus"))]
+                    AudioFileExtension::Opus => Err(AudioFileReport::new(format!(
+                        "Unsupported audio format: \"{}\"",
+                        path.display()
+                    ))),
+                    _ => AudioFile::read_from(path, extension)
+                        .map(|audio_file| (audio_file, extension)),
+                };
+                let _ = sender.send(res);
             });
     });
 }
