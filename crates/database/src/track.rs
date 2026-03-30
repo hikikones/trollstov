@@ -139,6 +139,7 @@ impl TrackSort {
         }
     }
 
+    // TODO: What about albums with same name?
     pub(crate) fn cmp(self, t1: &Track, t2: &Track) -> Ordering {
         match self {
             Self::TitleAscending => t1.title().cmp(t2.title()),
