@@ -102,10 +102,7 @@ impl App {
         let mut logs = LogsPage::new();
 
         let settings = Settings::read(settings_path.clone())
-            .inspect_err(|err| {
-                let log = Log::new(err);
-                logs.enqueue(log);
-            })
+            .inspect_err(|err| logs.enqueue(Log::new(err)))
             .unwrap_or_default()
             .with_path(settings_path);
 
@@ -113,10 +110,7 @@ impl App {
         if mpris {
             match events.try_establish_media_controls() {
                 Ok(_) => {}
-                Err(err) => {
-                    let log = Log::new(err);
-                    logs.enqueue(log);
-                }
+                Err(err) => logs.enqueue(Log::new(err)),
             }
         }
 
@@ -780,21 +774,18 @@ fn render_playback(
     match track {
         Some(track) => {
             // Title
-            text.extend_as_one(["[", track.extension().as_upper_case()], normal_style);
+            text.push_str_iter(["[", track.extension().as_upper_case()], normal_style);
 
             if let Some(bit_depth) = track.bit_depth()
                 && let Some(sample_rate) = track.sample_rate()
             {
-                utils::format_int(bit_depth, |bit_depth| {
-                    text.extend_as_one([" ", bit_depth, "bit/"], normal_style);
-                });
-                utils::format_int(sample_rate, |sample_rate| {
-                    text.extend_as_one([sample_rate, "kHz"], normal_style);
+                utils::format_int2(bit_depth, sample_rate, |bit_depth, sample_rate| {
+                    text.push_str_iter([" ", bit_depth, "bit/", sample_rate, "kHz"], normal_style);
                 });
             }
 
             utils::format_int(track.bit_rate(), |bit_rate| {
-                text.extend_as_one([" ", bit_rate, "kbps] "], normal_style);
+                text.push_str_iter([" ", bit_rate, "kbps] "], normal_style);
             });
 
             text.push_str(track.artist(), normal_style);
