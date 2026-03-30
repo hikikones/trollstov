@@ -32,7 +32,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 // TODO: Use a list for paths so we can do "trollstov /my/music a.flac *.mp3 dir/**/*.opus".
-
 // TODO: Add some sort of daemon flag? Starts the app without showing anything.
 // Can only play music, and interaction is done with media keys (mpris).
 
@@ -43,12 +42,13 @@ struct Args {
     #[arg(value_name = "MUSIC_DIR", value_hint = clap::ValueHint::DirPath)]
     dir: std::path::PathBuf,
 
-    /// Custom path for the settings file. If not set,
+    /// The path for your settings file. If not set,
     /// the location will be determined by the conventions of your operating system.
     #[arg(long, value_name = "SETTINGS_FILE.toml", value_hint = clap::ValueHint::FilePath)]
     settings: Option<std::path::PathBuf>,
 
-    /// Try to establish media controls through the Media Player Remote Interfacing Specification (MPRIS),
+    /// Try to establish media controls through the
+    /// Media Player Remote Interfacing Specification (MPRIS),
     /// allowing music control with media keys and in your desktop environment.
     #[clap(long, action)]
     mpris: bool,
