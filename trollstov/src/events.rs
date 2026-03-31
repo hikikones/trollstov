@@ -49,7 +49,7 @@ impl EventHandler {
                 ".",
                 crate::APP_NAME
             ),
-            hwnd: None,
+            hwnd: None, // TODO: Windows OS support.
         };
 
         let mut controls = souvlaki::MediaControls::new(config)
