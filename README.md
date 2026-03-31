@@ -32,8 +32,8 @@ In addition, it comes with two optional arguments.
 
 | Option | Value | Description |
 | ------ | ----- | ----------- |
-| `--settings` | `~/settings.toml` | Optional path for the settings file. |
-| `--mpris`    |                   | Add media controls through the Media Player Remote Interfacing Specification (MPRIS). |
+| `--settings` | `~/settings.toml` | Optional path for your settings file. If not set, the location will be determined by the conventions of your operating system. |
+| `--media-controls` | | Add system media controls for player interaction with media keys and your operating system. |
 
 ## 💡 Supported Audio Formats
 

@@ -22,7 +22,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let jukebox = jukebox::Jukebox::new(player);
     let database = database::Database::new(args.dir);
 
-    let mut app = app::App::new(database, jukebox, picker, args.settings, args.mpris);
+    let mut app = app::App::new(
+        database,
+        jukebox,
+        picker,
+        args.settings,
+        args.media_controls,
+    );
     let res = app.run(terminal);
     app.quit();
 
@@ -32,8 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 // TODO: Use a list for paths so we can do "trollstov /my/music a.flac *.mp3 dir/**/*.opus".
-// TODO: Add some sort of daemon flag? Starts the app without showing anything.
-// Can only play music, and interaction is done with media keys (mpris).
+// TODO: Add some sort of daemon flag? No app, just system media interaction.
 
 #[derive(Debug, clap::Parser)]
 #[command(version, about, styles = CLAP_STYLING)]
@@ -47,11 +52,10 @@ struct Args {
     #[arg(long, value_name = "SETTINGS_FILE.toml", value_hint = clap::ValueHint::FilePath)]
     settings: Option<std::path::PathBuf>,
 
-    /// Try to establish media controls through the
-    /// Media Player Remote Interfacing Specification (MPRIS),
-    /// allowing music control with media keys and in your desktop environment.
+    /// Add system media controls for player interaction
+    /// with media keys and your operating system.
     #[clap(long, action)]
-    mpris: bool,
+    media_controls: bool,
 }
 
 const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()

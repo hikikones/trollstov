@@ -107,7 +107,7 @@ impl App {
         jukebox: Jukebox,
         picker: Picker,
         settings_path: Option<PathBuf>,
-        mpris: bool,
+        media_controls: bool,
     ) -> Self {
         let mut logs = LogsPage::new();
 
@@ -117,7 +117,7 @@ impl App {
             .with_path(settings_path);
 
         let mut events = EventHandler::new();
-        if mpris {
+        if media_controls {
             match events.try_establish_media_controls() {
                 Ok(_) => {}
                 Err(err) => logs.enqueue(Log::new(err)),
@@ -403,32 +403,32 @@ impl App {
                             let handle = load_front_cover(path, picker);
                             self.front_cover_handle = Some(handle);
 
-                            // Update metadata and playback status for mpris
-                            if let Some(mpris) = self.events.media_controls() {
-                                mpris.set_metadata(track.title(), track.artist());
-                                mpris.set_playback(MediaPlayback::Playing);
+                            // Update metadata and playback status for system media
+                            if let Some(media) = self.events.media_controls() {
+                                media.set_metadata(track.title(), track.artist());
+                                media.set_playback(MediaPlayback::Playing);
                             }
                         }
                         None => {
-                            // Update only playback status
-                            if let Some(mpris) = self.events.media_controls() {
-                                mpris.set_playback(MediaPlayback::Playing);
+                            // Update only playback status for system media
+                            if let Some(media) = self.events.media_controls() {
+                                media.set_playback(MediaPlayback::Playing);
                             }
                         }
                     }
                 }
                 JukeboxEvent::Pause => {
-                    if let Some(mpris) = self.events.media_controls() {
-                        mpris.set_playback(MediaPlayback::Paused);
+                    if let Some(media) = self.events.media_controls() {
+                        media.set_playback(MediaPlayback::Paused);
                     }
                 }
                 JukeboxEvent::Stop => {
                     self.front_cover = FrontCover::default();
                     self.front_cover_handle = None;
 
-                    if let Some(mpris) = self.events.media_controls() {
-                        mpris.reset_metadata();
-                        mpris.set_playback(MediaPlayback::Stopped);
+                    if let Some(media) = self.events.media_controls() {
+                        media.reset_metadata();
+                        media.set_playback(MediaPlayback::Stopped);
                     }
                 }
                 JukeboxEvent::Error(err) => {

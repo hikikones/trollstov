@@ -52,13 +52,8 @@ impl EventHandler {
             hwnd: None,
         };
 
-        let mut controls = souvlaki::MediaControls::new(config).map_err(|err| {
-            format!(
-                "Failed to create media controls for the Media Player \
-                Remote Interfacing Specification (MPRIS) due to {}",
-                err
-            )
-        })?;
+        let mut controls = souvlaki::MediaControls::new(config)
+            .map_err(|err| format!("Failed to create media controls due to {}", err))?;
 
         controls
             .attach({
@@ -69,8 +64,8 @@ impl EventHandler {
             })
             .map_err(|err| {
                 format!(
-                    "Failed to attach static handler for Media Player \
-                    Remote Interfacing Specification (MPRIS) due to {}",
+                    "Failed to attach static handler \
+            for media controls due to {}",
                     err
                 )
             })?;
