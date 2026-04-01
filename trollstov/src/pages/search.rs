@@ -223,12 +223,11 @@ impl SearchPage {
                     }
                 }
                 KeyCode::Char('q') => {
-                    self.list
+                    let ids = self
+                        .list
                         .selection_inclusive()
-                        .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id))
-                        .for_each(|id| {
-                            jb.enqueue(id);
-                        });
+                        .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id));
+                    jb.extend(ids);
                 }
                 KeyCode::Char('n') => {
                     self.list

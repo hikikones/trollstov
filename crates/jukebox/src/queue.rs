@@ -77,6 +77,11 @@ impl PlayQueue {
         self
     }
 
+    pub(crate) fn extend(&mut self, ids: impl IntoIterator<Item = TrackId>) -> &mut Self {
+        self.list.extend(ids);
+        self
+    }
+
     pub(crate) fn current_or_next(&mut self) -> Option<(TrackId, usize)> {
         self.current().or_else(|| self.next())
     }

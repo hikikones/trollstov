@@ -112,11 +112,11 @@ impl TracksPage {
                     }
                 }
                 'q' => {
-                    for i in self.list.selection_inclusive() {
-                        if let Some(id) = db.get_id_from_index(i) {
-                            jb.enqueue(id);
-                        }
-                    }
+                    let ids = self
+                        .list
+                        .selection_inclusive()
+                        .filter_map(|i| db.get_id_from_index(i));
+                    jb.extend(ids);
                 }
                 'n' => {
                     for i in self.list.selection_inclusive().rev() {

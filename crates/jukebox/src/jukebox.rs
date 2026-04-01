@@ -67,7 +67,12 @@ impl Jukebox {
     }
 
     pub const fn queue(&self) -> usize {
-        self.queue.queue_len()
+        if self.queue.is_empty() {
+            return 0;
+        }
+
+        let len = self.queue.queue_len();
+        if self.current.is_none() { len + 1 } else { len }
     }
 
     pub const fn history(&self) -> usize {
@@ -180,6 +185,10 @@ impl Jukebox {
         self.queue.enqueue_next(id);
     }
 
+    pub fn extend(&mut self, ids: impl IntoIterator<Item = TrackId>) {
+        self.queue.extend(ids);
+    }
+
     pub fn volume(&self) -> f32 {
         self.player.volume()
     }
@@ -246,12 +255,11 @@ impl Jukebox {
         }
 
         let mut next = self.queue.current_or_next();
+        if next == self.current {
+            next = self.queue.next();
+        }
 
         loop {
-            if next == self.current {
-                next = self.queue.next();
-            }
-
             match next {
                 Some((id, index)) => {
                     if self.is_faulty(id) || self.should_skip(id, db) {
