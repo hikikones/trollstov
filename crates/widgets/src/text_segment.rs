@@ -110,9 +110,9 @@ impl TextSegment {
         self.push_str(buffer.format(int), style);
     }
 
-    pub fn extend(&mut self, items: impl IntoIterator<Item = (impl AsRef<str>, impl Into<Style>)>) {
+    pub fn extend<'a>(&mut self, items: impl IntoIterator<Item = (&'a str, Style)>) {
         for (text, style) in items.into_iter() {
-            self.push_str(text.as_ref(), style);
+            self.push_str(text, style);
         }
     }
 
