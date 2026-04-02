@@ -19,19 +19,26 @@ pub struct EventHandler {
 }
 
 impl EventHandler {
-    pub fn new() -> Self {
+    pub fn new(media_controls: bool) -> Result<Self, String> {
         let (sender, receiver) = std::sync::mpsc::channel();
-        Self {
+
+        let media_controls = if media_controls {
+            Some(MediaControls::new(sender.clone())?)
+        } else {
+            None
+        };
+
+        Ok(Self {
             sender,
             receiver,
-            media_controls: None,
-        }
+            media_controls,
+        })
     }
 
     pub fn start(&self) {
         std::thread::spawn({
             let sender = self.sender.clone();
-            move || handle_events(sender)
+            move || handle_terminal_events(sender)
         });
     }
 
@@ -39,48 +46,12 @@ impl EventHandler {
         Ok(self.receiver.recv()?)
     }
 
-    pub fn try_establish_media_controls(&mut self) -> Result<(), String> {
-        let config = souvlaki::PlatformConfig {
-            display_name: crate::APP_NAME,
-            dbus_name: crate::symbols::concat!(
-                crate::APP_QUALIFIER,
-                ".",
-                crate::APP_ORGANIZATION,
-                ".",
-                crate::APP_NAME
-            ),
-            hwnd: None, // TODO: Windows OS support.
-        };
-
-        let mut controls = souvlaki::MediaControls::new(config)
-            .map_err(|err| format!("Failed to create media controls due to {}", err))?;
-
-        controls
-            .attach({
-                let sender = self.sender.clone();
-                move |event| {
-                    handle_media_control_event(event, &sender);
-                }
-            })
-            .map_err(|err| {
-                format!(
-                    "Failed to attach static handler \
-            for media controls due to {}",
-                    err
-                )
-            })?;
-
-        self.media_controls = Some(MediaControls(controls));
-
-        Ok(())
-    }
-
     pub fn media_controls(&mut self) -> Option<&mut MediaControls> {
         self.media_controls.as_mut()
     }
 }
 
-fn handle_events(sender: Sender) -> Result<(), std::io::Error> {
+fn handle_terminal_events(sender: Sender) -> Result<(), std::io::Error> {
     const UPDATE_FREQUENCY: f64 = 1.0 / 8.0;
     const RENDER_FREQUENCY: f64 = 1.0 / 1.0;
 
@@ -137,23 +108,6 @@ impl Timer {
     }
 }
 
-fn handle_media_control_event(event: souvlaki::MediaControlEvent, sender: &Sender) {
-    let event = match event {
-        souvlaki::MediaControlEvent::Play => MediaEvent::Play,
-        souvlaki::MediaControlEvent::Pause => MediaEvent::Pause,
-        souvlaki::MediaControlEvent::Toggle => MediaEvent::Toggle,
-        souvlaki::MediaControlEvent::Next => MediaEvent::Next,
-        souvlaki::MediaControlEvent::Previous => MediaEvent::Previous,
-        souvlaki::MediaControlEvent::Stop => MediaEvent::Stop,
-        souvlaki::MediaControlEvent::Raise => MediaEvent::Raise,
-        souvlaki::MediaControlEvent::Quit => MediaEvent::Quit,
-        _ => {
-            return;
-        }
-    };
-    let _ = sender.send(Event::Media(event));
-}
-
 pub struct MediaControls(souvlaki::MediaControls);
 
 pub enum MediaEvent {
@@ -174,6 +128,43 @@ pub enum MediaPlayback {
 }
 
 impl MediaControls {
+    fn new(sender: Sender) -> Result<Self, String> {
+        let config = souvlaki::PlatformConfig {
+            display_name: crate::APP_NAME,
+            // TODO: Add random number to avoid zbus panic when dbus name is already taken?
+            // Currently a second instance of trollstov will panic.
+            dbus_name: crate::symbols::concat!(
+                crate::APP_QUALIFIER,
+                ".",
+                crate::APP_ORGANIZATION,
+                ".",
+                crate::APP_NAME
+            ),
+            hwnd: None, // TODO: Add Windows OS support.
+        };
+
+        let mut controls = souvlaki::MediaControls::new(config)
+            .map_err(|err| format!("Failed to create media controls due to {}", err))?;
+
+        controls
+            .attach(move |event| {
+                handle_media_events(event, &sender);
+            })
+            .map_err(|err| {
+                format!(
+                    "Failed to attach static handler \
+            for media controls due to {}",
+                    err
+                )
+            })?;
+
+        // Wait a bit in case zbus panic due to dbus name taken
+        // TODO: Remove when fixed: https://github.com/Sinono3/souvlaki/issues/32
+        std::thread::sleep(Duration::from_millis(100));
+
+        Ok(Self(controls))
+    }
+
     pub fn set_metadata(&mut self, title: &str, artist: &str) {
         let _ = self.0.set_metadata(souvlaki::MediaMetadata {
             title: Some(title),
@@ -195,4 +186,21 @@ impl MediaControls {
     pub fn reset_metadata(&mut self) {
         let _ = self.0.set_metadata(souvlaki::MediaMetadata::default());
     }
+}
+
+fn handle_media_events(event: souvlaki::MediaControlEvent, sender: &Sender) {
+    let event = match event {
+        souvlaki::MediaControlEvent::Play => MediaEvent::Play,
+        souvlaki::MediaControlEvent::Pause => MediaEvent::Pause,
+        souvlaki::MediaControlEvent::Toggle => MediaEvent::Toggle,
+        souvlaki::MediaControlEvent::Next => MediaEvent::Next,
+        souvlaki::MediaControlEvent::Previous => MediaEvent::Previous,
+        souvlaki::MediaControlEvent::Stop => MediaEvent::Stop,
+        souvlaki::MediaControlEvent::Raise => MediaEvent::Raise,
+        souvlaki::MediaControlEvent::Quit => MediaEvent::Quit,
+        _ => {
+            return;
+        }
+    };
+    let _ = sender.send(Event::Media(event));
 }

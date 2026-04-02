@@ -103,11 +103,11 @@ pub enum Action {
 
 impl App {
     pub fn new(
+        events: EventHandler,
         database: Database,
         jukebox: Jukebox,
         picker: Picker,
         settings_path: Option<PathBuf>,
-        media_controls: bool,
     ) -> Self {
         let mut logs = LogsPage::new();
 
@@ -115,14 +115,6 @@ impl App {
             logs.enqueue(Log::new(err));
             Settings::default().with_path(settings_path)
         });
-
-        let mut events = EventHandler::new();
-        if media_controls {
-            match events.try_establish_media_controls() {
-                Ok(_) => {}
-                Err(err) => logs.enqueue(Log::new(err)),
-            }
-        }
 
         let pages = Pages {
             tracks: TracksPage::new(),

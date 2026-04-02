@@ -13,6 +13,9 @@ const APP_ORGANIZATION: &str = "hikikones";
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Args = clap::Parser::parse();
 
+    // Create events early with media controls in case of zbus panic due to dbus name taken
+    let events = events::EventHandler::new(args.media_controls)?;
+
     let terminal = terminal::Terminal::init()?;
 
     // Create picker after entering alternate screen, but before reading terminal events
@@ -22,13 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let jukebox = jukebox::Jukebox::new(player);
     let database = database::Database::new(args.dir);
 
-    let mut app = app::App::new(
-        database,
-        jukebox,
-        picker,
-        args.settings,
-        args.media_controls,
-    );
+    let mut app = app::App::new(events, database, jukebox, picker, args.settings);
     let res = app.run(terminal);
     app.quit();
 
