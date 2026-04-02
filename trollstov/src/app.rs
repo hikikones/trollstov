@@ -111,10 +111,10 @@ impl App {
     ) -> Self {
         let mut logs = LogsPage::new();
 
-        let settings = Settings::read(settings_path.clone())
-            .inspect_err(|err| logs.enqueue(Log::new(err)))
-            .unwrap_or_default()
-            .with_path(settings_path);
+        let settings = Settings::read(settings_path.clone()).unwrap_or_else(|err| {
+            logs.enqueue(Log::new(err));
+            Settings::default().with_path(settings_path)
+        });
 
         let mut events = EventHandler::new();
         if media_controls {
