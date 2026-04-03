@@ -8,6 +8,8 @@ use widgets::{List, ListItem, Shortcut, Shortcuts};
 use crate::settings::Colors;
 
 // TODO: LogLevel? ERROR/INFO.
+// TODO: Add copy shortcut.
+// TODO: Add dump shortcut.
 
 pub struct LogsPage {
     logs: Vec<Log>,
