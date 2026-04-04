@@ -891,9 +891,10 @@ fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
 
         let image = image::load_from_memory_with_format(bytes, image_format).map_err(|err| {
             format!(
-                "Failed to load front cover from \"{}\" due to {}",
+                "Failed to load front cover from \"{}\" due to {}. The mime type is {}, perhaps this is wrong?",
                 path.display(),
-                err
+                err,
+                mime_type.as_str()
             )
         })?;
 
