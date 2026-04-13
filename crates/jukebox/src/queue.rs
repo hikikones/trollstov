@@ -88,14 +88,12 @@ impl PlayQueue {
 
     pub(crate) fn next(&mut self) -> Option<(TrackId, usize)> {
         match self.index {
-            Some(mut index) => {
-                let old_index = index;
-                let max_index = self.len().saturating_sub(1);
-                index = usize::min(index + 1, max_index);
-
-                if index != old_index {
-                    self.index = Some(index);
-                    self.list.get(index).copied().map(|id| (id, index))
+            Some(cur_idx) => {
+                let max_idx = self.len().saturating_sub(1);
+                let new_idx = (cur_idx + 1).min(max_idx);
+                if new_idx > cur_idx {
+                    self.index = Some(new_idx);
+                    Some((self.list[new_idx], new_idx))
                 } else {
                     None
                 }
@@ -105,7 +103,7 @@ impl PlayQueue {
                     None
                 } else {
                     self.index = Some(0);
-                    self.list.first().copied().map(|id| (id, 0))
+                    Some((self.list[0], 0))
                 }
             }
         }
@@ -113,13 +111,11 @@ impl PlayQueue {
 
     pub(crate) fn previous(&mut self) -> Option<(TrackId, usize)> {
         match self.index {
-            Some(mut index) => {
-                let old_index = index;
-                index = index.saturating_sub(1);
-
-                if index != old_index {
-                    self.index = Some(index);
-                    self.list.get(index).copied().map(|id| (id, index))
+            Some(cur_idx) => {
+                let new_idx = cur_idx.saturating_sub(1);
+                if new_idx < cur_idx {
+                    self.index = Some(new_idx);
+                    Some((self.list[new_idx], new_idx))
                 } else {
                     None
                 }
