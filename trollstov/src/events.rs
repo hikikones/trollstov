@@ -53,8 +53,35 @@ impl EventHandler {
         Ok(self.receiver.recv()?)
     }
 
-    pub fn media_controls(&mut self) -> Option<&mut MediaControls> {
-        self.media_controls.as_mut()
+    pub fn set_media(&mut self, title: &str, artist: &str, playback: MediaPlayback) {
+        let Some(media) = self.media_controls.as_mut() else {
+            return;
+        };
+
+        let _ = media.0.set_metadata(souvlaki::MediaMetadata {
+            title: Some(title),
+            artist: Some(artist),
+            // TODO: cover_url?
+            ..Default::default()
+        });
+        let _ = media.0.set_playback(playback.into());
+    }
+
+    pub fn set_playback(&mut self, playback: MediaPlayback) {
+        let Some(media) = self.media_controls.as_mut() else {
+            return;
+        };
+
+        let _ = media.0.set_playback(playback.into());
+    }
+
+    pub fn reset_media(&mut self) {
+        let Some(media) = self.media_controls.as_mut() else {
+            return;
+        };
+
+        let _ = media.0.set_metadata(souvlaki::MediaMetadata::default());
+        let _ = media.0.set_playback(souvlaki::MediaPlayback::Stopped);
     }
 }
 
@@ -144,6 +171,16 @@ pub enum MediaPlayback {
     Stopped,
 }
 
+impl From<MediaPlayback> for souvlaki::MediaPlayback {
+    fn from(value: MediaPlayback) -> Self {
+        match value {
+            MediaPlayback::Playing => souvlaki::MediaPlayback::Playing { progress: None },
+            MediaPlayback::Paused => souvlaki::MediaPlayback::Paused { progress: None },
+            MediaPlayback::Stopped => souvlaki::MediaPlayback::Stopped,
+        }
+    }
+}
+
 impl MediaControls {
     fn new(sender: Sender) -> Result<Self, String> {
         #[cfg(not(target_os = "windows"))]
@@ -191,28 +228,6 @@ impl MediaControls {
 
         Ok(Self(controls))
     }
-
-    pub fn set_metadata(&mut self, title: &str, artist: &str) {
-        let _ = self.0.set_metadata(souvlaki::MediaMetadata {
-            title: Some(title),
-            artist: Some(artist),
-            // TODO: cover_url?
-            ..Default::default()
-        });
-    }
-
-    pub fn set_playback(&mut self, playback: MediaPlayback) {
-        let playback = match playback {
-            MediaPlayback::Playing => souvlaki::MediaPlayback::Playing { progress: None },
-            MediaPlayback::Paused => souvlaki::MediaPlayback::Paused { progress: None },
-            MediaPlayback::Stopped => souvlaki::MediaPlayback::Stopped,
-        };
-        let _ = self.0.set_playback(playback);
-    }
-
-    pub fn reset_metadata(&mut self) {
-        let _ = self.0.set_metadata(souvlaki::MediaMetadata::default());
-    }
 }
 
 fn handle_media_events(event: souvlaki::MediaControlEvent, sender: &Sender) {
@@ -225,9 +240,7 @@ fn handle_media_events(event: souvlaki::MediaControlEvent, sender: &Sender) {
         souvlaki::MediaControlEvent::Stop => MediaEvent::Stop,
         souvlaki::MediaControlEvent::Raise => MediaEvent::Raise,
         souvlaki::MediaControlEvent::Quit => MediaEvent::Quit,
-        _ => {
-            return;
-        }
+        _ => return,
     };
     let _ = sender.send(Event::Media(event));
 }

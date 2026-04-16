@@ -396,32 +396,25 @@ impl App {
                             self.front_cover_handle = Some(handle);
 
                             // Update metadata and playback status for system media
-                            if let Some(media) = self.events.media_controls() {
-                                media.set_metadata(track.title(), track.artist());
-                                media.set_playback(MediaPlayback::Playing);
-                            }
+                            self.events.set_media(
+                                track.title(),
+                                track.artist(),
+                                MediaPlayback::Playing,
+                            );
                         }
                         None => {
                             // Update only playback status for system media
-                            if let Some(media) = self.events.media_controls() {
-                                media.set_playback(MediaPlayback::Playing);
-                            }
+                            self.events.set_playback(MediaPlayback::Playing);
                         }
                     }
                 }
                 JukeboxEvent::Pause => {
-                    if let Some(media) = self.events.media_controls() {
-                        media.set_playback(MediaPlayback::Paused);
-                    }
+                    self.events.set_playback(MediaPlayback::Paused);
                 }
                 JukeboxEvent::Stop => {
                     self.front_cover = FrontCover::default();
                     self.front_cover_handle = None;
-
-                    if let Some(media) = self.events.media_controls() {
-                        media.reset_metadata();
-                        media.set_playback(MediaPlayback::Stopped);
-                    }
+                    self.events.reset_media();
                 }
                 JukeboxEvent::Error(err) => {
                     self.pages.logs.enqueue(Log::new(err));
