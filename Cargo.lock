@@ -3849,6 +3849,7 @@ dependencies = [
  "unicode-width",
  "utils",
  "widgets",
+ "windows 0.44.0",
 ]
 
 [[package]]

@@ -36,9 +36,16 @@ impl EventHandler {
     }
 
     pub fn start(&self) {
-        std::thread::spawn({
-            let sender = self.sender.clone();
-            move || handle_terminal_events(sender)
+        let sender = self.sender.clone();
+        #[cfg(target_os = "windows")]
+        let media_controls = self.media_controls.is_some();
+
+        std::thread::spawn(move || {
+            handle_terminal_events(
+                sender,
+                #[cfg(target_os = "windows")]
+                media_controls,
+            )
         });
     }
 
@@ -51,7 +58,10 @@ impl EventHandler {
     }
 }
 
-fn handle_terminal_events(sender: Sender) -> Result<(), std::io::Error> {
+fn handle_terminal_events(
+    sender: Sender,
+    #[cfg(target_os = "windows")] media_controls: bool,
+) -> Result<(), std::io::Error> {
     const UPDATE_FREQUENCY: f64 = 1.0 / 8.0;
     const RENDER_FREQUENCY: f64 = 1.0 / 1.0;
 
@@ -74,6 +84,13 @@ fn handle_terminal_events(sender: Sender) -> Result<(), std::io::Error> {
         if event::poll(update.timeout())? {
             let event = event::read()?;
             let _ = sender.send(Event::Terminal(event));
+        }
+
+        #[cfg(target_os = "windows")]
+        if media_controls {
+            // this must be run repeatedly by your program to ensure
+            // the Windows event queue is processed by your application
+            windows::pump_event_queue();
         }
     }
 }
@@ -129,6 +146,16 @@ pub enum MediaPlayback {
 
 impl MediaControls {
     fn new(sender: Sender) -> Result<Self, String> {
+        #[cfg(not(target_os = "windows"))]
+        let hwnd = None;
+
+        #[cfg(target_os = "windows")]
+        let (hwnd, _dummy_window) = {
+            let dummy_window = windows::DummyWindow::new().unwrap();
+            let handle = Some(dummy_window.handle.0 as _);
+            (handle, dummy_window)
+        };
+
         let config = souvlaki::PlatformConfig {
             display_name: crate::APP_NAME,
             // TODO: Add random number to avoid zbus panic when dbus name is already taken?
@@ -140,7 +167,7 @@ impl MediaControls {
                 ".",
                 crate::APP_NAME
             ),
-            hwnd: None, // TODO: Add Windows OS support.
+            hwnd, // TODO: Add proper Windows OS support.
         };
 
         let mut controls = souvlaki::MediaControls::new(config)
@@ -203,4 +230,111 @@ fn handle_media_events(event: souvlaki::MediaControlEvent, sender: &Sender) {
         }
     };
     let _ = sender.send(Event::Media(event));
+}
+
+// demonstrates how to make a minimal window to allow use of media keys on the command line
+// https://github.com/Sinono3/souvlaki/blob/master/examples/print_events.rs
+#[cfg(target_os = "windows")]
+mod windows {
+    use std::io::Error;
+    use std::mem;
+
+    use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GA_ROOT, GetAncestor,
+        IsDialogMessageW, MSG, PM_REMOVE, PeekMessageW, RegisterClassExW, TranslateMessage,
+        WINDOW_EX_STYLE, WINDOW_STYLE, WM_QUIT, WNDCLASSEXW,
+    };
+    use windows::core::PCWSTR;
+    use windows::w;
+
+    pub struct DummyWindow {
+        pub handle: HWND,
+    }
+
+    impl DummyWindow {
+        pub fn new() -> Result<DummyWindow, String> {
+            let class_name = w!("SimpleTray");
+
+            let handle_result = unsafe {
+                let instance = GetModuleHandleW(None)
+                    .map_err(|e| (format!("Getting module handle failed: {e}")))?;
+
+                let wnd_class = WNDCLASSEXW {
+                    cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
+                    hInstance: instance,
+                    lpszClassName: PCWSTR::from(class_name),
+                    lpfnWndProc: Some(Self::wnd_proc),
+                    ..Default::default()
+                };
+
+                if RegisterClassExW(&wnd_class) == 0 {
+                    return Err(format!(
+                        "Registering class failed: {}",
+                        Error::last_os_error()
+                    ));
+                }
+
+                let handle = CreateWindowExW(
+                    WINDOW_EX_STYLE::default(),
+                    class_name,
+                    w!(""),
+                    WINDOW_STYLE::default(),
+                    0,
+                    0,
+                    0,
+                    0,
+                    None,
+                    None,
+                    instance,
+                    None,
+                );
+
+                if handle.0 == 0 {
+                    Err(format!(
+                        "Message only window creation failed: {}",
+                        Error::last_os_error()
+                    ))
+                } else {
+                    Ok(handle)
+                }
+            };
+
+            handle_result.map(|handle| DummyWindow { handle })
+        }
+        extern "system" fn wnd_proc(
+            hwnd: HWND,
+            msg: u32,
+            wparam: WPARAM,
+            lparam: LPARAM,
+        ) -> LRESULT {
+            unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
+        }
+    }
+
+    impl Drop for DummyWindow {
+        fn drop(&mut self) {
+            unsafe {
+                DestroyWindow(self.handle);
+            }
+        }
+    }
+
+    pub fn pump_event_queue() -> bool {
+        unsafe {
+            let mut msg: MSG = std::mem::zeroed();
+            let mut has_message = PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool();
+            while msg.message != WM_QUIT && has_message {
+                if !IsDialogMessageW(GetAncestor(msg.hwnd, GA_ROOT), &msg).as_bool() {
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
+                }
+
+                has_message = PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool();
+            }
+
+            msg.message == WM_QUIT
+        }
+    }
 }
