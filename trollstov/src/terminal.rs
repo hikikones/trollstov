@@ -2,9 +2,9 @@ use ratatui::{
     CompletedFrame, DefaultTerminal, Frame,
     backend::CrosstermBackend,
     crossterm::{
-        event::{
-            KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
-        },
+        // event::{
+        //     KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+        // },
         execute,
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
@@ -22,7 +22,7 @@ impl Terminal {
         execute!(
             stdout,
             EnterAlternateScreen,
-            PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
+            // PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
         )?;
 
         let backend = CrosstermBackend::new(stdout);
@@ -35,7 +35,7 @@ impl Terminal {
 
         execute!(
             std::io::stdout(),
-            PopKeyboardEnhancementFlags,
+            // PopKeyboardEnhancementFlags,
             LeaveAlternateScreen
         )?;
 
