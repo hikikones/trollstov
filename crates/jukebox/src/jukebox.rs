@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fs::File, time::Duration};
+use std::{collections::HashSet, io::Cursor, time::Duration};
 
 use rodio::decoder::Decoder;
 
@@ -6,7 +6,7 @@ use database::*;
 
 use crate::{AudioPlayer, PlayQueue};
 
-type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<File>, AudioFileReport>>;
+type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<Cursor<Vec<u8>>>, String>>;
 
 pub struct Jukebox {
     current: Option<(TrackId, usize)>,
@@ -23,7 +23,7 @@ pub enum JukeboxEvent {
     Play(Option<TrackId>),
     Pause,
     Stop,
-    Error(AudioFileReport),
+    Error(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -340,37 +340,17 @@ impl Jukebox {
         let path = track.path().to_path_buf();
         let extension = track.extension();
         let handle = std::thread::spawn(move || {
-            let file = File::open(&path).map_err(|err| {
-                AudioFileReport::new(format!(
-                    "Unable to decode \"{}\" due to {}",
-                    path.display(),
-                    err
-                ))
-            })?;
-            let len = file
-                .metadata()
-                .map_err(|err| {
-                    AudioFileReport::new(format!(
-                        "Unable to decode \"{}\" due to {}",
-                        path.display(),
-                        err
-                    ))
-                })?
-                .len();
+            let data = std::fs::read(&path)
+                .map_err(|err| format!("Unable to decode \"{}\" due to {}", path.display(), err))?;
+            let len = data.len() as u64;
             let decoder = Decoder::builder()
-                .with_data(file)
+                .with_data(Cursor::new(data))
                 .with_hint(extension.as_lower_case())
                 .with_byte_len(len)
                 .with_seekable(true)
                 .with_gapless(false)
                 .build()
-                .map_err(|err| {
-                    AudioFileReport::new(format!(
-                        "Failed to decode \"{}\" due to {}",
-                        path.display(),
-                        err
-                    ))
-                })?;
+                .map_err(|err| format!("Failed to decode \"{}\" due to {}", path.display(), err))?;
             Ok(decoder)
         });
         self.decode_handle = Some((handle, id, index));
