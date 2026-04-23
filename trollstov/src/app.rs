@@ -757,7 +757,7 @@ fn render_playback(
 
     match track {
         Some(track) => {
-            // Title
+            // Stats
             text.push_str_iter(["[", track.extension().as_upper_case()], normal_style);
 
             if let Some(bit_depth) = track.bit_depth()
@@ -772,6 +772,7 @@ fn render_playback(
                 text.push_str_iter([" ", bit_rate, "kbps] "], normal_style);
             });
 
+            // Title
             text.push_str(track.artist(), normal_style);
             if !(track.artist().is_empty() || track.title().is_empty()) {
                 text.push_str(" - ", normal_style);
