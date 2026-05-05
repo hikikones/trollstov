@@ -13,7 +13,7 @@ Your music is the database.
 
 `trollstov` is a music player for the terminal that is built around a simple idea — your files and their metadata are all you need. Simply back up your music directory and you have backed up everything. Ratings are part of the metadata, so your favorite songs are always just a few keystrokes away.
 
-The name is a norwegian word play for a substance with magical properties. You have "troll", a creature from Norse mythology, and "stov" which is actually "støv", meaning "dust" in english. Hence, you get "troll dust".
+The name is a norwegian word play for a substance with magical properties. You have _troll_, a creature from Norse mythology, and _stov_ or _støv_ meaning _dust_ in english. Hence, you get _troll dust_.
 
 ## 📌 Features
 
@@ -39,7 +39,7 @@ Options:
   -V, --version                        Print version.
 ```
 
-## 💡 Supported Audio Formats
+## 🎵 Audio Format Support
 
 | Format | Metadata | Playback |
 | ------ | -------- | -------- |
@@ -49,6 +49,10 @@ Options:
 | MP3 | ID3v2 | Yes |
 
 [^1]: Requires the `opus` feature.
+
+## 💻 Platform Support
+
+The application is mainly developed on Linux, as that is what I use, but hopefully it also works on Windows and macOS. I try to keep cross-platform in mind when developing, but have no means of testing it.
 
 ## ⚠️ Non-goals
 
