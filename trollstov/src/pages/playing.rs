@@ -463,7 +463,7 @@ fn render_cover(
 
     match front_cover.as_mut() {
         Some(image) => {
-            let resized_area = image.size_for(ratatui_image::Resize::default(), image_area);
+            let resized_area = image.size_for(ratatui_image::Resize::default(), image_area.into());
             image_area = widgets::align(
                 Rect {
                     width: resized_area.width,
