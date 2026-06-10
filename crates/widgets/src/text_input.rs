@@ -72,6 +72,11 @@ impl TextInput {
         self
     }
 
+    pub const fn with_disabled(mut self) -> Self {
+        self.disabled = true;
+        self
+    }
+
     pub const fn set_colors(&mut self, colors: TextInputColors) -> &mut Self {
         self.colors = colors;
         self
@@ -80,6 +85,10 @@ impl TextInput {
     pub const fn set_disabled(&mut self, value: bool) -> &mut Self {
         self.disabled = value;
         self
+    }
+
+    pub const fn set_enabled(&mut self, value: bool) -> &mut Self {
+        self.set_disabled(!value)
     }
 
     pub const fn is_empty(&self) -> bool {
@@ -253,7 +262,12 @@ impl TextInput {
     pub fn render(&mut self, line: Rect, buf: &mut Buffer) {
         if self.disabled {
             let Rect { x, y, .. } = line;
-            buf.set_string(x, y, self.input.as_str(), self.colors.disabled);
+            let s = if self.input.is_empty() {
+                self.placeholder
+            } else {
+                self.input.as_str()
+            };
+            buf.set_string(x, y, s, self.colors.disabled);
             return;
         }
 

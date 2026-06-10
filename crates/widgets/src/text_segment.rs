@@ -26,6 +26,11 @@ impl TextSegment {
         self
     }
 
+    pub const fn set_alignment(&mut self, alignment: Alignment) -> &mut Self {
+        self.alignment = alignment;
+        self
+    }
+
     pub const fn is_empty(&self) -> bool {
         self.text.is_empty()
     }
@@ -117,6 +122,10 @@ impl TextSegment {
     }
 
     pub fn render(&self, line: Rect, buf: &mut Buffer) {
+        if buf.cell((line.x, line.y)).is_none() {
+            return;
+        }
+
         let line = match self.alignment {
             Alignment::Left => line,
             Alignment::Center => Rect {
@@ -152,7 +161,7 @@ impl TextSegment {
     }
 
     fn push_segment(&mut self, start: usize, style: impl Into<Style>) {
-        if self.text.len() == start {
+        if start >= self.text.len() {
             return;
         }
 
