@@ -34,6 +34,7 @@ pub enum CursorMove {
 pub enum CursorDelete {
     Forward,
     Back,
+    Selection,
 }
 
 impl TextInput {
@@ -49,8 +50,8 @@ impl TextInput {
             selector: None,
             scroll: 0,
             disabled: false,
-            margin_top: 2,
-            margin_bottom: 2,
+            margin_top: 0,
+            margin_bottom: 0,
             colors: TextInputColors::new(),
         }
     }
@@ -71,6 +72,11 @@ impl TextInput {
         self
     }
 
+    pub const fn with_disabled(mut self) -> Self {
+        self.disabled = true;
+        self
+    }
+
     pub const fn set_colors(&mut self, colors: TextInputColors) -> &mut Self {
         self.colors = colors;
         self
@@ -79,6 +85,18 @@ impl TextInput {
     pub const fn set_disabled(&mut self, value: bool) -> &mut Self {
         self.disabled = value;
         self
+    }
+
+    pub const fn set_enabled(&mut self, value: bool) -> &mut Self {
+        self.set_disabled(!value)
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        self.input.is_empty()
+    }
+
+    pub fn is_empty_trim(&self) -> bool {
+        self.input.as_str().trim().is_empty()
     }
 
     pub const fn as_str(&self) -> &str {
@@ -114,20 +132,18 @@ impl TextInput {
             KeyCode::End => self.move_cursor(CursorMove::End, shift),
             KeyCode::Backspace => self.delete(CursorDelete::Back),
             KeyCode::Delete => self.delete(CursorDelete::Forward),
-            KeyCode::Char(c) => match c {
-                'a' => {
-                    if ctrl {
-                        self.select_all()
-                    } else {
-                        self.push_char(c);
-                        true
-                    }
-                }
-                _ => {
-                    self.push_char(c);
+            KeyCode::Char('a') => {
+                if ctrl {
+                    self.select_all()
+                } else {
+                    self.push_char('a');
                     true
                 }
-            },
+            }
+            KeyCode::Char(c) => {
+                self.push_char(c);
+                true
+            }
             _ => false,
         }
     }
@@ -202,28 +218,37 @@ impl TextInput {
     }
 
     pub fn delete(&mut self, cd: CursorDelete) -> bool {
-        if self.delete_selection() {
-            return true;
-        }
-
         match cd {
-            CursorDelete::Forward => match self.input[self.cursor..].graphemes(true).next() {
-                Some(g) => {
-                    self.input
-                        .replace_range(self.cursor..self.cursor + g.len(), "");
-                    true
+            CursorDelete::Forward => {
+                if self.delete_selection() {
+                    return true;
                 }
-                None => false,
-            },
-            CursorDelete::Back => match self.input[..self.cursor].graphemes(true).rev().next() {
-                Some(g) => {
-                    self.cursor -= g.len();
-                    self.input
-                        .replace_range(self.cursor..self.cursor + g.len(), "");
-                    true
+
+                match self.input[self.cursor..].graphemes(true).next() {
+                    Some(g) => {
+                        self.input
+                            .replace_range(self.cursor..self.cursor + g.len(), "");
+                        true
+                    }
+                    None => false,
                 }
-                None => false,
-            },
+            }
+            CursorDelete::Back => {
+                if self.delete_selection() {
+                    return true;
+                }
+
+                match self.input[..self.cursor].graphemes(true).rev().next() {
+                    Some(g) => {
+                        self.cursor -= g.len();
+                        self.input
+                            .replace_range(self.cursor..self.cursor + g.len(), "");
+                        true
+                    }
+                    None => false,
+                }
+            }
+            CursorDelete::Selection => self.delete_selection(),
         }
     }
 
@@ -237,7 +262,12 @@ impl TextInput {
     pub fn render(&mut self, line: Rect, buf: &mut Buffer) {
         if self.disabled {
             let Rect { x, y, .. } = line;
-            buf.set_string(x, y, self.input.as_str(), self.colors.disabled);
+            let s = if self.input.is_empty() {
+                self.placeholder
+            } else {
+                self.input.as_str()
+            };
+            buf.set_string(x, y, s, self.colors.disabled);
             return;
         }
 

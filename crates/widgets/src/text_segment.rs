@@ -7,8 +7,8 @@ use ratatui::{
 pub struct TextSegment {
     text: String,
     segments: Vec<(usize, Style)>,
-    total_width: usize,
     alignment: Alignment,
+    total_width: usize,
 }
 
 impl TextSegment {
@@ -16,12 +16,17 @@ impl TextSegment {
         Self {
             text: String::new(),
             segments: Vec::new(),
-            total_width: 0,
             alignment: Alignment::Left,
+            total_width: 0,
         }
     }
 
     pub const fn with_alignment(mut self, alignment: Alignment) -> Self {
+        self.alignment = alignment;
+        self
+    }
+
+    pub const fn set_alignment(&mut self, alignment: Alignment) -> &mut Self {
         self.alignment = alignment;
         self
     }
@@ -45,32 +50,21 @@ impl TextSegment {
     }
 
     pub fn push_chars(&mut self, chars: &[char], style: impl Into<Style>) {
-        let mut len = 0;
-        let mut width = 0;
-
-        for ch in chars.iter().copied() {
-            len += ch.len_utf8();
-            width += unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
-            self.text.push(ch);
-        }
-
-        self.segments.push((len, style.into()));
-        self.total_width += width;
+        let start = self.text.len();
+        self.text.extend(chars);
+        self.push_segment(start, style);
     }
 
     pub fn repeat_char(&mut self, ch: char, n: usize, style: impl Into<Style>) {
-        if n == 0 {
+        let start = self.text.len();
+        self.text.extend(std::iter::repeat_n(ch, n));
+
+        if self.text.len() == start {
             return;
         }
 
-        for _ in 0..n {
-            self.text.push(ch);
-        }
-
-        let width = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
-        let len = ch.len_utf8() * n;
-        self.segments.push((len, style.into()));
-        self.total_width += width * n;
+        self.segments.push((n * ch.len_utf8(), style.into()));
+        self.total_width += n * unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
     }
 
     pub fn push_str(&mut self, text: &str, style: impl Into<Style>) {
@@ -83,40 +77,38 @@ impl TextSegment {
         self.total_width += unicode_width::UnicodeWidthStr::width(text);
     }
 
-    pub fn extend(&mut self, items: impl IntoIterator<Item = (impl AsRef<str>, impl Into<Style>)>) {
-        for (text, style) in items.into_iter() {
-            self.push_str(text.as_ref(), style);
-        }
-    }
-
-    pub fn extend_as_one(
+    pub fn push_str_iter<'a>(
         &mut self,
-        slices: impl IntoIterator<Item = impl AsRef<str>>,
+        slices: impl IntoIterator<Item = &'a str>,
         style: impl Into<Style>,
     ) {
-        let mut len = 0;
-        let mut width = 0;
+        let start = self.text.len();
+        self.text.extend(slices);
+        self.push_segment(start, style);
+    }
 
-        for text in slices.into_iter() {
-            let text = text.as_ref();
-            if text.is_empty() {
-                continue;
-            }
+    pub fn push_int(&mut self, int: impl itoa::Integer, style: impl Into<Style>) {
+        let mut buffer = itoa::Buffer::new();
+        self.push_str(buffer.format(int), style);
+    }
 
-            len += text.len();
-            width += unicode_width::UnicodeWidthStr::width(text);
-            self.text.push_str(text);
+    pub fn push_fmt(&mut self, args: std::fmt::Arguments<'_>, style: impl Into<Style>) {
+        use std::fmt::Write;
+        let start = self.text.len();
+        let _ = self.text.write_fmt(args);
+        self.push_segment(start, style);
+    }
+
+    pub fn extend<'a>(&mut self, items: impl IntoIterator<Item = (&'a str, Style)>) {
+        for (text, style) in items.into_iter() {
+            self.push_str(text, style);
         }
-
-        self.segments.push((len, style.into()));
-        self.total_width += width;
     }
 
     pub fn pop(&mut self) {
-        if let Some((i, _)) = self.segments.pop() {
-            let start = self.text.len() - i;
-            let end = self.text.len();
-            let slice = &self.text[start..end];
+        if let Some((len, _)) = self.segments.pop() {
+            let start = self.text.len() - len;
+            let slice = &self.text[start..];
 
             self.total_width -= unicode_width::UnicodeWidthStr::width(slice);
             self.text.truncate(start);
@@ -130,6 +122,10 @@ impl TextSegment {
     }
 
     pub fn render(&self, line: Rect, buf: &mut Buffer) {
+        if buf.cell((line.x, line.y)).is_none() {
+            return;
+        }
+
         let line = match self.alignment {
             Alignment::Left => line,
             Alignment::Center => Rect {
@@ -162,5 +158,15 @@ impl TextSegment {
             x = next_x;
             start = end;
         }
+    }
+
+    fn push_segment(&mut self, start: usize, style: impl Into<Style>) {
+        if start >= self.text.len() {
+            return;
+        }
+
+        let text = &self.text[start..];
+        self.segments.push((text.len(), style.into()));
+        self.total_width += unicode_width::UnicodeWidthStr::width(text);
     }
 }

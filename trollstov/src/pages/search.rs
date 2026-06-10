@@ -222,39 +222,31 @@ impl SearchPage {
                         return SearchAction::Render;
                     }
                 }
-                KeyCode::Char(c) => match c {
-                    'q' => {
-                        self.list
-                            .selection_inclusive()
-                            .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id))
-                            .for_each(|id| {
-                                jb.enqueue(id);
-                            });
-                    }
-                    'n' => {
-                        self.list
-                            .selection_inclusive()
-                            .rev()
-                            .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id))
-                            .for_each(|id| {
-                                jb.enqueue_next(id);
-                            });
-                    }
-                    'g' => {
-                        let index = self.list.index();
-                        let id = self.search_results.get(index).map(|(id, _)| *id);
-                        return SearchAction::Goto(id);
-                    }
-                    's' => {
-                        self.state = State::Search;
-                        return SearchAction::Render;
-                    }
-                    _ => {
-                        if self.list.input(key, modifiers) {
-                            return SearchAction::Render;
-                        }
-                    }
-                },
+                KeyCode::Char('q') => {
+                    let ids = self
+                        .list
+                        .selection_inclusive()
+                        .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id));
+                    jb.extend(ids);
+                }
+                KeyCode::Char('n') => {
+                    self.list
+                        .selection_inclusive()
+                        .rev()
+                        .filter_map(|i| self.search_results.get(i).map(|(id, _)| *id))
+                        .for_each(|id| {
+                            jb.enqueue_next(id);
+                        });
+                }
+                KeyCode::Char('g') => {
+                    let index = self.list.index();
+                    let id = self.search_results.get(index).map(|(id, _)| *id);
+                    return SearchAction::Goto(id);
+                }
+                KeyCode::Char('s') => {
+                    self.state = State::Search;
+                    return SearchAction::Render;
+                }
                 _ => {
                     if self.list.input(key, modifiers) {
                         return SearchAction::Render;

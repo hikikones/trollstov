@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use audio::{AudioFileExtension, AudioMetadata, AudioProperties, AudioRating};
+use crate::{AudioFileExtension, AudioMetadata, AudioProperties, AudioRating};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TrackId(pub u64);
@@ -139,6 +139,7 @@ impl TrackSort {
         }
     }
 
+    // TODO: What about albums with same name?
     pub(crate) fn cmp(self, t1: &Track, t2: &Track) -> Ordering {
         match self {
             Self::TitleAscending => t1.title().cmp(t2.title()),

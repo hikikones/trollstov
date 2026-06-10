@@ -8,6 +8,8 @@ use widgets::{List, ListItem, Shortcut, Shortcuts};
 use crate::settings::Colors;
 
 // TODO: LogLevel? ERROR/INFO.
+// TODO: Add copy shortcut.
+// TODO: Add dump shortcut.
 
 pub struct LogsPage {
     logs: Vec<Log>,
@@ -128,15 +130,12 @@ impl LogsPage {
                 self.horizontal_scroll = self.horizontal_scroll.saturating_sub(1);
                 return LogsAction::Render;
             }
-            KeyCode::Char(c) => match c {
-                'c' => {
-                    self.logs.clear();
-                    self.horizontal_scroll = 0;
-                    self.list.set_index(0);
-                    return LogsAction::Done;
-                }
-                _ => {}
-            },
+            KeyCode::Char('c') => {
+                self.logs.clear();
+                self.horizontal_scroll = 0;
+                self.list.set_index(0);
+                return LogsAction::Done;
+            }
             _ => {
                 if self.list.input(key, KeyModifiers::empty()) {
                     self.horizontal_scroll = 0;

@@ -5,7 +5,7 @@
 Your music is the database.
 
 <figure>
-<img src="https://github.com/user-attachments/assets/44d01c0b-ec13-423a-957c-e1d3819c8c64"/>
+<img src="https://github.com/user-attachments/assets/07913095-1160-4cd9-9eb9-fb6e80b3d95d"/>
 <p><em>The music player with the Monokai Soda color scheme.</em></p>
 </figure>
 
@@ -13,7 +13,7 @@ Your music is the database.
 
 `trollstov` is a music player for the terminal that is built around a simple idea — your files and their metadata are all you need. Simply back up your music directory and you have backed up everything. Ratings are part of the metadata, so your favorite songs are always just a few keystrokes away.
 
-The name is a norwegian word play for a substance with magical properties. You have "troll", a creature from Norse mythology, and "stov" which is actually "støv", meaning "dust" in english. Hence, you get "troll dust".
+The name is a norwegian word play for a substance with magical properties. You have _troll_, a creature from Norse mythology, and _stov_ or _støv_ meaning _dust_ in english. Hence, you get _troll dust_.
 
 ## 📌 Features
 
@@ -22,19 +22,24 @@ The name is a norwegian word play for a substance with magical properties. You h
 
 ## ⚡ Usage
 
-The `trollstov` command takes one mandatory argument, which is the path to your music directory.
+The `trollstov` command takes one mandatory argument, which is the path to your music directory. In addition, it comes with a few optional arguments.
 
-```sh
-trollstov /path/to/my/music
+```console
+Usage: trollstov [OPTIONS] <MUSIC_DIR>
+
+Example: trollstov --media-controls /path/to/my/music
+
+Arguments:
+  <MUSIC_DIR>  The directory for your music
+
+Options:
+      --settings <SETTINGS_FILE.toml>  Optional path for your settings file. If not set, the location will be determined by the conventions of your operating system.
+      --media-controls                 Add system media controls for player interaction with media keys and your operating system.
+  -h, --help                           Print help.
+  -V, --version                        Print version.
 ```
 
-In addition, it comes with one optional argument.
-
-| Option | Description |
-| ------ | ----------- |
-| `--mpris` | Add media controls through the Media Player Remote Interfacing Specification (MPRIS). |
-
-## 💡 Supported Audio Formats
+## 🎵 Audio Format Support
 
 | Format | Metadata | Playback |
 | ------ | -------- | -------- |
@@ -44,6 +49,10 @@ In addition, it comes with one optional argument.
 | MP3 | ID3v2 | Yes |
 
 [^1]: Requires the `opus` feature.
+
+## 💻 Platform Support
+
+The application is mainly developed on Linux, as that is what I use, but hopefully it also works on Windows and macOS. I try to keep cross-platform in mind when developing, but have no means of testing it.
 
 ## ⚠️ Non-goals
 

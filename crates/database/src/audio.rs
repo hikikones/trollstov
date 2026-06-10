@@ -83,6 +83,12 @@ impl AudioFile {
                 })?;
                 AudioFileFormat::Mpeg(mpeg)
             }
+            _ => {
+                return Err(format!(
+                    "Unable to read unsupported audio format: \"{}\"",
+                    path.display()
+                ))?;
+            }
         };
 
         Ok(Self {
@@ -96,7 +102,7 @@ impl AudioFile {
             AudioFileFormat::Flac(flac) => match flac.vorbis_comments() {
                 Some(vorbis_comments) => Ok(AudioMetadata::from_vorbis_comments(vorbis_comments)),
                 None => Err(AudioFileReport(format!(
-                    "Unable to extract metadata from \"{}\" due to missing Vorbis comments",
+                    "Unable to extract metadata from \"{}\" due to missing Vorbis Comments container",
                     self.path.display()
                 ))),
             },
@@ -138,7 +144,7 @@ impl AudioFile {
                         })?)
                 }
                 None => Err(AudioFileReport(format!(
-                    "Unable to write rating for \"{}\" due to missing Vorbis tag",
+                    "Unable to write rating for \"{}\" due to missing Vorbis Comments container",
                     self.path.display()
                 ))),
             },
@@ -479,14 +485,14 @@ impl AudioProperties {
     }
 }
 
-pub struct AudioPicture(TaggedFile);
+pub struct AudioFrontCover(TaggedFile);
 
-impl AudioPicture {
+impl AudioFrontCover {
     pub fn read(audio_file: impl AsRef<Path>) -> Result<Self, AudioFileReport> {
         let path = audio_file.as_ref();
         let tagged_file = lofty::read_from_path(path).map_err(|err| {
             AudioFileReport(format!(
-                "Failed to read \"{}\" due to {}",
+                "Failed to read front cover from \"{}\" due to {}",
                 path.display(),
                 err
             ))
@@ -494,12 +500,45 @@ impl AudioPicture {
         Ok(Self(tagged_file))
     }
 
-    pub fn bytes(&self) -> Option<&[u8]> {
+    pub fn bytes_and_mime_type<'a>(&'a self) -> Option<(&'a [u8], Option<MimeType<'a>>)> {
         self.0
             .primary_tag()
             .or_else(|| self.0.first_tag())
             .and_then(|tag| tag.get_picture_type(PictureType::CoverFront))
-            .map(|pic| pic.data())
+            .map(|pic| {
+                let mime_type = pic.mime_type().map(|mime| match mime {
+                    lofty::picture::MimeType::Jpeg => MimeType::Jpeg,
+                    lofty::picture::MimeType::Png => MimeType::Png,
+                    lofty::picture::MimeType::Tiff => MimeType::Tiff,
+                    lofty::picture::MimeType::Bmp => MimeType::Bmp,
+                    lofty::picture::MimeType::Gif => MimeType::Gif,
+                    lofty::picture::MimeType::Unknown(s) => MimeType::Unknown(s),
+                    _ => MimeType::Unknown("Unknown"),
+                });
+                (pic.data(), mime_type)
+            })
+    }
+}
+
+pub enum MimeType<'a> {
+    Jpeg,
+    Png,
+    Tiff,
+    Bmp,
+    Gif,
+    Unknown(&'a str),
+}
+
+impl<'a> MimeType<'a> {
+    pub const fn as_str(&self) -> &str {
+        match self {
+            MimeType::Jpeg => "image/jpeg",
+            MimeType::Png => "image/png",
+            MimeType::Tiff => "image/tiff",
+            MimeType::Bmp => "image/bmp",
+            MimeType::Gif => "image/gif",
+            MimeType::Unknown(s) => s,
+        }
     }
 }
 
@@ -509,6 +548,11 @@ pub enum AudioFileExtension {
     Opus,
     Ogg,
     Mp3,
+    Aac,
+    Ape,
+    M4a,
+    Wav,
+    Wma,
 }
 
 impl AudioFileExtension {
@@ -522,6 +566,16 @@ impl AudioFileExtension {
                 Some(Self::Ogg)
             } else if ext.eq_ignore_ascii_case("mp3") {
                 Some(Self::Mp3)
+            } else if ext.eq_ignore_ascii_case("aac") {
+                Some(Self::Aac)
+            } else if ext.eq_ignore_ascii_case("ape") {
+                Some(Self::Ape)
+            } else if ext.eq_ignore_ascii_case("m4a") {
+                Some(Self::M4a)
+            } else if ext.eq_ignore_ascii_case("wav") {
+                Some(Self::Wav)
+            } else if ext.eq_ignore_ascii_case("wma") {
+                Some(Self::Wma)
             } else {
                 None
             }
@@ -534,6 +588,11 @@ impl AudioFileExtension {
             Self::Opus => "opus",
             Self::Ogg => "ogg",
             Self::Mp3 => "mp3",
+            Self::Aac => "aac",
+            Self::Ape => "ape",
+            Self::M4a => "m4a",
+            Self::Wav => "wav",
+            Self::Wma => "wma",
         }
     }
 
@@ -543,6 +602,11 @@ impl AudioFileExtension {
             Self::Opus => "OPUS",
             Self::Ogg => "OGG",
             Self::Mp3 => "MP3",
+            Self::Aac => "AAC",
+            Self::Ape => "APE",
+            Self::M4a => "M4A",
+            Self::Wav => "WAV",
+            Self::Wma => "WMA",
         }
     }
 }

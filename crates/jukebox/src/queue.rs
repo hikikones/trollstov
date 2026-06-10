@@ -5,13 +5,15 @@ use database::TrackId;
 pub(crate) struct PlayQueue {
     list: Vec<TrackId>,
     index: Option<usize>,
+    rng: fastrand::Rng,
 }
 
 impl PlayQueue {
-    pub(crate) const fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             list: Vec::new(),
             index: None,
+            rng: fastrand::Rng::new(),
         }
     }
 
@@ -75,20 +77,23 @@ impl PlayQueue {
         self
     }
 
+    pub(crate) fn extend(&mut self, ids: impl IntoIterator<Item = TrackId>) -> &mut Self {
+        self.list.extend(ids);
+        self
+    }
+
     pub(crate) fn current_or_next(&mut self) -> Option<(TrackId, usize)> {
         self.current().or_else(|| self.next())
     }
 
     pub(crate) fn next(&mut self) -> Option<(TrackId, usize)> {
         match self.index {
-            Some(mut index) => {
-                let old_index = index;
-                let max_index = self.len().saturating_sub(1);
-                index = usize::min(index + 1, max_index);
-
-                if index != old_index {
-                    self.index = Some(index);
-                    self.list.get(index).copied().map(|id| (id, index))
+            Some(cur_idx) => {
+                let max_idx = self.len().saturating_sub(1);
+                let new_idx = (cur_idx + 1).min(max_idx);
+                if new_idx > cur_idx {
+                    self.index = Some(new_idx);
+                    Some((self.list[new_idx], new_idx))
                 } else {
                     None
                 }
@@ -98,7 +103,7 @@ impl PlayQueue {
                     None
                 } else {
                     self.index = Some(0);
-                    self.list.first().copied().map(|id| (id, 0))
+                    Some((self.list[0], 0))
                 }
             }
         }
@@ -106,13 +111,11 @@ impl PlayQueue {
 
     pub(crate) fn previous(&mut self) -> Option<(TrackId, usize)> {
         match self.index {
-            Some(mut index) => {
-                let old_index = index;
-                index = index.saturating_sub(1);
-
-                if index != old_index {
-                    self.index = Some(index);
-                    self.list.get(index).copied().map(|id| (id, index))
+            Some(cur_idx) => {
+                let new_idx = cur_idx.saturating_sub(1);
+                if new_idx < cur_idx {
+                    self.index = Some(new_idx);
+                    Some((self.list[new_idx], new_idx))
                 } else {
                     None
                 }
@@ -128,7 +131,7 @@ impl PlayQueue {
         }
 
         for i in start..end {
-            let random = fastrand::usize(start..end);
+            let random = self.rng.usize(start..end);
             self.list.swap(i, random);
         }
         true

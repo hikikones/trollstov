@@ -8,10 +8,16 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-audio = { workspace = true }
 fastrand = { workspace = true }
 ignore = { workspace = true }
 indexmap = { workspace = true }
+lofty = { workspace = true }
 nucleo-matcher = { workspace = true }
+serde = { workspace = true }
+serde_repr = { workspace = true }
 utils = { workspace = true }
 walkdir = { workspace = true }
+
+[features]
+default = []
+opus = []

@@ -32,6 +32,11 @@ impl Shortcuts {
         }
     }
 
+    pub const fn with_colors(mut self, name: Color, key: Color) -> Self {
+        self.set_colors(name, key);
+        self
+    }
+
     pub const fn set_colors(&mut self, name: Color, key: Color) -> &mut Self {
         self.name_color = name;
         self.key_color = key;
@@ -58,7 +63,7 @@ impl Shortcuts {
         self.text
             .extend([(key, Style::new().fg(self.key_color)), (" ", Style::new())]);
 
-        self.text.extend_as_one(name, self.name_color);
+        self.text.push_str_iter(name, self.name_color);
     }
 
     pub fn extend<'a>(&mut self, shortcuts: impl IntoIterator<Item = Shortcut<'a>>) {

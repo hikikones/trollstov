@@ -8,13 +8,13 @@ impl Matcher {
     pub(crate) fn new() -> Self {
         Self {
             matcher: nucleo_matcher::Matcher::new(nucleo_matcher::Config::DEFAULT),
-            atom: Self::create_atom(""),
+            atom: create_atom(""),
             buffer: Vec::new(),
         }
     }
 
     pub(crate) fn update(&mut self, needle: &str) {
-        self.atom = Self::create_atom(needle);
+        self.atom = create_atom(needle);
     }
 
     pub(crate) fn score(&mut self, haystack: &str) -> Option<u16> {
@@ -23,14 +23,14 @@ impl Matcher {
             &mut self.matcher,
         )
     }
+}
 
-    pub(crate) fn create_atom(needle: &str) -> nucleo_matcher::pattern::Atom {
-        nucleo_matcher::pattern::Atom::new(
-            needle,
-            nucleo_matcher::pattern::CaseMatching::Smart,
-            nucleo_matcher::pattern::Normalization::Smart,
-            nucleo_matcher::pattern::AtomKind::Fuzzy,
-            true,
-        )
-    }
+fn create_atom(needle: &str) -> nucleo_matcher::pattern::Atom {
+    nucleo_matcher::pattern::Atom::new(
+        needle,
+        nucleo_matcher::pattern::CaseMatching::Smart,
+        nucleo_matcher::pattern::Normalization::Smart,
+        nucleo_matcher::pattern::AtomKind::Fuzzy,
+        true,
+    )
 }

@@ -1,7 +1,6 @@
 use std::{path::PathBuf, time::Duration};
 
 use database::{Database, DatabaseEvent, Track};
-use image::GenericImageView;
 use jukebox::{Jukebox, JukeboxEvent};
 use ratatui::{
     CompletedFrame,
@@ -38,7 +37,6 @@ pub struct App {
     picker: Picker,
     screen_size: ScreenSize,
     front_cover: FrontCover,
-    front_cover_status: FrontCoverStatus,
     front_cover_handle: Option<FrontCoverHandle>,
     text: TextSegment,
     shortcuts: Shortcuts,
@@ -67,19 +65,31 @@ impl ScreenSize {
     }
 }
 
-pub struct FrontCover(Option<StatefulProtocol>);
-
-impl FrontCover {
-    pub const fn as_mut(&mut self) -> Option<&mut StatefulProtocol> {
-        self.0.as_mut()
-    }
+pub struct FrontCover {
+    image: Option<StatefulProtocol>,
+    has_loaded: bool,
 }
 
-#[derive(Clone, Copy)]
-pub enum FrontCoverStatus {
-    None,
-    Loading,
-    Ready,
+impl FrontCover {
+    const fn new(image: Option<StatefulProtocol>, has_loaded: bool) -> Self {
+        Self { image, has_loaded }
+    }
+
+    const fn default() -> Self {
+        Self::new(None, false)
+    }
+
+    const fn empty() -> Self {
+        Self::new(None, true)
+    }
+
+    pub const fn has_loaded(&self) -> bool {
+        self.has_loaded
+    }
+
+    pub const fn as_mut(&mut self) -> Option<&mut StatefulProtocol> {
+        self.image.as_mut()
+    }
 }
 
 pub enum Action {
@@ -92,26 +102,19 @@ pub enum Action {
 }
 
 impl App {
-    pub fn new(database: Database, jukebox: Jukebox, picker: Picker, mpris: bool) -> Self {
+    pub fn new(
+        events: EventHandler,
+        database: Database,
+        jukebox: Jukebox,
+        picker: Picker,
+        settings_path: Option<PathBuf>,
+    ) -> Self {
         let mut logs = LogsPage::new();
 
-        let settings = Settings::read()
-            .inspect_err(|err| {
-                let log = Log::new(err);
-                logs.enqueue(log);
-            })
-            .unwrap_or_default();
-
-        let mut events = EventHandler::new();
-        if mpris {
-            match events.try_establish_media_controls() {
-                Ok(_) => {}
-                Err(err) => {
-                    let log = Log::new(err);
-                    logs.enqueue(log);
-                }
-            }
-        }
+        let settings = Settings::read(settings_path.clone()).unwrap_or_else(|err| {
+            logs.enqueue(Log::new(err));
+            Settings::default().with_path(settings_path)
+        });
 
         let pages = Pages {
             tracks: TracksPage::new(),
@@ -132,8 +135,7 @@ impl App {
             jukebox,
             picker,
             screen_size: ScreenSize::Large,
-            front_cover: FrontCover(None),
-            front_cover_status: FrontCoverStatus::None,
+            front_cover: FrontCover::default(),
             front_cover_handle: None,
             text: TextSegment::new().with_alignment(Alignment::Center),
             shortcuts: Shortcuts::new(),
@@ -260,8 +262,7 @@ impl App {
                 if ctrl {
                     self.jukebox.pause_or_play();
                 } else if alt {
-                    let new_volume = (self.jukebox.volume() + 0.1).min(2.0);
-                    self.jukebox.set_volume(new_volume);
+                    self.jukebox.set_volume(self.jukebox.volume() + 0.1);
                     return Action::Render;
                 } else {
                     return self.on_input(key);
@@ -271,8 +272,7 @@ impl App {
                 if ctrl {
                     self.jukebox.stop();
                 } else if alt {
-                    let new_volume = (self.jukebox.volume() - 0.1).max(0.0);
-                    self.jukebox.set_volume(new_volume);
+                    self.jukebox.set_volume(self.jukebox.volume() - 0.1);
                     return Action::Render;
                 } else {
                     return self.on_input(key);
@@ -316,55 +316,50 @@ impl App {
                     return self.on_input(key);
                 }
             }
-            KeyCode::Char(c) => match c {
-                'f' => {
-                    if ctrl {
-                        match self.state {
-                            State::Route => {
-                                self.state = State::Search;
-                                self.pages.search.on_enter();
-                            }
-                            State::Search => {
-                                self.state = State::Route;
-                                self.pages.search.on_exit();
-                            }
-                            State::Logs => {
-                                self.state = State::Search;
-                                self.pages.logs.on_exit();
-                                self.pages.search.on_enter();
-                            }
+            KeyCode::Char('f') => {
+                if ctrl {
+                    match self.state {
+                        State::Route => {
+                            self.state = State::Search;
+                            self.pages.search.on_enter();
                         }
-                        return Action::Render;
-                    } else {
-                        return self.on_input(key);
-                    }
-                }
-                'l' => {
-                    if ctrl && !self.pages.logs.is_empty() {
-                        match self.state {
-                            State::Route => {
-                                self.state = State::Logs;
-                                self.pages.logs.on_enter();
-                            }
-                            State::Search => {
-                                self.state = State::Logs;
-                                self.pages.search.on_exit();
-                                self.pages.logs.on_enter();
-                            }
-                            State::Logs => {
-                                self.state = State::Route;
-                                self.pages.logs.on_exit();
-                            }
+                        State::Search => {
+                            self.state = State::Route;
+                            self.pages.search.on_exit();
                         }
-                        return Action::Render;
-                    } else {
-                        return self.on_input(key);
+                        State::Logs => {
+                            self.state = State::Search;
+                            self.pages.logs.on_exit();
+                            self.pages.search.on_enter();
+                        }
                     }
-                }
-                _ => {
+                    return Action::Render;
+                } else {
                     return self.on_input(key);
                 }
-            },
+            }
+            KeyCode::Char('l') => {
+                if ctrl && !self.pages.logs.is_empty() {
+                    match self.state {
+                        State::Route => {
+                            self.state = State::Logs;
+                            self.pages.logs.on_enter();
+                        }
+                        State::Search => {
+                            self.state = State::Logs;
+                            self.pages.search.on_exit();
+                            self.pages.logs.on_enter();
+                        }
+                        State::Logs => {
+                            self.state = State::Route;
+                            self.pages.logs.on_exit();
+                        }
+                    }
+                    return Action::Render;
+                } else {
+                    return self.on_input(key);
+                }
+            }
             _ => {
                 return self.on_input(key);
             }
@@ -394,41 +389,32 @@ impl App {
                 JukeboxEvent::Play(id) => {
                     match id.and_then(|id| self.database.get(id)) {
                         Some(track) => {
-                            // Start loading front cover image
+                            // Start loading front cover
                             let path = track.path().to_path_buf();
                             let picker = self.picker.clone();
                             let handle = load_front_cover(path, picker);
                             self.front_cover_handle = Some(handle);
-                            self.front_cover_status = FrontCoverStatus::Loading;
 
-                            // Update metadata and playback status for mpris
-                            if let Some(mpris) = self.events.media_controls() {
-                                mpris.set_metadata(track.title(), track.artist());
-                                mpris.set_playback(MediaPlayback::Playing);
-                            }
+                            // Update metadata and playback status for system media
+                            self.events.set_media(
+                                track.title(),
+                                track.artist(),
+                                MediaPlayback::Playing,
+                            );
                         }
                         None => {
-                            // Update only playback status
-                            if let Some(mpris) = self.events.media_controls() {
-                                mpris.set_playback(MediaPlayback::Playing);
-                            }
+                            // Update only playback status for system media
+                            self.events.set_playback(MediaPlayback::Playing);
                         }
                     }
                 }
                 JukeboxEvent::Pause => {
-                    if let Some(mpris) = self.events.media_controls() {
-                        mpris.set_playback(MediaPlayback::Paused);
-                    }
+                    self.events.set_playback(MediaPlayback::Paused);
                 }
                 JukeboxEvent::Stop => {
-                    self.front_cover = FrontCover(None);
+                    self.front_cover = FrontCover::default();
                     self.front_cover_handle = None;
-                    self.front_cover_status = FrontCoverStatus::None;
-
-                    if let Some(mpris) = self.events.media_controls() {
-                        mpris.reset_metadata();
-                        mpris.set_playback(MediaPlayback::Stopped);
-                    }
+                    self.events.reset_media();
                 }
                 JukeboxEvent::Error(err) => {
                     self.pages.logs.enqueue(Log::new(err));
@@ -444,12 +430,10 @@ impl App {
                 match handle.join().unwrap() {
                     Ok(cover) => {
                         self.front_cover = cover;
-                        self.front_cover_status = FrontCoverStatus::Ready;
                     }
                     Err(err) => {
+                        self.front_cover = FrontCover::empty();
                         self.pages.logs.enqueue(Log::new(err));
-                        self.front_cover = FrontCover(None);
-                        self.front_cover_status = FrontCoverStatus::Ready;
                     }
                 }
             }
@@ -616,7 +600,6 @@ impl App {
                         &self.jukebox,
                         self.screen_size,
                         &mut self.front_cover,
-                        self.front_cover_status,
                         colors,
                         &mut self.shortcuts,
                     );
@@ -774,24 +757,22 @@ fn render_playback(
 
     match track {
         Some(track) => {
-            // Title
-            text.extend_as_one(["[", track.extension().as_upper_case()], normal_style);
+            // Stats
+            text.push_str_iter(["[", track.extension().as_upper_case()], normal_style);
 
             if let Some(bit_depth) = track.bit_depth()
                 && let Some(sample_rate) = track.sample_rate()
             {
-                utils::format_int(bit_depth, |bit_depth| {
-                    text.extend_as_one([" ", bit_depth, "bit/"], normal_style);
-                });
-                utils::format_int(sample_rate, |sample_rate| {
-                    text.extend_as_one([sample_rate, "kHz"], normal_style);
+                utils::format_int2(bit_depth, sample_rate, |bit_depth, sample_rate| {
+                    text.push_str_iter([" ", bit_depth, "bit/", sample_rate, "kHz"], normal_style);
                 });
             }
 
             utils::format_int(track.bit_rate(), |bit_rate| {
-                text.extend_as_one([" ", bit_rate, "kbps] "], normal_style);
+                text.push_str_iter([" ", bit_rate, "kbps] "], normal_style);
             });
 
+            // Title
             text.push_str(track.artist(), normal_style);
             if !(track.artist().is_empty() || track.title().is_empty()) {
                 text.push_str(" - ", normal_style);
@@ -856,45 +837,64 @@ fn fill_play_shortcuts(shortcuts: &mut Shortcuts, volume: f32) {
 fn fill_app_shortcuts(shortcuts: &mut Shortcuts, logs: &LogsPage) {
     shortcuts.extend([
         Shortcut::new("Quit", symbols::ESCAPE),
-        Shortcut::new("Navigate", symbols::shift!("Tab")),
+        Shortcut::new("Navigate", symbols::shift!(symbols::TAB)),
         Shortcut::new("Find", symbols::ctrl!("f")),
     ]);
 
     if !logs.is_empty() {
+        let key = symbols::ctrl!("l");
         let new_logs = logs.queue_len();
         if new_logs > 0 {
             utils::format_int(new_logs, |new_logs| {
-                shortcuts.push_iter(["Logs(", new_logs, ")"], symbols::ctrl!("l"));
+                shortcuts.push_iter(["Logs(", new_logs, ")"], key);
             });
         } else {
-            shortcuts.push(Shortcut::new("Logs", symbols::ctrl!("l")));
+            shortcuts.push(Shortcut::new("Logs", key));
         }
     }
 }
 
+// TODO: Also do resize and encoding in another thread.
+// https://github.com/ratatui/ratatui-image/blob/master/examples/thread.rs
 fn load_front_cover(path: PathBuf, picker: Picker) -> FrontCoverHandle {
     std::thread::spawn(move || {
-        let picture = audio::AudioPicture::read(&path)?;
+        let front_cover = database::AudioFrontCover::read(&path)?;
 
-        let Some(bytes) = picture.bytes() else {
-            return Ok(FrontCover(None));
+        let Some((bytes, mime_type)) = front_cover.bytes_and_mime_type() else {
+            return Ok(FrontCover::empty());
         };
 
-        const MAX_RES: u32 = 1080;
+        let Some(mime_type) = mime_type else {
+            return Err(format!(
+                "Unable to load front cover from \"{}\" due to no mime type found",
+                path.display()
+            ))?;
+        };
 
-        let mut dyn_img = image::load_from_memory(bytes).map_err(|err| {
+        let image_format = match mime_type {
+            database::MimeType::Jpeg => image::ImageFormat::Jpeg,
+            database::MimeType::Png => image::ImageFormat::Png,
+            _ => {
+                return Err(format!(
+                    "Unable to load front cover from \"{}\" due to unsupported or unknown mime type: {}",
+                    path.display(),
+                    mime_type.as_str()
+                ))?;
+            }
+        };
+
+        let image = image::load_from_memory_with_format(bytes, image_format).map_err(|err| {
             format!(
-                "Failed to load front cover image for \"{}\" due to {}",
+                "Failed to load front cover from \"{}\" due to {}. The mime type is {}, perhaps this is wrong?",
                 path.display(),
-                err
+                err,
+                mime_type.as_str()
             )
         })?;
 
-        let (w, h) = dyn_img.dimensions();
-        if w > MAX_RES || h > MAX_RES {
-            dyn_img = dyn_img.thumbnail(MAX_RES, MAX_RES);
-        }
-
-        Ok(FrontCover(Some(picker.new_resize_protocol(dyn_img))))
+        Ok(FrontCover::new(
+            Some(picker.new_resize_protocol(image)),
+            true,
+        ))
     })
 }

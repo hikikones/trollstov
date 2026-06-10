@@ -1,13 +1,12 @@
-use std::{collections::HashSet, fs::File, time::Duration};
+use std::{collections::HashSet, io::Cursor, time::Duration};
 
 use rodio::decoder::Decoder;
 
-use audio::*;
 use database::*;
 
 use crate::{AudioPlayer, PlayQueue};
 
-type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<File>, AudioFileReport>>;
+type AudioDecodeHandle = std::thread::JoinHandle<Result<Decoder<Cursor<Vec<u8>>>, String>>;
 
 pub struct Jukebox {
     current: Option<(TrackId, usize)>,
@@ -24,7 +23,7 @@ pub enum JukeboxEvent {
     Play(Option<TrackId>),
     Pause,
     Stop,
-    Error(AudioFileReport),
+    Error(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,7 +67,12 @@ impl Jukebox {
     }
 
     pub const fn queue(&self) -> usize {
-        self.queue.queue_len()
+        if self.queue.is_empty() {
+            return 0;
+        }
+
+        let len = self.queue.queue_len();
+        if self.current.is_none() { len + 1 } else { len }
     }
 
     pub const fn history(&self) -> usize {
@@ -104,11 +108,12 @@ impl Jukebox {
     }
 
     pub fn shuffle(&mut self) -> bool {
-        self.current_queue_index()
+        let start_index = self
+            .current_queue_index()
             .map(|i| i + 1)
             .or(self.queue.index())
-            .map(|i| self.queue.shuffle(i))
-            .unwrap_or(false)
+            .unwrap_or(0);
+        self.queue.shuffle(start_index)
     }
 
     pub fn move_up(&mut self, i: usize) -> bool {
@@ -180,6 +185,10 @@ impl Jukebox {
         self.queue.enqueue_next(id);
     }
 
+    pub fn extend(&mut self, ids: impl IntoIterator<Item = TrackId>) {
+        self.queue.extend(ids);
+    }
+
     pub fn volume(&self) -> f32 {
         self.player.volume()
     }
@@ -246,12 +255,11 @@ impl Jukebox {
         }
 
         let mut next = self.queue.current_or_next();
+        if next == self.current {
+            next = self.queue.next();
+        }
 
         loop {
-            if next == self.current {
-                next = self.queue.next();
-            }
-
             match next {
                 Some((id, index)) => {
                     if self.is_faulty(id) || self.should_skip(id, db) {
@@ -332,37 +340,17 @@ impl Jukebox {
         let path = track.path().to_path_buf();
         let extension = track.extension();
         let handle = std::thread::spawn(move || {
-            let file = File::open(&path).map_err(|err| {
-                AudioFileReport::new(format!(
-                    "Unable to decode \"{}\" due to {}",
-                    path.display(),
-                    err
-                ))
-            })?;
-            let len = file
-                .metadata()
-                .map_err(|err| {
-                    AudioFileReport::new(format!(
-                        "Unable to decode \"{}\" due to {}",
-                        path.display(),
-                        err
-                    ))
-                })?
-                .len();
+            let data = std::fs::read(&path)
+                .map_err(|err| format!("Unable to decode \"{}\" due to {}", path.display(), err))?;
+            let len = data.len() as u64;
             let decoder = Decoder::builder()
-                .with_data(file)
+                .with_data(Cursor::new(data))
                 .with_hint(extension.as_lower_case())
                 .with_byte_len(len)
                 .with_seekable(true)
                 .with_gapless(false)
                 .build()
-                .map_err(|err| {
-                    AudioFileReport::new(format!(
-                        "Failed to decode \"{}\" due to {}",
-                        path.display(),
-                        err
-                    ))
-                })?;
+                .map_err(|err| format!("Failed to decode \"{}\" due to {}", path.display(), err))?;
             Ok(decoder)
         });
         self.decode_handle = Some((handle, id, index));

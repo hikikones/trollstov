@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
-use audio::AudioRating;
+use database::AudioRating;
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 
-const FILENAME: &str = "settings.toml";
 const VERSION: u8 = 0;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -12,6 +11,9 @@ pub struct Settings {
     version: u8,
     general: General,
     colors: Colors,
+
+    #[serde(skip)]
+    path: Option<PathBuf>,
 }
 
 impl Default for Settings {
@@ -41,6 +43,7 @@ impl Default for Settings {
             version: VERSION,
             general,
             colors,
+            path: None,
         }
     }
 }
@@ -98,8 +101,8 @@ impl Settings {
         self.colors.neutral = color;
     }
 
-    pub fn read() -> Result<Self, Box<dyn std::error::Error>> {
-        let Some(file) = get_config_dir().map(|dir| dir.join(FILENAME)) else {
+    pub fn read(path: Option<PathBuf>) -> Result<Self, String> {
+        let Some(file) = path.or_else(|| get_config_file()) else {
             return Ok(Self::default());
         };
 
@@ -107,7 +110,7 @@ impl Settings {
             Ok(bytes) => bytes,
             Err(err) => match err.kind() {
                 std::io::ErrorKind::NotFound => {
-                    return Ok(Self::default());
+                    return Ok(Self::default().with_path(Some(file)));
                 }
                 _ => {
                     return Err(format!(
@@ -132,43 +135,42 @@ impl Settings {
             )
         })?;
 
-        match version {
-            VERSION => {
-                let settings: Self = toml::from_slice(&bytes).map_err(|err| {
-                    format!(
-                        "Failed to deserialize settings from \"{}\" due to {}",
-                        file.display(),
-                        err
-                    )
-                })?;
-                Ok(settings)
-            }
+        let mut settings: Self = match version {
+            VERSION => toml::from_slice(&bytes).map_err(|err| {
+                format!(
+                    "Failed to deserialize settings from \"{}\" due to {}",
+                    file.display(),
+                    err
+                )
+            })?,
             _ => Err(format!(
                 "Failed to deserialize settings from \"{}\" due to unknown version",
                 file.display()
             ))?,
-        }
-    }
-
-    pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(dir) = get_config_dir() else {
-            return Err(
-                "Unable to save settings due to no valid home directory path \
-                that could be retrieved from the operating system",
-            )?;
         };
 
-        if !dir.exists() {
-            std::fs::create_dir_all(&dir).map_err(|err| {
-                format!(
-                    "Failed to create directory \"{}\" due to {}",
-                    dir.display(),
-                    err
-                )
-            })?;
+        settings.path = Some(file);
+        Ok(settings)
+    }
+
+    pub fn save(&self) -> Result<(), String> {
+        let Some(file) = self.path.clone().or_else(|| get_config_file()) else {
+            return Err("Unable to save settings due to no path specified or \
+                a default one could not be retrieved from the operating system")?;
+        };
+
+        if let Some(parent) = file.parent() {
+            if !parent.exists() {
+                std::fs::create_dir_all(&parent).map_err(|err| {
+                    format!(
+                        "Unable to save settings as creating directory \"{}\" failed due to {}",
+                        parent.display(),
+                        err
+                    )
+                })?;
+            }
         }
 
-        let file = dir.join(FILENAME);
         let toml = toml::to_string(self)
             .map_err(|err| format!("Failed to serialize settings due to {}", err))?;
         std::fs::write(&file, toml).map_err(|err| {
@@ -186,6 +188,11 @@ impl Settings {
         toml::to_string(self)
             .map(|s| seahash::hash(s.as_bytes()))
             .unwrap_or(0)
+    }
+
+    pub(super) fn with_path(mut self, path: Option<PathBuf>) -> Self {
+        self.path = path;
+        self
     }
 }
 
@@ -209,13 +216,14 @@ impl Colors {
     }
 }
 
-fn get_config_dir() -> Option<PathBuf> {
+fn get_config_file() -> Option<PathBuf> {
+    const FILENAME: &str = "settings.toml";
     directories::ProjectDirs::from(
         crate::APP_QUALIFIER,
         crate::APP_ORGANIZATION,
         crate::APP_NAME,
     )
-    .map(|project_dirs| project_dirs.config_dir().to_path_buf())
+    .map(|project_dirs| project_dirs.config_dir().join(FILENAME))
 }
 
 fn _readable_fg(mut bg: Color) -> Option<Color> {

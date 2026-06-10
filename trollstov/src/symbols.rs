@@ -1,17 +1,21 @@
-use audio::AudioRating;
+#![allow(unused)]
 
+use database::AudioRating;
+
+pub const TAB: &str = "Tab";
 pub const ALT: &str = "⎇";
 pub const CTRL: &str = "^";
 pub const SHIFT: &str = "⇧";
 pub const ENTER: &str = "↵";
 pub const SPACE: &str = "Space";
 pub const ESCAPE: &str = "Esc";
+pub const DELETE: &str = "Del";
 pub const ARROW_UP: &str = "￪";
 pub const ARROW_DOWN: &str = "￬";
-pub const _ARROW_RIGHT: &str = "➔";
+pub const ARROW_RIGHT: &str = "➔";
 pub const ARROW_DOWN_UP: &str = "⇵";
 pub const ARROW_RIGHT_LEFT: &str = "⇄";
-pub const _ARROW_LEFT_RIGHT: &str = "⇆";
+pub const ARROW_LEFT_RIGHT: &str = "⇆";
 pub const ARROW_HEAD_UP: &str = "⌃";
 pub const ARROW_HEAD_DOWN: &str = "⌄";
 
@@ -20,7 +24,11 @@ pub const SELECTION: &str = "|";
 pub const STAR: &str = "★";
 pub const STAR_BIG: &str = "🟊";
 pub const CHECKMARK_YES: &str = "🗸";
-pub const CHECKMARK_NO: &str = "𐄂";
+pub const CHECKMARK_NO: &str = "✗";
+
+pub const fn checkmark(v: bool) -> &'static str {
+    if v { CHECKMARK_YES } else { CHECKMARK_NO }
+}
 
 pub const fn stars(rating: AudioRating) -> &'static str {
     match rating {

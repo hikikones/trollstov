@@ -13,6 +13,9 @@ const APP_ORGANIZATION: &str = "hikikones";
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Args = clap::Parser::parse();
 
+    // Create events early with media controls in case of zbus panic due to dbus name taken
+    let events = events::EventHandler::new(args.media_controls)?;
+
     let terminal = terminal::Terminal::init()?;
 
     // Create picker after entering alternate screen, but before reading terminal events
@@ -22,37 +25,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let jukebox = jukebox::Jukebox::new(player);
     let database = database::Database::new(args.dir);
 
-    let mut app = app::App::new(database, jukebox, picker, args.mpris);
+    let mut app = app::App::new(events, database, jukebox, picker, args.settings);
     let res = app.run(terminal);
+    app.quit();
 
-    match terminal::Terminal::restore() {
-        Ok(_) => {
-            app.quit();
-        }
-        Err(err) => {
-            app.quit();
-            return Err(err)?;
-        }
-    }
+    terminal::Terminal::restore()?;
 
     res
 }
 
+// TODO: Use a list for paths so we can do "trollstov /my/music a.flac *.mp3 dir/**/*.opus".
+// TODO: Add some sort of daemon flag? No app, just system media interaction.
+
 #[derive(Debug, clap::Parser)]
-#[command(
-    styles = CLAP_STYLING,
-    version,
-    about,
-)]
+#[command(version, about, styles = CLAP_STYLING)]
 struct Args {
     /// The directory for your music.
     #[arg(value_name = "MUSIC_DIR", value_hint = clap::ValueHint::DirPath)]
     dir: std::path::PathBuf,
 
-    /// Try to establish media controls through the Media Player Remote Interfacing Specification (MPRIS),
-    /// allowing music control with media keys and visually in your desktop environment.
+    /// Optional path for your settings file. If not set,
+    /// the location will be determined by the conventions of your operating system.
+    #[arg(long, value_name = "SETTINGS_FILE.toml", value_hint = clap::ValueHint::FilePath)]
+    settings: Option<std::path::PathBuf>,
+
+    /// Add system media controls for player interaction
+    /// with media keys and your operating system.
     #[clap(long, action)]
-    mpris: bool,
+    media_controls: bool,
 }
 
 const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()

@@ -1,5 +1,4 @@
-use audio::AudioRating;
-use database::Database;
+use database::{AudioRating, Database};
 use jukebox::Jukebox;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
@@ -10,7 +9,7 @@ use ratatui_image::StatefulImage;
 use widgets::{List, ListItem, Shortcut, Shortcuts};
 
 use crate::{
-    app::{Action, FrontCover, FrontCoverStatus, ScreenSize},
+    app::{Action, FrontCover, ScreenSize},
     pages::Route,
     settings::Colors,
     symbols,
@@ -64,7 +63,6 @@ impl PlayingPage {
         jb: &Jukebox,
         screen_size: ScreenSize,
         front_cover: &mut FrontCover,
-        front_cover_status: FrontCoverStatus,
         colors: &Colors,
         shortcuts: &mut Shortcuts,
     ) {
@@ -77,27 +75,11 @@ impl PlayingPage {
                     self.render_queue(area, buf, db, jb, colors);
                 }
                 ViewMode::Cover => {
-                    render_cover_with_stars(
-                        area,
-                        buf,
-                        db,
-                        jb,
-                        front_cover,
-                        front_cover_status,
-                        colors,
-                    );
+                    render_cover_with_stars(area, buf, db, jb, front_cover, colors);
                 }
                 ViewMode::Both => {
                     self.view_mode = ViewMode::Cover;
-                    render_cover_with_stars(
-                        area,
-                        buf,
-                        db,
-                        jb,
-                        front_cover,
-                        front_cover_status,
-                        colors,
-                    );
+                    render_cover_with_stars(area, buf, db, jb, front_cover, colors);
                 }
             },
             ScreenSize::Medium | ScreenSize::Large => {
@@ -106,15 +88,7 @@ impl PlayingPage {
                         self.render_queue(area, buf, db, jb, colors);
                     }
                     ViewMode::Cover => {
-                        render_cover_with_stars(
-                            area,
-                            buf,
-                            db,
-                            jb,
-                            front_cover,
-                            front_cover_status,
-                            colors,
-                        );
+                        render_cover_with_stars(area, buf, db, jb, front_cover, colors);
                     }
                     ViewMode::Both => {
                         let [cover_area, _, queue_area] = Layout::horizontal([
@@ -124,15 +98,7 @@ impl PlayingPage {
                         ])
                         .areas(area);
 
-                        render_cover_with_stars(
-                            cover_area,
-                            buf,
-                            db,
-                            jb,
-                            front_cover,
-                            front_cover_status,
-                            colors,
-                        );
+                        render_cover_with_stars(cover_area, buf, db, jb, front_cover, colors);
                         self.render_queue(queue_area, buf, db, jb, colors);
                     }
                 }
@@ -182,7 +148,7 @@ impl PlayingPage {
     pub fn on_input(
         &mut self,
         key: KeyCode,
-        _modifiers: KeyModifiers,
+        modifiers: KeyModifiers,
         db: &mut Database,
         jb: &mut Jukebox,
         screen_size: ScreenSize,
@@ -304,7 +270,7 @@ impl PlayingPage {
                 }
                 _ => {
                     if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
-                        if self.list.input(key, _modifiers) {
+                        if self.list.input(key, modifiers) {
                             return Action::Render;
                         }
                     }
@@ -312,7 +278,7 @@ impl PlayingPage {
             },
             _ => {
                 if matches!(self.view_mode, ViewMode::Queue | ViewMode::Both) {
-                    if self.list.input(key, _modifiers) {
+                    if self.list.input(key, modifiers) {
                         return Action::Render;
                     }
                 }
@@ -433,7 +399,6 @@ fn render_cover_with_stars(
     db: &Database,
     jb: &Jukebox,
     front_cover: &mut FrontCover,
-    front_cover_status: FrontCoverStatus,
     colors: &Colors,
 ) {
     match jb
@@ -443,13 +408,7 @@ fn render_cover_with_stars(
         Some(rating) => {
             if area.width > 12 && area.height > 10 {
                 let margin = Margin::new(1, 1);
-                let cover_area = render_cover(
-                    area.inner(margin),
-                    buf,
-                    front_cover,
-                    front_cover_status,
-                    colors,
-                );
+                let cover_area = render_cover(area.inner(margin), buf, front_cover, colors);
                 let stars = symbols::stars_split(rating);
                 widgets::print_texts_with_styles(
                     Rect {
@@ -466,7 +425,7 @@ fn render_cover_with_stars(
                     Some(widgets::Alignment::CenterHorizontal),
                 );
             } else {
-                render_cover(area, buf, front_cover, front_cover_status, colors);
+                render_cover(area, buf, front_cover, colors);
             }
         }
         None => {
@@ -485,7 +444,6 @@ fn render_cover(
     area: Rect,
     buf: &mut Buffer,
     front_cover: &mut FrontCover,
-    front_cover_status: FrontCoverStatus,
     colors: &Colors,
 ) -> Rect {
     let neutral_style = Style::new().fg(colors.neutral);
@@ -505,7 +463,7 @@ fn render_cover(
 
     match front_cover.as_mut() {
         Some(image) => {
-            let resized_area = image.size_for(ratatui_image::Resize::default(), image_area);
+            let resized_area = image.size_for(ratatui_image::Resize::default(), image_area.into());
             image_area = widgets::align(
                 Rect {
                     width: resized_area.width,
@@ -517,9 +475,8 @@ fn render_cover(
             );
             StatefulImage::default().render(image_area, buf, image);
         }
-        None => match front_cover_status {
-            FrontCoverStatus::None | FrontCoverStatus::Loading => {}
-            FrontCoverStatus::Ready => {
+        None => {
+            if front_cover.has_loaded() {
                 Block::bordered()
                     .style(neutral_style)
                     .render(image_area, buf);
@@ -531,7 +488,7 @@ fn render_cover(
                     Some(widgets::Alignment::Center),
                 );
             }
-        },
+        }
     }
 
     image_area

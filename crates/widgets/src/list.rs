@@ -43,8 +43,8 @@ impl List {
             index: 0,
             selector: None,
             scroll: 0,
-            margin_top: 2,
-            margin_bottom: 2,
+            margin_top: 0,
+            margin_bottom: 0,
             padding_bottom: 0,
             thumb_color: Color::Gray,
             track_color: Some(Color::DarkGray),
@@ -201,16 +201,13 @@ impl List {
             KeyCode::PageUp => self.move_index(ListMove::PageUp, shift),
             KeyCode::End => self.move_index(ListMove::End, shift),
             KeyCode::Home => self.move_index(ListMove::Start, shift),
-            KeyCode::Char(c) => match c {
-                'a' => {
-                    if ctrl {
-                        self.select_all()
-                    } else {
-                        false
-                    }
+            KeyCode::Char('a') => {
+                if ctrl {
+                    self.select_all()
+                } else {
+                    false
                 }
-                _ => false,
-            },
+            }
             _ => false,
         }
     }
