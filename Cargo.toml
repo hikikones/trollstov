@@ -24,7 +24,6 @@ clap = {
 }
 clap-cargo = { version = "0.18", default-features = false }
 constcat = { version = "0.6", default-features = false }
-database = { path = "crates/database", default-features = false }
 directories = { version = "6.0", default-features = false }
 fastrand = { version = "2.4", default-features = false, features = ["std"] }
 ignore = {
@@ -43,7 +42,6 @@ image = {
 }
 indexmap = { version = "2.14", default-features = false, features = ["std"] }
 itoa = { version = "1.0", default-features = false }
-jukebox = { path = "crates/jukebox", default-features = false }
 lofty = {
   version = "0.24",
   default-features = false,

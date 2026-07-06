@@ -1,5 +1,3 @@
-use database::{AudioRating, Database};
-use jukebox::Jukebox;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -10,6 +8,8 @@ use widgets::{List, ListItem, Shortcut, Shortcuts};
 
 use crate::{
     app::{Action, FrontCover, ScreenSize},
+    database::{AudioRating, Database},
+    jukebox::Jukebox,
     pages::Route,
     settings::Colors,
     symbols,

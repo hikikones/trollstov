@@ -1,5 +1,3 @@
-use database::{Database, TrackId};
-use jukebox::Jukebox;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -7,7 +5,12 @@ use ratatui::{
 };
 use widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputColors};
 
-use crate::{settings::Colors, symbols};
+use crate::{
+    database::{Database, TrackId},
+    jukebox::Jukebox,
+    settings::Colors,
+    symbols,
+};
 
 // TODO: Add timer for searching?
 // Currently searching on every input, but should probably be a small timeout.

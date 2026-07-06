@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
-use database::AudioRating;
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use widgets::ScrollbarColors;
+
+use crate::database::AudioRating;
 
 const VERSION: u8 = 0;
 

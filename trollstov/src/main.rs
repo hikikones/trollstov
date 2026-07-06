@@ -1,5 +1,7 @@
 mod app;
+mod database;
 mod events;
+mod jukebox;
 mod pages;
 mod settings;
 mod symbols;

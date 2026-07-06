@@ -2,7 +2,13 @@ use std::{collections::VecDeque, path::PathBuf, sync::mpsc};
 
 use indexmap::IndexMap;
 
-use crate::*;
+mod audio;
+mod matcher;
+mod track;
+
+pub use audio::*;
+use matcher::*;
+pub use track::*;
 
 type AudioFileReceiver = mpsc::Receiver<Result<(AudioFile, AudioFileExtension), AudioFileReport>>;
 type AudioWriteHandle = std::thread::JoinHandle<Result<(TrackId, AudioRating), AudioFileReport>>;

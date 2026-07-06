@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use database::AudioRating;
+use crate::database::AudioRating;
 
 pub const TAB: &str = "Tab";
 pub const ALT: &str = "⎇";

@@ -1008,21 +1008,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
 
 [[package]]
-name = "database"
-version = "0.1.0"
-dependencies = [
- "fastrand 2.4.1",
- "ignore",
- "indexmap",
- "lofty",
- "nucleo-matcher",
- "serde",
- "serde_repr",
- "utils",
- "walkdir",
-]
-
-[[package]]
 name = "deltae"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1781,15 +1766,6 @@ dependencies = [
  "cfg-if",
  "futures-util",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "jukebox"
-version = "0.1.0"
-dependencies = [
- "database",
- "fastrand 2.4.1",
- "rodio",
 ]
 
 [[package]]
@@ -3869,20 +3845,26 @@ dependencies = [
  "clap",
  "clap-cargo",
  "constcat",
- "database",
  "directories",
+ "fastrand 2.4.1",
+ "ignore",
  "image",
- "jukebox",
+ "indexmap",
+ "lofty",
+ "nucleo-matcher",
  "ratatui",
  "ratatui-image",
+ "rodio",
  "seahash",
  "serde",
+ "serde_repr",
  "souvlaki",
  "terminal-colorsaurus",
  "toml",
  "unicode-segmentation",
  "unicode-width",
  "utils",
+ "walkdir",
  "widgets",
  "windows 0.44.0",
 ]

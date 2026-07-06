@@ -20,7 +20,7 @@ pub struct Pages {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Route {
-    Tracks(Option<database::TrackId>),
+    Tracks(Option<crate::database::TrackId>),
     NowPlaying,
     Settings,
 }

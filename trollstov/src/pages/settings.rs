@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use database::AudioRating;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -12,6 +11,7 @@ use widgets::{
 
 use crate::{
     app::Action,
+    database::AudioRating,
     pages::Log,
     settings::{Colors, Settings},
     symbols,

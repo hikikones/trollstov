@@ -1,5 +1,3 @@
-use database::{AudioRating, Database, TrackId, TrackSort};
-use jukebox::Jukebox;
 use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
@@ -7,7 +5,13 @@ use ratatui::{
 };
 use widgets::{List, ListItem, ListMove, Shortcut, Shortcuts};
 
-use crate::{app::Action, settings::Colors, symbols};
+use crate::{
+    app::Action,
+    database::{AudioRating, Database, TrackId, TrackSort},
+    jukebox::Jukebox,
+    settings::Colors,
+    symbols,
+};
 
 pub struct TracksPage {
     list: List,
