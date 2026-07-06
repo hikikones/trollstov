@@ -22,8 +22,16 @@ pub const STAR_BIG: &str = "🟊";
 pub const CHECKMARK_YES: &str = "🗸";
 pub const CHECKMARK_NO: &str = "✗";
 
-pub const fn checkmark(v: bool) -> &'static str {
-    if v { CHECKMARK_YES } else { CHECKMARK_NO }
+pub const fn checkmark(b: bool) -> &'static str {
+    if b { CHECKMARK_YES } else { CHECKMARK_NO }
+}
+
+pub const fn checkmark_with_value<T: Copy>(b: bool, yes: T, no: T) -> (&'static str, T) {
+    if b {
+        (CHECKMARK_YES, yes)
+    } else {
+        (CHECKMARK_NO, no)
+    }
 }
 
 #[macro_export]
