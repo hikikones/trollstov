@@ -1,37 +1,31 @@
-mod app;
-mod database;
-mod events;
-mod jukebox;
-mod pages;
-mod settings;
-mod symbols;
-mod terminal;
-
-const APP_NAME: &str = env!("CARGO_PKG_NAME");
-const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-const APP_QUALIFIER: &str = "org";
-const APP_ORGANIZATION: &str = "hikikones";
+use trollstov::{
+    app::App,
+    database::Database,
+    events::EventHandler,
+    jukebox::{AudioPlayer, Jukebox},
+    terminal::Terminal,
+};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Args = clap::Parser::parse();
 
     // Create events early with media controls in case of zbus panic due to dbus name taken
-    let events = events::EventHandler::new(args.media_controls)?;
+    let events = EventHandler::new(args.media_controls)?;
 
-    let terminal = terminal::Terminal::init()?;
+    let terminal = Terminal::init()?;
 
     // Create picker after entering alternate screen, but before reading terminal events
     let picker = ratatui_image::picker::Picker::from_query_stdio()?;
 
-    let player = jukebox::AudioPlayer::new()?;
-    let jukebox = jukebox::Jukebox::new(player);
-    let database = database::Database::new(args.dir);
+    let player = AudioPlayer::new()?;
+    let jukebox = Jukebox::new(player);
+    let database = Database::new(args.dir);
 
-    let mut app = app::App::new(events, database, jukebox, picker, args.settings);
+    let mut app = App::new(events, database, jukebox, picker, args.settings);
     let res = app.run(terminal);
     app.quit();
 
-    terminal::Terminal::restore()?;
+    Terminal::restore()?;
 
     res
 }
