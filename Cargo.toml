@@ -1,7 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "trollstov"]
-default-members = ["trollstov"]
+members = ["crates/*", "lazycard", "trollstov"]
 
 [workspace.package]
 version = "0.1.0"
@@ -17,6 +16,11 @@ ahash = {
   default-features = false,
   features = ["runtime-rng", "std"]
 }
+base64 = {
+  version = "0.22",
+  default-features = false,
+  features = ["alloc", "std"]
+}
 clap = {
   version = "4.6",
   default-features = false,
@@ -25,7 +29,9 @@ clap = {
 clap-cargo = { version = "0.18", default-features = false }
 constcat = { version = "0.6", default-features = false }
 directories = { version = "6.0", default-features = false }
+edit = { version = "0.1", default-features = false, features = ["better-path"] }
 fastrand = { version = "2.4", default-features = false, features = ["std"] }
+fsrs = { version = "6.6", default-features = false }
 ignore = {
   version = "0.4",
   default-features = false,
@@ -35,9 +41,12 @@ image = {
   version = "0.25",
   default-features = false,
   features = [
+    "bmp",
+    "gif",
     "jpeg",
     "png",
     "rayon",
+    "webp",
   ]
 }
 indexmap = { version = "2.14", default-features = false, features = ["std"] }
@@ -72,6 +81,12 @@ rodio = {
   default-features = false,
   features = ["flac", "mp3", "playback", "vorbis"]
 }
+ron = { version = "0.12", default-features = false, features = ["std"] }
+rusqlite = {
+  version = "0.40",
+  default-features = false,
+  features = ["bundled", "cache"]
+}
 seahash = { version = "4.1", default-features = false }
 serde = {
   version = "1.0",
@@ -84,7 +99,17 @@ souvlaki = {
   default-features = false,
   features = ["use_zbus"]
 }
+syntect = {
+  version = "5.3",
+  default-features = false,
+  features = ["default-syntaxes", "default-themes", "parsing", "regex-onig"]
+}
 terminal-colorsaurus = { version = "1.0", default-features = false }
+textwrap = {
+  version = "0.16",
+  default-features = false,
+  features = ["smawk", "unicode-linebreak", "unicode-width"]
+}
 toml = {
   version = "1.1",
   default-features = false,
@@ -95,6 +120,11 @@ unicode-width = { version = "0.2", default-features = false }
 utils = { path = "crates/utils", default-features = false }
 walkdir = { version = "2.5", default-features = false }
 widgets = { path = "crates/widgets", default-features = false }
+zlib-rs = {
+  version = "0.6",
+  default-features = false,
+  features = ["c-allocator", "std"]
+}
 
 [profile.dev]
 opt-level = 1

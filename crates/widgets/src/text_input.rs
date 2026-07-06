@@ -8,6 +8,8 @@ use ratatui::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
+use crate::{CursorDelete, CursorMove};
+
 pub struct TextInput {
     input: String,
     placeholder: &'static str,
@@ -19,21 +21,6 @@ pub struct TextInput {
     margin_bottom: usize,
     colors: TextInputColors,
     last_width: u16,
-}
-
-pub enum CursorMove {
-    Forward,
-    Back,
-    Up,
-    Down,
-    Start,
-    End,
-}
-
-pub enum CursorDelete {
-    Forward,
-    Back,
-    Selection,
 }
 
 impl TextInput {

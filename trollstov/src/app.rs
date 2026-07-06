@@ -146,7 +146,7 @@ impl App {
         // Draw logo
         terminal.draw(|frame| {
             let color = self.settings.neutral();
-            frame.render_widget(widgets::LogoWidget(color), frame.area());
+            frame.render_widget(crate::logo::LogoWidget(color), frame.area());
         })?;
 
         // Apply settings, read events, load music and enter first page

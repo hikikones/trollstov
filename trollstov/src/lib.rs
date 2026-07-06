@@ -2,6 +2,7 @@ pub mod app;
 pub mod database;
 pub mod events;
 pub mod jukebox;
+pub mod logo;
 pub mod pages;
 pub mod settings;
 pub mod symbols;

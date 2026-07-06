@@ -1,0 +1,26 @@
+[package]
+name = "lazycard"
+version.workspace = true
+edition.workspace = true
+description = "A simple flashcard application for the terminal."
+license.workspace = true
+
+[dependencies]
+clap = { workspace = true }
+clap-cargo = { workspace = true }
+constcat = { workspace = true }
+directories = { workspace = true }
+edit = { workspace = true }
+fsrs = { workspace = true }
+itoa = { workspace = true }
+nucleo-matcher = { workspace = true }
+ratatui = { workspace = true }
+ron = { workspace = true }
+rusqlite = { workspace = true }
+serde = { workspace = true }
+terminal-colorsaurus = { workspace = true }
+toml = { workspace = true }
+unicode-segmentation = { workspace = true }
+unicode-width = { workspace = true }
+utils = { workspace = true }
+widgets = { workspace = true }
