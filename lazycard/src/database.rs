@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use utils::sqlite::*;
+use shared::sqlite::*;
 
 mod scheduler;
 

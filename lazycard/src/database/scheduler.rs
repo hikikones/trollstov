@@ -1,4 +1,4 @@
-use utils::sqlite::*;
+use shared::sqlite::*;
 
 pub(crate) struct Scheduler(fsrs::FSRS);
 

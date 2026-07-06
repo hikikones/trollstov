@@ -1,5 +1,5 @@
 [package]
-name = "utils"
+name = "shared"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,7 +8,4 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-ahash = { workspace = true }
-itoa = { workspace = true }
-seahash = { workspace = true }
-unicode-segmentation = { workspace = true }
+rusqlite = { workspace = true }

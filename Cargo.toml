@@ -94,6 +94,7 @@ serde = {
   features = ["derive", "std"]
 }
 serde_repr = { version = "0.1", default-features = false }
+shared = { path = "crates/shared", default-features = false }
 souvlaki = {
   version = "0.8",
   default-features = false,
