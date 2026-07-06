@@ -12,6 +12,11 @@ repository = "https://github.com/hikikones/trollstov"
 license = "MIT"
 
 [workspace.dependencies]
+ahash = {
+  version = "0.8",
+  default-features = false,
+  features = ["runtime-rng", "std"]
+}
 clap = {
   version = "4.6",
   default-features = false,

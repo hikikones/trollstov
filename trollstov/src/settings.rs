@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use database::AudioRating;
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
+use widgets::ScrollbarColors;
 
 const VERSION: u8 = 0;
 
@@ -211,6 +212,13 @@ pub struct Colors {
 }
 
 impl Colors {
+    pub const fn scrollbar(&self) -> ScrollbarColors {
+        ScrollbarColors {
+            thumb: self.neutral,
+            track: None,
+        }
+    }
+
     pub fn _generate_readable_fg(bg: Color) -> Option<Color> {
         _readable_fg(bg)
     }

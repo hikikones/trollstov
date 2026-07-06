@@ -74,3 +74,94 @@ pub fn format_duration_on_stack(duration: Duration) -> [char; 5] {
 
     chars
 }
+
+#[derive(Debug)]
+pub struct Formatter(String);
+
+impl Formatter {
+    pub const fn new() -> Self {
+        Self(String::new())
+    }
+
+    pub const fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub const fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    pub fn slice(&self, range: std::ops::Range<usize>) -> &str {
+        &self.0[range]
+    }
+
+    pub fn push_str(&mut self, s: &str) -> std::ops::Range<usize> {
+        let start = self.0.len();
+        self.0.push_str(s);
+        start..self.0.len()
+    }
+
+    pub fn push_str2(
+        &mut self,
+        s1: &str,
+        s2: &str,
+    ) -> (std::ops::Range<usize>, std::ops::Range<usize>) {
+        let start = self.0.len();
+        self.0.push_str(s1);
+        let middle = self.0.len();
+        self.0.push_str(s2);
+        (start..middle, middle..self.0.len())
+    }
+
+    pub fn push_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::ops::Range<usize> {
+        use std::fmt::Write;
+
+        let start = self.0.len();
+        let _ = self.0.write_fmt(args);
+        start..self.0.len()
+    }
+
+    pub fn push_fmt2(
+        &mut self,
+        args1: std::fmt::Arguments<'_>,
+        args2: std::fmt::Arguments<'_>,
+    ) -> (std::ops::Range<usize>, std::ops::Range<usize>) {
+        use std::fmt::Write;
+
+        let start = self.0.len();
+        let _ = self.0.write_fmt(args1);
+        let middle = self.0.len();
+        let _ = self.0.write_fmt(args2);
+        (start..middle, middle..self.0.len())
+    }
+
+    pub fn extend<'a>(
+        &mut self,
+        iter: impl IntoIterator<Item = &'a str>,
+    ) -> std::ops::Range<usize> {
+        let start = self.0.len();
+        self.0.extend(iter);
+        start..self.0.len()
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+}
+
+impl std::fmt::Display for Formatter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+pub fn hash_fast(input: impl AsRef<[u8]>) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = ahash::AHasher::default();
+    input.as_ref().hash(&mut hasher);
+    hasher.finish()
+}
+
+pub fn hash_portable(input: impl AsRef<[u8]>) -> u64 {
+    seahash::hash(input.as_ref())
+}

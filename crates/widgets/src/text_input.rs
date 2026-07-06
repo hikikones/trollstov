@@ -8,8 +8,6 @@ use ratatui::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::utils;
-
 pub struct TextInput {
     input: String,
     placeholder: &'static str,
@@ -20,6 +18,7 @@ pub struct TextInput {
     margin_top: usize,
     margin_bottom: usize,
     colors: TextInputColors,
+    last_width: u16,
 }
 
 pub enum CursorMove {
@@ -53,6 +52,7 @@ impl TextInput {
             margin_top: 0,
             margin_bottom: 0,
             colors: TextInputColors::new(),
+            last_width: 0,
         }
     }
 
@@ -108,11 +108,11 @@ impl TextInput {
     }
 
     pub fn hash(&self) -> u64 {
-        seahash::hash(self.input.as_str().as_bytes())
+        utils::hash_fast(self.input.as_str())
     }
 
     pub fn hash_trim(&self) -> u64 {
-        seahash::hash(self.input.as_str().trim().as_bytes())
+        utils::hash_fast(self.input.as_str().trim())
     }
 
     pub fn input(&mut self, key_pressed: KeyCode, key_modifiers: KeyModifiers) -> bool {
@@ -260,6 +260,10 @@ impl TextInput {
     }
 
     pub fn render(&mut self, line: Rect, buf: &mut Buffer) {
+        if line.is_empty() || buf.cell(line.as_position()).is_none() {
+            return;
+        }
+
         if self.disabled {
             let Rect { x, y, .. } = line;
             let s = if self.input.is_empty() {
@@ -267,28 +271,47 @@ impl TextInput {
             } else {
                 self.input.as_str()
             };
-            buf.set_string(x, y, s, self.colors.disabled);
+            buf.set_stringn(x, y, s, line.width as usize, self.colors.disabled);
             return;
         }
+
+        let cursor_style = Style::new().fg(self.colors.cursor).reversed();
+        let selection_style = Style::new().fg(self.colors.selector).reversed();
+        let normal_style = Style::new().fg(self.colors.normal);
 
         if self.input.is_empty() {
             let Rect { x, y, .. } = line;
-            buf.set_string(x, y, self.placeholder, self.colors.placeholder);
-            buf[(x, y)].set_style(Style::new().fg(self.colors.cursor).reversed());
+            buf.set_stringn(
+                x,
+                y,
+                self.placeholder,
+                line.width as usize,
+                self.colors.placeholder,
+            );
+            buf[(x, y)].set_style(cursor_style);
             return;
         }
 
-        // Get total input width and update scroll
+        // Get total input width
         let total_width = unicode_width::UnicodeWidthStr::width(self.input.as_str());
-        self.scroll = utils::calculate_scroll(
-            total_width,
+
+        // Determine scroll
+        let scroll = if self.last_width != line.width {
+            // Refresh scroll on window resize
+            0
+        } else {
+            self.scroll
+        };
+        self.scroll = crate::Scrollbar::calculate_scroll_with_margins(
+            total_width + 1,
             line.width,
             self.cursor,
-            self.scroll,
+            scroll,
             self.margin_top,
             self.margin_bottom,
             0,
         );
+        self.last_width = line.width;
 
         // Render
         let selection = self.try_selection().unwrap_or(self.cursor..self.cursor);
@@ -306,11 +329,11 @@ impl TextInput {
                 let is_cursor = i == self.cursor;
                 let is_selected = selection.contains(&i);
                 let style = if is_cursor {
-                    Style::new().fg(self.colors.cursor).reversed()
+                    cursor_style
                 } else if is_selected {
-                    Style::new().fg(self.colors.selector).reversed()
+                    selection_style
                 } else {
-                    Style::new().fg(self.colors.normal)
+                    normal_style
                 };
                 (x, _) = buf.set_stringn(x, y, g, grapheme_width, style);
             }
@@ -319,7 +342,7 @@ impl TextInput {
         if self.cursor == self.input.len()
             && let Some(cell) = buf.cell_mut((x, y))
         {
-            cell.set_style(Style::new().fg(self.colors.cursor).reversed());
+            cell.set_style(cursor_style);
         }
     }
 

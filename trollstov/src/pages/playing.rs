@@ -347,7 +347,7 @@ impl PlayingPage {
 
         let hlen = jb.history();
         let current_qi = jb.current_queue_index();
-        self.list.set_colors(colors.neutral, None).render(
+        self.list.set_scrollbar(colors.scrollbar()).render(
             queue_inner_area,
             buf,
             jb.iter(),

@@ -2,10 +2,11 @@ use ratatui::{
     buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
     layout::Rect,
-    style::Color,
 };
 
-use crate::utils;
+use crate::{Scrollbar, ScrollbarColors};
+
+// TODO: Add render_with_splits or with_splits for horizontal split of the area.
 
 pub struct List {
     index: usize,
@@ -14,8 +15,7 @@ pub struct List {
     margin_top: usize,
     margin_bottom: usize,
     padding_bottom: usize,
-    thumb_color: Color,
-    track_color: Option<Color>,
+    scrollbar: Option<ScrollbarColors>,
     len: usize,
     height: u16,
 }
@@ -46,8 +46,7 @@ impl List {
             margin_top: 0,
             margin_bottom: 0,
             padding_bottom: 0,
-            thumb_color: Color::Gray,
-            track_color: Some(Color::DarkGray),
+            scrollbar: None,
             len: 0,
             height: 0,
         }
@@ -76,6 +75,10 @@ impl List {
         self.selector
     }
 
+    pub const fn scroll(&self) -> usize {
+        self.scroll
+    }
+
     pub fn selection(&self) -> Option<std::ops::Range<usize>> {
         self.selector
             .and_then(|selector| match self.index.cmp(&selector) {
@@ -97,12 +100,6 @@ impl List {
             .unwrap_or(self.index..=self.index)
     }
 
-    pub const fn set_colors(&mut self, thumb: Color, track: Option<Color>) -> &mut Self {
-        self.thumb_color = thumb;
-        self.track_color = track;
-        self
-    }
-
     pub const fn set_margins(&mut self, top: usize, bottom: usize) -> &mut Self {
         self.margin_top = top;
         self.margin_bottom = bottom;
@@ -111,6 +108,11 @@ impl List {
 
     pub const fn set_padding(&mut self, bottom: usize) -> &mut Self {
         self.padding_bottom = bottom;
+        self
+    }
+
+    pub const fn set_scrollbar(&mut self, colors: ScrollbarColors) -> &mut Self {
+        self.scrollbar = Some(colors);
         self
     }
 
@@ -239,7 +241,7 @@ impl List {
         } else {
             self.scroll
         };
-        self.scroll = utils::calculate_scroll(
+        self.scroll = crate::Scrollbar::calculate_scroll_with_margins(
             items.len(),
             area.height,
             self.index,
@@ -252,34 +254,27 @@ impl List {
         self.len = items.len();
         self.height = area.height;
 
-        // Render
-        let height = area.height as usize;
-        let scrollable = items.len() > height;
-
-        if scrollable {
-            let scrollbar = Rect {
-                x: area.x + area.width,
-                width: 1,
-                ..area
-            };
-            area.width = area.width.saturating_sub(1);
-            utils::render_scrollbar(
-                scrollbar,
-                buf,
-                items.len(),
-                self.scroll,
-                self.thumb_color,
-                self.track_color,
-            );
+        // Scrollbar
+        if let Some(colors) = self.scrollbar {
+            if Scrollbar::is_scrollable(items.len(), area.as_size()) {
+                let scroll_area = Scrollbar::make_scroll_area(&mut area);
+                Scrollbar::new().with_colors(colors).render(
+                    scroll_area,
+                    buf,
+                    self.scroll,
+                    items.len(),
+                );
+            }
         }
 
+        // Render
         let selection = self.selection_inclusive();
         let mut line = Rect { height: 1, ..area };
 
         items
             .enumerate()
             .skip(self.scroll)
-            .take(height)
+            .take(area.height as usize)
             .for_each(|(i, item)| {
                 let list_item = if i == self.index {
                     ListItem::Selected

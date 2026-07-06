@@ -133,7 +133,7 @@ impl SettingsPage {
         };
 
         let current_setting = self.current();
-        self.list.set_colors(colors.neutral, None).render(
+        self.list.set_scrollbar(colors.scrollbar()).render(
             settings_area,
             buf,
             SETTINGS,

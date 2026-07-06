@@ -138,7 +138,7 @@ impl SearchPage {
             );
         });
 
-        self.list.set_colors(colors.neutral, None).render(
+        self.list.set_scrollbar(colors.scrollbar()).render(
             results_inner,
             buf,
             self.search_results.iter().copied(),

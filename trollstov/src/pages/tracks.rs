@@ -267,7 +267,7 @@ impl TracksPage {
 
         // Render the body for the table
         let current = jb.current_track_id();
-        self.list.set_colors(colors.neutral, None).render(
+        self.list.set_scrollbar(colors.scrollbar()).render(
             table_area,
             buf,
             db.iter(),
