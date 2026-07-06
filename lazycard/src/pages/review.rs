@@ -1,4 +1,5 @@
 use ratatui::{crossterm::event::KeyCode, style::Style};
+use shared::symbols;
 use widgets::{KittyGraphics, Markup, MarkupItem, ScrollMove, Shortcut, Shortcuts};
 
 use crate::{
@@ -6,7 +7,6 @@ use crate::{
     database::{CardId, Database},
     pages::Route,
     settings::Colors,
-    symbols,
 };
 
 pub struct ReviewPage {

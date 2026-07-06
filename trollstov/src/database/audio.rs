@@ -424,6 +424,30 @@ impl AudioRating {
     pub const fn as_u8(self) -> u8 {
         self as u8
     }
+
+    pub const fn stars(self) -> &'static str {
+        use shared::symbols::{STAR, repeat};
+        match self {
+            Self::None => "",
+            Self::Awful => STAR,
+            Self::Bad => repeat!(STAR, 2),
+            Self::Ok => repeat!(STAR, 3),
+            Self::Good => repeat!(STAR, 4),
+            Self::Amazing => repeat!(STAR, 5),
+        }
+    }
+
+    pub const fn stars_split(self) -> (&'static str, &'static str) {
+        use shared::symbols::{STAR_BIG, repeat};
+        match self {
+            Self::None => (repeat!(STAR_BIG, 0), repeat!(STAR_BIG, 5)),
+            Self::Awful => (repeat!(STAR_BIG, 1), repeat!(STAR_BIG, 4)),
+            Self::Bad => (repeat!(STAR_BIG, 2), repeat!(STAR_BIG, 3)),
+            Self::Ok => (repeat!(STAR_BIG, 3), repeat!(STAR_BIG, 2)),
+            Self::Good => (repeat!(STAR_BIG, 4), repeat!(STAR_BIG, 1)),
+            Self::Amazing => (repeat!(STAR_BIG, 5), repeat!(STAR_BIG, 0)),
+        }
+    }
 }
 
 #[derive(Debug)]

@@ -7,6 +7,7 @@ use ratatui::{
     text::Span,
     widgets::Widget,
 };
+use shared::symbols;
 use utils::Formatter;
 use widgets::{Shortcut, Shortcuts, TextInput, TokenItem, TokenList};
 
@@ -15,7 +16,6 @@ use crate::{
     database::{Database, TagId},
     pages::{CardsParam, Route},
     settings::Colors,
-    symbols,
 };
 
 pub struct TagsPage {

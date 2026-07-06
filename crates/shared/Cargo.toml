@@ -8,4 +8,5 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+constcat = { workspace = true }
 rusqlite = { workspace = true }

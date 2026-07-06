@@ -6,6 +6,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
 };
+use shared::symbols;
 use utils::Formatter;
 use widgets::{KittyGraphics, List, ListItem, Markup, ScrollMove, Shortcut, Shortcuts};
 
@@ -14,7 +15,6 @@ use crate::{
     database::{CardId, Database, TagId},
     pages::{CardsParam, Route},
     settings::Colors,
-    symbols,
 };
 
 pub struct CardsPage {

@@ -3,13 +3,13 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding},
 };
+use shared::symbols;
 use widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputColors};
 
 use crate::{
     database::{Database, TrackId},
     jukebox::Jukebox,
     settings::Colors,
-    symbols,
 };
 
 // TODO: Add timer for searching?

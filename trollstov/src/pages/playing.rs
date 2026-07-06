@@ -4,6 +4,7 @@ use ratatui::{
     widgets::{Block, Padding},
 };
 use ratatui_image::StatefulImage;
+use shared::symbols;
 use widgets::{List, ListItem, Shortcut, Shortcuts};
 
 use crate::{
@@ -12,7 +13,6 @@ use crate::{
     jukebox::Jukebox,
     pages::Route,
     settings::Colors,
-    symbols,
 };
 
 pub struct PlayingPage {
@@ -409,7 +409,7 @@ fn render_cover_with_stars(
             if area.width > 12 && area.height > 10 {
                 let margin = Margin::new(1, 1);
                 let cover_area = render_cover(area.inner(margin), buf, front_cover, colors);
-                let stars = symbols::stars_split(rating);
+                let (filled_stars, empty_stars) = rating.stars_split();
                 widgets::print_texts_with_styles(
                     Rect {
                         y: cover_area.y + cover_area.height,
@@ -418,8 +418,8 @@ fn render_cover_with_stars(
                     },
                     buf,
                     [
-                        (stars.0, Style::new().fg(colors.primary)),
-                        (stars.1, Style::new().fg(colors.neutral)),
+                        (filled_stars, Style::new().fg(colors.primary)),
+                        (empty_stars, Style::new().fg(colors.neutral)),
                     ],
                     None,
                     Some(widgets::Alignment::CenterHorizontal),

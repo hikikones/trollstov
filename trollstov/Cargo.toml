@@ -21,7 +21,6 @@ categories = ["audio", "command-line-utilities", "multimedia"]
 [dependencies]
 clap = { workspace = true }
 clap-cargo = { workspace = true }
-constcat = { workspace = true }
 directories = { workspace = true }
 fastrand = { workspace = true }
 ignore = { workspace = true }
@@ -35,6 +34,7 @@ rodio = { workspace = true }
 seahash = { workspace = true }
 serde = { workspace = true }
 serde_repr = { workspace = true }
+shared = { workspace = true }
 souvlaki = { workspace = true }
 terminal-colorsaurus = { workspace = true }
 toml = { workspace = true }

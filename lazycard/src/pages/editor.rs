@@ -6,6 +6,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
 };
+use shared::symbols;
 use widgets::{CursorMove, KittyGraphics, List, ListItem, Markup, Shortcut, Shortcuts, TextEditor};
 
 use crate::{
@@ -13,7 +14,6 @@ use crate::{
     database::{CardId, Database, TagId},
     pages::Log,
     settings::Colors,
-    symbols,
     terminal::Terminal,
 };
 

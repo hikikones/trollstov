@@ -3,6 +3,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding},
 };
+use shared::symbols;
 use widgets::{KittyGraphics, Markup, ScrollMove, Shortcut, Shortcuts, TextInput};
 
 use crate::{
@@ -10,7 +11,6 @@ use crate::{
     database::{CardId, Database},
     pages::{CardsParam, Route},
     settings::Colors,
-    symbols,
 };
 
 // TODO: Render a help text as markup when search comes up empty.

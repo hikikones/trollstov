@@ -5,6 +5,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding},
 };
+use shared::symbols;
 use widgets::{
     CursorMove, List, ListItem, Shortcut, Shortcuts, TextInput, TextInputColors, TextSegment,
 };
@@ -14,7 +15,6 @@ use crate::{
     database::AudioRating,
     pages::Log,
     settings::{Colors, Settings},
-    symbols,
 };
 
 pub struct SettingsPage {
@@ -543,13 +543,13 @@ fn print_rating(
     );
 
     // Stars
-    let stars = symbols::stars_split(rating);
+    let (filled_stars, empty_stars) = rating.stars_split();
     widgets::print_texts_with_styles(
         input_area,
         buf,
         [
-            (stars.0, Style::new().fg(colors.primary)),
-            (stars.1, Style::new().fg(colors.neutral)),
+            (filled_stars, Style::new().fg(colors.primary)),
+            (empty_stars, Style::new().fg(colors.neutral)),
         ],
         None,
         None,

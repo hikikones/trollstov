@@ -7,13 +7,13 @@ use ratatui::{
     layout::{Margin, Rect},
     style::Color,
 };
+use shared::symbols;
 use widgets::{CellSize, KittyGraphics, Markup, Shortcut, Shortcuts};
 
 use crate::{
     database::Database,
     pages::{Log, PageState, Pages, Route},
     settings::Settings,
-    symbols,
     terminal::Terminal,
 };
 

@@ -2,7 +2,6 @@ pub mod app;
 pub mod database;
 pub mod pages;
 pub mod settings;
-pub mod symbols;
 pub mod terminal;
 
 pub const APP_NAME: &str = env!("CARGO_PKG_NAME");

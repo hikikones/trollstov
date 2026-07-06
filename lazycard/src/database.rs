@@ -195,7 +195,7 @@ impl Database {
 
         self.sqlite
             .query_single(
-                constcat::concat!(
+                shared::symbols::concat!(
                     "SELECT rowid, highlight(cards_fts, 0, '",
                     ANSI_REVERSE,
                     "', '",

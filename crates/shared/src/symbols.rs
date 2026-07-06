@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 pub const TAB: &str = "Tab";
 pub const ALT: &str = "⎇";
 pub const CTRL: &str = "^";
@@ -28,27 +26,31 @@ pub const fn checkmark(v: bool) -> &'static str {
     if v { CHECKMARK_YES } else { CHECKMARK_NO }
 }
 
+#[macro_export]
 macro_rules! alt {
     ($s:expr) => {{
         const _: &str = $s;
-        constcat::concat!(crate::symbols::ALT, $s)
+        shared::symbols::concat!(shared::symbols::ALT, $s)
     }};
 }
 
+#[macro_export]
 macro_rules! ctrl {
     ($s:expr) => {{
         const _: &str = $s;
-        constcat::concat!(crate::symbols::CTRL, $s)
+        shared::symbols::concat!(shared::symbols::CTRL, $s)
     }};
 }
 
+#[macro_export]
 macro_rules! shift {
     ($s:expr) => {{
         const _: &str = $s;
-        constcat::concat!("(", crate::symbols::SHIFT, ")", $s)
+        shared::symbols::concat!("(", shared::symbols::SHIFT, ")", $s)
     }};
 }
 
+#[macro_export]
 macro_rules! repeat {
     ($s:expr, 0) => {{
         const _: &str = $s;
@@ -60,24 +62,24 @@ macro_rules! repeat {
     }};
     ($s:expr, 2) => {{
         const _: &str = $s;
-        constcat::concat!($s, $s)
+        shared::symbols::concat!($s, $s)
     }};
     ($s:expr, 3) => {{
         const _: &str = $s;
-        constcat::concat!($s, $s, $s)
+        shared::symbols::concat!($s, $s, $s)
     }};
     ($s:expr, 4) => {{
         const _: &str = $s;
-        constcat::concat!($s, $s, $s, $s)
+        shared::symbols::concat!($s, $s, $s, $s)
     }};
     ($s:expr, 5) => {{
         const _: &str = $s;
-        constcat::concat!($s, $s, $s, $s, $s)
+        shared::symbols::concat!($s, $s, $s, $s, $s)
     }};
 }
 
-pub(crate) use alt;
-pub(crate) use constcat::concat;
-pub(crate) use ctrl;
-pub(crate) use repeat;
-pub(crate) use shift;
+pub use alt;
+pub use constcat::concat;
+pub use ctrl;
+pub use repeat;
+pub use shift;

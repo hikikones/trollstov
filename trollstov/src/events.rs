@@ -197,7 +197,7 @@ impl MediaControls {
             display_name: crate::APP_NAME,
             // TODO: Add random number to avoid zbus panic when dbus name is already taken?
             // Currently a second instance of trollstov will panic.
-            dbus_name: crate::symbols::concat!(
+            dbus_name: shared::symbols::concat!(
                 crate::APP_QUALIFIER,
                 ".",
                 crate::APP_ORGANIZATION,

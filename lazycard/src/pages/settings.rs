@@ -4,13 +4,13 @@ use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     prelude::*,
 };
+use shared::symbols;
 use widgets::{CursorMove, List, ListItem, Shortcut, Shortcuts, TextInput};
 
 use crate::{
     app::{Action, AppInput, AppRender},
     pages::Log,
     settings::{Colors, Settings},
-    symbols,
 };
 
 pub struct SettingsPage {

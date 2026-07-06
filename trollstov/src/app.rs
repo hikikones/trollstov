@@ -6,6 +6,7 @@ use ratatui::{
     prelude::*,
 };
 use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
+use shared::symbols;
 use widgets::{Shortcut, Shortcuts, TextSegment};
 
 use crate::{
@@ -17,7 +18,6 @@ use crate::{
         SettingsPage, TracksPage,
     },
     settings::{Colors, Settings},
-    symbols,
     terminal::Terminal,
 };
 

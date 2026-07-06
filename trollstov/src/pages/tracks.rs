@@ -3,6 +3,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Padding},
 };
+use shared::symbols;
 use widgets::{List, ListItem, ListMove, Shortcut, Shortcuts};
 
 use crate::{
@@ -10,7 +11,6 @@ use crate::{
     database::{AudioRating, Database, TrackId, TrackSort},
     jukebox::Jukebox,
     settings::Colors,
-    symbols,
 };
 
 pub struct TracksPage {
@@ -304,7 +304,7 @@ impl TracksPage {
                             style.not_crossed_out(),
                         ),
                         (
-                            symbols::stars(track.rating()),
+                            track.rating().stars(),
                             rating_width,
                             0,
                             style.not_crossed_out(),
