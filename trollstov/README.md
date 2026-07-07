@@ -25,18 +25,18 @@ The name is a norwegian word play for a substance with magical properties. You h
 The `trollstov` command takes one mandatory argument, which is the path to your music directory. In addition, it comes with a few optional arguments.
 
 ```console
-Usage: trollstov [OPTIONS] <MUSIC_DIR>
+Usage: trollstov [OPTIONS] <DIR>
 
 Example: trollstov --media-controls /path/to/my/music
 
 Arguments:
-  <MUSIC_DIR>  The directory for your music
+  <DIR>  The directory for your music.
 
 Options:
-      --settings <SETTINGS_FILE.toml>  Optional path for your settings file. If not set, the location will be determined by the conventions of your operating system.
-      --media-controls                 Add system media controls for player interaction with media keys and your operating system.
-  -h, --help                           Print help.
-  -V, --version                        Print version.
+      --settings <FILE.toml>  Optional path for your settings file. By default, the location will be determined by the conventions of your operating system.
+      --media-controls        Add system media controls for player interaction with media keys and your operating system.
+  -h, --help                  Print help.
+  -V, --version               Print version.
 ```
 
 ## 🎵 Audio Format Support

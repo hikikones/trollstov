@@ -37,12 +37,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[command(version, about, styles = CLAP_STYLING)]
 struct Args {
     /// The directory for your music.
-    #[arg(value_name = "MUSIC_DIR", value_hint = clap::ValueHint::DirPath)]
+    #[arg(value_name = "DIR", value_hint = clap::ValueHint::DirPath)]
     dir: std::path::PathBuf,
 
-    /// Optional path for your settings file. If not set,
+    /// Optional path for your settings file. By default,
     /// the location will be determined by the conventions of your operating system.
-    #[arg(long, value_name = "SETTINGS_FILE.toml", value_hint = clap::ValueHint::FilePath)]
+    #[arg(long, value_name = "FILE.toml", value_hint = clap::ValueHint::FilePath)]
     settings: Option<std::path::PathBuf>,
 
     /// Add system media controls for player interaction
