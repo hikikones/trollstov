@@ -9,7 +9,7 @@ use ratatui::{
 };
 use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
 use shared::symbols;
-use widgets::{Shortcut, Shortcuts, TextSegment};
+use widgets::{Shortcut, Shortcuts, TextSpan};
 
 use crate::{
     database::{Database, DatabaseEvent, Track},
@@ -40,7 +40,7 @@ pub struct App {
     screen_size: ScreenSize,
     front_cover: FrontCover,
     front_cover_handle: Option<FrontCoverHandle>,
-    text: TextSegment,
+    text: TextSpan,
     shortcuts: Shortcuts,
 }
 
@@ -139,7 +139,7 @@ impl App {
             screen_size: ScreenSize::Large,
             front_cover: FrontCover::default(),
             front_cover_handle: None,
-            text: TextSegment::new().with_alignment(Alignment::Center),
+            text: TextSpan::new().with_alignment(Alignment::Center),
             shortcuts: Shortcuts::new(),
         }
     }
@@ -708,7 +708,7 @@ impl App {
 fn render_navigation(
     line: Rect,
     buf: &mut Buffer,
-    text: &mut TextSegment,
+    text: &mut TextSpan,
     current_route: Route,
     colors: &Colors,
 ) {
@@ -734,7 +734,7 @@ fn render_navigation(
 fn render_playback(
     area: Rect,
     buf: &mut Buffer,
-    text: &mut TextSegment,
+    text: &mut TextSpan,
     audio_position: Duration,
     track: Option<&Track>,
     colors: &Colors,

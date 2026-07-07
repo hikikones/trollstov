@@ -9,7 +9,7 @@ use ratatui::{
 };
 use shared::symbols;
 use widgets::{
-    CursorMove, List, ListItem, Shortcut, Shortcuts, TextInput, TextInputColors, TextSegment,
+    CursorMove, List, ListItem, Shortcut, Shortcuts, TextInput, TextInputColors, TextSpan,
 };
 
 use crate::{
@@ -25,7 +25,7 @@ pub struct SettingsPage {
     saved_hash: u64,
     is_saved: bool,
     list: List,
-    text: TextSegment,
+    text: TextSpan,
     primary: ColorSetting,
     secondary: ColorSetting,
     neutral: ColorSetting,
@@ -90,7 +90,7 @@ impl SettingsPage {
             saved_hash: hash,
             is_saved: true,
             list: List::new().with_index(selected).with_margins(3, 3),
-            text: TextSegment::new().with_alignment(Alignment::Center),
+            text: TextSpan::new().with_alignment(Alignment::Center),
             primary: ColorSetting::new(colors.primary),
             secondary: ColorSetting::new(colors.secondary),
             neutral: ColorSetting::new(colors.neutral),

@@ -19,7 +19,7 @@ use crate::{
     Scrollbar, ScrollbarColors,
     ansi::{AnsiParser, AnsiTag, AnsiWriter},
     kitty_graphics::{Dimensions, KittyGraphics, ResizeMode},
-    text_segment::TextSegment,
+    text_span::TextSpan,
 };
 
 pub struct Markup {
@@ -662,7 +662,7 @@ struct MarkupRichData {
     items: Vec<MarkupRich>,
     writer: AnsiWriter,
     formatter: Formatter,
-    span: TextSegment,
+    span: TextSpan,
     highlighter: CodeHighlighter,
 }
 
@@ -672,7 +672,7 @@ impl MarkupRichData {
             items: Vec::new(),
             writer: AnsiWriter::new(),
             formatter: Formatter::new(),
-            span: TextSegment::new(),
+            span: TextSpan::new(),
             highlighter: CodeHighlighter::new(),
         }
     }
