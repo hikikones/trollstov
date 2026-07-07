@@ -8,6 +8,7 @@ use ratatui::{
 use crate::AnsiWriter;
 
 // TODO: Use ansi codes for syntax highlighting.
+// TODO: Fix cursor not visually cleared when on an emoji and pushing newlines.
 
 pub struct TextEditor {
     input: String,

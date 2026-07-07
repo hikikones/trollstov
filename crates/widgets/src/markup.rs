@@ -595,17 +595,6 @@ pub enum ScrollMove {
     End,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum MarkupItem {
-    Paragraph,
-    ListItem,
-    Code,
-    Image,
-    ImageDescription,
-    Break,
-    EmptyLine,
-}
-
 #[derive(Debug, Clone)]
 enum MarkupPlain {
     Paragraph {
