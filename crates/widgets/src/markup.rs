@@ -268,37 +268,6 @@ impl Markup {
         Ok(())
     }
 
-    // TODO: Rework this by returning a custom iterator.
-    pub fn parse_items(markup: &str, v: &mut Vec<MarkupItem>) {
-        for (block, _) in BlockParser::new(markup) {
-            match block {
-                BlockElement::Paragraph { .. } => {
-                    v.push(MarkupItem::Paragraph);
-                }
-                BlockElement::List { items } => {
-                    for _ in items {
-                        v.push(MarkupItem::ListItem);
-                    }
-                }
-                BlockElement::Code { .. } => {
-                    v.push(MarkupItem::Code);
-                }
-                BlockElement::Image { description, .. } => {
-                    v.push(MarkupItem::Image);
-                    if !description.is_empty() {
-                        v.push(MarkupItem::ImageDescription);
-                    }
-                }
-                BlockElement::Comment { _text } => continue,
-                BlockElement::Break => {
-                    v.push(MarkupItem::Break);
-                }
-            }
-            v.push(MarkupItem::EmptyLine);
-        }
-        v.pop();
-    }
-
     fn parse_and_load(&mut self, markup: &str, kitty: &mut KittyGraphics) {
         self.plain.clear();
         self.kitty.id_counter = 0;
@@ -549,6 +518,70 @@ impl Markup {
             Some(max) => max,
             None => self.rich.items.len(),
         }
+    }
+
+    /// Returns the index before every break point in the `markup`,
+    /// including the last index. Useful for [`set_max_items`](Self::set_max_items).
+    pub fn parse_break_points(markup: &str) -> impl Iterator<Item = usize> {
+        struct Breaks<'a> {
+            blocks: BlockParser<'a>,
+            len: usize,
+        }
+
+        impl<'a> Breaks<'a> {
+            fn new(markup: &'a str) -> Self {
+                Self {
+                    blocks: BlockParser::new(markup),
+                    len: 0,
+                }
+            }
+        }
+
+        impl<'a> Iterator for Breaks<'a> {
+            type Item = usize;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                let len = self.len;
+
+                while let Some((block, _)) = self.blocks.next() {
+                    match block {
+                        BlockElement::Paragraph { .. } => {
+                            self.len += 1;
+                        }
+                        BlockElement::List { items } => {
+                            self.len += items.count();
+                        }
+                        BlockElement::Code { .. } => {
+                            self.len += 1;
+                        }
+                        BlockElement::Image { description, .. } => {
+                            self.len += 1;
+                            if !description.is_empty() {
+                                self.len += 1;
+                            }
+                        }
+                        BlockElement::Comment { .. } => continue,
+                        BlockElement::Break => {
+                            let i = self.len;
+                            self.len += 2;
+                            return Some(i);
+                        }
+                    }
+
+                    // EmptyLine
+                    self.len += 1;
+                }
+
+                if len == self.len {
+                    None
+                } else {
+                    // No last EmptyLine
+                    Some(self.len.saturating_sub(1))
+                }
+            }
+        }
+
+        Breaks::new(markup)
     }
 }
 
@@ -810,6 +843,8 @@ enum BlockElement<'a> {
     List { items: ListItems<'a> },
     Code { language: &'a str, text: &'a str },
     Image { description: &'a str, path: &'a str },
+    // TODO: Math
+    // TODO: Table
     Comment { _text: &'a str },
     Break,
 }

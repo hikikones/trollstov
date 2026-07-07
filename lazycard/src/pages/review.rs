@@ -1,6 +1,7 @@
 use ratatui::{crossterm::event::KeyCode, style::Style};
+
 use shared::symbols;
-use widgets::{KittyGraphics, Markup, MarkupItem, ScrollMove, Shortcut, Shortcuts};
+use widgets::{KittyGraphics, Markup, ScrollMove, Shortcut, Shortcuts};
 
 use crate::{
     app::{Action, AppInput, AppRender},
@@ -13,8 +14,8 @@ pub struct ReviewPage {
     total: u32,
     progress: u32,
     state: ReviewState,
-    markup_items: Vec<MarkupItem>,
-    reveal_len: usize,
+    breaks: Vec<usize>,
+    reveal_len: Option<usize>,
     desired_retention: f32,
 }
 
@@ -30,8 +31,8 @@ impl ReviewPage {
             total: 0,
             progress: 0,
             state: ReviewState::None,
-            markup_items: Vec::new(),
-            reveal_len: 0,
+            breaks: Vec::new(),
+            reveal_len: None,
             desired_retention: 0.0,
         }
     }
@@ -85,7 +86,7 @@ impl ReviewPage {
 
                 db.get_card_content(id, |content| {
                     markup
-                        .set_max_items(Some(self.reveal_len))
+                        .set_max_items(self.reveal_len)
                         .render(area, buf, content, kitty);
                 });
 
@@ -169,8 +170,8 @@ impl ReviewPage {
         self.total = 0;
         self.progress = 0;
         self.state = ReviewState::None;
-        self.markup_items.clear();
-        self.reveal_len = 0;
+        self.breaks.clear();
+        self.reveal_len = None;
     }
 
     fn next_card(&mut self, db: &Database, markup: &mut Markup) {
@@ -183,10 +184,10 @@ impl ReviewPage {
         match next_card {
             Some(id) => {
                 db.get_card_content(id, |content| {
-                    self.markup_items.clear();
-                    Markup::parse_items(content, &mut self.markup_items);
+                    self.breaks.clear();
+                    self.breaks.extend(Markup::parse_break_points(content));
+                    self.breaks.reverse();
                 });
-                self.reveal_len = 0;
                 self.state = ReviewState::Review(id);
                 self.reveal_more();
                 markup.scroll(ScrollMove::Start);
@@ -198,19 +199,11 @@ impl ReviewPage {
     }
 
     fn reveal_more(&mut self) {
-        self.reveal_len = self
-            .markup_items
-            .iter()
-            .copied()
-            .enumerate()
-            .filter(|&(i, b)| matches!(b, MarkupItem::Break) && i > self.reveal_len)
-            .map(|(i, _)| i)
-            .next()
-            .unwrap_or(self.markup_items.len());
+        self.reveal_len = self.breaks.pop();
     }
 
     const fn is_fully_revealed(&self) -> bool {
-        self.reveal_len == self.markup_items.len()
+        self.breaks.is_empty()
     }
 
     const fn is_done(&self) -> bool {
