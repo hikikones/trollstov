@@ -99,21 +99,20 @@ impl Shortcuts {
                 .iter()
                 .cloned()
                 .enumerate()
-                .map(|(i, (name, key))| {
+                .flat_map(|(i, (name, key))| {
                     let name = self.formatter.slice(name);
                     let name_style = Style::new().fg(self.name_color);
                     let key = self.formatter.slice(key);
                     let key_style = Style::new().fg(self.key_color);
                     let is_last = i + 1 == len;
                     let gap = if is_last { "" } else { " " };
-                    (
+                    [
                         (key, key_style),
                         (" ", Style::new()),
                         (name, name_style),
                         (gap, Style::new()),
-                    )
-                })
-                .flat_map(|(a, b, c, d)| [a, b, c, d]),
+                    ]
+                }),
             None,
             alignment,
         );

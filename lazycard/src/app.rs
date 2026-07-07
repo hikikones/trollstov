@@ -80,12 +80,10 @@ impl App {
     ) -> Self {
         let mut settings_err = None;
 
-        let settings = Settings::read(settings_path.clone())
-            .inspect_err(|err| {
-                settings_err = Some(Log::new(err));
-            })
-            .unwrap_or_default()
-            .with_path(settings_path);
+        let settings = Settings::read(settings_path.clone()).unwrap_or_else(|err| {
+            settings_err = Some(Log::new(err));
+            Settings::default().with_path(settings_path)
+        });
 
         let mut markup = Markup::new().with_options(MarkupOptions {
             assets: assets_dir,

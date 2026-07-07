@@ -270,7 +270,7 @@ impl Pages {
                 (Route::Settings, "Settings", ""),
             ]
             .into_iter()
-            .map(|(route, name, spacing)| {
+            .flat_map(|(route, name, spacing)| {
                 let is_current =
                     std::mem::discriminant(&route) == std::mem::discriminant(&self.route);
                 let is_route = self.state == State::Route;
@@ -279,9 +279,8 @@ impl Pages {
                 } else {
                     Style::new()
                 };
-                ((name, style), (spacing, Style::new()))
-            })
-            .flat_map(|(a, b)| [a, b]),
+                [(name, style), (spacing, Style::new())]
+            }),
             Some(widgets::Alignment::CenterHorizontal),
         );
     }
