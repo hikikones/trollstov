@@ -1,7 +1,8 @@
 use ratatui::{
     crossterm::event::KeyCode,
-    prelude::*,
-    widgets::{Block, Padding},
+    layout::Rect,
+    style::{Color, Style},
+    widgets::{Block, Padding, Widget},
 };
 use shared::symbols;
 use widgets::{KittyGraphics, Markup, ScrollMove, Shortcut, Shortcuts, TextInput};

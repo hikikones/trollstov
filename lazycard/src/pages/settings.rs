@@ -1,8 +1,10 @@
 use std::str::FromStr;
 
 use ratatui::{
+    buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
-    prelude::*,
+    layout::{Constraint, Rect},
+    style::{Color, Style},
 };
 use shared::symbols;
 use widgets::{CursorMove, List, ListItem, Shortcut, Shortcuts, TextInput};

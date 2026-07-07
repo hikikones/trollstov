@@ -1,9 +1,11 @@
 use std::str::FromStr;
 
 use ratatui::{
+    buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
-    prelude::*,
-    widgets::{Block, Padding},
+    layout::{Alignment, Constraint, Rect},
+    style::{Color, Style},
+    widgets::{Block, Padding, Widget},
 };
 use shared::symbols;
 use widgets::{

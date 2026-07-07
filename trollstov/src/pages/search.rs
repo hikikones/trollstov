@@ -1,7 +1,9 @@
 use ratatui::{
+    buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
-    prelude::*,
-    widgets::{Block, Padding},
+    layout::{Constraint, Rect},
+    style::{Color, Modifier, Style},
+    widgets::{Block, Padding, Widget},
 };
 use shared::symbols;
 use widgets::{List, ListItem, Shortcut, Shortcuts, TextInput, TextInputColors};

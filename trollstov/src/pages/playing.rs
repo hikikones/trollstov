@@ -1,7 +1,9 @@
 use ratatui::{
+    buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
-    prelude::*,
-    widgets::{Block, Padding},
+    layout::{Constraint, Layout, Margin, Rect},
+    style::{Color, Modifier, Style},
+    widgets::{Block, Padding, StatefulWidget, Widget},
 };
 use ratatui_image::StatefulImage;
 use shared::symbols;

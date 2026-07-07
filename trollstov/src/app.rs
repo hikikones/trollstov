@@ -2,8 +2,10 @@ use std::{path::PathBuf, time::Duration};
 
 use ratatui::{
     CompletedFrame,
+    buffer::Buffer,
     crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
-    prelude::*,
+    layout::{Alignment, Constraint, Layout, Margin, Rect},
+    style::{Color, Style},
 };
 use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
 use shared::symbols;
