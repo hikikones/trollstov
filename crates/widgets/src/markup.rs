@@ -7,7 +7,7 @@ use ratatui::{
     buffer::Buffer,
     crossterm::event::KeyCode,
     layout::{Alignment, Rect, Size},
-    style::Style,
+    style::Color,
 };
 use syntect::{
     easy::HighlightLines, highlighting::ThemeSet, parsing::SyntaxSet, util::LinesWithEndings,
@@ -28,23 +28,30 @@ pub struct Markup {
     scroll: MarkupScroll,
     kitty: MarkupKitty,
     cache: MarkupCache,
-    assets_path: PathBuf,
+    options: MarkupOptions,
+    colors: MarkupColors,
 }
 
 impl Markup {
-    pub fn new(assets: PathBuf, theme: SyntaxHighlightTheme) -> Self {
+    pub fn new() -> Self {
         Self {
             plain: MarkupPlainData::new(),
-            rich: MarkupRichData::new(theme),
+            rich: MarkupRichData::new(),
             scroll: MarkupScroll::new(),
             kitty: MarkupKitty::new(),
             cache: MarkupCache::new(),
-            assets_path: assets,
+            options: MarkupOptions::new(),
+            colors: MarkupColors::new(),
         }
     }
 
-    pub const fn with_scrollbar(mut self, colors: ScrollbarColors) -> Self {
-        self.scroll.colors = Some(colors);
+    pub fn with_options(mut self, options: MarkupOptions) -> Self {
+        self.options = options;
+        self
+    }
+
+    pub const fn with_colors(mut self, colors: MarkupColors) -> Self {
+        self.colors = colors;
         self
     }
 
@@ -57,8 +64,8 @@ impl Markup {
         self
     }
 
-    pub const fn set_scrollbar(&mut self, colors: ScrollbarColors) -> &mut Self {
-        self.scroll.colors = Some(colors);
+    pub const fn set_colors(&mut self, colors: MarkupColors) -> &mut Self {
+        self.colors = colors;
         self
     }
 
@@ -101,18 +108,18 @@ impl Markup {
             self.cache.size = area.as_size();
             self.cache.area = area;
             self.cache.hash = hash;
-            self.scroll.area = None;
+            self.cache.scroll_area = None;
 
             self.parse_and_load(markup, kitty);
             self.process_markup(area.width, kitty);
 
-            if self.scroll.colors.is_some()
+            if self.options.scrollbar
                 && Scrollbar::is_scrollable(self.scroll.total_lines as usize, area.as_size())
             {
                 let scroll_area = Scrollbar::make_scroll_area(&mut area);
                 self.process_markup(area.width, kitty);
                 self.cache.area = area;
-                self.scroll.area = Some(scroll_area);
+                self.cache.scroll_area = Some(scroll_area);
             }
         }
 
@@ -134,8 +141,8 @@ impl Markup {
         }
 
         // Scrollbar
-        if let Some((scroll_area, scroll_colors)) = self.scroll.area_and_colors() {
-            Scrollbar::new().with_colors(scroll_colors).render(
+        if let Some(scroll_area) = self.cache.scroll_area {
+            Scrollbar::new().with_colors(self.colors.scrollbar).render(
                 scroll_area,
                 buf,
                 self.scroll.current as usize,
@@ -220,13 +227,13 @@ impl Markup {
                 }
                 MarkupRich::Break => {
                     if is_in_viewport(current_line, viewport_top, viewport_bot) {
-                        // TODO: Change symbol. Draw over entire line with margin.
-                        let half = area.width / 2;
-                        let mut x = area.x + half / 2;
-
-                        for _ in 0..half {
-                            (x, _) = buf.set_stringn(x, area.y, "—", 1, Style::new());
-                        }
+                        crate::print_char_repeat(
+                            area,
+                            buf,
+                            self.options.break_char,
+                            area.width,
+                            self.colors.break_char,
+                        );
 
                         area.y += 1;
                         area.height = area.height.saturating_sub(1);
@@ -333,7 +340,7 @@ impl Markup {
                 BlockElement::Image { description, path } => {
                     let image_path = Path::new(path)
                         .file_name()
-                        .map(|name| self.assets_path.join(name));
+                        .map(|name| self.options.assets.join(name));
 
                     fn load_and_encode_image(
                         path: Option<PathBuf>,
@@ -424,9 +431,11 @@ impl Markup {
                     let lang = self.plain.formatter.slice(_language);
                     let code = self.plain.formatter.slice(text);
 
-                    self.rich
-                        .highlighter
-                        .highlight(lang, code, |span, color| match color {
+                    self.rich.highlighter.highlight(
+                        lang,
+                        code,
+                        self.colors.syntax_theme,
+                        |span, color| match color {
                             Some((r, g, b)) => {
                                 self.rich.writer.push_tag(AnsiTag::FgTrueColor(r, g, b));
                                 self.rich.writer.push_str(span);
@@ -435,7 +444,8 @@ impl Markup {
                             None => {
                                 self.rich.writer.push_str(span);
                             }
-                        });
+                        },
+                    );
 
                     let range = self.rich.formatter.push_str(self.rich.writer.as_str());
                     self.rich.writer.clear();
@@ -635,13 +645,13 @@ struct MarkupRichData {
 }
 
 impl MarkupRichData {
-    fn new(theme: SyntaxHighlightTheme) -> Self {
+    fn new() -> Self {
         Self {
             items: Vec::new(),
             writer: AnsiWriter::new(),
             formatter: Formatter::new(),
             span: TextSegment::new(),
-            highlighter: CodeHighlighter::new(theme),
+            highlighter: CodeHighlighter::new(),
         }
     }
 
@@ -659,8 +669,6 @@ struct MarkupScroll {
     max_items: Option<usize>,
     max_lines: u16,
     total_lines: u16,
-    area: Option<Rect>,
-    colors: Option<ScrollbarColors>,
 }
 
 impl MarkupScroll {
@@ -671,13 +679,7 @@ impl MarkupScroll {
             max_items: None,
             max_lines: 0,
             total_lines: 0,
-            area: None,
-            colors: None,
         }
-    }
-
-    fn area_and_colors(&self) -> Option<(Rect, ScrollbarColors)> {
-        self.area.zip(self.colors)
     }
 
     fn set(&mut self, sm: ScrollMove, viewport_height: u16) {
@@ -701,7 +703,6 @@ impl MarkupScroll {
         self.max_items = None;
         self.max_lines = 0;
         self.total_lines = 0;
-        self.area = None;
     }
 }
 
@@ -738,6 +739,7 @@ struct MarkupCache {
     size: Size,
     area: Rect,
     hash: u64,
+    scroll_area: Option<Rect>,
 }
 
 impl MarkupCache {
@@ -746,6 +748,7 @@ impl MarkupCache {
             size: Size::ZERO,
             area: Rect::ZERO,
             hash: 0,
+            scroll_area: None,
         }
     }
 
@@ -753,6 +756,51 @@ impl MarkupCache {
         self.size = Size::ZERO;
         self.area = Rect::ZERO;
         self.hash = 0;
+        self.scroll_area = None;
+    }
+}
+
+pub struct MarkupOptions {
+    pub assets: PathBuf,
+    pub scrollbar: bool,
+    pub break_char: char,
+}
+
+impl MarkupOptions {
+    const fn new() -> Self {
+        Self {
+            assets: PathBuf::new(),
+            scrollbar: false,
+            break_char: '─',
+        }
+    }
+}
+
+impl Default for MarkupOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct MarkupColors {
+    pub syntax_theme: SyntaxHighlightTheme,
+    pub scrollbar: ScrollbarColors,
+    pub break_char: Color,
+}
+
+impl MarkupColors {
+    const fn new() -> Self {
+        Self {
+            syntax_theme: SyntaxHighlightTheme::Base16EightiesDark,
+            scrollbar: ScrollbarColors::DEFAULT,
+            break_char: Color::DarkGray,
+        }
+    }
+}
+
+impl Default for MarkupColors {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1057,19 +1105,23 @@ impl SyntaxHighlightTheme {
 struct CodeHighlighter {
     syntax_set: SyntaxSet,
     theme_set: ThemeSet,
-    theme: &'static str,
 }
 
 impl CodeHighlighter {
-    fn new(theme: SyntaxHighlightTheme) -> Self {
+    fn new() -> Self {
         Self {
             syntax_set: SyntaxSet::load_defaults_newlines(),
             theme_set: ThemeSet::load_defaults(),
-            theme: theme.as_str(),
         }
     }
 
-    fn highlight(&self, language: &str, code: &str, mut f: impl FnMut(&str, Option<(u8, u8, u8)>)) {
+    fn highlight(
+        &self,
+        language: &str,
+        code: &str,
+        theme: SyntaxHighlightTheme,
+        mut f: impl FnMut(&str, Option<(u8, u8, u8)>),
+    ) {
         let syntax = if language.is_empty() {
             self.syntax_set.find_syntax_plain_text()
         } else {
@@ -1078,7 +1130,7 @@ impl CodeHighlighter {
                 .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text())
         };
 
-        let mut highlighter = HighlightLines::new(syntax, &self.theme_set.themes[self.theme]);
+        let mut highlighter = HighlightLines::new(syntax, &self.theme_set.themes[theme.as_str()]);
         for code_line in LinesWithEndings::from(code) {
             match highlighter.highlight_line(code_line, &self.syntax_set) {
                 Ok(spans) => {

@@ -8,7 +8,7 @@ use ratatui::{
     style::Color,
 };
 use shared::symbols;
-use widgets::{CellSize, KittyGraphics, Markup, Shortcut, Shortcuts};
+use widgets::{CellSize, KittyGraphics, Markup, MarkupOptions, Shortcut, Shortcuts};
 
 use crate::{
     database::Database,
@@ -87,7 +87,11 @@ impl App {
             .unwrap_or_default()
             .with_path(settings_path);
 
-        let mut markup = Markup::new(assets_dir, settings.syntax_highlight_theme());
+        let mut markup = Markup::new().with_options(MarkupOptions {
+            assets: assets_dir,
+            scrollbar: true,
+            break_char: symbols::LINE_HORIZONTAL_LIGHT_CHAR,
+        });
         let mut pages = Pages::new(Route::DEFAULT, &settings, &mut database, &mut markup);
 
         if let Some(log) = settings_err {
@@ -127,7 +131,7 @@ impl App {
     }
 
     const fn apply_settings(&mut self) {
-        self.markup.set_scrollbar(self.settings.colors.scrollbar());
+        self.markup.set_colors(self.settings.markup_colors());
         self.pages.apply_settings(&self.settings);
     }
 

@@ -14,6 +14,11 @@ pub const ARROW_RIGHT_LEFT: &str = "⇄";
 pub const ARROW_LEFT_RIGHT: &str = "⇆";
 pub const ARROW_HEAD_UP: &str = "⌃";
 pub const ARROW_HEAD_DOWN: &str = "⌄";
+pub const LINE_VERTICAL_LIGHT: &str = "│";
+pub const LINE_VERTICAL_HEAVY: &str = "┃";
+pub const LINE_HORIZONTAL_LIGHT: &str = "─";
+pub const LINE_HORIZONTAL_LIGHT_CHAR: char = '─';
+pub const LINE_HORIZONTAL_HEAVY: &str = "━";
 
 pub const SELECTED: &str = ">";
 pub const SELECTION: &str = "|";

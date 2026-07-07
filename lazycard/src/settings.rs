@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
-use widgets::{ScrollbarColors, SyntaxHighlightTheme, TextEditorColors, TextInputColors};
+use widgets::{
+    MarkupColors, ScrollbarColors, SyntaxHighlightTheme, TextEditorColors, TextInputColors,
+};
 
 const VERSION: u8 = 0;
 
@@ -63,13 +65,6 @@ impl Settings {
         self.colors.neutral
     }
 
-    pub const fn syntax_highlight_theme(&self) -> SyntaxHighlightTheme {
-        match self.theme {
-            ThemeMode::Dark => SyntaxHighlightTheme::Base16EightiesDark,
-            ThemeMode::Light => SyntaxHighlightTheme::InspiredGitHub,
-        }
-    }
-
     pub const fn set_primary(&mut self, color: Color) {
         self.colors.primary = color;
     }
@@ -80,6 +75,17 @@ impl Settings {
 
     pub const fn set_neutral(&mut self, color: Color) {
         self.colors.neutral = color;
+    }
+
+    pub const fn markup_colors(&self) -> MarkupColors {
+        MarkupColors {
+            syntax_theme: match self.theme {
+                ThemeMode::Dark => SyntaxHighlightTheme::Base16EightiesDark,
+                ThemeMode::Light => SyntaxHighlightTheme::InspiredGitHub,
+            },
+            scrollbar: self.colors.scrollbar(),
+            break_char: self.colors.neutral,
+        }
     }
 
     pub fn read(path: Option<PathBuf>) -> Result<Self, String> {
