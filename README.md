@@ -24,7 +24,7 @@ A flashcard application for the terminal to help you bridge the gaps in your mem
 No toll required.
 
 <figure>
-<img src="https://github.com/user-attachments/assets/1d51f80d-85b9-4c67-a174-7690157dbc33"/>
+<img src="https://github.com/user-attachments/assets/3131771b-cf3e-4e86-afbe-0b150db3a2b0"/>
 <p><em>The flashcard application in the Monokai Soda color scheme.</em></p>
 </figure>
 
