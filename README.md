@@ -15,7 +15,7 @@ No more databases hiding under bridges.
 
 <figure>
 <img src="https://github.com/user-attachments/assets/07913095-1160-4cd9-9eb9-fb6e80b3d95d"/>
-<p><em>The music player with the Monokai Soda color scheme.</em></p>
+<p><em>The music player in the Monokai Soda color scheme.</em></p>
 </figure>
 
 ## [lazycard](./lazycard/)
@@ -24,7 +24,8 @@ A flashcard application for the terminal to help you bridge the gaps in your mem
 No toll required.
 
 <figure>
-<p>TODO: image</p>
+<img src="https://github.com/user-attachments/assets/2e5818ff-1bde-4dc4-8295-67281d6e4480"/>
+<p><em>The flashcard application in the Monokai Soda color scheme.</em></p>
 </figure>
 
 </div>

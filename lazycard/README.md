@@ -4,9 +4,14 @@
 
 A simple flashcard application for the terminal.
 
-TODO: image
+<figure>
+<img src="https://github.com/user-attachments/assets/2e5818ff-1bde-4dc4-8295-67281d6e4480"/>
+<p><em>The flashcard application in the Monokai Soda color scheme.</em></p>
+</figure>
 
 </div>
+
+`lazycard` is a TODO ...
 
 ## 📌 Features
 
