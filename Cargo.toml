@@ -6,8 +6,8 @@ members = ["crates/*", "lazycard", "trollstov"]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.90.0"
-homepage = "https://github.com/hikikones/trollstov"
-repository = "https://github.com/hikikones/trollstov"
+homepage = "https://github.com/hikikones/troll"
+repository = "https://github.com/hikikones/troll"
 license = "MIT"
 
 [workspace.dependencies]

@@ -1,22 +1,14 @@
 [package]
 name = "trollstov"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 description = "A music player for the terminal where your files and their metadata are all you need."
-homepage.workspace = true
-repository.workspace = true
+homepage = "https://github.com/hikikones/troll/trollstov"
+repository = "https://github.com/hikikones/troll/trollstov"
 license.workspace = true
-keywords = [
-  "cli",
-  "music",
-  "music-player",
-  "ratatui",
-  "terminal",
-  "terminal-app",
-  "tui"
-]
-categories = ["audio", "command-line-utilities", "multimedia"]
+keywords = ["audio", "music", "player", "terminal", "tui"]
+categories = ["command-line-utilities", "multimedia::audio"]
 
 [dependencies]
 clap = { workspace = true }
