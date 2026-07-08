@@ -10,7 +10,8 @@ So far, there are two fiends of this family.
 
 ## [trollstov](./trollstov/)
 
-A music player for the terminal where your files and their metadata are all you need. No more databases hiding under bridges.
+A music player for the terminal where your files and their metadata are all you need.  
+No more databases hiding under bridges.
 
 <figure>
 <img src="https://github.com/user-attachments/assets/07913095-1160-4cd9-9eb9-fb6e80b3d95d"/>
@@ -19,7 +20,8 @@ A music player for the terminal where your files and their metadata are all you 
 
 ## [lazycard](./lazycard/)
 
-A flashcard application for the terminal to help you bridge the gaps in your memory. No toll required.
+A flashcard application for the terminal to help you bridge the gaps in your memory.  
+No toll required.
 
 <figure>
 <p>TODO: image</p>
