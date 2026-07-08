@@ -5,7 +5,7 @@
 A simple flashcard application for the terminal.
 
 <figure>
-<img src="https://github.com/user-attachments/assets/8684f7f3-fd7c-4c82-b2fb-53438f3b171e"/>
+<img src="https://github.com/user-attachments/assets/7906868d-01f2-4cbd-82df-8f09f005af74"/>
 <p><em>The flashcard application in the Monokai Soda color scheme.</em></p>
 </figure>
 
