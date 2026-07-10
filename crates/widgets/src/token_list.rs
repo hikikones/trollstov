@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Rect, Size},
 };
 
-use crate::{Scrollbar, ScrollbarColors};
+use crate::{Scrollbar, ScrollbarColors, ScrollbarData};
 
 pub struct TokenList {
     index: usize,
@@ -180,13 +180,15 @@ impl TokenList {
             }
         }
 
+        // Scrollbar
         if let Some((scroll_area, colors)) = scrollbar {
-            Scrollbar::new().with_colors(colors).render(
-                scroll_area,
-                buf,
-                self.scroll as usize,
-                self.total_lines as usize,
-            );
+            Scrollbar::new(ScrollbarData {
+                viewport_height: area.height,
+                current_scroll: self.scroll as usize,
+                total_items: self.total_lines as usize,
+            })
+            .with_colors(colors)
+            .render(scroll_area, buf);
         }
     }
 

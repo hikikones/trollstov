@@ -5,12 +5,14 @@ use ratatui::{
 };
 
 pub struct Scrollbar {
+    data: ScrollbarData,
     colors: ScrollbarColors,
 }
 
 impl Scrollbar {
-    pub const fn new() -> Self {
+    pub const fn new(data: ScrollbarData) -> Self {
         Self {
+            data,
             colors: ScrollbarColors::DEFAULT,
         }
     }
@@ -20,33 +22,34 @@ impl Scrollbar {
         self
     }
 
-    pub fn render(
-        self,
-        vertical_line: Rect,
-        buf: &mut Buffer,
-        current_scroll: usize,
-        total_items: usize,
-    ) {
-        let height = vertical_line.height as usize;
-        if total_items == 0 || height == 0 {
+    pub fn render(self, area: Rect, buf: &mut Buffer) {
+        if area.is_empty() || self.data.total_items == 0 {
             return;
         }
 
-        let visible = height as f32 / total_items as f32;
-        let size = ((visible * height as f32).round() as usize).max(1);
-        let progress = (current_scroll as f32 / total_items.saturating_sub(height) as f32).min(1.0);
-        let range = height.saturating_sub(size);
-        let start = (progress * range as f32).round() as usize;
+        let ScrollbarData {
+            viewport_height,
+            current_scroll,
+            total_items,
+        } = self.data;
+
+        let visible = viewport_height as f32 / total_items as f32;
+        let size = ((visible * area.height as f32).floor() as u16).max(1);
+        let progress = (current_scroll as f32
+            / total_items.saturating_sub(viewport_height as usize) as f32)
+            .min(1.0);
+        let range = area.height.saturating_sub(size);
+        let start = (progress * range as f32).floor() as u16;
         let end = start + size;
 
         let thumb_style = Style::new().fg(self.colors.thumb);
-        let Rect { x, mut y, .. } = vertical_line;
+        let Rect { x, mut y, .. } = area;
 
         match self.colors.track {
             // Render both track and thumb
             Some(track_color) => {
                 let track_style = Style::new().fg(track_color);
-                for i in 0..height {
+                for i in 0..area.height {
                     match buf.cell_mut((x, y)) {
                         Some(cell) => {
                             let (symbol, style) = if i >= start && i < end {
@@ -63,7 +66,7 @@ impl Scrollbar {
             }
             // Render only thumb
             None => {
-                for i in 0..height {
+                for i in 0..area.height {
                     match buf.cell_mut((x, y)) {
                         Some(cell) => {
                             if i >= start && i < end {
@@ -156,6 +159,13 @@ impl Scrollbar {
         area.width = area.width.saturating_sub(1 + margin);
         scroll_area
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ScrollbarData {
+    pub viewport_height: u16,
+    pub current_scroll: usize,
+    pub total_items: usize,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -17,7 +17,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use utils::Formatter;
 
 use crate::{
-    RectExt, Scrollbar, ScrollbarColors,
+    RectExt, Scrollbar, ScrollbarColors, ScrollbarData,
     ansi::{AnsiParser, AnsiTag, AnsiWriter},
     kitty_graphics::{Dimensions, KittyGraphics, ResizeMode},
     text_span::TextSpan,
@@ -509,12 +509,13 @@ impl Markup {
             return;
         };
 
-        Scrollbar::new().with_colors(self.colors.scrollbar).render(
-            scroll_area,
-            buf,
-            self.scroll.current as usize,
-            self.scroll.total_lines as usize,
-        );
+        Scrollbar::new(ScrollbarData {
+            viewport_height: self.cache.area.height,
+            current_scroll: self.scroll.current as usize,
+            total_items: self.scroll.total_lines as usize,
+        })
+        .with_colors(self.colors.scrollbar)
+        .render(scroll_area, buf);
     }
 
     fn compute_max_lines(&self, kitty: &KittyGraphics) -> u16 {
