@@ -5,7 +5,7 @@ use ratatui::{
     widgets::{Block, Widget},
 };
 use shared::symbols;
-use widgets::{KittyGraphics, Markup, ScrollMove, Shortcut, Shortcuts, TextInput};
+use widgets::{KittyGraphics, Markup, RectExt, ScrollMove, Shortcut, Shortcuts, TextInput};
 
 use crate::{
     app::{Action, AppInput, AppRender},
@@ -69,8 +69,7 @@ impl SearchPage {
             Some(widgets::Alignment::CenterHorizontal),
         );
 
-        area.height = area.height.saturating_sub(2);
-        area.y += 2;
+        area.shrink_down(2);
 
         if self.is_empty {
             widgets::print_ascii(
@@ -115,8 +114,7 @@ impl SearchPage {
             .set_enabled(matches!(self.state, State::Search))
             .render(search_line, buf);
 
-        area.y += 2;
-        area.height = area.height.saturating_sub(2);
+        area.shrink_down(2);
 
         // Results block
         let card_area = {

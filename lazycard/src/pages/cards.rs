@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use ratatui::{buffer::Buffer, crossterm::event::KeyCode, layout::Rect, style::Color};
 use shared::symbols;
 use utils::Formatter;
-use widgets::{KittyGraphics, List, ListItem, Markup, ScrollMove, Shortcut, Shortcuts};
+use widgets::{KittyGraphics, List, ListItem, Markup, RectExt, ScrollMove, Shortcut, Shortcuts};
 
 use crate::{
     app::{Action, AppInput, AppRender},
@@ -104,8 +104,7 @@ impl CardsPage {
                     );
                 });
 
-                area.height = area.height.saturating_sub(2);
-                area.y += 2;
+                area.shrink_down(2);
 
                 db.get_card_content(id, |content| {
                     markup.render(area, buf, content, kitty);
@@ -374,8 +373,7 @@ impl TagsSidebar {
             return;
         }
 
-        area.height = area.height.saturating_sub(2);
-        area.y += 2;
+        area.shrink_down(2);
 
         // Render tags
         self.list.set_scrollbar(colors.scrollbar()).render(

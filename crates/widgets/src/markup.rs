@@ -167,9 +167,7 @@ impl Markup {
                         if is_in_viewport {
                             self.rich.span.render(area, buf);
                             self.rich.span.clear();
-
-                            area.y += 1;
-                            area.height = area.height.saturating_sub(1);
+                            area.shrink_down(1);
                         }
 
                         current_line += 1;
@@ -205,9 +203,7 @@ impl Markup {
                             crate::utils::Alignment::CenterHorizontal,
                         );
                         self.kitty.has_rendered = true;
-
-                        area.y += image_rows;
-                        area.height = area.height.saturating_sub(image_rows);
+                        area.shrink_down(image_rows);
                     }
 
                     current_line += resized_rows;
@@ -221,17 +217,14 @@ impl Markup {
                             area.width,
                             self.colors.break_char,
                         );
-
-                        area.y += 1;
-                        area.height = area.height.saturating_sub(1);
+                        area.shrink_down(1);
                     }
 
                     current_line += 1;
                 }
                 MarkupRich::EmptyLine => {
                     if is_in_viewport(current_line, viewport_top, viewport_bot) {
-                        area.y += 1;
-                        area.height = area.height.saturating_sub(1);
+                        area.shrink_down(1);
                     }
 
                     current_line += 1;

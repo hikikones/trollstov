@@ -2,7 +2,7 @@ use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     style::Style,
 };
-use widgets::{List, ListItem, Shortcut, Shortcuts};
+use widgets::{List, ListItem, RectExt, Shortcut, Shortcuts};
 
 use crate::{
     app::{Action, AppInput, AppRender},
@@ -67,8 +67,7 @@ impl LogsPage {
             );
         });
 
-        area.height = area.height.saturating_sub(2);
-        area.y += 2;
+        area.shrink_down(2);
 
         // Render logs
         self.list.set_scrollbar(colors.scrollbar()).render(

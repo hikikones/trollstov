@@ -8,7 +8,7 @@ use ratatui::{
     style::Color,
 };
 use shared::symbols;
-use widgets::{CellSize, KittyGraphics, Markup, Shortcut, Shortcuts};
+use widgets::{CellSize, KittyGraphics, Markup, RectExt, Shortcut, Shortcuts};
 
 use crate::{
     database::Database,
@@ -228,9 +228,7 @@ impl App {
             // Navigation
             if area.height > 0 {
                 self.pages.render_navigation(area, buf, colors);
-
-                area.height = area.height.saturating_sub(1);
-                area.y += 1;
+                area.shrink_down(1);
             }
 
             // Clear any rendered image from markup and reset max items
@@ -262,8 +260,7 @@ impl App {
                 self.on_render(body, buf);
 
                 let body_height = body.height + MARGIN * 2;
-                area.height = area.height.saturating_sub(body_height);
-                area.y += body_height;
+                area.shrink_down(body_height);
             }
 
             // Page shortcuts
@@ -272,9 +269,7 @@ impl App {
                     .set_colors(Color::Reset, colors.secondary)
                     .render(area, buf);
                 self.shortcuts.clear();
-
-                area.height = area.height.saturating_sub(1);
-                area.y += 1;
+                area.shrink_down(1);
             }
 
             // App shortcuts

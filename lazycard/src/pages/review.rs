@@ -1,7 +1,7 @@
 use ratatui::{crossterm::event::KeyCode, style::Style};
 
 use shared::symbols;
-use widgets::{KittyGraphics, Markup, ScrollMove, Shortcut, Shortcuts};
+use widgets::{KittyGraphics, Markup, RectExt, ScrollMove, Shortcut, Shortcuts};
 
 use crate::{
     app::{Action, AppInput, AppRender},
@@ -81,8 +81,7 @@ impl ReviewPage {
                     );
                 });
 
-                area.height = area.height.saturating_sub(2);
-                area.y += 2;
+                area.shrink_down(2);
 
                 db.get_card_content(id, |content| {
                     markup

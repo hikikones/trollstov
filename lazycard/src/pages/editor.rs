@@ -7,7 +7,9 @@ use ratatui::{
     style::{Color, Style},
 };
 use shared::symbols;
-use widgets::{CursorMove, KittyGraphics, List, ListItem, Markup, Shortcut, Shortcuts, TextEditor};
+use widgets::{
+    CursorMove, KittyGraphics, List, ListItem, Markup, RectExt, Shortcut, Shortcuts, TextEditor,
+};
 
 use crate::{
     app::{Action, AppInput, AppRender},
@@ -99,8 +101,7 @@ impl CardEditorPage {
             Some(widgets::Alignment::CenterHorizontal),
         );
 
-        area.height = area.height.saturating_sub(2);
-        area.y += 2;
+        area.shrink_down(2);
 
         if area.height > 0 {
             if self.preview {
@@ -370,8 +371,7 @@ impl TagsSidebar {
             return;
         }
 
-        area.y += 2;
-        area.height = area.height.saturating_sub(2);
+        area.shrink_down(2);
 
         // Render tags
         self.list.set_scrollbar(colors.scrollbar()).render(

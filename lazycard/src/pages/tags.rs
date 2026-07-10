@@ -9,7 +9,7 @@ use ratatui::{
 };
 use shared::symbols;
 use utils::Formatter;
-use widgets::{Shortcut, Shortcuts, TextInput, TokenItem, TokenList};
+use widgets::{RectExt, Shortcut, Shortcuts, TextInput, TokenItem, TokenList};
 
 use crate::{
     app::{Action, AppInput, AppRender},
@@ -68,8 +68,7 @@ impl TagsPage {
             );
         });
 
-        area.height = area.height.saturating_sub(2);
-        area.y += 2;
+        area.shrink_down(2);
 
         match self.state {
             State::Browse => {
@@ -117,8 +116,7 @@ impl TagsPage {
                     Some(widgets::Alignment::CenterHorizontal),
                 );
 
-                area.height = area.height.saturating_sub(2);
-                area.y += 2;
+                area.shrink_down(2);
 
                 if area.height > 0 {
                     let input_area = widgets::align(
@@ -134,8 +132,7 @@ impl TagsPage {
                         .set_colors(colors.text_input())
                         .render(input_area, buf);
 
-                    area.height = area.height.saturating_sub(2);
-                    area.y += 2;
+                    area.shrink_down(2);
 
                     if area.height > 0 && !self.message.is_empty() {
                         widgets::print_text(
@@ -163,8 +160,7 @@ impl TagsPage {
                     Some(widgets::Alignment::CenterHorizontal),
                 );
 
-                area.height = area.height.saturating_sub(1);
-                area.y += 1;
+                area.shrink_down(1);
 
                 if area.height > 0 {
                     widgets::print_text(
@@ -176,8 +172,7 @@ impl TagsPage {
                         Some(widgets::Alignment::CenterHorizontal),
                     );
 
-                    area.height = area.height.saturating_sub(2);
-                    area.y += 2;
+                    area.shrink_down(2);
 
                     if area.height > 0 {
                         let input_area = widgets::align(
@@ -193,8 +188,7 @@ impl TagsPage {
                             .set_colors(colors.text_input())
                             .render(input_area, buf);
 
-                        area.height = area.height.saturating_sub(2);
-                        area.y += 2;
+                        area.shrink_down(2);
 
                         if area.height > 0 && !self.message.is_empty() {
                             widgets::print_text(
@@ -223,8 +217,7 @@ impl TagsPage {
                     Some(widgets::Alignment::CenterHorizontal),
                 );
 
-                area.height = area.height.saturating_sub(1);
-                area.y += 1;
+                area.shrink_down(1);
 
                 if area.height > 0 {
                     widgets::print_text(
@@ -236,8 +229,7 @@ impl TagsPage {
                         Some(widgets::Alignment::CenterHorizontal),
                     );
 
-                    area.height = area.height.saturating_sub(2);
-                    area.y += 2;
+                    area.shrink_down(2);
 
                     if area.height > 0 {
                         let checkmark = if delete_cards {
