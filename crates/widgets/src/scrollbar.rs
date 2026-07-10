@@ -133,16 +133,9 @@ impl Scrollbar {
         }
     }
 
-    pub const fn is_scrollable(total_lines: usize, viewport_size: Size) -> bool {
-        Self::is_scrollable_with_options(total_lines, viewport_size, 15)
-    }
-
-    pub const fn is_scrollable_with_options(
-        total_lines: usize,
-        viewport_size: Size,
-        min_width: u16,
-    ) -> bool {
-        total_lines > viewport_size.height as usize && viewport_size.width > min_width
+    pub const fn is_scrollable(data: ScrollableData) -> bool {
+        data.total_lines > data.viewport_size.height as usize
+            && data.viewport_size.width > data.min_width
     }
 
     pub const fn make_scroll_area(area: &mut Rect) -> Rect {
@@ -166,6 +159,28 @@ pub struct ScrollData {
     pub current_scroll: usize,
     pub total_lines: usize,
     pub viewport_height: u16,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ScrollableData {
+    pub total_lines: usize,
+    pub viewport_size: Size,
+    pub min_width: u16,
+}
+
+impl ScrollableData {
+    pub const fn new(total_lines: usize, viewport_size: Size) -> Self {
+        Self {
+            total_lines,
+            viewport_size,
+            min_width: 15,
+        }
+    }
+
+    pub const fn with_min_width(mut self, min_width: u16) -> Self {
+        self.min_width = min_width;
+        self
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

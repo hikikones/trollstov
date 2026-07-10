@@ -17,7 +17,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use utils::Formatter;
 
 use crate::{
-    RectExt, Scrollbar, ScrollbarColors, ScrollbarData,
+    RectExt, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData,
     ansi::{AnsiParser, AnsiTag, AnsiWriter},
     kitty_graphics::{Dimensions, KittyGraphics, ResizeMode},
     text_span::TextSpan,
@@ -484,7 +484,10 @@ impl Markup {
 
     const fn is_scrollable(&self) -> bool {
         self.options.scrollbar
-            && Scrollbar::is_scrollable(self.scroll.total_lines as usize, self.cache.area.as_size())
+            && Scrollbar::is_scrollable(ScrollableData::new(
+                self.scroll.total_lines as usize,
+                self.cache.area.as_size(),
+            ))
     }
 
     fn update_scroll(&mut self, kitty: &KittyGraphics) {
@@ -850,7 +853,7 @@ impl MarkupColors {
         Self {
             syntax_theme: SyntaxHighlightTheme::Base16EightiesDark,
             scrollbar: ScrollbarColors::DEFAULT,
-            break_char: Color::DarkGray,
+            break_char: Color::Indexed(236),
         }
     }
 }

@@ -7,6 +7,7 @@ use ratatui::{
 
 use crate::{AnsiWriter, ScrollData, ScrollMargins, Scrollbar};
 
+// TODO: Add scrollbar and padding.
 // TODO: Use ansi codes for syntax highlighting.
 
 pub struct TextEditor {

@@ -4,7 +4,9 @@ use ratatui::{
     layout::{Rect, Size},
 };
 
-use crate::{ScrollData, Scrollbar, ScrollbarColors, ScrollbarData};
+use crate::{ScrollData, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData};
+
+// TODO: Add padding.
 
 pub struct TokenList {
     index: usize,
@@ -136,7 +138,10 @@ impl TokenList {
 
         // Scrollbar
         let scrollbar = if let Some(colors) = self.scrollbar {
-            if Scrollbar::is_scrollable(self.total_lines as usize, area.as_size()) {
+            if Scrollbar::is_scrollable(ScrollableData::new(
+                self.total_lines as usize,
+                area.as_size(),
+            )) {
                 let scroll_area = Scrollbar::make_scroll_area(&mut area);
                 self.process_items(area, items.clone());
                 Some((scroll_area, colors))
@@ -161,7 +166,7 @@ impl TokenList {
             viewport_height: area.height,
         }) as u16;
 
-        self.size = Size::from(area);
+        self.size = area.as_size();
 
         // Render
         for (i, x, y, item) in iter_items(area.width, self.gap, items) {

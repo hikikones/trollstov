@@ -1,8 +1,4 @@
-use ratatui::{
-    crossterm::event::KeyCode,
-    style::Style,
-    widgets::{Block, Widget},
-};
+use ratatui::{crossterm::event::KeyCode, style::Style};
 
 use shared::symbols;
 use widgets::{KittyGraphics, Markup, ScrollMove, Shortcut, Shortcuts};
@@ -62,19 +58,12 @@ impl ReviewPage {
         kitty: &mut KittyGraphics,
         shortcuts: &mut Shortcuts,
     ) {
-        let (area, buf) = render.area_and_buffer();
-
-        let inner = {
-            let block = Block::bordered().border_style(colors.secondary);
-            let inner = block.inner(area);
-            block.render(area, buf);
-            inner
-        };
+        let (mut area, buf) = render.area_and_buffer();
 
         match self.state {
             ReviewState::None => {
                 widgets::print_ascii(
-                    inner,
+                    area,
                     buf,
                     "No cards to review",
                     Style::new(),
@@ -92,10 +81,13 @@ impl ReviewPage {
                     );
                 });
 
+                area.height = area.height.saturating_sub(2);
+                area.y += 2;
+
                 db.get_card_content(id, |content| {
                     markup
                         .set_max_items(self.reveal_len)
-                        .render(inner, buf, content, kitty);
+                        .render(area, buf, content, kitty);
                 });
 
                 if self.is_fully_revealed() {
@@ -115,7 +107,7 @@ impl ReviewPage {
             }
             ReviewState::Done => {
                 widgets::print_ascii(
-                    inner,
+                    area,
                     buf,
                     "Good job!",
                     Style::new(),

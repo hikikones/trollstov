@@ -6,10 +6,9 @@ use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     layout::{Margin, Rect},
     style::Color,
-    widgets::Padding,
 };
 use shared::symbols;
-use widgets::{CellSize, KittyGraphics, Markup, MarkupOptions, Shortcut, Shortcuts};
+use widgets::{CellSize, KittyGraphics, Markup, Shortcut, Shortcuts};
 
 use crate::{
     database::Database,
@@ -86,12 +85,7 @@ impl App {
             Settings::default().with_path(settings_path)
         });
 
-        let mut markup = Markup::new(assets_dir).with_options(MarkupOptions {
-            padding: Padding::uniform(1),
-            scrollbar: true,
-            scrollbar_margin: 1,
-            break_char: symbols::LINE_HORIZONTAL_LIGHT_CHAR,
-        });
+        let mut markup = Markup::new(assets_dir);
         let mut pages = Pages::new(Route::DEFAULT, &settings, &mut database, &mut markup);
 
         if let Some(log) = settings_err {
@@ -131,7 +125,6 @@ impl App {
     }
 
     const fn apply_settings(&mut self) {
-        self.markup.set_colors(self.settings.markup_colors());
         self.pages.apply_settings(&self.settings);
     }
 

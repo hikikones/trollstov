@@ -4,9 +4,10 @@ use ratatui::{
     layout::Rect,
 };
 
-use crate::{ScrollData, ScrollMargins, Scrollbar, ScrollbarColors, ScrollbarData};
+use crate::{ScrollData, ScrollMargins, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData};
 
 // TODO: Add render_with_splits for horizontal split of the area.
+// TODO: Add padding.
 
 pub struct List {
     index: usize,
@@ -241,7 +242,7 @@ impl List {
 
         // Scrollbar
         if let Some(colors) = self.scrollbar {
-            if Scrollbar::is_scrollable(items.len(), area.as_size()) {
+            if Scrollbar::is_scrollable(ScrollableData::new(items.len(), area.as_size())) {
                 let scroll_area = Scrollbar::make_scroll_area(&mut area);
                 Scrollbar::new(ScrollbarData {
                     viewport_height: area.height,
