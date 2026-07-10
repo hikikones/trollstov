@@ -273,6 +273,7 @@ impl TagsPage {
                 }
                 KeyCode::Char('e') => {
                     if let Some(id) = self.current_tag_id() {
+                        db.get_tag_name(id, |name| self.input.push_str(name));
                         self.state = State::Edit(id);
                         return Action::Render;
                     }
