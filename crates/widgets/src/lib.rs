@@ -1,4 +1,5 @@
 mod ansi;
+mod extensions;
 mod kitty_graphics;
 mod list;
 mod markup;
@@ -11,6 +12,7 @@ mod token_list;
 mod utils;
 
 pub use ansi::*;
+pub use extensions::*;
 pub use kitty_graphics::*;
 pub use list::*;
 pub use markup::*;

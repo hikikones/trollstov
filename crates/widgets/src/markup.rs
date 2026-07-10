@@ -8,6 +8,7 @@ use ratatui::{
     crossterm::event::KeyCode,
     layout::{Alignment, Rect, Size},
     style::Color,
+    widgets::Padding,
 };
 use syntect::{
     easy::HighlightLines, highlighting::ThemeSet, parsing::SyntaxSet, util::LinesWithEndings,
@@ -16,7 +17,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use utils::Formatter;
 
 use crate::{
-    Scrollbar, ScrollbarColors,
+    RectExt, Scrollbar, ScrollbarColors,
     ansi::{AnsiParser, AnsiTag, AnsiWriter},
     kitty_graphics::{Dimensions, KittyGraphics, ResizeMode},
     text_span::TextSpan,
@@ -30,10 +31,11 @@ pub struct Markup {
     cache: MarkupCache,
     options: MarkupOptions,
     colors: MarkupColors,
+    assets: PathBuf,
 }
 
 impl Markup {
-    pub fn new() -> Self {
+    pub fn new(assets: PathBuf) -> Self {
         Self {
             plain: MarkupPlainData::new(),
             rich: MarkupRichData::new(),
@@ -42,10 +44,11 @@ impl Markup {
             cache: MarkupCache::new(),
             options: MarkupOptions::new(),
             colors: MarkupColors::new(),
+            assets,
         }
     }
 
-    pub fn with_options(mut self, options: MarkupOptions) -> Self {
+    pub const fn with_options(mut self, options: MarkupOptions) -> Self {
         self.options = options;
         self
     }
@@ -88,7 +91,7 @@ impl Markup {
 
     pub fn scroll(&mut self, sm: ScrollMove) -> bool {
         let old_scroll = self.scroll.current;
-        self.scroll.set(sm, self.cache.size.height);
+        self.scroll.set(sm, self.cache.area.height);
         self.scroll.current != old_scroll
     }
 
@@ -99,58 +102,38 @@ impl Markup {
         markup: &str,
         kitty: &mut KittyGraphics,
     ) {
-        if area.is_empty() {
+        if area.inner_padding(self.options.padding).is_empty() {
             return;
         }
 
         let hash = utils::hash_fast(markup);
         if self.cache.size != area.as_size() || self.cache.hash != hash {
             self.cache.size = area.as_size();
-            self.cache.area = area;
+            self.cache.area = area.inner_padding(self.options.padding);
             self.cache.hash = hash;
             self.cache.scroll_area = None;
 
             self.parse_and_load(markup, kitty);
-            self.process_markup(area.width, kitty);
+            self.process_markup(kitty);
 
-            if self.options.scrollbar
-                && Scrollbar::is_scrollable(self.scroll.total_lines as usize, area.as_size())
-            {
-                let scroll_area = Scrollbar::make_scroll_area(&mut area);
-                self.process_markup(area.width, kitty);
-                self.cache.area = area;
+            if self.is_scrollable() {
+                let scroll_area = Scrollbar::make_scroll_area_with_margin(
+                    &mut area,
+                    self.options.scrollbar_margin,
+                );
+                self.cache.area = area.inner_padding(self.options.padding);
                 self.cache.scroll_area = Some(scroll_area);
+                self.process_markup(kitty);
             }
         }
 
-        const fn is_in_viewport(curr_line: u16, top: u16, bot: u16) -> bool {
-            curr_line >= top && curr_line < bot
-        }
-
-        let mut area = self.cache.area;
-
-        // Update scroll
-        self.scroll.max_lines = self.compute_lines(area.width, self.max_items(), kitty);
-        if let Some(sm) = self.scroll.desired.take() {
-            self.scroll.set(sm, area.height);
-        } else {
-            self.scroll.current = self
-                .scroll
-                .current
-                .min(self.scroll.max_lines.saturating_sub(area.height));
-        }
-
-        // Scrollbar
-        if let Some(scroll_area) = self.cache.scroll_area {
-            Scrollbar::new().with_colors(self.colors.scrollbar).render(
-                scroll_area,
-                buf,
-                self.scroll.current as usize,
-                self.scroll.total_lines as usize,
-            );
-        }
+        // Scroll
+        self.update_scroll(kitty);
+        self.render_scrollbar(buf);
 
         // Setup
+        let mut area = self.cache.area;
+
         let top_y = area.y;
         let viewport_top = self.scroll.current;
         let viewport_bot = self.scroll.current + area.height;
@@ -160,6 +143,10 @@ impl Markup {
         for item in self.rich.items.iter().cloned().take(self.max_items()) {
             if area.height == 0 {
                 break;
+            }
+
+            const fn is_in_viewport(curr_line: u16, top: u16, bot: u16) -> bool {
+                curr_line >= top && curr_line < bot
             }
 
             match item {
@@ -309,7 +296,7 @@ impl Markup {
                 BlockElement::Image { description, path } => {
                     let image_path = Path::new(path)
                         .file_name()
-                        .map(|name| self.options.assets.join(name));
+                        .map(|name| self.assets.join(name));
 
                     fn load_and_encode_image(
                         path: Option<PathBuf>,
@@ -369,8 +356,10 @@ impl Markup {
         self.plain.items.pop();
     }
 
-    fn process_markup(&mut self, width: u16, kitty: &KittyGraphics) {
+    fn process_markup(&mut self, kitty: &KittyGraphics) {
         self.rich.clear();
+
+        let width = self.cache.area.width;
 
         // Process parsed markup
         self.rich
@@ -454,7 +443,7 @@ impl Markup {
             }));
 
         // Compute total lines
-        self.scroll.total_lines = self.compute_lines(width, self.rich.items.len(), kitty);
+        self.scroll.total_lines = self.compute_total_lines(kitty);
 
         // Helper function
         fn markup_to_rich_ansi(
@@ -493,7 +482,50 @@ impl Markup {
         }
     }
 
-    fn compute_lines(&self, width: u16, max_items: usize, kitty: &KittyGraphics) -> u16 {
+    const fn is_scrollable(&self) -> bool {
+        self.options.scrollbar
+            && Scrollbar::is_scrollable(self.scroll.total_lines as usize, self.cache.area.as_size())
+    }
+
+    fn update_scroll(&mut self, kitty: &KittyGraphics) {
+        self.scroll.max_lines = self.compute_max_lines(kitty);
+
+        let height = self.cache.area.height;
+        match self.scroll.desired.take() {
+            Some(sm) => {
+                self.scroll.set(sm, height);
+            }
+            None => {
+                self.scroll.current = self
+                    .scroll
+                    .current
+                    .min(self.scroll.max_lines.saturating_sub(height));
+            }
+        }
+    }
+
+    fn render_scrollbar(&self, buf: &mut Buffer) {
+        let Some(scroll_area) = self.cache.scroll_area else {
+            return;
+        };
+
+        Scrollbar::new().with_colors(self.colors.scrollbar).render(
+            scroll_area,
+            buf,
+            self.scroll.current as usize,
+            self.scroll.total_lines as usize,
+        );
+    }
+
+    fn compute_max_lines(&self, kitty: &KittyGraphics) -> u16 {
+        self.compute_lines(self.max_items(), self.cache.area.width, kitty)
+    }
+
+    fn compute_total_lines(&self, kitty: &KittyGraphics) -> u16 {
+        self.compute_lines(self.rich.items.len(), self.cache.area.width, kitty)
+    }
+
+    fn compute_lines(&self, max_items: usize, max_width: u16, kitty: &KittyGraphics) -> u16 {
         self.rich
             .items
             .iter()
@@ -504,7 +536,7 @@ impl Markup {
                     self.rich.formatter.slice(range).lines().count() as u16
                 }
                 MarkupRich::Image { dims, .. } => {
-                    let max_width = kitty.width(width);
+                    let max_width = kitty.width(max_width);
                     let resized_dims = KittyGraphics::resize(dims, dims.with_width(max_width));
                     kitty.rows(resized_dims.height)
                 }
@@ -783,16 +815,18 @@ impl MarkupCache {
 }
 
 pub struct MarkupOptions {
-    pub assets: PathBuf,
+    pub padding: Padding,
     pub scrollbar: bool,
+    pub scrollbar_margin: u16,
     pub break_char: char,
 }
 
 impl MarkupOptions {
-    const fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
-            assets: PathBuf::new(),
+            padding: Padding::ZERO,
             scrollbar: false,
+            scrollbar_margin: 1,
             break_char: '─',
         }
     }
@@ -811,7 +845,7 @@ pub struct MarkupColors {
 }
 
 impl MarkupColors {
-    const fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             syntax_theme: SyntaxHighlightTheme::Base16EightiesDark,
             scrollbar: ScrollbarColors::DEFAULT,

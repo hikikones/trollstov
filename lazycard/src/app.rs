@@ -6,6 +6,7 @@ use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     layout::{Margin, Rect},
     style::Color,
+    widgets::Padding,
 };
 use shared::symbols;
 use widgets::{CellSize, KittyGraphics, Markup, MarkupOptions, Shortcut, Shortcuts};
@@ -85,9 +86,10 @@ impl App {
             Settings::default().with_path(settings_path)
         });
 
-        let mut markup = Markup::new().with_options(MarkupOptions {
-            assets: assets_dir,
+        let mut markup = Markup::new(assets_dir).with_options(MarkupOptions {
+            padding: Padding::horizontal(1),
             scrollbar: true,
+            scrollbar_margin: 1,
             break_char: symbols::LINE_HORIZONTAL_LIGHT_CHAR,
         });
         let mut pages = Pages::new(Route::DEFAULT, &settings, &mut database, &mut markup);

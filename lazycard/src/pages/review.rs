@@ -1,4 +1,8 @@
-use ratatui::{crossterm::event::KeyCode, style::Style};
+use ratatui::{
+    crossterm::event::KeyCode,
+    style::Style,
+    widgets::{Block, Widget},
+};
 
 use shared::symbols;
 use widgets::{KittyGraphics, Markup, ScrollMove, Shortcut, Shortcuts};
@@ -58,12 +62,19 @@ impl ReviewPage {
         kitty: &mut KittyGraphics,
         shortcuts: &mut Shortcuts,
     ) {
-        let (mut area, buf) = render.area_and_buffer();
+        let (area, buf) = render.area_and_buffer();
+
+        let inner = {
+            let block = Block::bordered().border_style(colors.secondary);
+            let inner = block.inner(area);
+            block.render(area, buf);
+            inner
+        };
 
         match self.state {
             ReviewState::None => {
                 widgets::print_ascii(
-                    area,
+                    inner,
                     buf,
                     "No cards to review",
                     Style::new(),
@@ -75,19 +86,16 @@ impl ReviewPage {
                     widgets::print_asciis(
                         area,
                         buf,
-                        [progress, " / ", total],
+                        [" ", progress, " / ", total, " "],
                         colors.neutral,
                         Some(widgets::Alignment::CenterHorizontal),
                     );
                 });
 
-                area.height = area.height.saturating_sub(2);
-                area.y += 2;
-
                 db.get_card_content(id, |content| {
                     markup
                         .set_max_items(self.reveal_len)
-                        .render(area, buf, content, kitty);
+                        .render(inner, buf, content, kitty);
                 });
 
                 if self.is_fully_revealed() {
@@ -107,7 +115,7 @@ impl ReviewPage {
             }
             ReviewState::Done => {
                 widgets::print_ascii(
-                    area,
+                    inner,
                     buf,
                     "Good job!",
                     Style::new(),

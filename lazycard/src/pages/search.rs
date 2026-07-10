@@ -2,7 +2,7 @@ use ratatui::{
     crossterm::event::KeyCode,
     layout::Rect,
     style::{Color, Style},
-    widgets::{Block, Padding, Widget},
+    widgets::{Block, Widget},
 };
 use shared::symbols;
 use widgets::{KittyGraphics, Markup, ScrollMove, Shortcut, Shortcuts, TextInput};
@@ -119,11 +119,12 @@ impl SearchPage {
         area.height = area.height.saturating_sub(2);
 
         // Results block
-        let card_block = Block::bordered()
-            .border_style(border_color)
-            .padding(Padding::horizontal(1));
-        let card_area = card_block.inner(area);
-        card_block.render(area, buf);
+        let card_area = {
+            let block = Block::bordered().border_style(border_color);
+            let inner = block.inner(area);
+            block.render(area, buf);
+            inner
+        };
 
         // Title for block
         utils::format_int2(self.index + 1, self.results.len(), |i, len| {
