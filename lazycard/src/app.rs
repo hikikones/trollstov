@@ -87,7 +87,7 @@ impl App {
         });
 
         let mut markup = Markup::new(assets_dir).with_options(MarkupOptions {
-            padding: Padding::horizontal(1),
+            padding: Padding::uniform(1),
             scrollbar: true,
             scrollbar_margin: 1,
             break_char: symbols::LINE_HORIZONTAL_LIGHT_CHAR,

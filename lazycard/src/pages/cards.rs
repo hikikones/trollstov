@@ -4,7 +4,8 @@ use ratatui::{
     buffer::Buffer,
     crossterm::event::KeyCode,
     layout::Rect,
-    style::{Color, Style},
+    style::Color,
+    widgets::{Block, Padding, Widget},
 };
 use shared::symbols;
 use utils::Formatter;
@@ -75,8 +76,8 @@ impl CardsPage {
     ) {
         let (mut area, buf) = render.area_and_buffer();
 
-        if self.show_tags {
-            let tags_width = (0.30 * area.width as f32).round() as u16;
+        let border_color = if self.show_tags {
+            let tags_width = (0.35 * area.width as f32).round() as u16;
             self.tags.render(
                 Rect {
                     width: tags_width,
@@ -85,8 +86,9 @@ impl CardsPage {
                 buf,
                 colors,
             );
+
             area.width = area.width.saturating_sub(tags_width);
-            area.x += tags_width + 2;
+            area.x += tags_width;
 
             if !self.tags.is_empty() {
                 shortcuts.extend([
@@ -94,7 +96,18 @@ impl CardsPage {
                     Shortcut::new("Reset", "r"),
                 ]);
             }
-        }
+
+            colors.neutral
+        } else {
+            colors.secondary
+        };
+
+        let inner = {
+            let block = Block::bordered().border_style(border_color);
+            let inner = block.inner(area);
+            block.render(area, buf);
+            inner
+        };
 
         match self.current_card() {
             Some(id) => {
@@ -102,24 +115,19 @@ impl CardsPage {
                     widgets::print_asciis(
                         area,
                         buf,
-                        [index, " / ", cards_len],
+                        [" ", index, " / ", cards_len, " "],
                         colors.neutral,
                         Some(widgets::Alignment::CenterHorizontal),
                     );
                 });
 
-                area.height = area.height.saturating_sub(2);
-                area.y += 2;
-
-                if area.height > 0 {
-                    db.get_card_content(id, |content| {
-                        markup.render(area, buf, content, kitty);
-                    });
-                }
+                db.get_card_content(id, |content| {
+                    markup.render(inner, buf, content, kitty);
+                });
             }
             None => {
                 widgets::print_ascii(
-                    area,
+                    inner,
                     buf,
                     "No cards",
                     colors.neutral,
@@ -360,12 +368,21 @@ impl TagsSidebar {
         self.list.reset();
     }
 
-    fn render(&mut self, mut area: Rect, buf: &mut Buffer, colors: &Colors) {
+    fn render(&mut self, area: Rect, buf: &mut Buffer, colors: &Colors) {
+        let inner = {
+            let block = Block::bordered()
+                .border_style(colors.secondary)
+                .padding(Padding::horizontal(1));
+            let inner = block.inner(area);
+            block.render(area, buf);
+            inner
+        };
+
         widgets::print_ascii(
             area,
             buf,
-            "Tags",
-            Style::new(),
+            " Tags ",
+            Color::Reset,
             Some(widgets::Alignment::CenterHorizontal),
         );
 
@@ -374,18 +391,15 @@ impl TagsSidebar {
                 area,
                 buf,
                 "No tags",
-                Style::new(),
+                colors.neutral,
                 Some(widgets::Alignment::CenterHorizontal),
             );
             return;
         }
 
-        area.y += 2;
-        area.height = area.height.saturating_sub(2);
-
         // Render tags
         self.list.set_scrollbar(colors.scrollbar()).render(
-            area,
+            inner,
             buf,
             self.tags.iter(),
             |line, buf, tag, item| {
