@@ -5,7 +5,7 @@ use ratatui::{
     style::{Color, Style},
 };
 
-use crate::AnsiWriter;
+use crate::{AnsiWriter, ScrollData, ScrollMargins, Scrollbar};
 
 // TODO: Use ansi codes for syntax highlighting.
 
@@ -18,9 +18,8 @@ pub struct TextEditor {
     lines: Vec<VisualLine>,
     preferred_column: u16,
     scroll: u16,
+    margins: u16,
     disabled: bool,
-    margin_top: usize,
-    margin_bottom: usize,
     colors: TextEditorColors,
     last_size: Size,
     last_hash: u64,
@@ -88,9 +87,8 @@ impl TextEditor {
             lines: Vec::new(),
             preferred_column: 0,
             scroll: 0,
+            margins: 0,
             disabled: false,
-            margin_top: 0,
-            margin_bottom: 0,
             colors: TextEditorColors::new(),
             last_size: Size::ZERO,
             last_hash: 0,
@@ -107,9 +105,8 @@ impl TextEditor {
         self
     }
 
-    pub const fn with_margins(mut self, top: usize, bottom: usize) -> Self {
-        self.margin_top = top;
-        self.margin_bottom = bottom;
+    pub const fn with_margins(mut self, vertical: u16) -> Self {
+        self.margins = vertical;
         self
     }
 
@@ -458,14 +455,14 @@ impl TextEditor {
         } else {
             self.scroll
         };
-        self.scroll = crate::Scrollbar::calculate_scroll_with_margins(
-            self.lines.len(),
-            height,
-            self.index_to_row(self.cursor) as usize,
-            scroll as usize,
-            self.margin_top,
-            self.margin_bottom,
-            0,
+        self.scroll = Scrollbar::calculate_scroll_with_margins(
+            ScrollData {
+                current_index: self.index_to_row(self.cursor) as usize,
+                current_scroll: scroll as usize,
+                total_lines: self.lines.len(),
+                viewport_height: height,
+            },
+            ScrollMargins::vertical(self.margins),
         ) as u16;
     }
 

@@ -7,7 +7,7 @@ use ratatui::{
     style::{Color, Style},
 };
 use shared::symbols;
-use widgets::{CursorMove, List, ListItem, Shortcut, Shortcuts, TextInput};
+use widgets::{CursorMove, List, ListItem, ScrollMargins, Shortcut, Shortcuts, TextInput};
 
 use crate::{
     app::{Action, AppInput, AppRender},
@@ -78,7 +78,9 @@ impl SettingsPage {
             saved: settings.clone(),
             saved_hash: hash,
             is_saved: true,
-            list: List::new().with_index(selected).with_margins(3, 3),
+            list: List::new()
+                .with_index(selected)
+                .with_margins(ScrollMargins::vertical(3)),
             primary: ColorSetting::new(colors.primary),
             secondary: ColorSetting::new(colors.secondary),
             neutral: ColorSetting::new(colors.neutral),

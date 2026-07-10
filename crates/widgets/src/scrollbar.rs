@@ -81,42 +81,41 @@ impl Scrollbar {
         }
     }
 
-    pub const fn calculate_scroll(
-        total_lines: usize,
-        viewport_height: u16,
-        current_index: usize,
-        current_scroll: usize,
-    ) -> usize {
+    pub const fn calculate_scroll(data: ScrollData) -> usize {
         Self::calculate_scroll_with_margins(
+            data,
+            ScrollMargins {
+                margin_top: 0,
+                margin_bottom: 0,
+                padding_bottom: 0,
+            },
+        )
+    }
+
+    pub const fn calculate_scroll_with_margins(data: ScrollData, margins: ScrollMargins) -> usize {
+        let ScrollData {
             total_lines,
             viewport_height,
             current_index,
             current_scroll,
-            0,
-            0,
-            0,
-        )
-    }
+        } = data;
 
-    pub const fn calculate_scroll_with_margins(
-        total_lines: usize,
-        viewport_height: u16,
-        current_index: usize,
-        current_scroll: usize,
-        margin_top: usize,
-        margin_bottom: usize,
-        padding_bottom: usize,
-    ) -> usize {
+        let ScrollMargins {
+            margin_top,
+            margin_bottom,
+            padding_bottom,
+        } = margins;
+
         const fn min(a: usize, b: usize) -> usize {
             if a < b { a } else { b }
         }
 
         let height = viewport_height as usize;
-        let max_offset = (total_lines + padding_bottom).saturating_sub(height);
+        let max_offset = (total_lines + padding_bottom as usize).saturating_sub(height);
 
         let available = height.saturating_sub(1);
-        let margin_top = min(margin_top, available);
-        let margin_bottom = min(margin_bottom, available - margin_top);
+        let margin_top = min(margin_top as usize, available);
+        let margin_bottom = min(margin_bottom as usize, available - margin_top);
 
         let top_boundary = current_scroll + margin_top;
         let bottom_boundary = current_scroll + height.saturating_sub(margin_bottom + 1);
@@ -162,10 +161,49 @@ impl Scrollbar {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ScrollbarData {
+pub struct ScrollData {
+    pub current_index: usize,
+    pub current_scroll: usize,
+    pub total_lines: usize,
     pub viewport_height: u16,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ScrollMargins {
+    pub margin_top: u16,
+    pub margin_bottom: u16,
+    pub padding_bottom: u16,
+}
+
+impl ScrollMargins {
+    pub const ZERO: Self = Self {
+        margin_top: 0,
+        margin_bottom: 0,
+        padding_bottom: 0,
+    };
+
+    pub const fn new(top: u16, bottom: u16, padding_bottom: u16) -> Self {
+        Self {
+            margin_top: top,
+            margin_bottom: bottom,
+            padding_bottom,
+        }
+    }
+
+    pub const fn all(v: u16) -> Self {
+        Self::new(v, v, v)
+    }
+
+    pub const fn vertical(v: u16) -> Self {
+        Self::new(v, v, 0)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ScrollbarData {
     pub current_scroll: usize,
     pub total_items: usize,
+    pub viewport_height: u16,
 }
 
 #[derive(Debug, Clone, Copy)]

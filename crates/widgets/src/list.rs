@@ -4,7 +4,7 @@ use ratatui::{
     layout::Rect,
 };
 
-use crate::{Scrollbar, ScrollbarColors, ScrollbarData};
+use crate::{ScrollData, ScrollMargins, Scrollbar, ScrollbarColors, ScrollbarData};
 
 // TODO: Add render_with_splits for horizontal split of the area.
 
@@ -12,9 +12,7 @@ pub struct List {
     index: usize,
     selector: Option<usize>,
     scroll: usize,
-    margin_top: usize,
-    margin_bottom: usize,
-    padding_bottom: usize,
+    margins: ScrollMargins,
     scrollbar: Option<ScrollbarColors>,
     len: usize,
     height: u16,
@@ -43,9 +41,7 @@ impl List {
             index: 0,
             selector: None,
             scroll: 0,
-            margin_top: 0,
-            margin_bottom: 0,
-            padding_bottom: 0,
+            margins: ScrollMargins::ZERO,
             scrollbar: None,
             len: 0,
             height: 0,
@@ -57,13 +53,8 @@ impl List {
         self
     }
 
-    pub const fn with_margins(mut self, top: usize, bottom: usize) -> Self {
-        self.set_margins(top, bottom);
-        self
-    }
-
-    pub const fn with_padding(mut self, bottom: usize) -> Self {
-        self.set_padding(bottom);
+    pub const fn with_margins(mut self, margins: ScrollMargins) -> Self {
+        self.set_margins(margins);
         self
     }
 
@@ -100,14 +91,8 @@ impl List {
             .unwrap_or(self.index..=self.index)
     }
 
-    pub const fn set_margins(&mut self, top: usize, bottom: usize) -> &mut Self {
-        self.margin_top = top;
-        self.margin_bottom = bottom;
-        self
-    }
-
-    pub const fn set_padding(&mut self, bottom: usize) -> &mut Self {
-        self.padding_bottom = bottom;
+    pub const fn set_margins(&mut self, margins: ScrollMargins) -> &mut Self {
+        self.margins = margins;
         self
     }
 
@@ -241,14 +226,14 @@ impl List {
         } else {
             self.scroll
         };
-        self.scroll = crate::Scrollbar::calculate_scroll_with_margins(
-            items.len(),
-            area.height,
-            self.index,
-            scroll,
-            self.margin_top,
-            self.margin_bottom,
-            self.padding_bottom,
+        self.scroll = Scrollbar::calculate_scroll_with_margins(
+            ScrollData {
+                current_index: self.index,
+                current_scroll: scroll,
+                total_lines: items.len(),
+                viewport_height: area.height,
+            },
+            self.margins,
         );
 
         self.len = items.len();

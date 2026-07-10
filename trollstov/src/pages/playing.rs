@@ -7,7 +7,7 @@ use ratatui::{
 };
 use ratatui_image::StatefulImage;
 use shared::symbols;
-use widgets::{List, ListItem, Shortcut, Shortcuts};
+use widgets::{List, ListItem, ScrollMargins, Shortcut, Shortcuts};
 
 use crate::{
     app::{Action, FrontCover, ScreenSize},
@@ -342,10 +342,8 @@ impl PlayingPage {
             return;
         }
 
-        let scrolloff = (queue_inner_area.height / 2) as usize;
-        self.list
-            .set_margins(scrolloff, scrolloff)
-            .set_padding(scrolloff);
+        let scrolloff = queue_inner_area.height / 2;
+        self.list.set_margins(ScrollMargins::all(scrolloff));
 
         let hlen = jb.history();
         let current_qi = jb.current_queue_index();

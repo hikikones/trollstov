@@ -9,7 +9,8 @@ use ratatui::{
 };
 use shared::symbols;
 use widgets::{
-    CursorMove, List, ListItem, Shortcut, Shortcuts, TextInput, TextInputColors, TextSpan,
+    CursorMove, List, ListItem, ScrollMargins, Shortcut, Shortcuts, TextInput, TextInputColors,
+    TextSpan,
 };
 
 use crate::{
@@ -89,7 +90,9 @@ impl SettingsPage {
             saved: settings.clone(),
             saved_hash: hash,
             is_saved: true,
-            list: List::new().with_index(selected).with_margins(3, 3),
+            list: List::new()
+                .with_index(selected)
+                .with_margins(ScrollMargins::vertical(3)),
             text: TextSpan::new().with_alignment(Alignment::Center),
             primary: ColorSetting::new(colors.primary),
             secondary: ColorSetting::new(colors.secondary),

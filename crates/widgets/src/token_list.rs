@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Rect, Size},
 };
 
-use crate::{Scrollbar, ScrollbarColors, ScrollbarData};
+use crate::{ScrollData, Scrollbar, ScrollbarColors, ScrollbarData};
 
 pub struct TokenList {
     index: usize,
@@ -154,12 +154,12 @@ impl TokenList {
         } else {
             self.scroll
         };
-        self.scroll = crate::Scrollbar::calculate_scroll(
-            self.total_lines as usize,
-            area.height,
-            self.index_row as usize,
-            scroll as usize,
-        ) as u16;
+        self.scroll = Scrollbar::calculate_scroll(ScrollData {
+            current_index: self.index_row as usize,
+            current_scroll: scroll as usize,
+            total_lines: self.total_lines as usize,
+            viewport_height: area.height,
+        }) as u16;
 
         self.size = Size::from(area);
 

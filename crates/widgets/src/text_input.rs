@@ -8,7 +8,7 @@ use ratatui::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{CursorDelete, CursorMove};
+use crate::{CursorDelete, CursorMove, ScrollData, ScrollMargins, Scrollbar};
 
 pub struct TextInput {
     input: String,
@@ -16,9 +16,8 @@ pub struct TextInput {
     cursor: usize,
     selector: Option<usize>,
     scroll: usize,
+    margins: u16,
     disabled: bool,
-    margin_top: usize,
-    margin_bottom: usize,
     colors: TextInputColors,
     last_width: u16,
 }
@@ -35,9 +34,8 @@ impl TextInput {
             cursor: 0,
             selector: None,
             scroll: 0,
+            margins: 0,
             disabled: false,
-            margin_top: 0,
-            margin_bottom: 0,
             colors: TextInputColors::new(),
             last_width: 0,
         }
@@ -53,9 +51,8 @@ impl TextInput {
         self
     }
 
-    pub const fn with_margins(mut self, top: usize, bottom: usize) -> Self {
-        self.margin_top = top;
-        self.margin_bottom = bottom;
+    pub const fn with_margins(mut self, horizontal: u16) -> Self {
+        self.margins = horizontal;
         self
     }
 
@@ -289,14 +286,14 @@ impl TextInput {
         } else {
             self.scroll
         };
-        self.scroll = crate::Scrollbar::calculate_scroll_with_margins(
-            total_width + 1,
-            line.width,
-            self.cursor,
-            scroll,
-            self.margin_top,
-            self.margin_bottom,
-            0,
+        self.scroll = Scrollbar::calculate_scroll_with_margins(
+            ScrollData {
+                current_index: self.cursor,
+                current_scroll: scroll,
+                total_lines: total_width + 1,
+                viewport_height: line.width,
+            },
+            ScrollMargins::vertical(self.margins),
         );
         self.last_width = line.width;
 

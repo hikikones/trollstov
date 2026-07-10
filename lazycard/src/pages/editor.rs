@@ -30,7 +30,7 @@ impl CardEditorPage {
         Self {
             editor: TextEditor::new()
                 .with_placeholder("Content...")
-                .with_margins(2, 2),
+                .with_margins(2),
             preview: false,
             show_tags: false,
             tags: TagsSidebar::new(),
