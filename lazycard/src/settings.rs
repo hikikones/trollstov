@@ -4,7 +4,7 @@ use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use widgets::{
     ListColors, MarkupColors, ScrollbarColors, SyntaxHighlightTheme, TextEditorColors,
-    TextInputColors,
+    TextInputColors, TokenListColors,
 };
 
 const VERSION: u8 = 0;
@@ -252,6 +252,12 @@ impl Colors {
 
     pub const fn list(&self) -> ListColors {
         ListColors {
+            scrollbar: self.scrollbar(),
+        }
+    }
+
+    pub const fn token_list(&self) -> TokenListColors {
+        TokenListColors {
             scrollbar: self.scrollbar(),
         }
     }

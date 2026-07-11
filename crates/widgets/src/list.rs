@@ -263,17 +263,6 @@ impl List {
 
         self.last_height = area.height;
 
-        // Render scrollbar
-        if let Some(scroll_area) = scroll_area {
-            Scrollbar::new(ScrollbarData {
-                viewport_height: inner.height,
-                current_scroll: self.scroll,
-                total_items: items.len(),
-            })
-            .with_colors(self.colors.scrollbar)
-            .render(scroll_area, buf);
-        }
-
         // Render list
         let selection = self.selection_inclusive();
         let mut line = Rect { height: 1, ..inner };
@@ -295,6 +284,17 @@ impl List {
 
                 line.y += 1;
             });
+
+        // Render scrollbar
+        if let Some(scroll_area) = scroll_area {
+            Scrollbar::new(ScrollbarData {
+                viewport_height: inner.height,
+                current_scroll: self.scroll,
+                total_items: self.len,
+            })
+            .with_colors(self.colors.scrollbar)
+            .render(scroll_area, buf);
+        }
     }
 
     fn set_index_and_selector(&mut self, i: usize, shift: bool) -> bool {

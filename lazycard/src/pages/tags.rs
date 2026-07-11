@@ -85,7 +85,7 @@ impl TagsPage {
                 }
 
                 // Render tags
-                self.list.set_scrollbar(colors.scrollbar()).render(
+                self.list.set_colors(colors.token_list()).render(
                     area,
                     buf,
                     self.tags.iter(),
