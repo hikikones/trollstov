@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use widgets::{
-    MarkupColors, ScrollbarColors, SyntaxHighlightTheme, TextEditorColors, TextInputColors,
+    ListColors, MarkupColors, ScrollbarColors, SyntaxHighlightTheme, TextEditorColors,
+    TextInputColors,
 };
 
 const VERSION: u8 = 0;
@@ -246,6 +247,12 @@ impl Colors {
             selector: self.neutral,
             placeholder: self.neutral,
             disabled: self.neutral,
+        }
+    }
+
+    pub const fn list(&self) -> ListColors {
+        ListColors {
+            scrollbar: self.scrollbar(),
         }
     }
 

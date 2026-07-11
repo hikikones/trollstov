@@ -15,6 +15,8 @@ use crate::{
     settings::Colors,
 };
 
+// TODO: Rework list rendering with new scrollbar, splits and padding.
+
 pub struct TracksPage {
     list: List,
     keep_on_sort: bool,
@@ -273,7 +275,7 @@ impl TracksPage {
 
         // Render the body for the table
         let current = jb.current_track_id();
-        self.list.set_scrollbar(colors.scrollbar()).render(
+        self.list.set_colors(colors.list()).render(
             table_area,
             buf,
             db.iter(),

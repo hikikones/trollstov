@@ -80,7 +80,7 @@ impl SettingsPage {
             is_saved: true,
             list: List::new()
                 .with_index(selected)
-                .with_margins(ScrollMargins::vertical(3)),
+                .with_scrolloff(ScrollMargins::vertical(3)),
             primary: ColorSetting::new(colors.primary),
             secondary: ColorSetting::new(colors.secondary),
             neutral: ColorSetting::new(colors.neutral),
@@ -97,7 +97,7 @@ impl SettingsPage {
         let mut last_y = area.y;
         let current_setting = self.current();
 
-        self.list.set_scrollbar(colors.scrollbar()).render(
+        self.list.set_colors(colors.list()).render(
             area,
             buf,
             SETTINGS,

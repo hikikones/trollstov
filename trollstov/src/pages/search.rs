@@ -17,6 +17,8 @@ use crate::{
 // TODO: Add timer for searching?
 // Currently searching on every input, but should probably be a small timeout.
 
+// TODO: Rework list rendering with new scrollbar, splits and padding.
+
 pub struct SearchPage {
     state: State,
     search_input: TextInput,
@@ -143,7 +145,7 @@ impl SearchPage {
             );
         });
 
-        self.list.set_scrollbar(colors.scrollbar()).render(
+        self.list.set_colors(colors.list()).render(
             results_inner,
             buf,
             self.search_results.iter().copied(),

@@ -229,7 +229,7 @@ pub struct ScrollbarColors {
 
 impl ScrollbarColors {
     pub const DEFAULT: Self = Self {
-        thumb: Color::DarkGray,
+        thumb: Color::Indexed(240),
         track: None,
     };
 

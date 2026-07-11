@@ -374,7 +374,7 @@ impl TagsSidebar {
         area.shrink_down(2);
 
         // Render tags
-        self.list.set_scrollbar(colors.scrollbar()).render(
+        self.list.set_colors(colors.list()).render(
             area,
             buf,
             self.tags.iter().copied(),

@@ -92,7 +92,7 @@ impl SettingsPage {
             is_saved: true,
             list: List::new()
                 .with_index(selected)
-                .with_margins(ScrollMargins::vertical(3)),
+                .with_scrolloff(ScrollMargins::vertical(3)),
             text: TextSpan::new().with_alignment(Alignment::Center),
             primary: ColorSetting::new(colors.primary),
             secondary: ColorSetting::new(colors.secondary),
@@ -138,7 +138,7 @@ impl SettingsPage {
         };
 
         let current_setting = self.current();
-        self.list.set_scrollbar(colors.scrollbar()).render(
+        self.list.set_colors(colors.list()).render(
             settings_area,
             buf,
             SETTINGS,

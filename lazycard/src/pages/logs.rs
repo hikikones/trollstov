@@ -70,7 +70,7 @@ impl LogsPage {
         area.shrink_down(2);
 
         // Render logs
-        self.list.set_scrollbar(colors.scrollbar()).render(
+        self.list.set_colors(colors.list()).render(
             area,
             buf,
             self.logs.iter(),

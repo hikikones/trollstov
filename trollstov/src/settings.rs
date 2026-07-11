@@ -2,9 +2,11 @@ use std::path::PathBuf;
 
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
-use widgets::ScrollbarColors;
+use widgets::{ListColors, ScrollbarColors};
 
 use crate::database::AudioRating;
+
+// TODO: Rework list rendering with new scrollbar, splits and padding.
 
 const VERSION: u8 = 0;
 
@@ -213,6 +215,12 @@ pub struct Colors {
 }
 
 impl Colors {
+    pub const fn list(&self) -> ListColors {
+        ListColors {
+            scrollbar: self.scrollbar(),
+        }
+    }
+
     pub const fn scrollbar(&self) -> ScrollbarColors {
         ScrollbarColors {
             thumb: self.neutral,

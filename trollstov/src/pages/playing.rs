@@ -17,6 +17,8 @@ use crate::{
     settings::Colors,
 };
 
+// TODO: Rework list rendering with new scrollbar, splits and padding.
+
 pub struct PlayingPage {
     current_qi: Option<usize>,
     list: List,
@@ -343,11 +345,11 @@ impl PlayingPage {
         }
 
         let scrolloff = queue_inner_area.height / 2;
-        self.list.set_margins(ScrollMargins::all(scrolloff));
+        self.list.set_scrolloff(ScrollMargins::all(scrolloff));
 
         let hlen = jb.history();
         let current_qi = jb.current_queue_index();
-        self.list.set_scrollbar(colors.scrollbar()).render(
+        self.list.set_colors(colors.list()).render(
             queue_inner_area,
             buf,
             jb.iter(),

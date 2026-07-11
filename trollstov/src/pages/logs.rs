@@ -94,7 +94,7 @@ impl LogsPage {
         });
 
         // Render logs
-        self.list.set_scrollbar(colors.scrollbar()).render(
+        self.list.set_colors(colors.list()).render(
             logs_area,
             buf,
             self.logs.iter(),
