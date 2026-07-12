@@ -17,8 +17,6 @@ use crate::{
 // TODO: Add timer for searching?
 // Currently searching on every input, but should probably be a small timeout.
 
-// TODO: Rework list rendering with new scrollbar, splits and padding.
-
 pub struct SearchPage {
     state: State,
     search_input: TextInput,
@@ -47,7 +45,9 @@ impl SearchPage {
             search_input: TextInput::new().with_placeholder("Search..."),
             search_results: Vec::new(),
             include_path: false,
-            list: List::new(),
+            list: List::new()
+                .with_padding(Padding::horizontal(1))
+                .with_scrollbar(),
             is_dirty: false,
         }
     }
@@ -124,9 +124,7 @@ impl SearchPage {
             height: area.height.saturating_sub(search_line.height + 1),
             ..area
         };
-        let results_block = Block::bordered()
-            .border_style(border_style)
-            .padding(Padding::horizontal(1));
+        let results_block = Block::bordered().border_style(border_style);
         let results_inner = results_block.inner(results_area);
         results_block.render(results_area, buf);
 

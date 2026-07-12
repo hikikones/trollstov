@@ -1,7 +1,7 @@
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
-    layout::{Rect, Size},
+    layout::{Constraint, Layout, Rect, Size},
     widgets::Padding,
 };
 
@@ -9,18 +9,39 @@ use crate::{
     RectExt, ScrollData, ScrollMargins, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData,
 };
 
-pub struct List {
+pub struct Table<const N: usize> {
     index: usize,
     selector: Option<usize>,
     scroll: usize,
-    options: ListOptions,
-    colors: ListColors,
+    layout: TableLayout<N>,
+    options: TableOptions,
+    colors: TableColors,
     last_height: u16,
     list_height: u16,
     len: usize,
 }
 
-pub enum ListMove {
+pub struct TableLayout<const N: usize> {
+    constraints: [Constraint; N],
+    spacing: u16,
+}
+
+impl<const N: usize> TableLayout<N> {
+    pub const fn new(constraints: [Constraint; N], spacing: u16) -> Self {
+        Self {
+            constraints,
+            spacing,
+        }
+    }
+
+    fn areas(&self, area: Rect) -> [Rect; N] {
+        Layout::horizontal(self.constraints)
+            .spacing(self.spacing)
+            .areas(area)
+    }
+}
+
+pub enum TableMove {
     Up(usize),
     Down(usize),
     PageUp,
@@ -31,20 +52,21 @@ pub enum ListMove {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum ListItem {
+pub enum TableItem {
     Selected,
     Selection,
     Normal,
 }
 
-impl List {
-    pub const fn new() -> Self {
+impl<const N: usize> Table<N> {
+    pub const fn new(layout: TableLayout<N>) -> Self {
         Self {
             index: 0,
             selector: None,
             scroll: 0,
-            options: ListOptions::new(),
-            colors: ListColors::new(),
+            layout,
+            options: TableOptions::new(),
+            colors: TableColors::new(),
             last_height: 0,
             list_height: 0,
             len: 0,
@@ -71,7 +93,7 @@ impl List {
         self
     }
 
-    pub const fn with_colors(mut self, colors: ListColors) -> Self {
+    pub const fn with_colors(mut self, colors: TableColors) -> Self {
         self.set_colors(colors);
         self
     }
@@ -134,26 +156,26 @@ impl List {
         self
     }
 
-    pub const fn set_colors(&mut self, colors: ListColors) -> &mut Self {
+    pub const fn set_colors(&mut self, colors: TableColors) -> &mut Self {
         self.colors = colors;
         self
     }
 
-    pub fn move_index(&mut self, lm: ListMove, shift: bool) -> bool {
+    pub fn move_index(&mut self, lm: TableMove, shift: bool) -> bool {
         match lm {
-            ListMove::Up(n) => self.set_index_and_selector(self.index.saturating_sub(n), shift),
-            ListMove::Down(n) => self.set_index_and_selector(self.index + n, shift),
-            ListMove::PageUp => {
+            TableMove::Up(n) => self.set_index_and_selector(self.index.saturating_sub(n), shift),
+            TableMove::Down(n) => self.set_index_and_selector(self.index + n, shift),
+            TableMove::PageUp => {
                 let n = self.list_height as usize;
                 self.set_index_and_selector(self.index.saturating_sub(n), shift)
             }
-            ListMove::PageDown => {
+            TableMove::PageDown => {
                 let n = self.list_height as usize;
                 self.set_index_and_selector(self.index + n, shift)
             }
-            ListMove::Start => self.set_index_and_selector(0, shift),
-            ListMove::End => self.set_index_and_selector(usize::MAX, shift),
-            ListMove::Custom(i) => self.set_index_and_selector(i, shift),
+            TableMove::Start => self.set_index_and_selector(0, shift),
+            TableMove::End => self.set_index_and_selector(usize::MAX, shift),
+            TableMove::Custom(i) => self.set_index_and_selector(i, shift),
         }
     }
 
@@ -210,12 +232,12 @@ impl List {
         let shift = key_modifiers.contains(KeyModifiers::SHIFT);
 
         match key_pressed {
-            KeyCode::Down => self.move_index(ListMove::Down(1), shift),
-            KeyCode::Up => self.move_index(ListMove::Up(1), shift),
-            KeyCode::PageDown => self.move_index(ListMove::PageDown, shift),
-            KeyCode::PageUp => self.move_index(ListMove::PageUp, shift),
-            KeyCode::End => self.move_index(ListMove::End, shift),
-            KeyCode::Home => self.move_index(ListMove::Start, shift),
+            KeyCode::Down => self.move_index(TableMove::Down(1), shift),
+            KeyCode::Up => self.move_index(TableMove::Up(1), shift),
+            KeyCode::PageDown => self.move_index(TableMove::PageDown, shift),
+            KeyCode::PageUp => self.move_index(TableMove::PageUp, shift),
+            KeyCode::End => self.move_index(TableMove::End, shift),
+            KeyCode::Home => self.move_index(TableMove::Start, shift),
             KeyCode::Char('a') => {
                 if ctrl {
                     self.select_all()
@@ -238,7 +260,8 @@ impl List {
         mut area: Rect,
         buf: &mut Buffer,
         items: impl IntoIterator<Item = T, IntoIter: ExactSizeIterator>,
-        mut render_line: impl FnMut(Rect, &mut Buffer, T, ListItem),
+        render_header: impl FnOnce(Rect, &mut Buffer, [Rect; N]),
+        mut render_row: impl FnMut(Rect, &mut Buffer, [Rect; N], T, TableItem),
     ) {
         let mut inner = area.inner_padding(self.options.padding);
 
@@ -248,6 +271,8 @@ impl List {
 
         let items = items.into_iter();
         self.len = items.len();
+
+        let header_y = inner.y;
 
         let scroll_area = if self.is_scrollable(inner.as_size()) {
             let scroll_area =
@@ -260,15 +285,26 @@ impl List {
             None
         };
 
+        inner.shrink_down(1);
+
+        // Render header
+        let header = Rect {
+            y: header_y,
+            height: 1,
+            ..inner
+        };
+        let mut areas = self.layout.areas(header);
+        render_header(header, buf, areas);
+
         // Update state
         self.list_height = inner.height;
         self.clamp_index_and_selector();
         self.update_scroll(area.height);
         self.last_height = area.height;
 
-        // Render list
+        // Render table
         let selection = self.selection_inclusive();
-        let mut line = Rect { height: 1, ..inner };
+        let mut row = Rect { height: 1, ..inner };
 
         items
             .enumerate()
@@ -276,16 +312,16 @@ impl List {
             .take(inner.height as usize)
             .for_each(|(i, item)| {
                 let list_item = if i == self.index {
-                    ListItem::Selected
+                    TableItem::Selected
                 } else if selection.contains(&i) {
-                    ListItem::Selection
+                    TableItem::Selection
                 } else {
-                    ListItem::Normal
+                    TableItem::Normal
                 };
 
-                render_line(line, buf, item, list_item);
-
-                line.y += 1;
+                areas.iter_mut().for_each(|a| a.y += 1);
+                render_row(row, buf, areas, item, list_item);
+                row.y += 1;
             });
 
         // Render scrollbar
@@ -348,14 +384,14 @@ impl List {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ListOptions {
+pub struct TableOptions {
     pub scrolloff: ScrollMargins,
     pub padding: Padding,
     pub scrollbar: bool,
     pub scrollbar_margin: u16,
 }
 
-impl ListOptions {
+impl TableOptions {
     pub const fn new() -> Self {
         Self {
             scrolloff: ScrollMargins::ZERO,
@@ -366,18 +402,18 @@ impl ListOptions {
     }
 }
 
-impl Default for ListOptions {
+impl Default for TableOptions {
     fn default() -> Self {
         Self::new()
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ListColors {
+pub struct TableColors {
     pub scrollbar: ScrollbarColors,
 }
 
-impl ListColors {
+impl TableColors {
     pub const fn new() -> Self {
         Self {
             scrollbar: ScrollbarColors::DEFAULT,
@@ -385,7 +421,7 @@ impl ListColors {
     }
 }
 
-impl Default for ListColors {
+impl Default for TableColors {
     fn default() -> Self {
         Self::new()
     }

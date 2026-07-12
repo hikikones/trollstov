@@ -121,7 +121,11 @@ impl Markup {
                     &mut area,
                     self.options.scrollbar_margin,
                 );
-                self.cache.area = area.inner_padding(self.options.padding);
+                self.cache.area.width = self
+                    .cache
+                    .area
+                    .width
+                    .saturating_sub(scroll_area.width + self.options.scrollbar_margin);
                 self.cache.scroll_area = Some(scroll_area);
                 self.process_markup(kitty);
             }

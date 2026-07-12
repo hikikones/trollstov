@@ -17,8 +17,6 @@ use crate::{
     settings::Colors,
 };
 
-// TODO: Rework list rendering with new scrollbar, splits and padding.
-
 pub struct PlayingPage {
     current_qi: Option<usize>,
     list: List,
@@ -52,7 +50,9 @@ impl PlayingPage {
     pub const fn new() -> Self {
         Self {
             current_qi: None,
-            list: List::new(),
+            list: List::new()
+                .with_padding(Padding::horizontal(1))
+                .with_scrollbar(),
             view_mode: ViewMode::Both,
         }
     }
@@ -312,9 +312,7 @@ impl PlayingPage {
         jb: &Jukebox,
         colors: &Colors,
     ) {
-        let block = Block::bordered()
-            .border_style(colors.secondary)
-            .padding(Padding::horizontal(1));
+        let block = Block::bordered().border_style(colors.secondary);
         let queue_inner_area = block.inner(area);
         block.render(area, buf);
 

@@ -158,7 +158,9 @@ impl TokenList {
         let scroll_area = if self.is_scrollable(inner.as_size()) {
             let scroll_area =
                 Scrollbar::make_scroll_area_with_margin(&mut area, self.options.scrollbar_margin);
-            inner = area.inner_padding(self.options.padding);
+            inner.width = inner
+                .width
+                .saturating_sub(scroll_area.width + self.options.scrollbar_margin);
             self.process_items(inner, items.clone());
             Some(scroll_area)
         } else {

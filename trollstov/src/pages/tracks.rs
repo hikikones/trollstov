@@ -1,31 +1,43 @@
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{KeyCode, KeyModifiers},
-    layout::Rect,
+    layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
+    text::Span,
     widgets::{Block, Padding, Widget},
 };
 use shared::symbols;
-use widgets::{List, ListItem, ListMove, Shortcut, Shortcuts};
+use widgets::{Shortcut, Shortcuts, Table, TableItem, TableLayout, TableMove};
 
 use crate::{
     app::Action,
-    database::{AudioRating, Database, TrackId, TrackSort},
+    database::{AudioRating, Database, Track, TrackId, TrackSort},
     jukebox::Jukebox,
     settings::Colors,
 };
 
-// TODO: Rework list rendering with new scrollbar, splits and padding.
+const N: usize = 5;
 
 pub struct TracksPage {
-    list: List,
+    table: Table<N>,
     keep_on_sort: bool,
 }
 
 impl TracksPage {
     pub const fn new() -> Self {
         Self {
-            list: List::new(),
+            table: Table::new(TableLayout::new(
+                [
+                    Constraint::Ratio(4, 10),
+                    Constraint::Ratio(2, 10),
+                    Constraint::Ratio(4, 10),
+                    Constraint::Length(5),
+                    Constraint::Length(7),
+                ],
+                2,
+            ))
+            .with_padding(Padding::horizontal(1))
+            .with_scrollbar(),
             keep_on_sort: false,
         }
     }
@@ -38,7 +50,7 @@ impl TracksPage {
         if let Some(id) = id
             && let Some(index) = db.get_index_from_id(id)
         {
-            self.list.set_index(index).set_selector(None);
+            self.table.set_index(index).set_selector(None);
         };
     }
 
@@ -62,21 +74,16 @@ impl TracksPage {
             return;
         }
 
-        // Bordered block for tracks table
-        let block = Block::bordered()
-            .border_style(colors.secondary)
-            .padding(Padding::horizontal(1));
-        let tracks_area = block.inner(area);
-        block.render(area, buf);
+        let inner = {
+            let block = Block::bordered().border_style(colors.secondary);
+            let inner = block.inner(area);
+            block.render(area, buf);
+            inner
+        };
 
-        // Title for bordered tracks table
         utils::format_int(db.len(), |len| {
             widgets::print_asciis(
-                Rect {
-                    y: area.y,
-                    height: 1,
-                    ..tracks_area
-                },
+                area,
                 buf,
                 [" All Tracks (", len, ") "],
                 Color::Reset,
@@ -84,10 +91,39 @@ impl TracksPage {
             );
         });
 
-        // Render tracks table
-        self.render_tracks(tracks_area, buf, db, jb, colors);
+        let current = jb.current_track_id();
+        self.table.set_colors(colors.table()).render(
+            inner,
+            buf,
+            db.iter(),
+            |_header, buf, areas| {
+                for (name, area) in headers(areas, db.get_sort()) {
+                    Span::raw(name).render(area, buf);
+                }
+            },
+            |row, buf, areas, (id, track), item| {
+                let mut style = match item {
+                    TableItem::Selected => Style::new().fg(colors.primary).reversed(),
+                    TableItem::Selection => Style::new().fg(colors.neutral).reversed(),
+                    TableItem::Normal => Style::new(),
+                };
 
-        // Shortcuts
+                if current == Some(id) {
+                    style.add_modifier.insert(Modifier::BOLD);
+                }
+
+                if jb.is_faulty(id) {
+                    style.add_modifier.insert(Modifier::CROSSED_OUT);
+                }
+
+                buf.set_style(row, style);
+
+                for (name, area) in rows(areas, track) {
+                    Span::raw(name).render(area, buf);
+                }
+            },
+        );
+
         shortcuts.extend([
             Shortcut::new("Play", symbols::ENTER),
             Shortcut::new("Add to queue", "q"),
@@ -106,14 +142,14 @@ impl TracksPage {
     ) -> Action {
         match key {
             KeyCode::Enter => {
-                if let Some(id) = db.get_id_from_index(self.list.index()) {
+                if let Some(id) = db.get_id_from_index(self.table.index()) {
                     jb.play_id(id, db);
                 }
             }
             KeyCode::Char(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' => {
                     let rating = AudioRating::from_char(c).unwrap();
-                    for i in self.list.selection_inclusive() {
+                    for i in self.table.selection_inclusive() {
                         if let Some(id) = db.get_id_from_index(i) {
                             db.write_rating(id, rating);
                         }
@@ -121,20 +157,20 @@ impl TracksPage {
                 }
                 'q' => {
                     let ids = self
-                        .list
+                        .table
                         .selection_inclusive()
                         .filter_map(|i| db.get_id_from_index(i));
                     jb.extend(ids);
                 }
                 'n' => {
-                    for i in self.list.selection_inclusive().rev() {
+                    for i in self.table.selection_inclusive().rev() {
                         if let Some(id) = db.get_id_from_index(i) {
                             jb.enqueue_next(id);
                         }
                     }
                 }
                 's' | 'S' => {
-                    let id = db.get_id_from_index(self.list.index());
+                    let id = db.get_id_from_index(self.table.index());
 
                     if c == 's' {
                         db.sort(db.get_sort().next());
@@ -146,18 +182,18 @@ impl TracksPage {
                         && let Some(id) = id
                         && let Some(i) = db.get_index_from_id(id)
                     {
-                        self.list.move_index(ListMove::Custom(i), false);
+                        self.table.move_index(TableMove::Custom(i), false);
                     }
                     return Action::Render;
                 }
                 _ => {
-                    if self.list.input(key, modifiers) {
+                    if self.table.input(key, modifiers) {
                         return Action::Render;
                     }
                 }
             },
             _ => {
-                if self.list.input(key, modifiers) {
+                if self.table.input(key, modifiers) {
                     return Action::Render;
                 }
             }
@@ -167,156 +203,72 @@ impl TracksPage {
     }
 
     pub fn on_exit(&self) {}
+}
 
-    fn render_tracks(
-        &mut self,
-        area: Rect,
-        buf: &mut Buffer,
-        db: &Database,
-        jb: &Jukebox,
-        colors: &Colors,
-    ) {
-        if area.is_empty() {
-            return;
-        }
-
-        let spacing = 2;
-        let shrink_point = (0.20 * area.width as f32).floor() as u16;
-        let time_width = shrink_point.min(5 + spacing);
-        let rating_width = shrink_point.min(7);
-        let scrollbar_width = if db.len() > area.height as usize {
-            1
-        } else {
-            0
-        };
-        let remaining_width = area
-            .width
-            .saturating_sub(time_width + rating_width + scrollbar_width);
-        let title_width = (0.35 * remaining_width as f32).floor() as u16;
-        let album_width = title_width;
-        let artist_width = remaining_width - title_width - album_width;
-
-        let header_area = Rect { height: 1, ..area };
-        let table_area = Rect {
-            y: area.y + 1,
-            height: area.height.saturating_sub(1),
-            ..area
-        };
-
-        // Render the header for the table
-        let sort = db.get_sort();
-        let mut x = header_area.x;
-        for (label, width, spacing) in [
-            (
-                if sort == TrackSort::TitleAscending {
-                    symbols::concat!("Title", symbols::ARROW_HEAD_DOWN)
-                } else if sort == TrackSort::TitleDescending {
-                    symbols::concat!("Title", symbols::ARROW_HEAD_UP)
-                } else {
-                    "Title"
-                },
-                title_width,
-                spacing,
-            ),
-            (
-                if sort == TrackSort::ArtistAscending {
-                    symbols::concat!("Artist", symbols::ARROW_HEAD_DOWN)
-                } else if sort == TrackSort::ArtistDescending {
-                    symbols::concat!("Artist", symbols::ARROW_HEAD_UP)
-                } else {
-                    "Artist"
-                },
-                artist_width,
-                spacing,
-            ),
-            (
-                if sort == TrackSort::AlbumAscending {
-                    symbols::concat!("Album", symbols::ARROW_HEAD_DOWN)
-                } else if sort == TrackSort::AlbumDescending {
-                    symbols::concat!("Album", symbols::ARROW_HEAD_UP)
-                } else {
-                    "Album"
-                },
-                album_width,
-                spacing,
-            ),
-            (
-                if sort == TrackSort::TimeAscending {
-                    symbols::concat!("Time", symbols::ARROW_HEAD_DOWN)
-                } else if sort == TrackSort::TimeDescending {
-                    symbols::concat!("Time", symbols::ARROW_HEAD_UP)
-                } else {
-                    "Time"
-                },
-                time_width,
-                spacing,
-            ),
-            (
-                if sort == TrackSort::RatingAscending {
-                    symbols::concat!("Rating", symbols::ARROW_HEAD_DOWN)
-                } else if sort == TrackSort::RatingDescending {
-                    symbols::concat!("Rating", symbols::ARROW_HEAD_UP)
-                } else {
-                    "Rating"
-                },
-                rating_width,
-                0,
-            ),
-        ] {
-            buf.set_stringn(
-                x,
-                header_area.y,
-                label,
-                width.saturating_sub(spacing) as usize,
-                Style::new(),
-            );
-            x += width;
-        }
-
-        // Render the body for the table
-        let current = jb.current_track_id();
-        self.list.set_colors(colors.list()).render(
-            table_area,
-            buf,
-            db.iter(),
-            |line, buf, (id, track), item| {
-                let mut style = match item {
-                    ListItem::Selected => Style::new().fg(colors.primary).reversed(),
-                    ListItem::Selection => Style::new().fg(colors.neutral).reversed(),
-                    ListItem::Normal => Style::new(),
-                };
-
-                if current == Some(id) {
-                    style.add_modifier.insert(Modifier::BOLD);
-                }
-
-                if jb.is_faulty(id) {
-                    style.add_modifier.insert(Modifier::CROSSED_OUT);
-                }
-
-                widgets::print_text_segments_with_styles(
-                    line,
-                    buf,
-                    [
-                        (track.title(), title_width, spacing, style),
-                        (track.artist(), artist_width, spacing, style),
-                        (track.album(), album_width, spacing, style),
-                        (
-                            track.duration_display(),
-                            time_width,
-                            spacing,
-                            style.not_crossed_out(),
-                        ),
-                        (
-                            track.rating().stars(),
-                            rating_width,
-                            0,
-                            style.not_crossed_out(),
-                        ),
-                    ],
-                    Some(style.not_crossed_out()),
-                );
+fn headers<'a>(areas: [Rect; N], sort: TrackSort) -> [(&'a str, Rect); N] {
+    // TODO: Rework sort enum. Make ascending/descending a reverse toggle.
+    let [title, artist, album, time, rating] = areas;
+    [
+        (
+            if sort == TrackSort::TitleAscending {
+                symbols::concat!("Title", symbols::ARROW_HEAD_DOWN)
+            } else if sort == TrackSort::TitleDescending {
+                symbols::concat!("Title", symbols::ARROW_HEAD_UP)
+            } else {
+                "Title"
             },
-        );
-    }
+            title,
+        ),
+        (
+            if sort == TrackSort::ArtistAscending {
+                symbols::concat!("Artist", symbols::ARROW_HEAD_DOWN)
+            } else if sort == TrackSort::ArtistDescending {
+                symbols::concat!("Artist", symbols::ARROW_HEAD_UP)
+            } else {
+                "Artist"
+            },
+            artist,
+        ),
+        (
+            if sort == TrackSort::AlbumAscending {
+                symbols::concat!("Album", symbols::ARROW_HEAD_DOWN)
+            } else if sort == TrackSort::AlbumDescending {
+                symbols::concat!("Album", symbols::ARROW_HEAD_UP)
+            } else {
+                "Album"
+            },
+            album,
+        ),
+        (
+            if sort == TrackSort::TimeAscending {
+                symbols::concat!("Time", symbols::ARROW_HEAD_DOWN)
+            } else if sort == TrackSort::TimeDescending {
+                symbols::concat!("Time", symbols::ARROW_HEAD_UP)
+            } else {
+                "Time"
+            },
+            time,
+        ),
+        (
+            if sort == TrackSort::RatingAscending {
+                symbols::concat!("Rating", symbols::ARROW_HEAD_DOWN)
+            } else if sort == TrackSort::RatingDescending {
+                symbols::concat!("Rating", symbols::ARROW_HEAD_UP)
+            } else {
+                "Rating"
+            },
+            rating,
+        ),
+    ]
+}
+
+fn rows<'a>(areas: [Rect; N], track: &'a Track) -> [(&'a str, Rect); N] {
+    let [title, artist, album, time, rating] = areas;
+    [
+        (track.title(), title),
+        (track.artist(), artist),
+        (track.album(), album),
+        (track.duration_display(), time),
+        (track.rating().stars(), rating),
+    ]
 }
