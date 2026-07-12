@@ -52,7 +52,7 @@ impl PlayingPage {
             current_qi: None,
             list: List::new()
                 .with_padding(Padding::horizontal(1))
-                .with_scrollbar(),
+                .with_scrollbar(0),
             view_mode: ViewMode::Both,
         }
     }

@@ -66,8 +66,9 @@ impl List {
         self
     }
 
-    pub const fn with_scrollbar(mut self) -> Self {
+    pub const fn with_scrollbar(mut self, margin: u16) -> Self {
         self.options.scrollbar = true;
+        self.options.scrollbar_margin = margin;
         self
     }
 

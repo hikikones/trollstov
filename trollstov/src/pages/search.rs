@@ -47,7 +47,7 @@ impl SearchPage {
             include_path: false,
             list: List::new()
                 .with_padding(Padding::horizontal(1))
-                .with_scrollbar(),
+                .with_scrollbar(0),
             is_dirty: false,
         }
     }

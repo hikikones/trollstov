@@ -37,7 +37,7 @@ impl TracksPage {
                 2,
             ))
             .with_padding(Padding::horizontal(1))
-            .with_scrollbar(),
+            .with_scrollbar(0),
             reverse_sort: false,
             keep_on_sort: false,
         }
