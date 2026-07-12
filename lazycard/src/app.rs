@@ -231,9 +231,8 @@ impl App {
                 area.shrink_down(1);
             }
 
-            // Clear any rendered image from markup and reset max items
+            // Clear any rendered image from markup
             self.markup.delete_images(&self.kitty)?;
-            self.markup.set_max_items(None);
 
             // Page content
             if area.height > 0 {

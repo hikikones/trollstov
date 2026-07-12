@@ -850,7 +850,7 @@ impl MarkupColors {
         Self {
             syntax_theme: SyntaxHighlightTheme::Base16EightiesDark,
             scrollbar: ScrollbarColors::DEFAULT,
-            break_char: Color::Indexed(236),
+            break_char: Color::Indexed(240),
         }
     }
 }

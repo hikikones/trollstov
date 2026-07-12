@@ -1,6 +1,6 @@
 <div align="center">
 
-# ✒️ lazycard
+# lazycard
 
 A simple flashcard application for the terminal.
 
