@@ -2,30 +2,34 @@
 
 # troll
 
+<br>
+
 Welcome to the lair of solitary beings.
 
-TODO: troll image?
+<br>
+
+( ͡° ͜ʖ ͡°)
+
+<br>
 
 So far, there are two fiends of this family.
 
-## [trollstov](./trollstov/)
+<br><br>
 
-A music player for the terminal where your files and their metadata are all you need.  
+## trollstov
+
+[trollstov](./trollstov/) is a music player for the terminal where your files and their metadata are all you need.  
 No more databases hiding under bridges.
 
-<figure>
-<img src="https://github.com/user-attachments/assets/07913095-1160-4cd9-9eb9-fb6e80b3d95d"/>
-<p><em>The music player in the Monokai Soda color scheme.</em></p>
-</figure>
+![](https://github.com/user-attachments/assets/07913095-1160-4cd9-9eb9-fb6e80b3d95d)
 
-## [lazycard](./lazycard/)
+<br><br>
 
-A flashcard application for the terminal to help you bridge the gaps in your memory.  
+## lazycard
+
+[lazycard](./lazycard/) is a flashcard application for the terminal to help you bridge the gaps in your memory.  
 No toll required.
 
-<figure>
-<img src="https://github.com/user-attachments/assets/3131771b-cf3e-4e86-afbe-0b150db3a2b0"/>
-<p><em>The flashcard application in the Monokai Soda color scheme.</em></p>
-</figure>
+![](https://github.com/user-attachments/assets/dadf08a3-072f-4b51-8435-16e28ec06472)
 
 </div>

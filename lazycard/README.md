@@ -5,7 +5,7 @@
 A simple flashcard application for the terminal.
 
 <figure>
-<img src="https://github.com/user-attachments/assets/3131771b-cf3e-4e86-afbe-0b150db3a2b0"/>
+<img src="https://github.com/user-attachments/assets/dadf08a3-072f-4b51-8435-16e28ec06472"/>
 <p><em>The flashcard application in the Monokai Soda color scheme.</em></p>
 </figure>
 
@@ -92,6 +92,12 @@ def add(a, b):
 </tr>
 </table>
 
+## 🔖 Install
+
+```sh
+cargo install --bin lazycard --git https://github.com/hikikones/trollstov
+```
+
 ## ⚡ Usage
 
 The `lazycard` command takes no mandatory arguments, but you can supply it with options for where your database file should be, along with the assets directory and the settings file.
@@ -120,12 +126,6 @@ The application is mainly developed on Linux, as that is what I use, but hopeful
 ## ⚠️ Non-goals
 
 - Supporting most terminals.
-
-## 🔖 Install
-
-```sh
-cargo install --bin lazycard --git https://github.com/hikikones/trollstov
-```
 
 [spaced_repetition]: [https://en.wikipedia.org/wiki/Spaced_repetition]
 [fsrs]: https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm
