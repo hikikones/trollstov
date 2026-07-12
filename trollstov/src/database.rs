@@ -81,9 +81,15 @@ impl Database {
         self.sort
     }
 
-    pub fn sort(&mut self, sort: TrackSort) {
-        self.tracks
-            .sort_unstable_by(|_, track1, _, track2| sort.cmp(track1, track2));
+    pub fn sort(&mut self, sort: TrackSort, reverse: bool) {
+        self.tracks.sort_unstable_by(|_, track1, _, track2| {
+            let ordering = sort.cmp(track1, track2);
+            if reverse {
+                ordering.reverse()
+            } else {
+                ordering
+            }
+        });
         self.sort = sort;
     }
 

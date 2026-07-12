@@ -25,6 +25,7 @@ impl Track {
         path: PathBuf,
         extension: AudioFileExtension,
     ) -> Self {
+        // TODO: Make a TrackDuration struct for this.
         let chars = utils::format_duration_on_stack(properties.duration());
         let mut bytes = [0; 20];
         let mut p = 0;
@@ -91,67 +92,68 @@ impl Track {
     pub const fn sample_rate(&self) -> Option<u32> {
         self.properties.sample_rate_khz()
     }
+
+    pub fn field_str(&self, sort: TrackSort) -> &str {
+        match sort {
+            TrackSort::Title => self.metadata.title(),
+            TrackSort::Artist => self.metadata.artist(),
+            TrackSort::Album => self.metadata.album(),
+            TrackSort::Time => self.duration_display(),
+            TrackSort::Rating => self.metadata.rating().stars(),
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum TrackSort {
-    TitleAscending,
-    TitleDescending,
-    ArtistAscending,
-    ArtistDescending,
+    Title,
+    Artist,
     #[default]
-    AlbumAscending,
-    AlbumDescending,
-    TimeAscending,
-    TimeDescending,
-    RatingAscending,
-    RatingDescending,
+    Album,
+    Time,
+    Rating,
 }
 
 impl TrackSort {
     pub const fn next(self) -> Self {
         match self {
-            Self::TitleAscending => Self::TitleDescending,
-            Self::TitleDescending => Self::ArtistAscending,
-            Self::ArtistAscending => Self::ArtistDescending,
-            Self::ArtistDescending => Self::AlbumAscending,
-            Self::AlbumAscending => Self::AlbumDescending,
-            Self::AlbumDescending => Self::TimeAscending,
-            Self::TimeAscending => Self::TimeDescending,
-            Self::TimeDescending => Self::RatingAscending,
-            Self::RatingAscending => Self::RatingDescending,
-            Self::RatingDescending => Self::TitleAscending,
+            Self::Title => Self::Artist,
+            Self::Artist => Self::Album,
+            Self::Album => Self::Time,
+            Self::Time => Self::Rating,
+            Self::Rating => Self::Title,
         }
     }
 
     pub const fn prev(self) -> Self {
         match self {
-            Self::TitleAscending => Self::RatingDescending,
-            Self::TitleDescending => Self::TitleAscending,
-            Self::ArtistAscending => Self::TitleDescending,
-            Self::ArtistDescending => Self::ArtistAscending,
-            Self::AlbumAscending => Self::ArtistDescending,
-            Self::AlbumDescending => Self::AlbumAscending,
-            Self::TimeAscending => Self::AlbumDescending,
-            Self::TimeDescending => Self::TimeAscending,
-            Self::RatingAscending => Self::TimeDescending,
-            Self::RatingDescending => Self::RatingAscending,
+            Self::Title => Self::Rating,
+            Self::Artist => Self::Title,
+            Self::Album => Self::Artist,
+            Self::Time => Self::Album,
+            Self::Rating => Self::Time,
+        }
+    }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Title => "Rating",
+            Self::Artist => "Title",
+            Self::Album => "Artist",
+            Self::Time => "Album",
+            Self::Rating => "Time",
         }
     }
 
     // TODO: What about albums with same name?
+    // Also, title should be sorted by cd/track listing for each album.
     pub(crate) fn cmp(self, t1: &Track, t2: &Track) -> Ordering {
         match self {
-            Self::TitleAscending => t1.title().cmp(t2.title()),
-            Self::TitleDescending => t2.title().cmp(t1.title()),
-            Self::ArtistAscending => t1.artist().cmp(t2.artist()),
-            Self::ArtistDescending => t2.artist().cmp(t1.artist()),
-            Self::AlbumAscending => t1.album().cmp(t2.album()),
-            Self::AlbumDescending => t2.album().cmp(t1.album()),
-            Self::TimeAscending => t1.duration().cmp(&t2.duration()),
-            Self::TimeDescending => t2.duration().cmp(&t1.duration()),
-            Self::RatingAscending => t1.rating().cmp(&t2.rating()),
-            Self::RatingDescending => t2.rating().cmp(&t1.rating()),
+            Self::Title => t1.title().cmp(t2.title()),
+            Self::Artist => t1.artist().cmp(t2.artist()),
+            Self::Album => t1.album().cmp(t2.album()),
+            Self::Time => t1.duration().cmp(&t2.duration()),
+            Self::Rating => t1.rating().cmp(&t2.rating()),
         }
     }
 }

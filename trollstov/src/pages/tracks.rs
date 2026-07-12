@@ -3,7 +3,6 @@ use ratatui::{
     crossterm::event::{KeyCode, KeyModifiers},
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
-    text::Span,
     widgets::{Block, Padding, Widget},
 };
 use shared::symbols;
@@ -20,6 +19,7 @@ const N: usize = 5;
 
 pub struct TracksPage {
     table: Table<N>,
+    reverse_sort: bool,
     keep_on_sort: bool,
 }
 
@@ -38,6 +38,7 @@ impl TracksPage {
             ))
             .with_padding(Padding::horizontal(1))
             .with_scrollbar(),
+            reverse_sort: false,
             keep_on_sort: false,
         }
     }
@@ -91,14 +92,19 @@ impl TracksPage {
             );
         });
 
+        let sort = db.get_sort();
+        let reverse = self.reverse_sort;
         let current = jb.current_track_id();
+
         self.table.set_colors(colors.table()).render(
             inner,
             buf,
             db.iter(),
             |_header, buf, areas| {
-                for (name, area) in headers(areas, db.get_sort()) {
-                    Span::raw(name).render(area, buf);
+                for (name, symbol, area) in named_headers(areas, sort, reverse) {
+                    let (x, y) =
+                        buf.set_stringn(area.x, area.y, name, area.width as usize, Style::new());
+                    buf.set_string(x, y, symbol, Style::new());
                 }
             },
             |row, buf, areas, (id, track), item| {
@@ -118,8 +124,8 @@ impl TracksPage {
 
                 buf.set_style(row, style);
 
-                for (name, area) in rows(areas, track) {
-                    Span::raw(name).render(area, buf);
+                for (name, area) in named_rows(areas, track) {
+                    buf.set_stringn(area.x, area.y, name, area.width as usize, Style::new());
                 }
             },
         );
@@ -173,9 +179,10 @@ impl TracksPage {
                     let id = db.get_id_from_index(self.table.index());
 
                     if c == 's' {
-                        db.sort(db.get_sort().next());
+                        db.sort(db.get_sort().next(), self.reverse_sort);
                     } else {
-                        db.sort(db.get_sort().prev());
+                        self.reverse_sort = !self.reverse_sort;
+                        db.sort(db.get_sort(), self.reverse_sort);
                     }
 
                     if self.keep_on_sort
@@ -205,70 +212,45 @@ impl TracksPage {
     pub fn on_exit(&self) {}
 }
 
-fn headers<'a>(areas: [Rect; N], sort: TrackSort) -> [(&'a str, Rect); N] {
-    // TODO: Rework sort enum. Make ascending/descending a reverse toggle.
+const fn named_areas(areas: [Rect; N]) -> [(TrackSort, Rect); N] {
     let [title, artist, album, time, rating] = areas;
     [
-        (
-            if sort == TrackSort::TitleAscending {
-                symbols::concat!("Title", symbols::ARROW_HEAD_DOWN)
-            } else if sort == TrackSort::TitleDescending {
-                symbols::concat!("Title", symbols::ARROW_HEAD_UP)
-            } else {
-                "Title"
-            },
-            title,
-        ),
-        (
-            if sort == TrackSort::ArtistAscending {
-                symbols::concat!("Artist", symbols::ARROW_HEAD_DOWN)
-            } else if sort == TrackSort::ArtistDescending {
-                symbols::concat!("Artist", symbols::ARROW_HEAD_UP)
-            } else {
-                "Artist"
-            },
-            artist,
-        ),
-        (
-            if sort == TrackSort::AlbumAscending {
-                symbols::concat!("Album", symbols::ARROW_HEAD_DOWN)
-            } else if sort == TrackSort::AlbumDescending {
-                symbols::concat!("Album", symbols::ARROW_HEAD_UP)
-            } else {
-                "Album"
-            },
-            album,
-        ),
-        (
-            if sort == TrackSort::TimeAscending {
-                symbols::concat!("Time", symbols::ARROW_HEAD_DOWN)
-            } else if sort == TrackSort::TimeDescending {
-                symbols::concat!("Time", symbols::ARROW_HEAD_UP)
-            } else {
-                "Time"
-            },
-            time,
-        ),
-        (
-            if sort == TrackSort::RatingAscending {
-                symbols::concat!("Rating", symbols::ARROW_HEAD_DOWN)
-            } else if sort == TrackSort::RatingDescending {
-                symbols::concat!("Rating", symbols::ARROW_HEAD_UP)
-            } else {
-                "Rating"
-            },
-            rating,
-        ),
+        (TrackSort::Title, title),
+        (TrackSort::Artist, artist),
+        (TrackSort::Album, album),
+        (TrackSort::Time, time),
+        (TrackSort::Rating, rating),
     ]
 }
 
-fn rows<'a>(areas: [Rect; N], track: &'a Track) -> [(&'a str, Rect); N] {
-    let [title, artist, album, time, rating] = areas;
-    [
-        (track.title(), title),
-        (track.artist(), artist),
-        (track.album(), album),
-        (track.duration_display(), time),
-        (track.rating().stars(), rating),
-    ]
+fn named_headers<'a>(
+    areas: [Rect; N],
+    current_sort: TrackSort,
+    reverse_sort: bool,
+) -> impl Iterator<Item = (&'a str, &'a str, Rect)> {
+    fn sort_symbol<'a>(current_sort: TrackSort, sort: TrackSort, reverse: bool) -> &'a str {
+        if current_sort == sort {
+            if reverse {
+                symbols::ARROW_HEAD_UP
+            } else {
+                symbols::ARROW_HEAD_DOWN
+            }
+        } else {
+            ""
+        }
+    }
+
+    named_areas(areas).into_iter().map(move |(sort, area)| {
+        (
+            sort.as_str(),
+            sort_symbol(current_sort, sort, reverse_sort),
+            area,
+        )
+    })
+}
+
+fn named_rows<'a>(areas: [Rect; N], track: &'a Track) -> impl Iterator<Item = (&'a str, Rect)> {
+    named_areas(areas)
+        .into_iter()
+        .map(|(sort, area)| (track.field_str(sort), area))
 }
