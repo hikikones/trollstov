@@ -339,6 +339,11 @@ impl Markup {
                         });
                     }
                 }
+                BlockElement::Math { text } => {
+                    self.plain.items.push(MarkupPlain::Math {
+                        _text: self.plain.formatter.push_str(text),
+                    });
+                }
                 BlockElement::Break => {
                     self.plain.items.push(MarkupPlain::Break);
                 }
@@ -435,6 +440,16 @@ impl Markup {
                     ),
                     alignment: Alignment::Center,
                 },
+                MarkupPlain::Math { _text } => {
+                    self.rich.writer.push_tag(AnsiTag::FgRed);
+                    self.rich.writer.push_str("TODO: render math as image");
+                    let range = self.rich.formatter.push_str(self.rich.writer.as_str());
+                    self.rich.writer.clear();
+                    MarkupRich::Text {
+                        range,
+                        alignment: Alignment::Center,
+                    }
+                }
                 MarkupPlain::Break => MarkupRich::Break,
                 MarkupPlain::EmptyLine => MarkupRich::EmptyLine,
             }));
@@ -593,6 +608,9 @@ impl Markup {
                                 self.len += 1;
                             }
                         }
+                        BlockElement::Math { .. } => {
+                            self.len += 1;
+                        }
                         BlockElement::Comment { .. } => continue,
                         BlockElement::Break => {
                             let i = self.len;
@@ -650,6 +668,9 @@ enum MarkupPlain {
     },
     ImageDescription {
         text: Range<usize>,
+    },
+    Math {
+        _text: Range<usize>,
     },
     Break,
     EmptyLine,
@@ -866,9 +887,9 @@ enum BlockElement<'a> {
     Paragraph { text: &'a str, alignment: Alignment },
     List { items: ListItems<'a> },
     Code { language: &'a str, text: &'a str },
-    Image { description: &'a str, path: &'a str },
-    // TODO: Math
     // TODO: Table
+    Image { description: &'a str, path: &'a str },
+    Math { text: &'a str },
     Comment { _text: &'a str },
     Break,
 }
@@ -1046,7 +1067,38 @@ impl<'a> BlockParser<'a> {
             return self.parse_paragraph(start, Alignment::Left);
         }
 
-        return (BlockElement::Image { description, path }, start..end);
+        (BlockElement::Image { description, path }, start..end)
+    }
+
+    fn parse_math(&mut self, start: usize) -> (BlockElement<'a>, Range<usize>) {
+        let Some((end_math, _)) = self.graphemes.find_consecutive("$", 2) else {
+            return self.parse_paragraph(start, Alignment::Left);
+        };
+
+        let start_math = start + 2;
+        let text = self.input[start_math..end_math].trim();
+
+        if text.is_empty() {
+            return self.parse_paragraph(start, Alignment::Left);
+        }
+
+        let Some((end, g)) = self.graphemes.next() else {
+            return (BlockElement::Math { text }, start..self.input.len());
+        };
+
+        if !g.contains("\n") {
+            return self.parse_paragraph(start, Alignment::Left);
+        }
+
+        let Some((_, g)) = self.graphemes.next() else {
+            return (BlockElement::Math { text }, start..end);
+        };
+
+        if !g.contains("\n") {
+            return self.parse_paragraph(start, Alignment::Left);
+        }
+
+        (BlockElement::Math { text }, start..end)
     }
 }
 
@@ -1081,6 +1133,13 @@ impl<'a> Iterator for BlockParser<'a> {
                             && self.graphemes.count_consecutive_by(|g| g.contains('\n'), 2) == 2
                         {
                             (BlockElement::Break, i..i + dashes + 2)
+                        } else {
+                            self.parse_paragraph(i, Alignment::Left)
+                        }
+                    }
+                    "$" => {
+                        if let Some((_, "$")) = self.graphemes.next() {
+                            self.parse_math(i)
                         } else {
                             self.parse_paragraph(i, Alignment::Left)
                         }

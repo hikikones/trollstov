@@ -101,6 +101,7 @@ impl KittyGraphics {
         Ok(())
     }
 
+    // TODO: Take a writer so caller can store encoding for re-transmits.
     pub fn encode(&mut self, id: u32) -> Result<Dimensions, KittyEncodeError> {
         use std::io::Write;
 
