@@ -11,18 +11,24 @@ A simple flashcard application for the terminal.
 
 </div>
 
-`lazycard` is a TODO ...
+`lazycard` is a flashcard application for the terminal that helps you retain information using [spaced repetition][spaced_repetition]. Cards you find difficult are reviewed more often, while cards you know well appear less frequently, helping you focus your study time where it matters most.
 
 ## 📌 Features
 
 - Write cards in a light markup
 - Add tags to your cards
 - Card scheduling using the [Free Spaced Repetition Scheduler][fsrs]
-- Image support (including animated) with [kitty graphics protocol][kitty_graphics_protocol] 
+- Image support (including animated) with [kitty graphics protocol][kitty_graphics_protocol]
+- Code blocks with syntax highlighting
+- Mathematics with [KaTeX][katex] rendered as images (TODO)
 
 ## 📜 Markup
 
-Cards are written in a custom lightweight markup language, inspired by both [Markdown](https://en.wikipedia.org/wiki/Markdown) and [Djot](https://djot.net/). It provides a small set of syntax for formatting text in the terminal. The following table shows the entire syntax available.
+Cards are written in a custom lightweight markup language, inspired by both [Markdown](https://en.wikipedia.org/wiki/Markdown) and [Djot](https://djot.net/). It provides a small set of syntax for formatting text in the terminal.
+
+Use `---` to mark reveal points in a card. You can have as many as you like. During review, cards are revealed one section at a time until the entire card is visible. At that point, you simply answer yes or no based on whether you successfully recalled everything.
+
+The following table shows the entire syntax available.
 
 <table align="center">
 <tr>
@@ -39,13 +45,16 @@ A normal paragraph with *bold* and _italic_ text.
 
 > Right paragraph
 
+# This is a reveal marker
 ---
 
 - item 1
 - item 2
 
-# This is a comment
 ![image description](image.jpeg)
+
+# Another reveal marker
+---
 
 ```python
 def add(a, b):
@@ -71,6 +80,8 @@ def add(a, b):
 <p>image description</p>
 </figure>
 </div>
+
+<hr>
 
 <pre>
 def add(a, b):
@@ -98,7 +109,7 @@ Options:
   -V, --version               Print version.
 ```
 
-## 🎵 Terminal Support
+## ⬛ Terminal Support
 
 Currently the only supported terminal is [kitty][kitty_terminal], as that is the only terminal that fully supports the [kitty graphics protocol][kitty_graphics_protocol]. This includes animated images with scaling and cropping.
 
@@ -116,6 +127,8 @@ The application is mainly developed on Linux, as that is what I use, but hopeful
 cargo install --bin lazycard --git https://github.com/hikikones/trollstov
 ```
 
+[spaced_repetition]: [https://en.wikipedia.org/wiki/Spaced_repetition]
 [fsrs]: https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm
 [kitty_terminal]: https://sw.kovidgoyal.net/kitty
 [kitty_graphics_protocol]: https://sw.kovidgoyal.net/kitty/graphics-protocol
+[katex]: [https://katex.org]
