@@ -29,6 +29,10 @@ impl KittyGraphics {
         }
     }
 
+    pub const fn cell_size(&self) -> CellSize {
+        self.cell_size
+    }
+
     pub fn load(
         &mut self,
         path: impl AsRef<std::path::Path>,
@@ -98,6 +102,16 @@ impl KittyGraphics {
             }
         }
 
+        Ok(())
+    }
+
+    pub fn load_png_from_bytes(
+        &mut self,
+        bytes: impl AsRef<[u8]>,
+    ) -> Result<(), image::error::ImageError> {
+        let image = image::load_from_memory_with_format(bytes.as_ref(), image::ImageFormat::Png)?;
+        self.frames.clear();
+        self.frames.push(image::Frame::new(image.to_rgba8()));
         Ok(())
     }
 

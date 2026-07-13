@@ -75,6 +75,23 @@ ratatui-image = {
   default-features = false,
   features = ["crossterm"]
 }
+ratex-layout = {
+  version = "0.1",
+  default-features = false,
+}
+ratex-parser = {
+  version = "0.1",
+  default-features = false,
+}
+ratex-render = {
+  version = "0.1",
+  default-features = false,
+  features = ["embed-fonts"]
+}
+ratex-types = {
+  version = "0.1",
+  default-features = false,
+}
 rodio = {
   git = "https://github.com/RustAudio/rodio.git",
   rev = "4aa22e85e5ad5565c45dfdda95051158eb6b56c3",

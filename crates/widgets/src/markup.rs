@@ -17,7 +17,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use utils::Formatter;
 
 use crate::{
-    RectExt, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData,
+    CellSize, RectExt, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData,
     ansi::{AnsiParser, AnsiTag, AnsiWriter},
     kitty_graphics::{Dimensions, KittyGraphics, ResizeMode},
     text_span::TextSpan,
@@ -28,6 +28,7 @@ pub struct Markup {
     rich: MarkupRichData,
     scroll: MarkupScroll,
     kitty: MarkupKitty,
+    math: MarkupMath,
     cache: MarkupCache,
     options: MarkupOptions,
     colors: MarkupColors,
@@ -35,12 +36,13 @@ pub struct Markup {
 }
 
 impl Markup {
-    pub fn new(assets: PathBuf) -> Self {
+    pub fn new(assets: PathBuf, cell_size: CellSize, dark_mode: bool) -> Self {
         Self {
             plain: MarkupPlainData::new(),
             rich: MarkupRichData::new(),
             scroll: MarkupScroll::new(),
             kitty: MarkupKitty::new(),
+            math: MarkupMath::new(cell_size, dark_mode),
             cache: MarkupCache::new(),
             options: MarkupOptions::new(),
             colors: MarkupColors::new(),
@@ -340,9 +342,39 @@ impl Markup {
                     }
                 }
                 BlockElement::Math { text } => {
-                    self.plain.items.push(MarkupPlain::Math {
-                        _text: self.plain.formatter.push_str(text),
-                    });
+                    fn parse_load_and_encode(
+                        text: &str,
+                        math: &MarkupMath,
+                        id: u32,
+                        kitty: &mut KittyGraphics,
+                    ) -> Result<Dimensions, String> {
+                        let ast = math.parse(text).map_err(|err| {
+                            format!("Failed to parse math\n\"{text}\"\ndue to\n\"{}\"", err)
+                        })?;
+                        let png = math.to_png(ast).map_err(|err| {
+                            format!("Failed to make math image due to\n\"{}\"", err)
+                        })?;
+                        kitty.load_png_from_bytes(png).map_err(|err| {
+                            format!("Failed to load math image due to\n\"{}\"", err)
+                        })?;
+                        let dims = kitty.encode(id).map_err(|err| {
+                            format!("Failed to encode math image due to\n\"{}\"", err)
+                        })?;
+                        Ok(dims)
+                    }
+
+                    let id = self.kitty.current_id();
+                    match parse_load_and_encode(text, &self.math, id, kitty) {
+                        Ok(dims) => {
+                            self.plain.items.push(MarkupPlain::Image { id, dims });
+                            self.kitty.increment_id();
+                        }
+                        Err(err) => {
+                            self.plain.items.push(MarkupPlain::ImageError {
+                                text: self.plain.formatter.extend(["ERROR\n", err.as_str()]),
+                            });
+                        }
+                    }
                 }
                 BlockElement::Break => {
                     self.plain.items.push(MarkupPlain::Break);
@@ -440,16 +472,6 @@ impl Markup {
                     ),
                     alignment: Alignment::Center,
                 },
-                MarkupPlain::Math { _text } => {
-                    self.rich.writer.push_tag(AnsiTag::FgRed);
-                    self.rich.writer.push_str("TODO: render math as image");
-                    let range = self.rich.formatter.push_str(self.rich.writer.as_str());
-                    self.rich.writer.clear();
-                    MarkupRich::Text {
-                        range,
-                        alignment: Alignment::Center,
-                    }
-                }
                 MarkupPlain::Break => MarkupRich::Break,
                 MarkupPlain::EmptyLine => MarkupRich::EmptyLine,
             }));
@@ -669,9 +691,6 @@ enum MarkupPlain {
     ImageDescription {
         text: Range<usize>,
     },
-    Math {
-        _text: Range<usize>,
-    },
     Break,
     EmptyLine,
 }
@@ -808,6 +827,51 @@ impl MarkupKitty {
     const fn range(&self) -> RangeInclusive<u32> {
         let end = self.id_start + self.id_counter.saturating_sub(1);
         self.id_start..=end
+    }
+}
+
+struct MarkupMath {
+    layout_options: ratex_layout::LayoutOptions,
+    render_options: ratex_render::RenderOptions,
+}
+
+impl MarkupMath {
+    const fn new(size: CellSize, dark_mode: bool) -> Self {
+        Self {
+            layout_options: ratex_layout::LayoutOptions {
+                style: ratex_types::MathStyle::Display,
+                color: if dark_mode {
+                    ratex_types::Color::WHITE
+                } else {
+                    ratex_types::Color::BLACK
+                },
+                align_relation_spacing: None,
+                leftright_delim_height: None,
+                inter_glyph_kern_em: 0.0,
+            },
+            render_options: ratex_render::RenderOptions {
+                font_size: size.width as f32 * 1.2,
+                padding: 0.0,
+                background_color: ratex_types::Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.0,
+                },
+                font_dir: String::new(),
+                device_pixel_ratio: size.height as f32 / size.width as f32,
+            },
+        }
+    }
+
+    fn parse(&self, math: &str) -> ratex_parser::ParseResult<Vec<ratex_parser::ParseNode>> {
+        ratex_parser::parse(math)
+    }
+
+    fn to_png(&self, ast: Vec<ratex_parser::ParseNode>) -> Result<Vec<u8>, String> {
+        let layout = ratex_layout::layout(&ast, &self.layout_options);
+        let display_list = ratex_layout::to_display_list(&layout);
+        ratex_render::render_to_png(&display_list, &self.render_options)
     }
 }
 
@@ -1076,6 +1140,7 @@ impl<'a> BlockParser<'a> {
         };
 
         let start_math = start + 2;
+        let end_math = end_math - 1;
         let text = self.input[start_math..end_math].trim();
 
         if text.is_empty() {

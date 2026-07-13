@@ -20,7 +20,7 @@ A simple flashcard application for the terminal.
 - Card scheduling using the [Free Spaced Repetition Scheduler][fsrs]
 - Image support (including animated) with [kitty graphics protocol][kitty_graphics_protocol]
 - Code blocks with syntax highlighting
-- Mathematics with [KaTeX][katex] rendered as images (TODO)
+- Mathematics with [KaTeX][katex] rendered as images
 
 ## 📜 Markup
 
@@ -56,6 +56,8 @@ A normal paragraph with *bold* and _italic_ text.
 # Another reveal marker
 ---
 
+$$ \int x^2 \ dx $$
+
 ```python
 def add(a, b):
     return a + b
@@ -82,6 +84,8 @@ def add(a, b):
 </div>
 
 <hr>
+
+$$ \int x^2 \ dx $$
 
 <pre>
 def add(a, b):
@@ -127,8 +131,8 @@ The application is mainly developed on Linux, as that is what I use, but hopeful
 
 - Supporting most terminals.
 
-[spaced_repetition]: [https://en.wikipedia.org/wiki/Spaced_repetition]
+[spaced_repetition]: https://en.wikipedia.org/wiki/Spaced_repetition
 [fsrs]: https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm
 [kitty_terminal]: https://sw.kovidgoyal.net/kitty
 [kitty_graphics_protocol]: https://sw.kovidgoyal.net/kitty/graphics-protocol
-[katex]: [https://katex.org]
+[katex]: https://katex.org

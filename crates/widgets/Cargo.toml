@@ -10,6 +10,10 @@ base64 = { workspace = true }
 image = { workspace = true }
 itoa = { workspace = true }
 ratatui = { workspace = true }
+ratex-layout = { workspace = true }
+ratex-parser = { workspace = true }
+ratex-render = { workspace = true }
+ratex-types = { workspace = true }
 seahash = { workspace = true }
 syntect = { workspace = true }
 textwrap = { workspace = true }

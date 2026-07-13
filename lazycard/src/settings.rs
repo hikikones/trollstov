@@ -54,6 +54,13 @@ impl Settings {
         &self.colors
     }
 
+    pub const fn is_dark_theme(&self) -> bool {
+        match self.theme {
+            ThemeMode::Dark => true,
+            ThemeMode::Light => false,
+        }
+    }
+
     pub const fn primary(&self) -> Color {
         self.colors.primary
     }

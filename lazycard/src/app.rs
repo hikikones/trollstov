@@ -85,7 +85,7 @@ impl App {
             Settings::default().with_path(settings_path)
         });
 
-        let mut markup = Markup::new(assets_dir);
+        let mut markup = Markup::new(assets_dir, cell_size, settings.is_dark_theme());
         let mut pages = Pages::new(Route::DEFAULT, &settings, &mut database, &mut markup);
 
         if let Some(log) = settings_err {
