@@ -4,6 +4,7 @@ use ratatui::{
     style::Color,
     widgets::{Block, Widget},
 };
+use shared::terminal::TerminalCellSize;
 
 const KITTY_START: &str = "\x1b_G";
 const KITTY_END: &str = "\x1b\\";
@@ -18,19 +19,15 @@ pub struct KittyGraphics {
 }
 
 impl KittyGraphics {
-    pub const fn new(cell_size: CellSize) -> Self {
+    pub const fn new(cell_size: TerminalCellSize) -> Self {
         Self {
             frames: Vec::new(),
             deflate: Deflate::new(),
             base64: Base64::new(),
             formatter: utils::Formatter::new(),
-            cell_size,
+            cell_size: CellSize::from(cell_size),
             kitty_verbosity: KittyVerbosity::Silent,
         }
-    }
-
-    pub const fn cell_size(&self) -> CellSize {
-        self.cell_size
     }
 
     pub fn load(
@@ -475,117 +472,48 @@ impl KittyGraphics {
     }
 }
 
-/// The pixel dimensions of a single cell in the terminal.
 #[derive(Debug, Clone, Copy)]
-pub struct CellSize {
-    pub width: u32,
-    pub height: u32,
+struct CellSize {
+    width: u32,
+    height: u32,
 }
 
 impl CellSize {
-    pub const DEFAULT: Self = Self {
-        width: 10,
-        height: 20,
-    };
-
-    pub fn query() -> Result<CellSize, CellSizeError> {
-        use std::io::{Read, Write};
-
-        ratatui::crossterm::terminal::enable_raw_mode()?;
-
-        // Send two escape codes at once.
-        // First, the "[16t" for pixel dimensions of a single cell.
-        // Not many terminals support this, but this is fine as they probably
-        // don't support kitty graphics either.
-        // Second, the "[5n" to ensure a response in case the first one is not supported.
-        // The second one is a Device Status Report that all terminals implement.
-        // If no response is sent back, then the stdin read will block forever.
-        let mut stdout = std::io::stdout();
-        stdout.write_all(b"\x1b[16t\x1b[5n")?;
-        stdout.flush()?;
-
-        // Get the response from stdin
-        let mut buffer = [0; 64];
-        let n = std::io::stdin().read(&mut buffer)?;
-
-        ratatui::crossterm::terminal::disable_raw_mode()?;
-
-        // Parse the response which will look like "\u{1b}[6;<HEIGHT>;<WIDTH>t\u{1b}[0n".
-        // If no response for pixel size, then only last part will be available which we can ignore.
-        let s = String::from_utf8_lossy(&buffer[..n]);
-        let mut split = s.split(";");
-        split.next();
-        let height = split.next().map(|h| h.parse::<u32>());
-        let width = split
-            .next()
-            .map(|w| w.find('t').map(|i| w[..i].parse::<u32>()))
-            .flatten();
-
-        match (height, width) {
-            (Some(Ok(height)), Some(Ok(width))) => Ok(Self { width, height }),
-            _ => Err(CellSizeError::Parsing(format!(
-                "unknown height and width from \"{s}\""
-            ))),
+    const fn from(cell_size: TerminalCellSize) -> Self {
+        Self {
+            width: cell_size.width,
+            height: cell_size.height,
         }
     }
 
-    pub const fn width(&self, columns: u16) -> u32 {
+    const fn width(&self, columns: u16) -> u32 {
         columns as u32 * self.width
     }
 
-    pub const fn height(&self, rows: u16) -> u32 {
+    const fn height(&self, rows: u16) -> u32 {
         rows as u32 * self.height
     }
 
-    pub const fn columns(&self, width: u32) -> u16 {
+    const fn columns(&self, width: u32) -> u16 {
         width.div_ceil(self.width) as u16
     }
 
-    pub const fn rows(&self, height: u32) -> u16 {
+    const fn rows(&self, height: u32) -> u16 {
         height.div_ceil(self.height) as u16
     }
 
-    pub const fn dimensions(&self, area: Rect) -> Dimensions {
+    const fn dimensions(&self, area: Rect) -> Dimensions {
         Dimensions {
             width: self.width(area.width),
             height: self.height(area.height),
         }
     }
 
-    pub const fn area(&self, dims: Dimensions) -> Area {
+    const fn area(&self, dims: Dimensions) -> Area {
         Area {
             columns: self.columns(dims.width),
             rows: self.rows(dims.height),
         }
-    }
-}
-
-impl Default for CellSize {
-    fn default() -> Self {
-        Self::DEFAULT
-    }
-}
-
-#[derive(Debug)]
-pub enum CellSizeError {
-    Io(std::io::Error),
-    Parsing(String),
-}
-
-impl std::fmt::Display for CellSizeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CellSizeError::Io(err) => err.fmt(f),
-            CellSizeError::Parsing(s) => f.write_str(s),
-        }
-    }
-}
-
-impl std::error::Error for CellSizeError {}
-
-impl From<std::io::Error> for CellSizeError {
-    fn from(error: std::io::Error) -> Self {
-        Self::Io(error)
     }
 }
 

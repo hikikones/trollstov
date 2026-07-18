@@ -7,4 +7,5 @@ license.workspace = true
 
 [dependencies]
 constcat = { workspace = true }
+ratatui = { workspace = true }
 rusqlite = { workspace = true }

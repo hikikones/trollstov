@@ -10,6 +10,7 @@ use ratatui::{
     style::Color,
     widgets::Padding,
 };
+use shared::terminal::{TerminalCellSize, TerminalPalette};
 use syntect::{
     easy::HighlightLines, highlighting::ThemeSet, parsing::SyntaxSet, util::LinesWithEndings,
 };
@@ -17,7 +18,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use utils::Formatter;
 
 use crate::{
-    CellSize, RectExt, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData,
+    RectExt, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData,
     ansi::{AnsiParser, AnsiTag, AnsiWriter},
     kitty_graphics::{Dimensions, KittyGraphics, ResizeMode},
     text_span::TextSpan,
@@ -36,13 +37,13 @@ pub struct Markup {
 }
 
 impl Markup {
-    pub fn new(assets: PathBuf, cell_size: CellSize, dark_mode: bool) -> Self {
+    pub fn new(assets: PathBuf, cell_size: TerminalCellSize, palette: TerminalPalette) -> Self {
         Self {
             plain: MarkupPlainData::new(),
             rich: MarkupRichData::new(),
             scroll: MarkupScroll::new(),
             kitty: MarkupKitty::new(),
-            math: MarkupMath::new(cell_size, dark_mode),
+            math: MarkupMath::new(cell_size, palette),
             cache: MarkupCache::new(),
             options: MarkupOptions::new(),
             colors: MarkupColors::new(),
@@ -835,15 +836,22 @@ struct MarkupMath {
     render_options: ratex_render::RenderOptions,
 }
 
+pub enum MarkupMathColor {
+    White,
+    Black,
+    Rgb(u8, u8, u8),
+}
+
 impl MarkupMath {
-    const fn new(size: CellSize, dark_mode: bool) -> Self {
+    const fn new(size: TerminalCellSize, palette: TerminalPalette) -> Self {
         Self {
             layout_options: ratex_layout::LayoutOptions {
                 style: ratex_types::MathStyle::Display,
-                color: if dark_mode {
-                    ratex_types::Color::WHITE
-                } else {
-                    ratex_types::Color::BLACK
+                color: ratex_types::Color {
+                    r: palette.foreground.r as f32 / 255.0,
+                    g: palette.foreground.g as f32 / 255.0,
+                    b: palette.foreground.b as f32 / 255.0,
+                    a: 1.0,
                 },
                 align_relation_spacing: None,
                 leftright_delim_height: None,

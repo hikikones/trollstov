@@ -7,8 +7,11 @@ use ratatui::{
     layout::{Margin, Rect},
     style::Color,
 };
-use shared::symbols;
-use widgets::{CellSize, KittyGraphics, Markup, RectExt, Shortcut, Shortcuts};
+use shared::{
+    symbols,
+    terminal::{TerminalCellSize, TerminalPalette},
+};
+use widgets::{KittyGraphics, Markup, RectExt, Shortcut, Shortcuts};
 
 use crate::{
     database::Database,
@@ -74,9 +77,10 @@ impl<'a> AppRender<'a> {
 impl App {
     pub fn new(
         mut database: Database,
-        cell_size: CellSize,
-        assets_dir: PathBuf,
         settings_path: Option<PathBuf>,
+        assets_dir: PathBuf,
+        cell_size: TerminalCellSize,
+        palette: TerminalPalette,
     ) -> Self {
         let mut settings_err = None;
 
@@ -85,7 +89,7 @@ impl App {
             Settings::default().with_path(settings_path)
         });
 
-        let mut markup = Markup::new(assets_dir, cell_size, settings.is_dark_theme());
+        let mut markup = Markup::new(assets_dir, cell_size, palette);
         let mut pages = Pages::new(Route::DEFAULT, &settings, &mut database, &mut markup);
 
         if let Some(log) = settings_err {

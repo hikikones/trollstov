@@ -15,6 +15,7 @@ ratex-parser = { workspace = true }
 ratex-render = { workspace = true }
 ratex-types = { workspace = true }
 seahash = { workspace = true }
+shared = { workspace = true }
 syntect = { workspace = true }
 textwrap = { workspace = true }
 unicode-segmentation = { workspace = true }

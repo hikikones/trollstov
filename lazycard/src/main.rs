@@ -3,6 +3,7 @@ use lazycard::{app::App, database::Database, terminal::Terminal};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Args = clap::Parser::parse();
 
+    let palette = query_colors()?;
     let cell_size = query_cell_size()?;
 
     #[cfg(debug_assertions)]
@@ -14,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let terminal = Terminal::init()?;
 
-    let mut app = App::new(database, cell_size, assets_dir, args.settings);
+    let mut app = App::new(database, args.settings, assets_dir, cell_size, palette);
     let res = app.run(terminal);
     app.quit()?;
 
@@ -42,8 +43,23 @@ struct Args {
     settings: Option<std::path::PathBuf>,
 }
 
-fn query_cell_size() -> Result<widgets::CellSize, String> {
-    widgets::CellSize::query().map_err(|err| format!("Failed to get cell size due to {}", err))
+const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()
+    .header(clap_cargo::style::HEADER)
+    .usage(clap_cargo::style::USAGE)
+    .literal(clap_cargo::style::LITERAL)
+    .placeholder(clap_cargo::style::PLACEHOLDER)
+    .error(clap_cargo::style::ERROR)
+    .valid(clap_cargo::style::VALID)
+    .invalid(clap_cargo::style::INVALID);
+
+fn query_colors() -> Result<shared::terminal::TerminalPalette, String> {
+    shared::terminal::TerminalPalette::query()
+        .map_err(|err| format!("Failed to get terminal colors: {}", err))
+}
+
+fn query_cell_size() -> Result<shared::terminal::TerminalCellSize, String> {
+    shared::terminal::TerminalCellSize::query()
+        .map_err(|err| format!("Failed to get terminal cell size: {}", err))
 }
 
 fn open_database(path: Option<std::path::PathBuf>) -> Result<Database, String> {
@@ -131,12 +147,3 @@ fn get_or_create_assets_dir(
 
     Ok(dir)
 }
-
-const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()
-    .header(clap_cargo::style::HEADER)
-    .usage(clap_cargo::style::USAGE)
-    .literal(clap_cargo::style::LITERAL)
-    .placeholder(clap_cargo::style::PLACEHOLDER)
-    .error(clap_cargo::style::ERROR)
-    .valid(clap_cargo::style::VALID)
-    .invalid(clap_cargo::style::INVALID);

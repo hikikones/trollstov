@@ -3881,6 +3881,7 @@ name = "shared"
 version = "0.1.0"
 dependencies = [
  "constcat",
+ "ratatui",
  "rusqlite",
 ]
 
@@ -4974,6 +4975,7 @@ dependencies = [
  "ratex-render",
  "ratex-types",
  "seahash",
+ "shared",
  "syntect",
  "textwrap",
  "unicode-segmentation",
