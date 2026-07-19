@@ -9,7 +9,7 @@ use ratatui::{
 };
 use shared::{
     symbols,
-    terminal::{TerminalCellSize, TerminalPalette},
+    terminal::{Terminal, TerminalCellSize, TerminalPalette},
 };
 use widgets::{KittyGraphics, Markup, RectExt, Shortcut, Shortcuts};
 
@@ -17,7 +17,6 @@ use crate::{
     database::Database,
     pages::{Log, PageState, Pages, Route},
     settings::Settings,
-    terminal::Terminal,
 };
 
 pub struct App {
@@ -107,18 +106,18 @@ impl App {
         }
     }
 
-    pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn run(&mut self, terminal: &mut Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Apply settings
         self.apply_settings();
 
         // Render default page
-        self.render(&mut terminal)?;
+        self.render(terminal)?;
 
         // Run event loop
         while self.is_running {
             let event = ratatui::crossterm::event::read()?;
-            let action = self.read_event(event, &mut terminal);
-            self.apply_action(action, &mut terminal)?;
+            let action = self.read_event(event, terminal);
+            self.apply_action(action, terminal)?;
         }
 
         Ok(())

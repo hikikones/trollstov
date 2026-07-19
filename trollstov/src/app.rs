@@ -8,7 +8,7 @@ use ratatui::{
     style::{Color, Style},
 };
 use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
-use shared::symbols;
+use shared::{symbols, terminal::Terminal};
 use widgets::{Shortcut, Shortcuts, TextSpan};
 
 use crate::{
@@ -20,7 +20,6 @@ use crate::{
         SettingsPage, TracksPage,
     },
     settings::{Colors, Settings},
-    terminal::Terminal,
 };
 
 // TODO: Add a dynamic playlist page for artists/albums/genres and filtering.
@@ -144,11 +143,12 @@ impl App {
         }
     }
 
-    pub fn run(&mut self, mut terminal: Terminal) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn run(&mut self, terminal: &mut Terminal) -> Result<(), Box<dyn std::error::Error>> {
         // Draw logo
         terminal.draw(|frame| {
             let color = self.settings.neutral();
             frame.render_widget(crate::logo::LogoWidget(color), frame.area());
+            Ok(())
         })?;
 
         // Apply settings, read events, load music and enter first page
@@ -174,21 +174,21 @@ impl App {
             match action {
                 Action::None => {}
                 Action::Render => {
-                    self.render(&mut terminal)?;
+                    self.render(terminal)?;
                 }
                 Action::Route(route) => {
                     self.on_exit();
                     self.route = route;
                     self.on_enter();
-                    self.render(&mut terminal)?;
+                    self.render(terminal)?;
                 }
                 Action::Log(log) => {
                     self.pages.logs.enqueue(log);
-                    self.render(&mut terminal)?;
+                    self.render(terminal)?;
                 }
                 Action::ApplySettings => {
                     self.apply_settings();
-                    self.render(&mut terminal)?;
+                    self.render(terminal)?;
                 }
                 Action::Quit => {
                     self.running = false;
@@ -578,6 +578,8 @@ impl App {
                     self.shortcuts.clear();
                 }
             }
+
+            Ok(())
         })
     }
 

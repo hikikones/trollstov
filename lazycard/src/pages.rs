@@ -15,13 +15,13 @@ pub use settings::*;
 pub use tags::*;
 
 use ratatui::{buffer::Buffer, layout::Rect, style::Style};
+use shared::terminal::Terminal;
 use widgets::{KittyGraphics, Markup, Shortcuts};
 
 use crate::{
     app::{Action, AppInput, AppRender},
     database::{CardId, Database, TagId},
     settings::{Colors, Settings},
-    terminal::Terminal,
 };
 
 pub struct Pages {

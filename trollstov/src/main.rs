@@ -1,9 +1,9 @@
+use shared::terminal::Terminal;
 use trollstov::{
     app::App,
     database::Database,
     events::EventHandler,
     jukebox::{AudioPlayer, Jukebox},
-    terminal::Terminal,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create events early with media controls in case of zbus panic due to dbus name taken
     let events = EventHandler::new(args.media_controls)?;
 
-    let terminal = Terminal::init()?;
+    let mut terminal = Terminal::init()?;
 
     // Create picker after entering alternate screen, but before reading terminal events
     let picker = ratatui_image::picker::Picker::from_query_stdio()?;
@@ -22,10 +22,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let database = Database::new(args.dir);
 
     let mut app = App::new(events, database, jukebox, picker, args.settings);
-    let res = app.run(terminal);
+    let res = app.run(&mut terminal);
     app.quit();
 
-    Terminal::restore()?;
+    terminal.restore()?;
 
     res
 }

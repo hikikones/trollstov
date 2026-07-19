@@ -1,4 +1,51 @@
-// The foreground and background colors of the terminal.
+use std::borrow::Cow;
+
+use ratatui::{
+    CompletedFrame, DefaultTerminal, Frame,
+    crossterm::{
+        execute,
+        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    },
+};
+
+/// Default terminal with crossterm backend.
+pub struct Terminal(DefaultTerminal);
+
+impl Terminal {
+    pub fn init() -> std::io::Result<Self> {
+        let terminal = ratatui::try_init()?;
+        Ok(Self(terminal))
+    }
+
+    pub fn restore(self) -> std::io::Result<()> {
+        ratatui::try_restore()
+    }
+
+    pub fn draw<F>(&mut self, render_callback: F) -> std::io::Result<CompletedFrame<'_>>
+    where
+        F: FnOnce(&mut Frame) -> std::io::Result<()>,
+    {
+        self.0.try_draw(render_callback)
+    }
+
+    pub fn temp_leave<T>(&mut self, f: impl FnOnce() -> std::io::Result<T>) -> std::io::Result<T> {
+        let mut stdout = std::io::stdout();
+
+        execute!(stdout, LeaveAlternateScreen)?;
+        disable_raw_mode()?;
+
+        let t = f();
+
+        enable_raw_mode()?;
+        execute!(stdout, EnterAlternateScreen)?;
+
+        self.0.clear()?;
+
+        t
+    }
+}
+
+/// The foreground and background colors of the terminal.
 #[derive(Debug, Clone, Copy)]
 pub struct TerminalPalette {
     pub foreground: TerminalColor,
@@ -32,7 +79,6 @@ impl TerminalPalette {
         fn query_osc_color(osc: &str) -> std::io::Result<Option<TerminalColor>> {
             let mut buffer = [0; 32];
             let response = query(osc, &mut buffer)?;
-            dbg!(&response);
 
             fn parse_osc_color(response: &str) -> Option<TerminalColor> {
                 // Parse response of pattern "\u{1b}]10;rgb:c4c4/c4c4/b5b5\u{1b}\\\u{1b}"
@@ -108,14 +154,14 @@ impl Default for TerminalCellSize {
     }
 }
 
-fn query<'a>(code: &str, buffer: &'a mut [u8]) -> std::io::Result<std::borrow::Cow<'a, str>> {
+fn query<'a>(code: &str, buffer: &'a mut [u8]) -> std::io::Result<Cow<'a, str>> {
     use std::io::{Read, Write};
 
     /// Device Status Report control sequence that most terminals implement.
     /// Makes sure that stdin responds.
     const DEVICE_STATUS_REPORT: &str = "\x1b[5n";
 
-    ratatui::crossterm::terminal::enable_raw_mode()?;
+    enable_raw_mode()?;
 
     // Write query to stdout
     let mut stdout = std::io::stdout();
@@ -125,10 +171,10 @@ fn query<'a>(code: &str, buffer: &'a mut [u8]) -> std::io::Result<std::borrow::C
     // Read response from stdin
     let n = std::io::stdin().read(buffer)?;
 
-    ratatui::crossterm::terminal::disable_raw_mode()?;
+    disable_raw_mode()?;
 
-    let reponse = String::from_utf8_lossy(&buffer[..n]);
-    Ok(reponse)
+    let response = String::from_utf8_lossy(&buffer[..n]);
+    Ok(response)
 }
 
 #[derive(Debug)]

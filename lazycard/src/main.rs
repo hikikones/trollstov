@@ -1,4 +1,5 @@
-use lazycard::{app::App, database::Database, terminal::Terminal};
+use lazycard::{app::App, database::Database};
+use shared::terminal::Terminal;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Args = clap::Parser::parse();
@@ -13,13 +14,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let assets_dir = get_or_create_assets_dir(args.assets)?;
 
-    let terminal = Terminal::init()?;
+    let mut terminal = Terminal::init()?;
 
     let mut app = App::new(database, args.settings, assets_dir, cell_size, palette);
-    let res = app.run(terminal);
+    let res = app.run(&mut terminal);
     app.quit()?;
 
-    Terminal::restore()?;
+    terminal.restore()?;
 
     res
 }

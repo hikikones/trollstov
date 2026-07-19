@@ -6,7 +6,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style},
 };
-use shared::symbols;
+use shared::{symbols, terminal::Terminal};
 use widgets::{
     CursorMove, KittyGraphics, List, ListItem, Markup, RectExt, Shortcut, Shortcuts, TextEditor,
 };
@@ -16,7 +16,6 @@ use crate::{
     database::{CardId, Database, TagId},
     pages::Log,
     settings::Colors,
-    terminal::Terminal,
 };
 
 pub struct CardEditorPage {
