@@ -8,6 +8,7 @@ pub use scheduler::*;
 
 pub type DatabaseResult<T> = Result<T, DatabaseError>;
 
+// TODO: Add CardType enum. Consider a card with no reveal marks as a note.
 // TODO: Add tests.
 
 pub struct Database {

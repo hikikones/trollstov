@@ -822,7 +822,7 @@ impl std::fmt::Display for DeflateError {
 
 impl std::error::Error for DeflateError {}
 
-struct Base64(String);
+struct Base64(String); // TODO: simd
 
 impl Base64 {
     const fn new() -> Self {

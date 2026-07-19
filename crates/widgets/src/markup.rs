@@ -507,8 +507,7 @@ impl Markup {
                         let indent = if i == 0 { first_indent } else { other_indent };
                         storage.extend([indent, line, "\n"]);
                     }
-                    let end = storage.len();
-                    start..end
+                    start..storage.len()
                 }
                 None => storage.push_str(writer.as_str()),
             };
