@@ -45,13 +45,6 @@ impl Terminal {
     }
 }
 
-/// The foreground and background colors of the terminal.
-#[derive(Debug, Clone, Copy)]
-pub struct TerminalPalette {
-    pub foreground: TerminalColor,
-    pub background: TerminalColor,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct TerminalColor {
     pub r: u8,
@@ -59,54 +52,124 @@ pub struct TerminalColor {
     pub b: u8,
 }
 
-impl TerminalPalette {
-    pub fn query() -> Result<Self, TerminalQueryError> {
-        // OSC color queries
-        const FG_OSC_QUERY: &str = "\x1b]10;?\x07";
-        const BG_OSC_QUERY: &str = "\x1b]11;?\x07";
+impl TerminalColor {
+    pub const BLACK: Self = Self { r: 0, g: 0, b: 0 };
+    pub const WHITE: Self = Self {
+        r: 255,
+        g: 255,
+        b: 255,
+    };
 
-        let Some(fg) = query_osc_color(FG_OSC_QUERY)? else {
+    pub fn query_foreground() -> Result<Self, TerminalQueryError> {
+        let Some(fg) = Self::query_osc("\x1b]10;?\x07")? else {
             return Err(TerminalQueryError::Unsupported(
                 "terminal does not support OSC 10 color query",
             ));
         };
-        let Some(bg) = query_osc_color(BG_OSC_QUERY)? else {
+        Ok(fg)
+    }
+
+    pub fn query_background() -> Result<Self, TerminalQueryError> {
+        let Some(bg) = Self::query_osc("\x1b]11;?\x07")? else {
             return Err(TerminalQueryError::Unsupported(
                 "terminal does not support OSC 11 color query",
             ));
         };
+        Ok(bg)
+    }
 
-        fn query_osc_color(osc: &str) -> std::io::Result<Option<TerminalColor>> {
-            let mut buffer = [0; 32];
-            let response = query(osc, &mut buffer)?;
+    /// Returns true if the color is perceived as dark.
+    pub const fn is_dark(&self) -> bool {
+        let brightness = 0.299 * self.r as f32 + 0.587 * self.g as f32 + 0.114 * self.b as f32;
+        brightness < 128.0
+    }
 
-            fn parse_osc_color(response: &str) -> Option<TerminalColor> {
-                // Parse response of pattern "\u{1b}]10;rgb:c4c4/c4c4/b5b5\u{1b}\\\u{1b}"
-                let start = response.find(':')? + 1;
-                let end = response[start..].find('\x1b')?;
-                let payload = &response[start..start + end];
-                let mut parts = payload.split('/');
+    pub const fn as_theme(&self) -> TerminalTheme {
+        match self.is_dark() {
+            true => TerminalTheme::Dark,
+            false => TerminalTheme::Light,
+        }
+    }
 
-                let parse_channel = |s: &str| match s.len() {
-                    2 => u8::from_str_radix(s, 16).ok(),
-                    4 => Some((u16::from_str_radix(s, 16).ok()? >> 8) as u8),
-                    _ => None,
-                };
+    fn query_osc(osc: &str) -> std::io::Result<Option<Self>> {
+        let mut buffer = [0; 32];
+        let response = query(osc, &mut buffer)?;
 
-                let r = parse_channel(parts.next()?)?;
-                let g = parse_channel(parts.next()?)?;
-                let b = parse_channel(parts.next()?)?;
+        fn parse_osc(response: &str) -> Option<TerminalColor> {
+            // Parse response of pattern "\u{1b}]10;rgb:c4c4/c4c4/b5b5\u{1b}\\\u{1b}"
+            let start = response.find(':')? + 1;
+            let end = response[start..].find('\x1b')?;
+            let payload = &response[start..start + end];
+            let mut parts = payload.split('/');
 
-                Some(TerminalColor { r, g, b })
-            }
+            let parse_channel = |s: &str| match s.len() {
+                2 => u8::from_str_radix(s, 16).ok(),
+                4 => Some((u16::from_str_radix(s, 16).ok()? >> 8) as u8),
+                _ => None,
+            };
 
-            Ok(parse_osc_color(&response))
+            let r = parse_channel(parts.next()?)?;
+            let g = parse_channel(parts.next()?)?;
+            let b = parse_channel(parts.next()?)?;
+
+            Some(TerminalColor { r, g, b })
         }
 
+        Ok(parse_osc(&response))
+    }
+
+    // pub fn luminance(&self) -> f32 {
+    //     fn linearize(c: u8) -> f32 {
+    //         let c = c as f32 / 255.0;
+    //         if c <= 0.04045 {
+    //             c / 12.92
+    //         } else {
+    //             ((c + 0.055) / 1.055).powf(2.4)
+    //         }
+    //     }
+
+    //     let r = linearize(self.r);
+    //     let g = linearize(self.g);
+    //     let b = linearize(self.b);
+
+    //     0.2126 * r + 0.7152 * g + 0.0722 * b
+    // }
+
+    // pub fn is_dark(&self) -> bool {
+    //     self.luminance() < 0.5
+    // }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum TerminalTheme {
+    Dark,
+    Light,
+}
+
+impl TerminalTheme {
+    pub fn query() -> Result<Self, TerminalQueryError> {
+        let bg = TerminalColor::query_background()?;
+        Ok(bg.as_theme())
+    }
+}
+
+/// The foreground and background colors of the terminal.
+#[derive(Debug, Clone, Copy)]
+pub struct TerminalPalette {
+    pub foreground: TerminalColor,
+    pub background: TerminalColor,
+}
+
+impl TerminalPalette {
+    pub fn query() -> Result<Self, TerminalQueryError> {
         Ok(Self {
-            foreground: fg,
-            background: bg,
+            foreground: TerminalColor::query_foreground()?,
+            background: TerminalColor::query_background()?,
         })
+    }
+
+    pub const fn theme(&self) -> TerminalTheme {
+        self.background.as_theme()
     }
 }
 

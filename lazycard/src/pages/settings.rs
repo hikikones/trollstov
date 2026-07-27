@@ -12,12 +12,12 @@ use widgets::{CursorMove, List, ListItem, ScrollMargins, Shortcut, Shortcuts, Te
 use crate::{
     app::{Action, AppInput, AppRender},
     pages::Log,
-    settings::{Colors, Settings},
+    settings::{Colors, Config, Settings},
 };
 
 pub struct SettingsPage {
-    default: Settings,
-    saved: Settings,
+    default: Config,
+    saved: Config,
     saved_hash: u64,
     is_saved: bool,
     list: List,
@@ -74,8 +74,8 @@ impl SettingsPage {
         };
 
         Self {
-            default: Settings::default(),
-            saved: settings.clone(),
+            default: Config::new(settings.theme()),
+            saved: settings.as_config(),
             saved_hash: hash,
             is_saved: true,
             list: List::new()
@@ -248,7 +248,7 @@ impl SettingsPage {
                 if ctrl && !self.is_saved {
                     match settings.save() {
                         Ok(_) => {
-                            self.saved = settings.clone();
+                            self.saved = settings.as_config();
                             self.saved_hash = settings.hash();
                             self.is_saved = true;
                             return Action::Render;
@@ -263,7 +263,7 @@ impl SettingsPage {
             }
             KeyCode::Char('r') => {
                 if ctrl {
-                    *settings = self.default.clone();
+                    settings.set_config(self.default.clone());
                     self.primary.reset_with(settings.primary());
                     self.secondary.reset_with(settings.secondary());
                     self.neutral.reset_with(settings.neutral());

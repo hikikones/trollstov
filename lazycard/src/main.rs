@@ -1,11 +1,12 @@
-use lazycard::{app::App, database::Database};
-use shared::terminal::Terminal;
+use lazycard::{app::App, database::Database, settings::Settings};
+use shared::terminal::{Terminal, TerminalCellSize, TerminalPalette};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Args = clap::Parser::parse();
 
     let palette = query_colors()?;
     let cell_size = query_cell_size()?;
+    let settings = read_settings(args.settings, palette, cell_size)?;
 
     #[cfg(debug_assertions)]
     let database = open_dev_database(args.database)?;
@@ -16,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut terminal = Terminal::init()?;
 
-    let mut app = App::new(database, args.settings, assets_dir, cell_size, palette);
+    let mut app = App::new(database, assets_dir, settings);
     let res = app.run(&mut terminal);
     app.quit()?;
 
@@ -147,4 +148,38 @@ fn get_or_create_assets_dir(
     }
 
     Ok(dir)
+}
+
+fn read_settings(
+    path: Option<std::path::PathBuf>,
+    palette: TerminalPalette,
+    cell_size: TerminalCellSize,
+) -> Result<Settings, String> {
+    fn get_default_config_file() -> Option<std::path::PathBuf> {
+        const FILENAME: &str = "settings.toml";
+        directories::ProjectDirs::from(
+            lazycard::APP_QUALIFIER,
+            lazycard::APP_ORGANIZATION,
+            lazycard::APP_NAME,
+        )
+        .map(|project_dirs| project_dirs.config_dir().join(FILENAME))
+    }
+
+    let file = match path {
+        Some(path) => path,
+        None => match get_default_config_file() {
+            Some(path) => path,
+            None => {
+                return Err(
+                    "Failed to get a default settings file path from the operating system",
+                )?;
+            }
+        },
+    };
+
+    if !file.exists() {
+        return Ok(Settings::new(file.to_path_buf(), palette, cell_size));
+    }
+
+    Settings::read(file, palette, cell_size)
 }

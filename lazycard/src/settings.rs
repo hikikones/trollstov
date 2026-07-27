@@ -1,7 +1,8 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
+use shared::terminal::{TerminalCellSize, TerminalPalette, TerminalTheme};
 use widgets::{
     ListColors, MarkupColors, ScrollbarColors, SyntaxHighlightTheme, TextEditorColors,
     TextInputColors, TokenListColors,
@@ -9,113 +10,106 @@ use widgets::{
 
 const VERSION: u8 = 0;
 
-#[derive(Clone, Serialize, Deserialize)]
 pub struct Settings {
-    pub general: General,
-    pub colors: Colors,
-
-    #[serde(skip)]
-    theme: ThemeMode,
-    #[serde(skip)]
-    path: Option<PathBuf>,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        let general = General {
-            desired_retention: 80,
-        };
-        let theme = ThemeMode::default();
-        let colors = Colors::from_theme(theme);
-
-        Self {
-            general,
-            colors,
-            theme,
-            path: None,
-        }
-    }
+    config: Config,
+    path: PathBuf,
+    theme: TerminalTheme,
+    palette: TerminalPalette,
+    cell_size: TerminalCellSize,
 }
 
 impl Settings {
-    pub const fn desired_retention(&self) -> u8 {
-        self.general.desired_retention
-    }
-
-    pub const fn desired_retention_as_fraction(&self) -> f32 {
-        self.general.desired_retention as f32 / 100.0
-    }
-
-    pub const fn set_desired_retention(&mut self, percent: u8) {
-        self.general.desired_retention = if percent > 100 { 100 } else { percent };
-    }
-
-    pub const fn colors(&self) -> &Colors {
-        &self.colors
-    }
-
-    pub const fn is_dark_theme(&self) -> bool {
-        match self.theme {
-            ThemeMode::Dark => true,
-            ThemeMode::Light => false,
+    pub const fn new(path: PathBuf, palette: TerminalPalette, cell_size: TerminalCellSize) -> Self {
+        let theme = palette.theme();
+        Self {
+            config: Config::new(theme),
+            path,
+            theme,
+            palette,
+            cell_size,
         }
     }
 
+    pub const fn set_config(&mut self, config: Config) {
+        self.config = config;
+    }
+
+    pub const fn theme(&self) -> TerminalTheme {
+        self.theme
+    }
+
+    pub const fn palette(&self) -> TerminalPalette {
+        self.palette
+    }
+
+    pub const fn cell_size(&self) -> TerminalCellSize {
+        self.cell_size
+    }
+
+    pub const fn desired_retention(&self) -> u8 {
+        self.config.general.desired_retention
+    }
+
+    pub const fn desired_retention_as_fraction(&self) -> f32 {
+        self.config.general.desired_retention as f32 / 100.0
+    }
+
+    pub const fn set_desired_retention(&mut self, percent: u8) {
+        self.config.general.desired_retention = if percent > 100 { 100 } else { percent };
+    }
+
+    pub const fn colors(&self) -> &Colors {
+        &self.config.colors
+    }
+
     pub const fn primary(&self) -> Color {
-        self.colors.primary
+        self.config.colors.primary
     }
 
     pub const fn secondary(&self) -> Color {
-        self.colors.secondary
+        self.config.colors.secondary
     }
 
     pub const fn neutral(&self) -> Color {
-        self.colors.neutral
+        self.config.colors.neutral
     }
 
     pub const fn set_primary(&mut self, color: Color) {
-        self.colors.primary = color;
+        self.config.colors.primary = color;
     }
 
     pub const fn set_secondary(&mut self, color: Color) {
-        self.colors.secondary = color;
+        self.config.colors.secondary = color;
     }
 
     pub const fn set_neutral(&mut self, color: Color) {
-        self.colors.neutral = color;
+        self.config.colors.neutral = color;
     }
 
     pub const fn markup_colors(&self) -> MarkupColors {
         MarkupColors {
             syntax_theme: match self.theme {
-                ThemeMode::Dark => SyntaxHighlightTheme::Base16EightiesDark,
-                ThemeMode::Light => SyntaxHighlightTheme::InspiredGitHub,
+                TerminalTheme::Dark => SyntaxHighlightTheme::Base16EightiesDark,
+                TerminalTheme::Light => SyntaxHighlightTheme::InspiredGitHub,
             },
-            scrollbar: self.colors.scrollbar(),
-            break_char: self.colors.neutral,
+            scrollbar: self.config.colors.scrollbar(),
+            break_char: self.config.colors.neutral,
         }
     }
 
-    pub fn read(path: Option<PathBuf>) -> Result<Self, String> {
-        let Some(file) = path.or_else(|| get_config_file()) else {
-            return Ok(Self::default());
-        };
-
-        let bytes = match std::fs::read(&file) {
-            Ok(bytes) => bytes,
-            Err(err) => match err.kind() {
-                std::io::ErrorKind::NotFound => {
-                    return Ok(Self::default().with_path(Some(file)));
-                }
-                _ => {
-                    return Err(format!(
-                        "Failed to read settings from \"{}\" due to {}",
-                        file.display(),
-                        err
-                    ))?;
-                }
-            },
-        };
+    pub fn read(
+        path: impl AsRef<Path>,
+        palette: TerminalPalette,
+        cell_size: TerminalCellSize,
+    ) -> Result<Self, String> {
+        let path = path.as_ref();
+        let bytes = std::fs::read(path).map_err(|err| {
+            format!(
+                "Failed to read settings from '{}' due to {}",
+                path.display(),
+                err
+            )
+        })?;
 
         #[derive(Deserialize)]
         struct V {
@@ -124,54 +118,43 @@ impl Settings {
 
         let V { version } = toml::from_slice(&bytes).map_err(|err| {
             format!(
-                "Failed to deserialize settings from \"{}\" due to {}",
-                file.display(),
+                "Failed to deserialize settings from '{}' due to {}",
+                path.display(),
                 err
             )
         })?;
 
-        let mut settings: Self = match version {
+        let config: Config = match version {
             VERSION => toml::from_slice(&bytes).map_err(|err| {
                 format!(
-                    "Failed to deserialize settings from \"{}\" due to {}",
-                    file.display(),
+                    "Failed to deserialize settings from '{}' due to {}",
+                    path.display(),
                     err
                 )
             })?,
             _ => Err(format!(
-                "Failed to deserialize settings from \"{}\" due to unknown version",
-                file.display()
+                "Failed to deserialize settings from '{}' due to unknown version",
+                path.display()
             ))?,
         };
 
-        settings.path = Some(file);
-        Ok(settings)
+        Ok(Self {
+            config,
+            path: path.to_path_buf(),
+            theme: palette.theme(),
+            palette,
+            cell_size,
+        })
     }
 
     pub fn save(&self) -> Result<(), String> {
-        let Some(file) = self.path.clone().or_else(|| get_config_file()) else {
-            return Err("Unable to save settings due to no path specified or \
-                a default one could not be retrieved from the operating system")?;
-        };
-
-        if let Some(parent) = file.parent() {
-            if !parent.exists() {
-                std::fs::create_dir_all(&parent).map_err(|err| {
-                    format!(
-                        "Unable to save settings as creating directory \"{}\" failed due to {}",
-                        parent.display(),
-                        err
-                    )
-                })?;
-            }
-        }
-
-        let toml = toml::to_string(self)
+        let path = self.path.as_path();
+        let toml = toml::to_string(&self.config)
             .map_err(|err| format!("Failed to serialize settings due to {}", err))?;
-        std::fs::write(&file, toml).map_err(|err| {
+        std::fs::write(path, toml).map_err(|err| {
             format!(
-                "Failed to write settings to \"{}\" due to {}",
-                file.display(),
+                "Failed to write settings to '{}' due to {}",
+                path.display(),
                 err
             )
         })?;
@@ -180,37 +163,42 @@ impl Settings {
     }
 
     pub fn hash(&self) -> u64 {
+        self.config.hash()
+    }
+
+    pub fn as_config(&self) -> Config {
+        self.config.clone()
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Config {
+    version: u8,
+    general: General,
+    colors: Colors,
+}
+
+impl Config {
+    pub const fn new(theme: TerminalTheme) -> Self {
+        Self {
+            version: VERSION,
+            general: General {
+                desired_retention: 80,
+            },
+            colors: Colors::new(theme),
+        }
+    }
+
+    pub fn hash(&self) -> u64 {
         toml::to_string(self)
             .map(|s| utils::hash_fast(s))
             .unwrap_or(0)
-    }
-
-    pub(super) fn with_path(mut self, path: Option<PathBuf>) -> Self {
-        self.path = path;
-        self
     }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct General {
     desired_retention: u8,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum ThemeMode {
-    Dark,
-    Light,
-}
-
-impl Default for ThemeMode {
-    fn default() -> Self {
-        match terminal_colorsaurus::theme_mode(terminal_colorsaurus::QueryOptions::default())
-            .unwrap_or(terminal_colorsaurus::ThemeMode::Dark)
-        {
-            terminal_colorsaurus::ThemeMode::Dark => Self::Dark,
-            terminal_colorsaurus::ThemeMode::Light => Self::Light,
-        }
-    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -221,18 +209,17 @@ pub struct Colors {
 }
 
 impl Colors {
-    const fn from_theme(theme: ThemeMode) -> Self {
-        let neutral = Color::Indexed(245);
+    pub const fn new(theme: TerminalTheme) -> Self {
         match theme {
-            ThemeMode::Dark => Self {
+            TerminalTheme::Dark => Self {
                 primary: Color::LightYellow,
                 secondary: Color::Yellow,
-                neutral,
+                neutral: Color::Indexed(245),
             },
-            ThemeMode::Light => Self {
+            TerminalTheme::Light => Self {
                 primary: Color::LightCyan,
                 secondary: Color::Cyan,
-                neutral,
+                neutral: Color::Indexed(245),
             },
         }
     }
@@ -275,14 +262,4 @@ impl Colors {
             track: None,
         }
     }
-}
-
-fn get_config_file() -> Option<PathBuf> {
-    const FILENAME: &str = "settings.toml";
-    directories::ProjectDirs::from(
-        crate::APP_QUALIFIER,
-        crate::APP_ORGANIZATION,
-        crate::APP_NAME,
-    )
-    .map(|project_dirs| project_dirs.config_dir().join(FILENAME))
 }

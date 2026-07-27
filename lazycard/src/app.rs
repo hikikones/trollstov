@@ -7,10 +7,7 @@ use ratatui::{
     layout::{Margin, Rect},
     style::Color,
 };
-use shared::{
-    symbols,
-    terminal::{Terminal, TerminalCellSize, TerminalPalette},
-};
+use shared::{symbols, terminal::Terminal};
 use widgets::{KittyGraphics, Markup, RectExt, Shortcut, Shortcuts};
 
 use crate::{
@@ -74,32 +71,15 @@ impl<'a> AppRender<'a> {
 }
 
 impl App {
-    pub fn new(
-        mut database: Database,
-        settings_path: Option<PathBuf>,
-        assets_dir: PathBuf,
-        cell_size: TerminalCellSize,
-        palette: TerminalPalette,
-    ) -> Self {
-        let mut settings_err = None;
-
-        let settings = Settings::read(settings_path.clone()).unwrap_or_else(|err| {
-            settings_err = Some(Log::new(err));
-            Settings::default().with_path(settings_path)
-        });
-
-        let mut markup = Markup::new(assets_dir, cell_size, palette);
-        let mut pages = Pages::new(Route::DEFAULT, &settings, &mut database, &mut markup);
-
-        if let Some(log) = settings_err {
-            pages.enqueue_log(log);
-        }
+    pub fn new(mut database: Database, assets_dir: PathBuf, settings: Settings) -> Self {
+        let mut markup = Markup::new(assets_dir, settings.cell_size(), settings.palette());
+        let pages = Pages::new(Route::DEFAULT, &settings, &mut database, &mut markup);
 
         Self {
             pages,
             database,
             markup,
-            kitty: KittyGraphics::new(cell_size),
+            kitty: KittyGraphics::new(settings.cell_size()),
             shortcuts: Shortcuts::new(),
             settings,
             is_running: true,
