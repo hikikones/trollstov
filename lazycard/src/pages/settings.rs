@@ -75,7 +75,7 @@ impl SettingsPage {
 
         Self {
             default: Config::new(settings.theme()),
-            saved: settings.as_config(),
+            saved: settings.config().clone(),
             saved_hash: hash,
             is_saved: true,
             list: List::new()
@@ -248,7 +248,7 @@ impl SettingsPage {
                 if ctrl && !self.is_saved {
                     match settings.save() {
                         Ok(_) => {
-                            self.saved = settings.as_config();
+                            self.saved = settings.config().clone();
                             self.saved_hash = settings.hash();
                             self.is_saved = true;
                             return Action::Render;

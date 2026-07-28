@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use ratatui::{
     CompletedFrame,
     buffer::Buffer,
@@ -71,8 +69,12 @@ impl<'a> AppRender<'a> {
 }
 
 impl App {
-    pub fn new(mut database: Database, assets_dir: PathBuf, settings: Settings) -> Self {
-        let mut markup = Markup::new(assets_dir, settings.cell_size(), settings.palette());
+    pub fn new(mut database: Database, settings: Settings) -> Self {
+        let mut markup = Markup::new(
+            settings.assets_dir().to_path_buf(),
+            settings.cell_size(),
+            settings.palette(),
+        );
         let pages = Pages::new(Route::DEFAULT, &settings, &mut database, &mut markup);
 
         Self {

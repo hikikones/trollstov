@@ -217,6 +217,24 @@ impl Default for TerminalCellSize {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct TerminalInfo {
+    pub theme: TerminalTheme,
+    pub palette: TerminalPalette,
+    pub cell_size: TerminalCellSize,
+}
+
+impl TerminalInfo {
+    pub fn query() -> Result<Self, TerminalQueryError> {
+        let palette = TerminalPalette::query()?;
+        Ok(Self {
+            theme: palette.theme(),
+            palette,
+            cell_size: TerminalCellSize::query()?,
+        })
+    }
+}
+
 fn query<'a>(code: &str, buffer: &'a mut [u8]) -> std::io::Result<Cow<'a, str>> {
     use std::io::{Read, Write};
 

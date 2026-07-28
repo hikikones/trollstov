@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
-use shared::terminal::{TerminalCellSize, TerminalPalette, TerminalTheme};
+use shared::terminal::{TerminalCellSize, TerminalInfo, TerminalPalette, TerminalTheme};
 use widgets::{
     ListColors, MarkupColors, ScrollbarColors, SyntaxHighlightTheme, TextEditorColors,
     TextInputColors, TokenListColors,
@@ -12,38 +12,43 @@ const VERSION: u8 = 0;
 
 pub struct Settings {
     config: Config,
-    path: PathBuf,
-    theme: TerminalTheme,
-    palette: TerminalPalette,
-    cell_size: TerminalCellSize,
+    config_file: PathBuf,
+    assets_dir: PathBuf,
+    info: TerminalInfo,
 }
 
 impl Settings {
-    pub const fn new(path: PathBuf, palette: TerminalPalette, cell_size: TerminalCellSize) -> Self {
-        let theme = palette.theme();
+    pub const fn new(config_file: PathBuf, assets_dir: PathBuf, info: TerminalInfo) -> Self {
         Self {
-            config: Config::new(theme),
-            path,
-            theme,
-            palette,
-            cell_size,
+            config: Config::new(info.theme),
+            config_file,
+            assets_dir,
+            info,
         }
+    }
+
+    pub const fn config(&self) -> &Config {
+        &self.config
     }
 
     pub const fn set_config(&mut self, config: Config) {
         self.config = config;
     }
 
+    pub fn assets_dir(&self) -> &Path {
+        &self.assets_dir
+    }
+
     pub const fn theme(&self) -> TerminalTheme {
-        self.theme
+        self.info.theme
     }
 
     pub const fn palette(&self) -> TerminalPalette {
-        self.palette
+        self.info.palette
     }
 
     pub const fn cell_size(&self) -> TerminalCellSize {
-        self.cell_size
+        self.info.cell_size
     }
 
     pub const fn desired_retention(&self) -> u8 {
@@ -88,7 +93,7 @@ impl Settings {
 
     pub const fn markup_colors(&self) -> MarkupColors {
         MarkupColors {
-            syntax_theme: match self.theme {
+            syntax_theme: match self.info.theme {
                 TerminalTheme::Dark => SyntaxHighlightTheme::Base16EightiesDark,
                 TerminalTheme::Light => SyntaxHighlightTheme::InspiredGitHub,
             },
@@ -98,10 +103,47 @@ impl Settings {
     }
 
     pub fn read(
-        path: impl AsRef<Path>,
-        palette: TerminalPalette,
-        cell_size: TerminalCellSize,
+        config_file: PathBuf,
+        assets_dir: PathBuf,
+        info: TerminalInfo,
     ) -> Result<Self, String> {
+        let config = Config::read(&config_file)?;
+        Ok(Self {
+            config,
+            config_file,
+            assets_dir,
+            info,
+        })
+    }
+
+    pub fn save(&self) -> Result<(), String> {
+        self.config.save(&self.config_file)
+    }
+
+    pub fn hash(&self) -> u64 {
+        self.config.hash()
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Config {
+    version: u8,
+    general: General,
+    colors: Colors,
+}
+
+impl Config {
+    pub const fn new(theme: TerminalTheme) -> Self {
+        Self {
+            version: VERSION,
+            general: General {
+                desired_retention: 80,
+            },
+            colors: Colors::new(theme),
+        }
+    }
+
+    pub fn read(path: impl AsRef<Path>) -> Result<Self, String> {
         let path = path.as_ref();
         let bytes = std::fs::read(path).map_err(|err| {
             format!(
@@ -124,7 +166,7 @@ impl Settings {
             )
         })?;
 
-        let config: Config = match version {
+        let config: Self = match version {
             VERSION => toml::from_slice(&bytes).map_err(|err| {
                 format!(
                     "Failed to deserialize settings from '{}' due to {}",
@@ -138,18 +180,12 @@ impl Settings {
             ))?,
         };
 
-        Ok(Self {
-            config,
-            path: path.to_path_buf(),
-            theme: palette.theme(),
-            palette,
-            cell_size,
-        })
+        Ok(config)
     }
 
-    pub fn save(&self) -> Result<(), String> {
-        let path = self.path.as_path();
-        let toml = toml::to_string(&self.config)
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<(), String> {
+        let path = path.as_ref();
+        let toml = toml::to_string(self)
             .map_err(|err| format!("Failed to serialize settings due to {}", err))?;
         std::fs::write(path, toml).map_err(|err| {
             format!(
@@ -163,36 +199,7 @@ impl Settings {
     }
 
     pub fn hash(&self) -> u64 {
-        self.config.hash()
-    }
-
-    pub fn as_config(&self) -> Config {
-        self.config.clone()
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Config {
-    version: u8,
-    general: General,
-    colors: Colors,
-}
-
-impl Config {
-    pub const fn new(theme: TerminalTheme) -> Self {
-        Self {
-            version: VERSION,
-            general: General {
-                desired_retention: 80,
-            },
-            colors: Colors::new(theme),
-        }
-    }
-
-    pub fn hash(&self) -> u64 {
-        toml::to_string(self)
-            .map(|s| utils::hash_fast(s))
-            .unwrap_or(0)
+        toml::to_string(self).map(utils::hash_fast).unwrap_or(0)
     }
 }
 

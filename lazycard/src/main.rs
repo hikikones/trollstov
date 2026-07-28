@@ -1,23 +1,20 @@
 use lazycard::{app::App, database::Database, settings::Settings};
-use shared::terminal::{Terminal, TerminalCellSize, TerminalPalette};
+use shared::terminal::{Terminal, TerminalInfo};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Args = clap::Parser::parse();
-
-    let palette = query_colors()?;
-    let cell_size = query_cell_size()?;
-    let settings = read_settings(args.settings, palette, cell_size)?;
 
     #[cfg(debug_assertions)]
     let database = open_dev_database(args.database)?;
     #[cfg(not(debug_assertions))]
     let database = open_database(args.database)?;
 
-    let assets_dir = get_or_create_assets_dir(args.assets)?;
+    let term_info = query_term_info()?;
+    let settings = read_settings(args.settings, args.assets, term_info)?;
 
     let mut terminal = Terminal::init()?;
 
-    let mut app = App::new(database, assets_dir, settings);
+    let mut app = App::new(database, settings);
     let res = app.run(&mut terminal);
     app.quit()?;
 
@@ -54,14 +51,9 @@ const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Sty
     .valid(clap_cargo::style::VALID)
     .invalid(clap_cargo::style::INVALID);
 
-fn query_colors() -> Result<shared::terminal::TerminalPalette, String> {
-    shared::terminal::TerminalPalette::query()
-        .map_err(|err| format!("Failed to get terminal colors: {}", err))
-}
-
-fn query_cell_size() -> Result<shared::terminal::TerminalCellSize, String> {
-    shared::terminal::TerminalCellSize::query()
-        .map_err(|err| format!("Failed to get terminal cell size: {}", err))
+fn query_term_info() -> Result<shared::terminal::TerminalInfo, String> {
+    shared::terminal::TerminalInfo::query()
+        .map_err(|err| format!("Failed to get terminal info: {}", err))
 }
 
 fn open_database(path: Option<std::path::PathBuf>) -> Result<Database, String> {
@@ -106,6 +98,42 @@ fn open_dev_database(path: Option<std::path::PathBuf>) -> Result<Database, Strin
     }
 }
 
+fn read_settings(
+    config_file: Option<std::path::PathBuf>,
+    assets_dir: Option<std::path::PathBuf>,
+    info: TerminalInfo,
+) -> Result<Settings, String> {
+    fn get_default_config_file() -> Option<std::path::PathBuf> {
+        const FILENAME: &str = "settings.toml";
+        directories::ProjectDirs::from(
+            lazycard::APP_QUALIFIER,
+            lazycard::APP_ORGANIZATION,
+            lazycard::APP_NAME,
+        )
+        .map(|project_dirs| project_dirs.config_dir().join(FILENAME))
+    }
+
+    let config_file = match config_file {
+        Some(path) => path,
+        None => match get_default_config_file() {
+            Some(path) => path,
+            None => {
+                return Err(
+                    "Failed to get a default settings file path from the operating system",
+                )?;
+            }
+        },
+    };
+
+    let assets_dir = get_or_create_assets_dir(assets_dir)?;
+
+    if !config_file.exists() {
+        return Ok(Settings::new(config_file, assets_dir, info));
+    }
+
+    Settings::read(config_file, assets_dir, info)
+}
+
 fn get_or_create_assets_dir(
     path: Option<std::path::PathBuf>,
 ) -> Result<std::path::PathBuf, String> {
@@ -133,7 +161,7 @@ fn get_or_create_assets_dir(
     if !dir.exists() {
         std::fs::create_dir_all(&dir).map_err(|err| {
             format!(
-                "Failed to create assets directory at \"{}\" due to {}",
+                "Failed to create assets directory at '{}' due to {}",
                 dir.display(),
                 err
             )
@@ -142,44 +170,10 @@ fn get_or_create_assets_dir(
     // If already exists, make sure it is actually a dir
     else if !dir.is_dir() {
         return Err(format!(
-            "Assets directory \"{}\" is not a directory",
+            "Assets directory '{}' is not a directory",
             dir.display()
         ))?;
     }
 
     Ok(dir)
-}
-
-fn read_settings(
-    path: Option<std::path::PathBuf>,
-    palette: TerminalPalette,
-    cell_size: TerminalCellSize,
-) -> Result<Settings, String> {
-    fn get_default_config_file() -> Option<std::path::PathBuf> {
-        const FILENAME: &str = "settings.toml";
-        directories::ProjectDirs::from(
-            lazycard::APP_QUALIFIER,
-            lazycard::APP_ORGANIZATION,
-            lazycard::APP_NAME,
-        )
-        .map(|project_dirs| project_dirs.config_dir().join(FILENAME))
-    }
-
-    let file = match path {
-        Some(path) => path,
-        None => match get_default_config_file() {
-            Some(path) => path,
-            None => {
-                return Err(
-                    "Failed to get a default settings file path from the operating system",
-                )?;
-            }
-        },
-    };
-
-    if !file.exists() {
-        return Ok(Settings::new(file.to_path_buf(), palette, cell_size));
-    }
-
-    Settings::read(file, palette, cell_size)
 }
