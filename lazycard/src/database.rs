@@ -8,7 +8,6 @@ pub use scheduler::*;
 
 pub type DatabaseResult<T> = Result<T, DatabaseError>;
 
-// TODO: Add CardType enum. Consider a card with no reveal marks as a note.
 // TODO: When searching, also include tag names?
 // TODO: Add tests.
 
@@ -53,7 +52,10 @@ impl Database {
 
     pub fn add_card(&self, content: &str) -> CardId {
         self.sqlite
-            .execute("INSERT INTO cards (content) VALUES (?)", [content])
+            .execute(
+                "INSERT INTO cards (content, kind) VALUES (?1, ?2)",
+                (content, CardKind::from_markup(content)),
+            )
             .unwrap();
         CardId(self.sqlite.last_insert_rowid())
     }
@@ -142,8 +144,9 @@ impl Database {
     pub fn get_due_count(&self) -> u32 {
         self.sqlite
             .query_single(
-                "SELECT COUNT(id) FROM cards WHERE due_time <= (unixepoch('now'))",
-                (),
+                "SELECT COUNT(id) FROM cards \
+                WHERE due_time <= (unixepoch('now')) AND kind = ?",
+                [CardKind::Flashcard],
                 |row| row.get(0),
             )
             .unwrap()
@@ -152,8 +155,9 @@ impl Database {
     pub fn get_due_cards(&self, mut f: impl FnMut(CardId)) {
         self.sqlite
             .query(
-                "SELECT id FROM cards WHERE due_time <= (unixepoch('now'))",
-                (),
+                "SELECT id FROM cards \
+                WHERE due_time <= (unixepoch('now')) AND kind = ?",
+                [CardKind::Flashcard],
                 |row| Ok(f(row.get(0)?)),
             )
             .unwrap();
@@ -167,12 +171,12 @@ impl Database {
         self.sqlite
             .query_first(
                 "
-            SELECT id, due_time FROM cards \
-            WHERE due_time <= (unixepoch('now')) AND id != ? \
+            SELECT id FROM cards \
+            WHERE due_time <= (unixepoch('now')) AND id != ?1 AND kind = ?2 \
             ORDER BY RANDOM() \
             LIMIT 1
             ",
-                [id],
+                (id, CardKind::Flashcard),
                 |row| row.get(0),
             )
             .unwrap()
@@ -213,7 +217,10 @@ impl Database {
 
     pub fn update_card(&self, id: CardId, content: &str) {
         self.sqlite
-            .execute("UPDATE cards SET content = ?1 WHERE id = ?2", (content, id))
+            .execute(
+                "UPDATE cards SET content = ?1, kind = ?2 WHERE id = ?3",
+                (content, CardKind::from_markup(content), id),
+            )
             .unwrap();
     }
 
@@ -221,8 +228,9 @@ impl Database {
         let (create_time, stability, difficulty) = self
             .sqlite
             .query_single(
-                "SELECT create_time, stability, difficulty FROM cards WHERE id = ?",
-                [id],
+                "SELECT create_time, stability, difficulty FROM cards \
+                WHERE id = ?1 AND kind = ?2",
+                (id, CardKind::Flashcard),
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .unwrap();
@@ -464,6 +472,42 @@ impl FromSql for CardId {
     }
 }
 
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum CardKind {
+    Flashcard = 0,
+    Note = 1,
+}
+
+impl CardKind {
+    pub fn from_markup(markup: &str) -> Self {
+        if widgets::Markup::parse_break_points(markup).count() > 1 {
+            Self::Flashcard
+        } else {
+            Self::Note
+        }
+    }
+}
+
+impl ToSql for CardKind {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+        Ok(ToSqlOutput::Owned(Value::Integer(*self as i64)))
+    }
+}
+
+impl FromSql for CardKind {
+    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+        value.as_i64().and_then(|n| match n {
+            0 => Ok(Self::Flashcard),
+            1 => Ok(Self::Note),
+            _ => Err(FromSqlError::Other(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("invalid card kind: {n}"),
+            )))),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ReviewId(SqliteId);
 
@@ -523,6 +567,7 @@ fn add_dev_data(db: &Database) {
     let cid1 = db.add_card(LOREM);
     let cid2 = db.add_card(MARKUP);
     let cid3 = db.add_card(EMOJI_TAB);
+    let cid4 = db.add_card(PICARD);
     let tid1 = db.add_tag("lorem").unwrap();
     let tid2 = db.add_tag("rust").unwrap();
     let tid3 = db.add_tag("image").unwrap();
@@ -579,11 +624,43 @@ fn main() {
 
 ![  ]( assets/meow.png )
 
+---
+
 Lorem ipsum dolor sit amet,
 consectetur adipiscing elit.
 Donec fermentum ipsum nec sagittis feugiat.
 Curabitur pulvinar et orci luctus faucibus.
 In erat justo, placerat et risus quis, cursus elementum mi.
+
+$$
+\begin{aligned}
+\int_{0}^{\infty}
+\left(
+\sum_{n=1}^{\infty}
+\frac{(-1)^{n-1}x^{n}}{n!}
+\right)
+e^{-x}\,dx
+&=
+\sum_{n=1}^{\infty}
+\frac{(-1)^{n-1}}{n!}
+\int_{0}^{\infty}
+x^{n}e^{-x}\,dx
+\\[1em]
+&=
+\sum_{n=1}^{\infty}
+(-1)^{n-1}
+\frac{\Gamma(n+1)}{n!}
+\\[1em]
+&=
+\sum_{n=1}^{\infty}
+(-1)^{n-1}
+\\[1em]
+&=
+\frac{1}{2}.
+\end{aligned}
+$$
+
+---
 
 ![ image description text ]( assets/tall2.jpg )
 
@@ -603,3 +680,6 @@ const EMOJI_TAB: &str = "👻 oijwqwu qwdiowhq  i hio h qiowhqwheqw👻👻 wwq 
 qiuwhdidwh👻👻👻❤️\n\nauhui ❤️awudhia\n🧑‍🌾❤️👨‍🦰jfpkw huiw wjwioj ijf \
 weoijwioejfiowejfiowjfiowej\n\nthis\tis\ta\tparagraph\twith\ttabs\n\n\
 ```rust\nfn main() {\n\tprintln!(\"Hello, world!\");\n}\n```";
+
+#[cfg(debug_assertions)]
+const PICARD: &str = "|❝_It is possible to commit no mistakes and still lose.\nThat is not a weakness. That is life._❞\n\nWho is this quote from?\n\n---\n\n![Jean-Luc Picard](picard2.jpg)";

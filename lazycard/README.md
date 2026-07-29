@@ -28,6 +28,8 @@ Cards are written in a custom lightweight markup language, inspired by both [Mar
 
 Use `---` to mark reveal points in a card. You can have as many as you like. During review, cards are revealed one section at a time until the entire card is visible. At that point, you simply answer yes or no based on whether you successfully recalled everything.
 
+A card with no reveal marks is considered a plain note, and will not show up in reviews.
+
 The following table shows the entire syntax available.
 
 <table align="center">

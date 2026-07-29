@@ -1,6 +1,7 @@
 CREATE TABLE cards (
     id INTEGER PRIMARY KEY,
     content TEXT NOT NULL,
+    kind INTEGER NOT NULL,
     create_time INTEGER DEFAULT (unixepoch('now')) NOT NULL,
     update_time INTEGER DEFAULT (unixepoch('now')) NOT NULL,
 
