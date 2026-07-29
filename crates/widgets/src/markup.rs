@@ -280,6 +280,13 @@ impl Markup {
                         alignment,
                     });
                 }
+                BlockElement::Heading { text, alignment } => {
+                    // TODO: No empty line after heading
+                    self.plain.items.push(MarkupPlain::Heading {
+                        text: self.plain.formatter.push_str(text),
+                        alignment,
+                    });
+                }
                 BlockElement::List { items } => {
                     for item in items {
                         self.plain.items.push(MarkupPlain::ListItem {
@@ -410,6 +417,18 @@ impl Markup {
                     ),
                     alignment,
                 },
+                MarkupPlain::Heading { text, alignment } => {
+                    self.rich.writer.push_tag(AnsiTag::Bold);
+                    self.rich.writer.push_tag(AnsiTag::FgYellow); // TODO: Use secondary color
+                    self.rich.writer.push_str(self.plain.formatter.slice(text));
+
+                    self.rich.writer.textwrap(width);
+
+                    let range = self.rich.formatter.push_str(self.rich.writer.as_str());
+                    self.rich.writer.clear();
+
+                    MarkupRich::Text { range, alignment }
+                }
                 MarkupPlain::ListItem { text } => MarkupRich::Text {
                     range: markup_to_rich_ansi(
                         self.plain.formatter.slice(text),
@@ -615,23 +634,22 @@ impl Markup {
 
                 while let Some((block, _)) = self.blocks.next() {
                     match block {
-                        BlockElement::Paragraph { .. } => {
+                        BlockElement::Paragraph { .. }
+                        | BlockElement::Code { .. }
+                        | BlockElement::Math { .. } => {
                             self.len += 1;
+                        }
+                        BlockElement::Heading { .. } => {
+                            self.len += 1; // TODO: No empty line after heading
                         }
                         BlockElement::List { items } => {
                             self.len += items.count();
-                        }
-                        BlockElement::Code { .. } => {
-                            self.len += 1;
                         }
                         BlockElement::Image { description, .. } => {
                             self.len += 1;
                             if !description.is_empty() {
                                 self.len += 1;
                             }
-                        }
-                        BlockElement::Math { .. } => {
-                            self.len += 1;
                         }
                         BlockElement::Comment { .. } => continue,
                         BlockElement::Break => {
@@ -671,6 +689,10 @@ pub enum ScrollMove {
 #[derive(Debug, Clone)]
 enum MarkupPlain {
     Paragraph {
+        text: Range<usize>,
+        alignment: Alignment,
+    },
+    Heading {
         text: Range<usize>,
         alignment: Alignment,
     },
@@ -956,6 +978,7 @@ impl Default for MarkupColors {
 #[derive(Debug)]
 enum BlockElement<'a> {
     Paragraph { text: &'a str, alignment: Alignment },
+    Heading { text: &'a str, alignment: Alignment },
     List { items: ListItems<'a> },
     Code { language: &'a str, text: &'a str },
     // TODO: Table
@@ -997,6 +1020,32 @@ impl<'a> BlockParser<'a> {
         return (
             BlockElement::Paragraph {
                 text: self.input[paragraph_start..paragraph_end].trim(),
+                alignment,
+            },
+            start..end,
+        );
+    }
+
+    fn parse_heading(&mut self, start: usize) -> (BlockElement<'a>, Range<usize>) {
+        let count = self.graphemes.count_consecutive("=", usize::MAX);
+        let (alignment, offset) = match self.graphemes.next() {
+            Some((_, g)) => match g {
+                "|" => (Alignment::Center, 1),
+                ">" => (Alignment::Right, 1),
+                _ => (Alignment::Left, 0),
+            },
+            None => return self.parse_paragraph(start, Alignment::Left),
+        };
+
+        let heading_start = start + 1 + count + offset;
+        let (heading_end, end) = match self.graphemes.find_newline() {
+            Some((i, g)) => (i, i + g.len()),
+            None => (self.input.len(), self.input.len()),
+        };
+
+        return (
+            BlockElement::Heading {
+                text: self.input[heading_start..heading_end].trim(),
                 alignment,
             },
             start..end,
@@ -1187,6 +1236,7 @@ impl<'a> Iterator for BlockParser<'a> {
                 let (block, range) = match g {
                     "|" => self.parse_paragraph(i, Alignment::Center),
                     ">" => self.parse_paragraph(i, Alignment::Right),
+                    "=" => self.parse_heading(i),
                     "#" => self.parse_comment(i),
                     "!" => self.parse_image(i),
                     "`" => {
