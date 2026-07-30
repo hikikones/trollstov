@@ -157,6 +157,236 @@ impl AnsiTag {
 
         Some(tag)
     }
+
+    pub const fn from_color_fg(color: Color) -> Self {
+        match color {
+            Color::Reset => Self::FgDefault,
+            Color::Black => Self::FgBlack,
+            Color::Red => Self::FgRed,
+            Color::Green => Self::FgGreen,
+            Color::Yellow => Self::FgYellow,
+            Color::Blue => Self::FgBlue,
+            Color::Magenta => Self::FgMagenta,
+            Color::Cyan => Self::FgCyan,
+            Color::Gray => Self::FgWhite,
+            Color::DarkGray => Self::FgBrightBlack,
+            Color::LightRed => Self::FgBrightRed,
+            Color::LightGreen => Self::FgBrightGreen,
+            Color::LightYellow => Self::FgBrightYellow,
+            Color::LightBlue => Self::FgBrightBlue,
+            Color::LightMagenta => Self::FgBrightMagenta,
+            Color::LightCyan => Self::FgBrightCyan,
+            Color::White => Self::FgBrightWhite,
+            Color::Rgb(r, g, b) => Self::FgTrueColor(r, g, b),
+            Color::Indexed(n) => Self::Fg256(n),
+        }
+    }
+
+    pub const fn from_color_bg(color: Color) -> Self {
+        match color {
+            Color::Reset => Self::BgDefault,
+            Color::Black => Self::BgBlack,
+            Color::Red => Self::BgRed,
+            Color::Green => Self::BgGreen,
+            Color::Yellow => Self::BgYellow,
+            Color::Blue => Self::BgBlue,
+            Color::Magenta => Self::BgMagenta,
+            Color::Cyan => Self::BgCyan,
+            Color::Gray => Self::BgWhite,
+            Color::DarkGray => Self::BgBrightBlack,
+            Color::LightRed => Self::BgBrightRed,
+            Color::LightGreen => Self::BgBrightGreen,
+            Color::LightYellow => Self::BgBrightYellow,
+            Color::LightBlue => Self::BgBrightBlue,
+            Color::LightMagenta => Self::BgBrightMagenta,
+            Color::LightCyan => Self::BgBrightCyan,
+            Color::White => Self::BgBrightWhite,
+            Color::Rgb(r, g, b) => Self::BgTrueColor(r, g, b),
+            Color::Indexed(n) => Self::Bg256(n),
+        }
+    }
+
+    pub fn as_style(self) -> Style {
+        let mut style = Style::new();
+        self.apply_to_style(&mut style);
+        style
+    }
+
+    pub fn apply_to_style(self, style: &mut Style) {
+        match self {
+            AnsiTag::Reset => {
+                *style = Style::new();
+            }
+            AnsiTag::Bold => {
+                style.add_modifier.insert(Modifier::BOLD);
+            }
+            AnsiTag::Faint => {
+                style.add_modifier.insert(Modifier::DIM);
+            }
+            AnsiTag::Italic => {
+                style.add_modifier.insert(Modifier::ITALIC);
+            }
+            AnsiTag::Underline => {
+                style.add_modifier.insert(Modifier::UNDERLINED);
+            }
+            AnsiTag::SlowBlink => {
+                style.add_modifier.insert(Modifier::SLOW_BLINK);
+            }
+            AnsiTag::RapidBlink => {
+                style.add_modifier.insert(Modifier::RAPID_BLINK);
+            }
+            AnsiTag::Reverse => {
+                style.add_modifier.insert(Modifier::REVERSED);
+            }
+            AnsiTag::Conceal => {
+                style.add_modifier.insert(Modifier::HIDDEN);
+            }
+            AnsiTag::CrossedOut => {
+                style.add_modifier.insert(Modifier::CROSSED_OUT);
+            }
+            // AnsiTag::Framed => todo!(),
+            // AnsiTag::Encircled => todo!(),
+            // AnsiTag::Overlined => todo!(),
+            AnsiTag::NotBold => {
+                style.add_modifier.remove(Modifier::BOLD);
+            }
+            AnsiTag::NotItalic => {
+                style.add_modifier.remove(Modifier::ITALIC);
+            }
+            AnsiTag::NotUnderline => {
+                style.add_modifier.remove(Modifier::UNDERLINED);
+            }
+            AnsiTag::NotBlink => {
+                style.add_modifier.remove(Modifier::SLOW_BLINK);
+                style.add_modifier.remove(Modifier::RAPID_BLINK);
+            }
+            AnsiTag::NotReverse => {
+                style.add_modifier.remove(Modifier::REVERSED);
+            }
+            AnsiTag::Reveal => {
+                style.add_modifier.remove(Modifier::HIDDEN);
+            }
+            AnsiTag::NotCrossedOut => {
+                style.add_modifier.remove(Modifier::CROSSED_OUT);
+            }
+            // AnsiTag::NotFramedOrEncircled => todo!(),
+            // AnsiTag::NotOverlined => todo!(),
+            AnsiTag::FgBlack => {
+                style.fg = Some(Color::Black);
+            }
+            AnsiTag::FgRed => {
+                style.fg = Some(Color::Red);
+            }
+            AnsiTag::FgGreen => {
+                style.fg = Some(Color::Green);
+            }
+            AnsiTag::FgYellow => {
+                style.fg = Some(Color::Yellow);
+            }
+            AnsiTag::FgBlue => {
+                style.fg = Some(Color::Blue);
+            }
+            AnsiTag::FgMagenta => {
+                style.fg = Some(Color::Magenta);
+            }
+            AnsiTag::FgCyan => {
+                style.fg = Some(Color::Cyan);
+            }
+            AnsiTag::FgWhite => {
+                style.fg = Some(Color::Gray);
+            }
+            AnsiTag::FgBrightBlack => {
+                style.fg = Some(Color::DarkGray);
+            }
+            AnsiTag::FgBrightRed => {
+                style.fg = Some(Color::LightRed);
+            }
+            AnsiTag::FgBrightGreen => {
+                style.fg = Some(Color::LightGreen);
+            }
+            AnsiTag::FgBrightYellow => {
+                style.fg = Some(Color::LightYellow);
+            }
+            AnsiTag::FgBrightBlue => {
+                style.fg = Some(Color::LightBlue);
+            }
+            AnsiTag::FgBrightMagenta => {
+                style.fg = Some(Color::LightMagenta);
+            }
+            AnsiTag::FgBrightCyan => {
+                style.fg = Some(Color::LightCyan);
+            }
+            AnsiTag::FgBrightWhite => {
+                style.fg = Some(Color::White);
+            }
+            AnsiTag::FgDefault => {
+                style.fg = Some(Color::Reset);
+            }
+            AnsiTag::BgBlack => {
+                style.bg = Some(Color::Black);
+            }
+            AnsiTag::BgRed => {
+                style.bg = Some(Color::Red);
+            }
+            AnsiTag::BgGreen => {
+                style.bg = Some(Color::Green);
+            }
+            AnsiTag::BgYellow => {
+                style.bg = Some(Color::Yellow);
+            }
+            AnsiTag::BgBlue => {
+                style.bg = Some(Color::Blue);
+            }
+            AnsiTag::BgMagenta => {
+                style.bg = Some(Color::Magenta);
+            }
+            AnsiTag::BgCyan => {
+                style.bg = Some(Color::Cyan);
+            }
+            AnsiTag::BgWhite => {
+                style.bg = Some(Color::Gray);
+            }
+            AnsiTag::BgBrightBlack => {
+                style.bg = Some(Color::DarkGray);
+            }
+            AnsiTag::BgBrightRed => {
+                style.bg = Some(Color::LightRed);
+            }
+            AnsiTag::BgBrightGreen => {
+                style.bg = Some(Color::LightGreen);
+            }
+            AnsiTag::BgBrightYellow => {
+                style.bg = Some(Color::LightYellow);
+            }
+            AnsiTag::BgBrightBlue => {
+                style.bg = Some(Color::LightBlue);
+            }
+            AnsiTag::BgBrightMagenta => {
+                style.bg = Some(Color::LightMagenta);
+            }
+            AnsiTag::BgBrightCyan => {
+                style.bg = Some(Color::LightCyan);
+            }
+            AnsiTag::BgBrightWhite => {
+                style.bg = Some(Color::White);
+            }
+            AnsiTag::BgDefault => {
+                style.bg = Some(Color::Reset);
+            }
+            AnsiTag::Fg256(i) => {
+                style.fg = Some(Color::Indexed(i));
+            }
+            AnsiTag::Bg256(i) => {
+                style.bg = Some(Color::Indexed(i));
+            }
+            AnsiTag::FgTrueColor(r, g, b) => {
+                style.fg = Some(Color::Rgb(r, g, b));
+            }
+            AnsiTag::BgTrueColor(r, g, b) => {
+                style.bg = Some(Color::Rgb(r, g, b));
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for AnsiTag {
@@ -487,179 +717,9 @@ impl<'a> Iterator for AnsiParserWithStyle<'a> {
                 AnsiEvent::Text(s) => {
                     return Some((s, self.style));
                 }
-                AnsiEvent::Tag(tag) => match tag {
-                    AnsiTag::Reset => {
-                        self.style = Style::new();
-                    }
-                    AnsiTag::Bold => {
-                        self.style.add_modifier.insert(Modifier::BOLD);
-                    }
-                    AnsiTag::Faint => {
-                        self.style.add_modifier.insert(Modifier::DIM);
-                    }
-                    AnsiTag::Italic => {
-                        self.style.add_modifier.insert(Modifier::ITALIC);
-                    }
-                    AnsiTag::Underline => {
-                        self.style.add_modifier.insert(Modifier::UNDERLINED);
-                    }
-                    AnsiTag::SlowBlink => {
-                        self.style.add_modifier.insert(Modifier::SLOW_BLINK);
-                    }
-                    AnsiTag::RapidBlink => {
-                        self.style.add_modifier.insert(Modifier::RAPID_BLINK);
-                    }
-                    AnsiTag::Reverse => {
-                        self.style.add_modifier.insert(Modifier::REVERSED);
-                    }
-                    AnsiTag::Conceal => {
-                        self.style.add_modifier.insert(Modifier::HIDDEN);
-                    }
-                    AnsiTag::CrossedOut => {
-                        self.style.add_modifier.insert(Modifier::CROSSED_OUT);
-                    }
-                    // AnsiTag::Framed => todo!(),
-                    // AnsiTag::Encircled => todo!(),
-                    // AnsiTag::Overlined => todo!(),
-                    AnsiTag::NotBold => {
-                        self.style.add_modifier.remove(Modifier::BOLD);
-                    }
-                    AnsiTag::NotItalic => {
-                        self.style.add_modifier.remove(Modifier::ITALIC);
-                    }
-                    AnsiTag::NotUnderline => {
-                        self.style.add_modifier.remove(Modifier::UNDERLINED);
-                    }
-                    AnsiTag::NotBlink => {
-                        self.style.add_modifier.remove(Modifier::SLOW_BLINK);
-                        self.style.add_modifier.remove(Modifier::RAPID_BLINK);
-                    }
-                    AnsiTag::NotReverse => {
-                        self.style.add_modifier.remove(Modifier::REVERSED);
-                    }
-                    AnsiTag::Reveal => {
-                        self.style.add_modifier.remove(Modifier::HIDDEN);
-                    }
-                    AnsiTag::NotCrossedOut => {
-                        self.style.add_modifier.remove(Modifier::CROSSED_OUT);
-                    }
-                    // AnsiTag::NotFramedOrEncircled => todo!(),
-                    // AnsiTag::NotOverlined => todo!(),
-                    AnsiTag::FgBlack => {
-                        self.style.fg = Some(Color::Black);
-                    }
-                    AnsiTag::FgRed => {
-                        self.style.fg = Some(Color::Red);
-                    }
-                    AnsiTag::FgGreen => {
-                        self.style.fg = Some(Color::Green);
-                    }
-                    AnsiTag::FgYellow => {
-                        self.style.fg = Some(Color::Yellow);
-                    }
-                    AnsiTag::FgBlue => {
-                        self.style.fg = Some(Color::Blue);
-                    }
-                    AnsiTag::FgMagenta => {
-                        self.style.fg = Some(Color::Magenta);
-                    }
-                    AnsiTag::FgCyan => {
-                        self.style.fg = Some(Color::Cyan);
-                    }
-                    AnsiTag::FgWhite => {
-                        self.style.fg = Some(Color::Gray);
-                    }
-                    AnsiTag::FgBrightBlack => {
-                        self.style.fg = Some(Color::DarkGray);
-                    }
-                    AnsiTag::FgBrightRed => {
-                        self.style.fg = Some(Color::LightRed);
-                    }
-                    AnsiTag::FgBrightGreen => {
-                        self.style.fg = Some(Color::LightGreen);
-                    }
-                    AnsiTag::FgBrightYellow => {
-                        self.style.fg = Some(Color::LightYellow);
-                    }
-                    AnsiTag::FgBrightBlue => {
-                        self.style.fg = Some(Color::LightBlue);
-                    }
-                    AnsiTag::FgBrightMagenta => {
-                        self.style.fg = Some(Color::LightMagenta);
-                    }
-                    AnsiTag::FgBrightCyan => {
-                        self.style.fg = Some(Color::LightCyan);
-                    }
-                    AnsiTag::FgBrightWhite => {
-                        self.style.fg = Some(Color::White);
-                    }
-                    AnsiTag::FgDefault => {
-                        self.style.fg = Some(Color::Reset);
-                    }
-                    AnsiTag::BgBlack => {
-                        self.style.bg = Some(Color::Black);
-                    }
-                    AnsiTag::BgRed => {
-                        self.style.bg = Some(Color::Red);
-                    }
-                    AnsiTag::BgGreen => {
-                        self.style.bg = Some(Color::Green);
-                    }
-                    AnsiTag::BgYellow => {
-                        self.style.bg = Some(Color::Yellow);
-                    }
-                    AnsiTag::BgBlue => {
-                        self.style.bg = Some(Color::Blue);
-                    }
-                    AnsiTag::BgMagenta => {
-                        self.style.bg = Some(Color::Magenta);
-                    }
-                    AnsiTag::BgCyan => {
-                        self.style.bg = Some(Color::Cyan);
-                    }
-                    AnsiTag::BgWhite => {
-                        self.style.bg = Some(Color::Gray);
-                    }
-                    AnsiTag::BgBrightBlack => {
-                        self.style.bg = Some(Color::DarkGray);
-                    }
-                    AnsiTag::BgBrightRed => {
-                        self.style.bg = Some(Color::LightRed);
-                    }
-                    AnsiTag::BgBrightGreen => {
-                        self.style.bg = Some(Color::LightGreen);
-                    }
-                    AnsiTag::BgBrightYellow => {
-                        self.style.bg = Some(Color::LightYellow);
-                    }
-                    AnsiTag::BgBrightBlue => {
-                        self.style.bg = Some(Color::LightBlue);
-                    }
-                    AnsiTag::BgBrightMagenta => {
-                        self.style.bg = Some(Color::LightMagenta);
-                    }
-                    AnsiTag::BgBrightCyan => {
-                        self.style.bg = Some(Color::LightCyan);
-                    }
-                    AnsiTag::BgBrightWhite => {
-                        self.style.bg = Some(Color::White);
-                    }
-                    AnsiTag::BgDefault => {
-                        self.style.bg = Some(Color::Reset);
-                    }
-                    AnsiTag::Fg256(i) => {
-                        self.style.fg = Some(Color::Indexed(i));
-                    }
-                    AnsiTag::Bg256(i) => {
-                        self.style.bg = Some(Color::Indexed(i));
-                    }
-                    AnsiTag::FgTrueColor(r, g, b) => {
-                        self.style.fg = Some(Color::Rgb(r, g, b));
-                    }
-                    AnsiTag::BgTrueColor(r, g, b) => {
-                        self.style.bg = Some(Color::Rgb(r, g, b));
-                    }
-                },
+                AnsiEvent::Tag(tag) => {
+                    tag.apply_to_style(&mut self.style);
+                }
             }
         }
 
