@@ -571,7 +571,10 @@ impl<'a> AnsiParser<'a> {
     }
 
     pub const fn with_style(self) -> AnsiParserWithStyle<'a> {
-        AnsiParserWithStyle::from_parser(self)
+        AnsiParserWithStyle {
+            parser: self,
+            style: Style::new(),
+        }
     }
 
     fn parse_ansi_code(&mut self) -> Option<(usize, AnsiTag)> {
@@ -691,13 +694,6 @@ impl<'a> AnsiParserWithStyle<'a> {
     pub fn new(input: &'a str) -> Self {
         Self {
             parser: AnsiParser::new(input),
-            style: Style::new(),
-        }
-    }
-
-    pub const fn from_parser(parser: AnsiParser<'a>) -> Self {
-        Self {
-            parser,
             style: Style::new(),
         }
     }
