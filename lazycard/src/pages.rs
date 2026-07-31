@@ -215,7 +215,7 @@ impl Pages {
             State::Route => match self.route {
                 Route::Review => {
                     self.review
-                        .on_render(render, db, settings.colors(), markup, kitty, shortcuts)
+                        .on_render(render, settings.colors(), markup, kitty, shortcuts)
                 }
                 Route::Editor(_) => {
                     self.editor

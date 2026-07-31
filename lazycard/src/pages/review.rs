@@ -14,8 +14,7 @@ pub struct ReviewPage {
     total: u32,
     progress: u32,
     state: ReviewState,
-    breaks: Vec<usize>,
-    reveal_len: Option<usize>,
+    review: ReviewCard,
     desired_retention: f32,
 }
 
@@ -31,8 +30,7 @@ impl ReviewPage {
             total: 0,
             progress: 0,
             state: ReviewState::None,
-            breaks: Vec::new(),
-            reveal_len: None,
+            review: ReviewCard::new(),
             desired_retention: 0.0,
         }
     }
@@ -52,7 +50,6 @@ impl ReviewPage {
     pub fn on_render(
         &mut self,
         render: AppRender,
-        db: &Database,
         colors: &Colors,
         markup: &mut Markup,
         kitty: &mut KittyGraphics,
@@ -70,7 +67,7 @@ impl ReviewPage {
                     Some(widgets::Alignment::Center),
                 );
             }
-            ReviewState::Review(id) => {
+            ReviewState::Review(_id) => {
                 utils::format_int2(self.progress + 1, self.total, |progress, total| {
                     widgets::print_asciis(
                         area,
@@ -83,13 +80,9 @@ impl ReviewPage {
 
                 area.shrink_down(2);
 
-                db.get_card_content(id, |content| {
-                    markup
-                        .set_max_items(self.reveal_len)
-                        .render(area, buf, content, kitty);
-                });
+                markup.render(area, buf, self.review.content(), kitty);
 
-                if self.is_fully_revealed() {
+                if self.review.is_fully_revealed() {
                     shortcuts.extend([Shortcut::new("Yes", "y"), Shortcut::new("No", "n")]);
                 } else {
                     shortcuts.extend([Shortcut::new("Show", symbols::SPACE)]);
@@ -128,14 +121,14 @@ impl ReviewPage {
                     return Action::Render;
                 }
                 KeyCode::Char(' ') => {
-                    if !self.is_fully_revealed() {
-                        self.reveal_more();
+                    if !self.review.is_fully_revealed() {
+                        self.review.reveal_more();
                         markup.set_desired_scroll(ScrollMove::End);
                         return Action::Render;
                     }
                 }
                 KeyCode::Char('y' | 'n') => {
-                    if self.is_fully_revealed() {
+                    if self.review.is_fully_revealed() {
                         let success = key == KeyCode::Char('y');
                         db.review_card(id, success, self.desired_retention);
                         self.progress += 1;
@@ -169,8 +162,7 @@ impl ReviewPage {
         self.total = 0;
         self.progress = 0;
         self.state = ReviewState::None;
-        self.breaks.clear();
-        self.reveal_len = None;
+        self.review.clear();
     }
 
     fn next_card(&mut self, db: &Database, markup: &mut Markup) {
@@ -183,12 +175,9 @@ impl ReviewPage {
         match next_card {
             Some(id) => {
                 db.get_card_content(id, |content| {
-                    self.breaks.clear();
-                    self.breaks.extend(Markup::parse_break_points(content));
-                    self.breaks.reverse();
+                    self.review.start(content);
                 });
                 self.state = ReviewState::Review(id);
-                self.reveal_more();
                 markup.scroll(ScrollMove::Start);
             }
             None => {
@@ -197,19 +186,58 @@ impl ReviewPage {
         }
     }
 
-    fn reveal_more(&mut self) {
-        self.reveal_len = self.breaks.pop();
-    }
-
-    const fn is_fully_revealed(&self) -> bool {
-        self.breaks.is_empty()
-    }
-
     const fn is_done(&self) -> bool {
         self.progress == self.total
     }
 
     const fn has_more_cards(&self) -> bool {
         (self.total - self.progress) > 1
+    }
+}
+
+struct ReviewCard {
+    content: String,
+    reveals: Vec<usize>,
+    reveal_len: usize,
+}
+
+impl ReviewCard {
+    const fn new() -> Self {
+        Self {
+            content: String::new(),
+            reveals: Vec::new(),
+            reveal_len: 0,
+        }
+    }
+
+    fn content(&self) -> &str {
+        &self.content[..self.reveal_len]
+    }
+
+    fn start(&mut self, content: &str) {
+        self.clear();
+
+        self.content.push_str(content);
+        self.reveals.extend(
+            widgets::BlockParser::new(content)
+                .filter(|(b, _)| matches!(b, widgets::BlockElement::Break))
+                .map(|(_, range)| range.start),
+        );
+        self.reveals.reverse();
+        self.reveal_more();
+    }
+
+    fn reveal_more(&mut self) {
+        self.reveal_len = self.reveals.pop().unwrap_or(self.content.len());
+    }
+
+    const fn is_fully_revealed(&self) -> bool {
+        self.reveal_len == self.content.len()
+    }
+
+    fn clear(&mut self) {
+        self.content.clear();
+        self.reveals.clear();
+        self.reveal_len = 0;
     }
 }

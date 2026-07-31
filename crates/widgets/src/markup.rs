@@ -24,6 +24,8 @@ use crate::{
     text_span::TextSpan,
 };
 
+// TODO: Cache image loads.
+
 pub struct Markup {
     plain: MarkupPlainData,
     rich: MarkupRichData,
@@ -75,11 +77,6 @@ impl Markup {
         self
     }
 
-    pub const fn set_max_items(&mut self, max: Option<usize>) -> &mut Self {
-        self.scroll.max_items = max;
-        self
-    }
-
     pub fn input(&mut self, key: KeyCode) -> bool {
         match key {
             KeyCode::Down => self.scroll(ScrollMove::Down),
@@ -109,6 +106,9 @@ impl Markup {
             return;
         }
 
+        // TODO: Parse and load markup only once when hash changes. Reset size.
+        // Process markup whenever size changes.
+
         let hash = utils::hash_fast(markup);
         if self.cache.size != area.as_size() || self.cache.hash != hash {
             self.cache.size = area.as_size();
@@ -135,7 +135,7 @@ impl Markup {
         }
 
         // Scroll
-        self.update_scroll(kitty);
+        self.update_scroll();
         self.render_scrollbar(buf);
 
         // Setup
@@ -147,7 +147,7 @@ impl Markup {
         let mut current_line = 0;
 
         // Render
-        for item in self.rich.items.iter().cloned().take(self.max_items()) {
+        for item in self.rich.items.iter().cloned() {
             if area.height == 0 {
                 break;
             }
@@ -543,9 +543,7 @@ impl Markup {
             ))
     }
 
-    fn update_scroll(&mut self, kitty: &KittyGraphics) {
-        self.scroll.max_lines = self.compute_max_lines(kitty);
-
+    fn update_scroll(&mut self) {
         let height = self.cache.area.height;
         match self.scroll.desired.take() {
             Some(sm) => {
@@ -555,7 +553,7 @@ impl Markup {
                 self.scroll.current = self
                     .scroll
                     .current
-                    .min(self.scroll.max_lines.saturating_sub(height));
+                    .min(self.scroll.total_lines.saturating_sub(height));
             }
         }
     }
@@ -574,20 +572,12 @@ impl Markup {
         .render(scroll_area, buf);
     }
 
-    fn compute_max_lines(&self, kitty: &KittyGraphics) -> u16 {
-        self.compute_lines(self.max_items(), self.cache.area.width, kitty)
-    }
-
     fn compute_total_lines(&self, kitty: &KittyGraphics) -> u16 {
-        self.compute_lines(self.rich.items.len(), self.cache.area.width, kitty)
-    }
-
-    fn compute_lines(&self, max_items: usize, max_width: u16, kitty: &KittyGraphics) -> u16 {
+        let max_width = self.cache.area.width;
         self.rich
             .items
             .iter()
             .cloned()
-            .take(max_items)
             .map(|item| match item {
                 MarkupRich::Text { range, .. } => {
                     self.rich.formatter.slice(range).lines().count() as u16
@@ -600,79 +590,6 @@ impl Markup {
                 MarkupRich::Break | MarkupRich::EmptyLine => 1,
             })
             .sum()
-    }
-
-    const fn max_items(&self) -> usize {
-        match self.scroll.max_items {
-            Some(max) => max,
-            None => self.rich.items.len(),
-        }
-    }
-
-    /// Returns the index before every break point in the `markup`,
-    /// including the last index. Useful for [`set_max_items`](Self::set_max_items).
-    pub fn parse_break_points(markup: &str) -> impl Iterator<Item = usize> {
-        struct Breaks<'a> {
-            blocks: BlockParser<'a>,
-            len: usize,
-        }
-
-        impl<'a> Breaks<'a> {
-            fn new(markup: &'a str) -> Self {
-                Self {
-                    blocks: BlockParser::new(markup),
-                    len: 0,
-                }
-            }
-        }
-
-        impl<'a> Iterator for Breaks<'a> {
-            type Item = usize;
-
-            fn next(&mut self) -> Option<Self::Item> {
-                let len = self.len;
-
-                while let Some((block, _)) = self.blocks.next() {
-                    match block {
-                        BlockElement::Paragraph { .. }
-                        | BlockElement::Code { .. }
-                        | BlockElement::Math { .. } => {
-                            self.len += 1;
-                        }
-                        BlockElement::Heading { .. } => {
-                            self.len += 1; // TODO: No empty line after heading
-                        }
-                        BlockElement::List { items } => {
-                            self.len += items.count();
-                        }
-                        BlockElement::Image { description, .. } => {
-                            self.len += 1;
-                            if !description.is_empty() {
-                                self.len += 1;
-                            }
-                        }
-                        BlockElement::Comment { .. } => continue,
-                        BlockElement::Break => {
-                            let i = self.len;
-                            self.len += 2;
-                            return Some(i);
-                        }
-                    }
-
-                    // EmptyLine
-                    self.len += 1;
-                }
-
-                if len == self.len {
-                    None
-                } else {
-                    // No last EmptyLine
-                    Some(self.len.saturating_sub(1))
-                }
-            }
-        }
-
-        Breaks::new(markup)
     }
 }
 
@@ -783,8 +700,6 @@ impl MarkupRichData {
 struct MarkupScroll {
     current: u16,
     desired: Option<ScrollMove>,
-    max_items: Option<usize>,
-    max_lines: u16,
     total_lines: u16,
 }
 
@@ -793,8 +708,6 @@ impl MarkupScroll {
         Self {
             current: 0,
             desired: None,
-            max_items: None,
-            max_lines: 0,
             total_lines: 0,
         }
     }
@@ -803,22 +716,19 @@ impl MarkupScroll {
         self.current = match sm {
             ScrollMove::Up => self.current.saturating_sub(1),
             ScrollMove::Down => {
-                (self.current + 1).min(self.max_lines.saturating_sub(viewport_height))
+                (self.current + 1).min(self.total_lines.saturating_sub(viewport_height))
             }
             ScrollMove::PageUp => self.current.saturating_sub(viewport_height),
-            ScrollMove::PageDown => {
-                (self.current + viewport_height).min(self.max_lines.saturating_sub(viewport_height))
-            }
+            ScrollMove::PageDown => (self.current + viewport_height)
+                .min(self.total_lines.saturating_sub(viewport_height)),
             ScrollMove::Start => 0,
-            ScrollMove::End => self.max_lines.saturating_sub(viewport_height),
+            ScrollMove::End => self.total_lines.saturating_sub(viewport_height),
         };
     }
 
     fn clear(&mut self) {
         self.current = 0;
         self.desired = None;
-        self.max_items = None;
-        self.max_lines = 0;
         self.total_lines = 0;
     }
 }
@@ -976,7 +886,7 @@ impl Default for MarkupColors {
 }
 
 #[derive(Debug)]
-enum BlockElement<'a> {
+pub enum BlockElement<'a> {
     Paragraph { text: &'a str, alignment: Alignment },
     Heading { text: &'a str, alignment: Alignment },
     List { items: ListItems<'a> },
@@ -988,7 +898,7 @@ enum BlockElement<'a> {
     Break,
 }
 
-struct BlockParser<'a> {
+pub struct BlockParser<'a> {
     input: &'a str,
     graphemes: utils::PeekableGraphemesPrevious<'a>,
 }
@@ -1058,7 +968,7 @@ impl<'a> Iterator for BlockParser<'a> {
 }
 
 impl<'a> BlockParser<'a> {
-    fn new(input: &'a str) -> Self {
+    pub fn new(input: &'a str) -> Self {
         Self {
             input,
             graphemes: utils::PeekableGraphemesPrevious::new(input),
@@ -1288,7 +1198,7 @@ impl<'a> BlockParser<'a> {
 }
 
 #[derive(Debug)]
-struct ListItems<'a> {
+pub struct ListItems<'a> {
     text: &'a str,
     graphemes: utils::PeekableGraphemesPrevious<'a>,
     start: usize,

@@ -14,6 +14,9 @@ use crate::{
     settings::Settings,
 };
 
+// TODO: Add modals for tag editing? If so, remove tags page.
+// TODO: Remove settings page? Just edit raw config file like a real terminal warrior.
+
 pub struct App {
     pages: Pages,
     database: Database,

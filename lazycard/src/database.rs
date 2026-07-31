@@ -481,7 +481,10 @@ pub enum CardKind {
 
 impl CardKind {
     pub fn from_markup(markup: &str) -> Self {
-        if widgets::Markup::parse_break_points(markup).count() > 1 {
+        let breaks = widgets::BlockParser::new(markup)
+            .filter(|(b, _)| matches!(b, widgets::BlockElement::Break))
+            .count();
+        if breaks > 0 {
             Self::Flashcard
         } else {
             Self::Note
