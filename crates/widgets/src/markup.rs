@@ -993,6 +993,70 @@ struct BlockParser<'a> {
     graphemes: utils::PeekableGraphemesPrevious<'a>,
 }
 
+const MARKUP_CENTER: &str = "|";
+const MARKUP_RIGHT: &str = ">";
+const MARKUP_HEADING: &str = "=";
+const MARKUP_COMMENT: &str = "#";
+const MARKUP_IMAGE: &str = "!";
+const MARKUP_CODE: &str = "`";
+const MARKUP_LIST: &str = "-";
+const MARKUP_MATH: &str = "$";
+
+impl<'a> Iterator for BlockParser<'a> {
+    type Item = (BlockElement<'a>, Range<usize>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some((i, g)) = self.graphemes.next() {
+            if g.chars().any(char::is_whitespace) {
+                continue;
+            }
+
+            if let Some("\n") | Some("\r\n") | None = self.graphemes.previous() {
+                let (block, range) = match g {
+                    MARKUP_CENTER => self.parse_paragraph(i, Alignment::Center),
+                    MARKUP_RIGHT => self.parse_paragraph(i, Alignment::Right),
+                    MARKUP_HEADING => self.parse_heading(i),
+                    MARKUP_COMMENT => self.parse_comment(i),
+                    MARKUP_IMAGE => self.parse_image(i),
+                    MARKUP_CODE => {
+                        let ticks = 1 + self.graphemes.count_consecutive(MARKUP_CODE, usize::MAX);
+                        if ticks >= 3 {
+                            self.parse_code_block(i, ticks)
+                        } else {
+                            self.parse_paragraph(i, Alignment::Left)
+                        }
+                    }
+                    MARKUP_LIST => {
+                        let dashes = 1 + self.graphemes.count_consecutive(MARKUP_LIST, usize::MAX);
+                        if dashes == 1 {
+                            self.parse_list(i)
+                        } else if dashes == 3
+                            && self.graphemes.count_consecutive_by(|g| g.contains('\n'), 2) == 2
+                        {
+                            (BlockElement::Break, i..i + dashes + 2)
+                        } else {
+                            self.parse_paragraph(i, Alignment::Left)
+                        }
+                    }
+                    MARKUP_MATH => {
+                        if let Some((_, MARKUP_MATH)) = self.graphemes.next() {
+                            self.parse_math(i)
+                        } else {
+                            self.parse_paragraph(i, Alignment::Left)
+                        }
+                    }
+                    _ => self.parse_paragraph(i, Alignment::Left),
+                };
+                return Some((block, range));
+            } else {
+                return Some(self.parse_paragraph(i, Alignment::Left));
+            }
+        }
+
+        None
+    }
+}
+
 impl<'a> BlockParser<'a> {
     fn new(input: &'a str) -> Self {
         Self {
@@ -1027,11 +1091,11 @@ impl<'a> BlockParser<'a> {
     }
 
     fn parse_heading(&mut self, start: usize) -> (BlockElement<'a>, Range<usize>) {
-        let count = self.graphemes.count_consecutive("=", usize::MAX);
+        let count = self.graphemes.count_consecutive(MARKUP_HEADING, usize::MAX);
         let (alignment, offset) = match self.graphemes.next() {
             Some((_, g)) => match g {
-                "|" => (Alignment::Center, 1),
-                ">" => (Alignment::Right, 1),
+                MARKUP_CENTER => (Alignment::Center, 1),
+                MARKUP_RIGHT => (Alignment::Right, 1),
                 _ => (Alignment::Left, 0),
             },
             None => return self.parse_paragraph(start, Alignment::Left),
@@ -1191,7 +1255,7 @@ impl<'a> BlockParser<'a> {
     }
 
     fn parse_math(&mut self, start: usize) -> (BlockElement<'a>, Range<usize>) {
-        let Some((end_math, _)) = self.graphemes.find_consecutive("$", 2) else {
+        let Some((end_math, _)) = self.graphemes.find_consecutive(MARKUP_MATH, 2) else {
             return self.parse_paragraph(start, Alignment::Left);
         };
 
@@ -1220,61 +1284,6 @@ impl<'a> BlockParser<'a> {
         }
 
         (BlockElement::Math { text }, start..end)
-    }
-}
-
-impl<'a> Iterator for BlockParser<'a> {
-    type Item = (BlockElement<'a>, Range<usize>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while let Some((i, g)) = self.graphemes.next() {
-            if g.chars().any(|c| c.is_whitespace()) {
-                continue;
-            }
-
-            if let Some("\n") | Some("\r\n") | None = self.graphemes.previous() {
-                let (block, range) = match g {
-                    "|" => self.parse_paragraph(i, Alignment::Center),
-                    ">" => self.parse_paragraph(i, Alignment::Right),
-                    "=" => self.parse_heading(i),
-                    "#" => self.parse_comment(i),
-                    "!" => self.parse_image(i),
-                    "`" => {
-                        let ticks = 1 + self.graphemes.count_consecutive("`", usize::MAX);
-                        if ticks >= 3 {
-                            self.parse_code_block(i, ticks)
-                        } else {
-                            self.parse_paragraph(i, Alignment::Left)
-                        }
-                    }
-                    "-" => {
-                        let dashes = 1 + self.graphemes.count_consecutive("-", usize::MAX);
-                        if dashes == 1 {
-                            self.parse_list(i)
-                        } else if dashes == 3
-                            && self.graphemes.count_consecutive_by(|g| g.contains('\n'), 2) == 2
-                        {
-                            (BlockElement::Break, i..i + dashes + 2)
-                        } else {
-                            self.parse_paragraph(i, Alignment::Left)
-                        }
-                    }
-                    "$" => {
-                        if let Some((_, "$")) = self.graphemes.next() {
-                            self.parse_math(i)
-                        } else {
-                            self.parse_paragraph(i, Alignment::Left)
-                        }
-                    }
-                    _ => self.parse_paragraph(i, Alignment::Left),
-                };
-                return Some((block, range));
-            } else {
-                return Some(self.parse_paragraph(i, Alignment::Left));
-            }
-        }
-
-        None
     }
 }
 
