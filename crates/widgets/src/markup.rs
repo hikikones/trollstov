@@ -106,33 +106,9 @@ impl Markup {
             return;
         }
 
-        // TODO: Parse and load markup only once when hash changes. Reset size.
-        // Process markup whenever size changes.
-
-        let hash = utils::hash_fast(markup);
-        if self.cache.size != area.as_size() || self.cache.hash != hash {
-            self.cache.size = area.as_size();
-            self.cache.area = area.inner_padding(self.options.padding);
-            self.cache.hash = hash;
-            self.cache.scroll_area = None;
-
-            self.parse_and_load(markup, kitty);
-            self.process_markup(kitty);
-
-            if self.is_scrollable() {
-                let scroll_area = Scrollbar::make_scroll_area_with_margin(
-                    &mut area,
-                    self.options.scrollbar_margin,
-                );
-                self.cache.area.width = self
-                    .cache
-                    .area
-                    .width
-                    .saturating_sub(scroll_area.width + self.options.scrollbar_margin);
-                self.cache.scroll_area = Some(scroll_area);
-                self.process_markup(kitty);
-            }
-        }
+        // Prepare markup
+        self.parse_and_load(markup, kitty);
+        self.process_markup(&mut area, kitty);
 
         // Scroll
         self.update_scroll();
@@ -256,6 +232,14 @@ impl Markup {
     }
 
     fn parse_and_load(&mut self, markup: &str, kitty: &mut KittyGraphics) {
+        let hash = utils::hash_fast(markup);
+        if self.cache.hash == hash {
+            return;
+        }
+
+        self.cache.clear();
+        self.cache.hash = hash;
+
         self.plain.clear();
         self.kitty.id_counter = 0;
 
@@ -281,7 +265,7 @@ impl Markup {
                     });
                 }
                 BlockElement::Heading { text, alignment } => {
-                    // TODO: No empty line after heading
+                    // TODO: No empty line after heading?
                     self.plain.items.push(MarkupPlain::Heading {
                         text: self.plain.formatter.push_str(text),
                         alignment,
@@ -398,7 +382,31 @@ impl Markup {
         self.plain.items.pop();
     }
 
-    fn process_markup(&mut self, kitty: &KittyGraphics) {
+    fn process_markup(&mut self, area: &mut Rect, kitty: &KittyGraphics) {
+        if self.cache.size == area.as_size() {
+            return;
+        }
+
+        self.cache.size = area.as_size();
+        self.cache.area = area.inner_padding(self.options.padding);
+        self.cache.scroll_area = None;
+
+        self.relayout(kitty);
+
+        if self.is_scrollable() {
+            let scroll_area =
+                Scrollbar::make_scroll_area_with_margin(area, self.options.scrollbar_margin);
+            self.cache.area.width = self
+                .cache
+                .area
+                .width
+                .saturating_sub(scroll_area.width + self.options.scrollbar_margin);
+            self.cache.scroll_area = Some(scroll_area);
+            self.relayout(kitty);
+        }
+    }
+
+    fn relayout(&mut self, kitty: &KittyGraphics) {
         self.rich.clear();
 
         let width = self.cache.area.width;
