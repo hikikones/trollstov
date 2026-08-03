@@ -1,8 +1,8 @@
 use std::hash::{Hash, Hasher};
 
-pub fn hash_fast(input: impl AsRef<[u8]>) -> u64 {
+pub fn hash_fast(input: impl Hash) -> u64 {
     let mut hasher = ahash::AHasher::default();
-    input.as_ref().hash(&mut hasher);
+    input.hash(&mut hasher);
     hasher.finish()
 }
 

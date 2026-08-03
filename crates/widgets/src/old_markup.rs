@@ -18,17 +18,20 @@ use unicode_segmentation::UnicodeSegmentation;
 use utils::Formatter;
 
 use crate::{
-    KittyError, KittyLoad, RectExt, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData,
+    RectExt, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData,
     ansi::{AnsiParser, AnsiTag, AnsiWriter},
-    image::{Dimensions, Image, KittyGraphics, ResizeMode},
+    kitty_graphics::{Dimensions, KittyGraphics, ResizeMode},
     text_span::TextSpan,
 };
+
+// TODO: Cache image loads.
 
 pub struct Markup {
     plain: MarkupPlainData,
     rich: MarkupRichData,
     scroll: MarkupScroll,
     kitty: MarkupKitty,
+    math: MarkupMath,
     cache: MarkupCache,
     options: MarkupOptions,
     colors: MarkupColors,
@@ -41,7 +44,8 @@ impl Markup {
             plain: MarkupPlainData::new(),
             rich: MarkupRichData::new(),
             scroll: MarkupScroll::new(),
-            kitty: MarkupKitty::new(cell_size, palette),
+            kitty: MarkupKitty::new(),
+            math: MarkupMath::new(cell_size, palette),
             cache: MarkupCache::new(),
             options: MarkupOptions::new(),
             colors: MarkupColors::new(),
@@ -152,8 +156,7 @@ impl Markup {
                         current_line += 1;
                     }
                 }
-                MarkupRich::Image { index } => {
-                    let dims = self.kitty.dims(index);
+                MarkupRich::Image { id, dims } => {
                     let max_width = kitty.width(area.width);
                     let resized_dims = KittyGraphics::resize(dims, dims.with_width(max_width));
                     let resized_rows = kitty.rows(resized_dims.height);
@@ -174,9 +177,14 @@ impl Markup {
                             height: image_rows,
                             ..area
                         };
-                        let image = self.kitty.image_mut(index);
-                        image.set_resize(ResizeMode::FitWidthCropHeight { rows_outside_top });
-                        kitty.render(image_area, buf, image);
+                        kitty.render(
+                            image_area,
+                            buf,
+                            id,
+                            dims,
+                            ResizeMode::FitWidthCropHeight { rows_outside_top },
+                            crate::utils::Alignment::CenterHorizontal,
+                        );
                         self.kitty.has_rendered = true;
                         area.shrink_down(image_rows);
                     }
@@ -217,7 +225,7 @@ impl Markup {
 
     pub fn delete_images(&mut self, kitty: &KittyGraphics) -> std::io::Result<()> {
         if self.kitty.has_rendered {
-            kitty.delete_range(self.kitty.id_range())?;
+            kitty.delete_range(self.kitty.range())?;
             self.kitty.has_rendered = false;
         }
         Ok(())
@@ -231,7 +239,9 @@ impl Markup {
 
         self.cache.clear();
         self.cache.hash = hash;
+
         self.plain.clear();
+        self.kitty.id_counter = 0;
 
         // Convert tabs to spaces before we parse and load markup
         let markup = if markup.contains('\t') {
@@ -244,8 +254,6 @@ impl Markup {
         } else {
             markup
         };
-
-        let mut image_counter = 0;
 
         // Parse and load markup
         for (block, _) in BlockParser::new(markup) {
@@ -281,14 +289,36 @@ impl Markup {
                         .file_name()
                         .map(|name| self.assets.join(name));
 
-                    match self
-                        .kitty
-                        .load(image_counter, LoadImageFrom::Path(image_path), kitty)
-                    {
-                        Ok(_) => {
-                            self.plain.items.push(MarkupPlain::Image {
-                                index: image_counter,
-                            });
+                    fn load_and_encode_image(
+                        path: Option<PathBuf>,
+                        id: u32,
+                        kitty: &mut KittyGraphics,
+                    ) -> Result<Dimensions, String> {
+                        let Some(path) = path else {
+                            return Err(String::from("No image filename found"));
+                        };
+                        kitty.load(&path).map_err(|err| {
+                            format!(
+                                "Failed to load image\n\"{}\"\ndue to\n\"{}\"",
+                                path.display(),
+                                err
+                            )
+                        })?;
+                        let dims = kitty.encode(id).map_err(|err| {
+                            format!(
+                                "Failed to encode image\n\"{}\"\ndue to\n\"{}\"",
+                                path.display(),
+                                err
+                            )
+                        })?;
+                        Ok(dims)
+                    }
+
+                    let id = self.kitty.current_id();
+                    match load_and_encode_image(image_path, id, kitty) {
+                        Ok(dims) => {
+                            self.plain.items.push(MarkupPlain::Image { id, dims });
+                            self.kitty.increment_id();
                         }
                         Err(err) => {
                             self.plain.items.push(MarkupPlain::ImageError {
@@ -296,8 +326,6 @@ impl Markup {
                             });
                         }
                     }
-
-                    image_counter += 1;
 
                     if !description.is_empty() {
                         self.plain.items.push(MarkupPlain::ImageDescription {
@@ -306,14 +334,32 @@ impl Markup {
                     }
                 }
                 BlockElement::Math { text } => {
-                    match self
-                        .kitty
-                        .load(image_counter, LoadImageFrom::Math(text), kitty)
-                    {
-                        Ok(_) => {
-                            self.plain.items.push(MarkupPlain::Image {
-                                index: image_counter,
-                            });
+                    fn parse_load_and_encode(
+                        text: &str,
+                        math: &MarkupMath,
+                        id: u32,
+                        kitty: &mut KittyGraphics,
+                    ) -> Result<Dimensions, String> {
+                        let ast = math.parse(text).map_err(|err| {
+                            format!("Failed to parse math\n\"{text}\"\ndue to\n\"{}\"", err)
+                        })?;
+                        let png = math.to_png(ast).map_err(|err| {
+                            format!("Failed to make math image due to\n\"{}\"", err)
+                        })?;
+                        kitty.load_png_from_bytes(png).map_err(|err| {
+                            format!("Failed to load math image due to\n\"{}\"", err)
+                        })?;
+                        let dims = kitty.encode(id).map_err(|err| {
+                            format!("Failed to encode math image due to\n\"{}\"", err)
+                        })?;
+                        Ok(dims)
+                    }
+
+                    let id = self.kitty.current_id();
+                    match parse_load_and_encode(text, &self.math, id, kitty) {
+                        Ok(dims) => {
+                            self.plain.items.push(MarkupPlain::Image { id, dims });
+                            self.kitty.increment_id();
                         }
                         Err(err) => {
                             self.plain.items.push(MarkupPlain::ImageError {
@@ -321,8 +367,6 @@ impl Markup {
                             });
                         }
                     }
-
-                    image_counter += 1;
                 }
                 BlockElement::Break => {
                     self.plain.items.push(MarkupPlain::Break);
@@ -431,7 +475,7 @@ impl Markup {
                         alignment: Alignment::Left,
                     }
                 }
-                MarkupPlain::Image { index } => MarkupRich::Image { index },
+                MarkupPlain::Image { id, dims } => MarkupRich::Image { id, dims },
                 MarkupPlain::ImageError { text } => {
                     self.rich.writer.push_tag(AnsiTag::FgRed);
                     self.rich.writer.push_str(self.plain.formatter.slice(text));
@@ -546,8 +590,7 @@ impl Markup {
                 MarkupRich::Text { range, .. } => {
                     self.rich.formatter.slice(range).lines().count() as u16
                 }
-                MarkupRich::Image { index } => {
-                    let dims = self.kitty.dims(index);
+                MarkupRich::Image { dims, .. } => {
                     let max_width = kitty.width(max_width);
                     let resized_dims = KittyGraphics::resize(dims, dims.with_width(max_width));
                     kitty.rows(resized_dims.height)
@@ -586,7 +629,8 @@ enum MarkupPlain {
         _language: Range<usize>,
     },
     Image {
-        index: u32,
+        id: u32,
+        dims: Dimensions,
     },
     ImageError {
         text: Range<usize>,
@@ -627,7 +671,8 @@ enum MarkupRich {
         alignment: Alignment,
     },
     Image {
-        index: u32,
+        id: u32,
+        dims: Dimensions,
     },
     Break,
     EmptyLine,
@@ -698,127 +743,42 @@ impl MarkupScroll {
 
 struct MarkupKitty {
     id_start: u32,
-    images: Vec<MarkupImage>,
-    math: MarkupMath,
+    id_counter: u32,
     has_rendered: bool,
 }
 
 impl MarkupKitty {
-    const fn new(size: TerminalCellSize, palette: TerminalPalette) -> Self {
+    const fn new() -> Self {
         Self {
             id_start: 90,
-            images: Vec::new(),
-            math: MarkupMath::new(size, palette),
+            id_counter: 0,
             has_rendered: false,
         }
     }
 
-    fn load(
-        &mut self,
-        index: u32,
-        from: LoadImageFrom,
-        kitty: &mut KittyGraphics,
-    ) -> Result<(), String> {
-        let i = index as usize;
-
-        if i == self.images.len() {
-            self.images.push(MarkupImage::new(self.id_start + index));
-        }
-
-        match from {
-            LoadImageFrom::Path(path) => {
-                let Some(path) = path else {
-                    return Err(String::from("No image filename found"));
-                };
-
-                let hash = utils::hash_fast(&path);
-                let image = &mut self.images[i];
-
-                if hash != image.hash {
-                    kitty
-                        .load_and_encode(KittyLoad::Path(&path), &mut image.image)
-                        .map_err(|err| match err {
-                            KittyError::Load(err) => format!(
-                                "Failed to load image\n'{}'\ndue to\n\"{}\"",
-                                path.display(),
-                                err
-                            ),
-                            KittyError::Encode(err) => format!(
-                                "Failed to encode image\n'{}'\ndue to\n\"{}\"",
-                                path.display(),
-                                err
-                            ),
-                        })?;
-
-                    image.hash = hash;
-                }
-            }
-            LoadImageFrom::Math(text) => {
-                let hash = utils::hash_fast(text);
-                let image = &mut self.images[i];
-
-                if hash != image.hash {
-                    let ast = self.math.parse(text).map_err(|err| {
-                        format!("Failed to parse math\n\"{text}\"\ndue to\n\"{}\"", err)
-                    })?;
-                    let png = self.math.to_png(ast).map_err(|err| {
-                        format!("Failed to create math image due to\n\"{}\"", err)
-                    })?;
-                    kitty
-                        .load_and_encode(KittyLoad::PngBytes(&png), &mut image.image)
-                        .map_err(|err| match err {
-                            KittyError::Load(err) => {
-                                format!("Failed to load math image due to\n\"{}\"", err)
-                            }
-                            KittyError::Encode(err) => {
-                                format!("Failed to encode math image due to\n\"{}\"", err)
-                            }
-                        })?;
-
-                    image.hash = hash;
-                }
-            }
-        }
-
-        Ok(())
+    const fn current_id(&self) -> u32 {
+        self.id_start + self.id_counter
     }
 
-    fn dims(&self, i: u32) -> Dimensions {
-        self.images[i as usize].image.dims()
+    const fn increment_id(&mut self) {
+        self.id_counter += 1;
     }
 
-    fn image_mut(&mut self, i: u32) -> &mut Image {
-        &mut self.images[i as usize].image
-    }
-
-    const fn id_range(&self) -> RangeInclusive<u32> {
-        let end = self.id_start + self.images.len().saturating_sub(1) as u32;
+    const fn range(&self) -> RangeInclusive<u32> {
+        let end = self.id_start + self.id_counter.saturating_sub(1);
         self.id_start..=end
     }
-}
-
-struct MarkupImage {
-    hash: u64,
-    image: Image,
-}
-
-impl MarkupImage {
-    const fn new(id: u32) -> Self {
-        Self {
-            hash: 0,
-            image: Image::new(id).with_alignment(crate::Alignment::CenterHorizontal),
-        }
-    }
-}
-
-enum LoadImageFrom<'a> {
-    Path(Option<PathBuf>),
-    Math(&'a str),
 }
 
 struct MarkupMath {
     layout_options: ratex_layout::LayoutOptions,
     render_options: ratex_render::RenderOptions,
+}
+
+pub enum MarkupMathColor {
+    White,
+    Black,
+    Rgb(u8, u8, u8),
 }
 
 impl MarkupMath {

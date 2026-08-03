@@ -409,6 +409,7 @@ pub fn align(inner: Rect, outer: Rect, alignment: Alignment) -> Rect {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum Alignment {
     TopLeft,
     Top,

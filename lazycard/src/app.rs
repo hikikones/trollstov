@@ -147,7 +147,7 @@ impl App {
                 }
             }
             Event::Resize(_, _) => {
-                // TODO: Somehow pass a was_window_resized bool to markup render.
+                self.kitty.increase_generation();
                 Action::Render
             }
             _ => Action::None,
