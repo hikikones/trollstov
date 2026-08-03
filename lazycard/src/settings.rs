@@ -98,6 +98,7 @@ impl Settings {
                 TerminalTheme::Light => SyntaxHighlightTheme::InspiredGitHub,
             },
             scrollbar: self.config.colors.scrollbar(),
+            heading: self.config.colors.secondary,
             break_char: self.config.colors.neutral,
         }
     }

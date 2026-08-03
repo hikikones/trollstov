@@ -383,7 +383,9 @@ impl Markup {
                 },
                 MarkupPlain::Heading { text, alignment } => {
                     self.rich.writer.push_tag(AnsiTag::Bold);
-                    self.rich.writer.push_tag(AnsiTag::FgYellow); // TODO: Use secondary color
+                    self.rich
+                        .writer
+                        .push_tag(AnsiTag::from_color_fg(self.colors.heading));
                     self.rich.writer.push_str(self.plain.formatter.slice(text));
 
                     self.rich.writer.textwrap(width);
@@ -914,6 +916,7 @@ impl Default for MarkupOptions {
 pub struct MarkupColors {
     pub syntax_theme: SyntaxHighlightTheme,
     pub scrollbar: ScrollbarColors,
+    pub heading: Color,
     pub break_char: Color,
 }
 
@@ -922,6 +925,7 @@ impl MarkupColors {
         Self {
             syntax_theme: SyntaxHighlightTheme::Base16EightiesDark,
             scrollbar: ScrollbarColors::DEFAULT,
+            heading: Color::Yellow,
             break_char: Color::Indexed(240),
         }
     }
