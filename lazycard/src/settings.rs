@@ -8,6 +8,8 @@ use widgets::{
     TextInputColors, TokenListColors,
 };
 
+// TODO: Add show_scrollbars to config.
+
 const VERSION: u8 = 0;
 
 pub struct Settings {
