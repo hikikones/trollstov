@@ -248,35 +248,35 @@ impl Markup {
         let mut image_counter = 0;
 
         // Parse and load markup
-        for (block, _) in BlockParser::new(markup) {
+        for (block, _) in MarkupBlockParser::new(markup) {
             match block {
-                BlockElement::Paragraph { text, alignment } => {
+                MarkupBlock::Paragraph { text, alignment } => {
                     self.plain.items.push(MarkupPlain::Paragraph {
                         text: self.plain.formatter.push_str(text),
                         alignment,
                     });
                 }
-                BlockElement::Heading { text, alignment } => {
+                MarkupBlock::Heading { text, alignment } => {
                     // TODO: No empty line after heading?
                     self.plain.items.push(MarkupPlain::Heading {
                         text: self.plain.formatter.push_str(text),
                         alignment,
                     });
                 }
-                BlockElement::List { items } => {
+                MarkupBlock::List { items } => {
                     for item in items {
                         self.plain.items.push(MarkupPlain::ListItem {
                             text: self.plain.formatter.push_str(item),
                         });
                     }
                 }
-                BlockElement::Code { language, text } => {
+                MarkupBlock::Code { language, text } => {
                     self.plain.items.push(MarkupPlain::Code {
                         text: self.plain.formatter.push_str(text),
                         _language: self.plain.formatter.push_str(language),
                     });
                 }
-                BlockElement::Image { description, path } => {
+                MarkupBlock::Image { description, path } => {
                     let image_path = Path::new(path)
                         .file_name()
                         .map(|name| self.assets.join(name));
@@ -305,7 +305,7 @@ impl Markup {
                         });
                     }
                 }
-                BlockElement::Math { text } => {
+                MarkupBlock::Math { text } => {
                     match self
                         .kitty
                         .load(image_counter, LoadImageFrom::Math(text), kitty)
@@ -324,10 +324,10 @@ impl Markup {
 
                     image_counter += 1;
                 }
-                BlockElement::Break => {
+                MarkupBlock::Break => {
                     self.plain.items.push(MarkupPlain::Break);
                 }
-                BlockElement::Comment { .. } => continue,
+                MarkupBlock::Comment { .. } => continue,
             }
 
             // Add empty line between each block element
@@ -934,7 +934,7 @@ impl Default for MarkupColors {
 }
 
 #[derive(Debug)]
-pub enum BlockElement<'a> {
+pub enum MarkupBlock<'a> {
     Paragraph { text: &'a str, alignment: Alignment },
     Heading { text: &'a str, alignment: Alignment },
     List { items: ListItems<'a> },
@@ -946,7 +946,7 @@ pub enum BlockElement<'a> {
     Break,
 }
 
-pub struct BlockParser<'a> {
+pub struct MarkupBlockParser<'a> {
     input: &'a str,
     graphemes: utils::PeekableGraphemesPrevious<'a>,
 }
@@ -960,8 +960,8 @@ const MARKUP_CODE: &str = "`";
 const MARKUP_LIST: &str = "-";
 const MARKUP_MATH: &str = "$";
 
-impl<'a> Iterator for BlockParser<'a> {
-    type Item = (BlockElement<'a>, Range<usize>);
+impl<'a> Iterator for MarkupBlockParser<'a> {
+    type Item = (MarkupBlock<'a>, Range<usize>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((i, g)) = self.graphemes.next() {
@@ -991,7 +991,7 @@ impl<'a> Iterator for BlockParser<'a> {
                         } else if dashes == 3
                             && self.graphemes.count_consecutive_by(|g| g.contains('\n'), 2) == 2
                         {
-                            (BlockElement::Break, i..i + dashes + 2)
+                            (MarkupBlock::Break, i..i + dashes + 2)
                         } else {
                             self.parse_paragraph(i, Alignment::Left)
                         }
@@ -1015,7 +1015,7 @@ impl<'a> Iterator for BlockParser<'a> {
     }
 }
 
-impl<'a> BlockParser<'a> {
+impl<'a> MarkupBlockParser<'a> {
     pub fn new(input: &'a str) -> Self {
         Self {
             input,
@@ -1027,7 +1027,7 @@ impl<'a> BlockParser<'a> {
         &mut self,
         start: usize,
         alignment: Alignment,
-    ) -> (BlockElement<'a>, Range<usize>) {
+    ) -> (MarkupBlock<'a>, Range<usize>) {
         let start_offset = match alignment {
             Alignment::Left => 0,
             Alignment::Center | Alignment::Right => 1,
@@ -1040,7 +1040,7 @@ impl<'a> BlockParser<'a> {
         };
 
         return (
-            BlockElement::Paragraph {
+            MarkupBlock::Paragraph {
                 text: self.input[paragraph_start..paragraph_end].trim(),
                 alignment,
             },
@@ -1048,7 +1048,7 @@ impl<'a> BlockParser<'a> {
         );
     }
 
-    fn parse_heading(&mut self, start: usize) -> (BlockElement<'a>, Range<usize>) {
+    fn parse_heading(&mut self, start: usize) -> (MarkupBlock<'a>, Range<usize>) {
         let count = self.graphemes.count_consecutive(MARKUP_HEADING, usize::MAX);
         let (alignment, offset) = match self.graphemes.next() {
             Some((_, g)) => match g {
@@ -1066,7 +1066,7 @@ impl<'a> BlockParser<'a> {
         };
 
         return (
-            BlockElement::Heading {
+            MarkupBlock::Heading {
                 text: self.input[heading_start..heading_end].trim(),
                 alignment,
             },
@@ -1074,7 +1074,7 @@ impl<'a> BlockParser<'a> {
         );
     }
 
-    fn parse_list(&mut self, start: usize) -> (BlockElement<'a>, Range<usize>) {
+    fn parse_list(&mut self, start: usize) -> (MarkupBlock<'a>, Range<usize>) {
         let list_start = start + 1;
         let (list_end, end) = match self.graphemes.find_consecutive_by(|g| g.contains('\n'), 2) {
             Some((i, g)) => (i, i + g.len()),
@@ -1082,14 +1082,14 @@ impl<'a> BlockParser<'a> {
         };
 
         return (
-            BlockElement::List {
+            MarkupBlock::List {
                 items: ListItems::new(self.input[list_start..list_end].trim()),
             },
             start..end,
         );
     }
 
-    fn parse_comment(&mut self, start: usize) -> (BlockElement<'a>, Range<usize>) {
+    fn parse_comment(&mut self, start: usize) -> (MarkupBlock<'a>, Range<usize>) {
         let comment_start = start + 1;
         let (comment_end, end) = match self.graphemes.find_by(|g| g.contains('\n')) {
             Some((i, g)) => (i, i + g.len()),
@@ -1097,18 +1097,18 @@ impl<'a> BlockParser<'a> {
         };
 
         return (
-            BlockElement::Comment {
+            MarkupBlock::Comment {
                 _text: self.input[comment_start..comment_end].trim(),
             },
             start..end,
         );
     }
 
-    fn parse_code_block(&mut self, start: usize, ticks: usize) -> (BlockElement<'a>, Range<usize>) {
+    fn parse_code_block(&mut self, start: usize, ticks: usize) -> (MarkupBlock<'a>, Range<usize>) {
         let lang_start = start + ticks;
         let Some((i, g)) = self.graphemes.find_by(|g| g.contains('\n')) else {
             return (
-                BlockElement::Code {
+                MarkupBlock::Code {
                     language: self.input[lang_start..].trim(),
                     text: "",
                 },
@@ -1121,7 +1121,7 @@ impl<'a> BlockParser<'a> {
         loop {
             let Some((code_end, g)) = self.graphemes.find_by(|g| g.contains('\n')) else {
                 return (
-                    BlockElement::Code {
+                    MarkupBlock::Code {
                         language,
                         text: &self.input[code_start..],
                     },
@@ -1136,7 +1136,7 @@ impl<'a> BlockParser<'a> {
 
                 let Some((i, g)) = graphemes.next() else {
                     return (
-                        BlockElement::Code {
+                        MarkupBlock::Code {
                             language,
                             text: &self.input[code_start..code_end],
                         },
@@ -1147,7 +1147,7 @@ impl<'a> BlockParser<'a> {
                 if g.contains('\n') {
                     let Some((i, g)) = graphemes.next() else {
                         return (
-                            BlockElement::Code {
+                            MarkupBlock::Code {
                                 language,
                                 text: &self.input[code_start..code_end],
                             },
@@ -1160,7 +1160,7 @@ impl<'a> BlockParser<'a> {
                         self.graphemes.next();
 
                         return (
-                            BlockElement::Code {
+                            MarkupBlock::Code {
                                 language,
                                 text: &self.input[code_start..code_end],
                             },
@@ -1172,7 +1172,7 @@ impl<'a> BlockParser<'a> {
         }
     }
 
-    fn parse_image(&mut self, start: usize) -> (BlockElement<'a>, Range<usize>) {
+    fn parse_image(&mut self, start: usize) -> (MarkupBlock<'a>, Range<usize>) {
         let Some((descr_start, "[")) = self.graphemes.next() else {
             return self.parse_paragraph(start, Alignment::Left);
         };
@@ -1192,7 +1192,7 @@ impl<'a> BlockParser<'a> {
 
         let Some((end, g)) = self.graphemes.next() else {
             return (
-                BlockElement::Image { description, path },
+                MarkupBlock::Image { description, path },
                 start..self.input.len(),
             );
         };
@@ -1202,17 +1202,17 @@ impl<'a> BlockParser<'a> {
         }
 
         let Some((_, g)) = self.graphemes.next() else {
-            return (BlockElement::Image { description, path }, start..end);
+            return (MarkupBlock::Image { description, path }, start..end);
         };
 
         if !g.contains("\n") {
             return self.parse_paragraph(start, Alignment::Left);
         }
 
-        (BlockElement::Image { description, path }, start..end)
+        (MarkupBlock::Image { description, path }, start..end)
     }
 
-    fn parse_math(&mut self, start: usize) -> (BlockElement<'a>, Range<usize>) {
+    fn parse_math(&mut self, start: usize) -> (MarkupBlock<'a>, Range<usize>) {
         let Some((end_math, _)) = self.graphemes.find_consecutive(MARKUP_MATH, 2) else {
             return self.parse_paragraph(start, Alignment::Left);
         };
@@ -1226,7 +1226,7 @@ impl<'a> BlockParser<'a> {
         }
 
         let Some((end, g)) = self.graphemes.next() else {
-            return (BlockElement::Math { text }, start..self.input.len());
+            return (MarkupBlock::Math { text }, start..self.input.len());
         };
 
         if !g.contains("\n") {
@@ -1234,14 +1234,14 @@ impl<'a> BlockParser<'a> {
         }
 
         let Some((_, g)) = self.graphemes.next() else {
-            return (BlockElement::Math { text }, start..end);
+            return (MarkupBlock::Math { text }, start..end);
         };
 
         if !g.contains("\n") {
             return self.parse_paragraph(start, Alignment::Left);
         }
 
-        (BlockElement::Math { text }, start..end)
+        (MarkupBlock::Math { text }, start..end)
     }
 }
 

@@ -640,9 +640,14 @@ impl<'a> AnsiParser<'a> {
         let mut end = None;
         let max_code_len = 17; // Should be enough for code len
         for _ in 0..max_code_len {
-            if let Some((i, ANSI_END)) = self.chars.next() {
-                end = Some(i);
-                break;
+            match self.chars.next() {
+                Some((i, c)) => {
+                    if c == ANSI_END {
+                        end = Some(i);
+                        break;
+                    }
+                }
+                None => break,
             }
         }
         end
