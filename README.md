@@ -25,9 +25,9 @@ No more databases hiding under bridges.
 
 <br><br>
 
-## lazycard
+## trollink
 
-[lazycard](./lazycard/) is a flashcard application for the terminal to help you bridge the gaps in your memory.  
+[trollink](./trollink/) is a flashcard application for the terminal to help you bridge the gaps in your memory.  
 No toll required.
 
 ![](https://github.com/user-attachments/assets/dadf08a3-072f-4b51-8435-16e28ec06472)

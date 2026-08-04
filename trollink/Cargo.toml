@@ -1,11 +1,11 @@
 [package]
-name = "lazycard"
+name = "trollink"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 description = "A simple flashcard application for the terminal."
-homepage = "https://github.com/hikikones/troll/lazycard"
-repository = "https://github.com/hikikones/troll/lazycard"
+homepage = "https://github.com/hikikones/troll/trollink"
+repository = "https://github.com/hikikones/troll/trollink"
 license.workspace = true
 keywords = ["flashcards", "spaced-repetion", "study", "terminal", "tui"]
 categories = ["command-line-utilities"]

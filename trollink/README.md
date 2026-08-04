@@ -1,6 +1,6 @@
 <div align="center">
 
-# lazycard
+# trollink
 
 A simple flashcard application for the terminal.
 
@@ -11,7 +11,7 @@ A simple flashcard application for the terminal.
 
 </div>
 
-`lazycard` is a flashcard application for the terminal that helps you retain information using [spaced repetition][spaced_repetition]. Cards you find difficult are reviewed more often, while cards you know well appear less frequently, helping you focus your study time where it matters most.
+`trollink` is a flashcard application for the terminal that helps you retain information using [spaced repetition][spaced_repetition]. Cards you find difficult are reviewed more often, while cards you know well appear less frequently, helping you focus your study time where it matters most.
 
 ## 📌 Features
 
@@ -101,17 +101,17 @@ def add(a, b):
 ## 🔖 Install
 
 ```sh
-cargo install --bin lazycard --git https://github.com/hikikones/trollstov
+cargo install --bin trollink --git https://github.com/hikikones/trollstov
 ```
 
 ## ⚡ Usage
 
-The `lazycard` command takes no mandatory arguments, but you can supply it with options for where your database file should be, along with the assets directory and the settings file.
+The `trollink` command takes no mandatory arguments, but you can supply it with options for where your database file should be, along with the assets directory and the settings file.
 
 ```console
-Usage: lazycard [OPTIONS]
+Usage: trollink [OPTIONS]
 
-Example: lazycard --database /path/to/my/database.db --assets /path/to/my/assets
+Example: trollink --database /path/to/my/database.db --assets /path/to/my/assets
 
 Options:
       --database <FILE.db>    Optional path for your database file. By default, the location will be determined by the conventions of your operating system.
