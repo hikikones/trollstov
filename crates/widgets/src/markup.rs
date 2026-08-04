@@ -837,6 +837,7 @@ impl MarkupMath {
                 align_relation_spacing: None,
                 leftright_delim_height: None,
                 inter_glyph_kern_em: 0.0,
+                explicit_size_multiplier: 1.0,
             },
             render_options: ratex_render::RenderOptions {
                 font_size: size.width as f32 * 1.2,
