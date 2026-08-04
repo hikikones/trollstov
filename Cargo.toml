@@ -17,9 +17,9 @@ ahash = {
   features = ["runtime-rng", "std"]
 }
 base64 = {
-  version = "0.22",
+  version = "0.23",
   default-features = false,
-  features = ["alloc", "std"]
+  features = ["alloc", "simd-unsafe", "std"]
 }
 clap = {
   version = "4.6",
@@ -30,7 +30,7 @@ clap-cargo = { version = "0.18", default-features = false }
 constcat = { version = "0.6", default-features = false }
 directories = { version = "6.0", default-features = false }
 edit = { version = "0.1", default-features = false, features = ["better-path"] }
-fastrand = { version = "2.4", default-features = false, features = ["std"] }
+fastrand = { version = "2.5", default-features = false, features = ["std"] }
 fsrs = { version = "6.6", default-features = false }
 ignore = {
   version = "0.4",
@@ -75,23 +75,14 @@ ratatui-image = {
   default-features = false,
   features = ["crossterm"]
 }
-ratex-layout = {
-  version = "0.1",
-  default-features = false,
-}
-ratex-parser = {
-  version = "0.1",
-  default-features = false,
-}
+ratex-layout = { version = "0.1", default-features = false }
+ratex-parser = { version = "0.1", default-features = false }
 ratex-render = {
   version = "0.1",
   default-features = false,
   features = ["embed-fonts"]
 }
-ratex-types = {
-  version = "0.1",
-  default-features = false,
-}
+ratex-types = { version = "0.1", default-features = false }
 rodio = {
   git = "https://github.com/RustAudio/rodio.git",
   rev = "4aa22e85e5ad5565c45dfdda95051158eb6b56c3",

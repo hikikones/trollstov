@@ -83,7 +83,7 @@ pub enum KittyLoad<'a> {
 }
 
 impl KittyGraphics {
-    pub const fn new(cell_size: TerminalCellSize) -> Self {
+    pub fn new(cell_size: TerminalCellSize) -> Self {
         Self {
             frames: Vec::new(),
             deflate: Deflate::new(),
@@ -900,19 +900,23 @@ impl std::fmt::Display for DeflateError {
 
 impl std::error::Error for DeflateError {}
 
-struct Base64(String); // TODO: simd
+struct Base64 {
+    engine: base64::engine::Simd,
+    encoded: String,
+}
 
 impl Base64 {
-    const fn new() -> Self {
-        Self(String::new())
+    fn new() -> Self {
+        Self {
+            engine: base64::engine::Simd::standard(base64::engine::general_purpose::PAD),
+            encoded: String::new(),
+        }
     }
 
     fn encode(&mut self, input: &[u8]) -> &str {
-        use base64::{Engine, engine::general_purpose::STANDARD};
-
-        self.0.clear();
-        STANDARD.encode_string(input, &mut self.0);
-        self.0.as_str()
+        self.encoded.clear();
+        base64::Engine::encode_string(&self.engine, input, &mut self.encoded);
+        &self.encoded.as_str()
     }
 }
 
@@ -925,7 +929,7 @@ pub enum KittyLoadError {
 impl std::fmt::Display for KittyLoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Io(err) => f.write_fmt(format_args!("std::io::Error: {err}")),
+            Self::Io(err) => err.fmt(f),
             Self::Image(err) => err.fmt(f),
         }
     }
@@ -954,7 +958,7 @@ pub enum KittyEncodeError {
 impl std::fmt::Display for KittyEncodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Fmt(err) => f.write_fmt(format_args!("std::fmt::Error: {err}")),
+            Self::Fmt(err) => err.fmt(f),
             Self::Compress(err) => err.fmt(f),
         }
     }
