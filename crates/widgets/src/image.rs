@@ -291,7 +291,7 @@ impl KittyGraphics {
                 KittyAnimationState::RunNormal,
                 KittyAnimationLoop::Forever,
                 self.verbosity
-            ));
+            ))?;
         }
 
         image.dims = dims;
