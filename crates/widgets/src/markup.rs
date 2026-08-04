@@ -1000,8 +1000,8 @@ pub struct MarkupBlockParser<'a> {
     graphemes: utils::PeekableGraphemesPrevious<'a>,
 }
 
-const MARKUP_CENTER: &str = "|";
-const MARKUP_RIGHT: &str = ">";
+const MARKUP_CENTER: &str = ":";
+const MARKUP_RIGHT: &str = ";";
 const MARKUP_HEADING: &str = "=";
 const MARKUP_COMMENT: &str = "#";
 const MARKUP_IMAGE: &str = "!";

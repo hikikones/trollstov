@@ -612,9 +612,9 @@ const MARKUP: &str = r#"
 - item 2 with *lots of text* that can wrap to next line but also keeping the indent so it looks nice ohhh yeah
 - item 3
 
-> right paragraph
+; right paragraph
 
-| center paragraph
+: center paragraph
 
 ![ image description text ]( assets/wallpaper.jpg )
 
@@ -626,12 +626,12 @@ fn main() {
 
 ---
 
-=> Heading 2
+=; Heading 2
 ![  ]( assets/meow.png )
 
 ---
 
-=| Heading 3
+=: Heading 3
 
 
 
@@ -693,4 +693,4 @@ weoijwioejfiowejfiowjfiowej\n\nthis\tis\ta\tparagraph\twith\ttabs\n\n\
 ```rust\nfn main() {\n\tprintln!(\"Hello, world!\");\n}\n```";
 
 #[cfg(debug_assertions)]
-const PICARD: &str = "|❝_It is possible to commit no mistakes and still lose.\nThat is not a weakness. That is life._❞\n\nWho is this quote from?\n\n---\n\n![Jean-Luc Picard](picard2.jpg)";
+const PICARD: &str = ":❝_It is possible to commit no mistakes and still lose.\nThat is not a weakness. That is life._❞\n\nWho is this quote from?\n\n---\n\n![Jean-Luc Picard](picard2.jpg)";

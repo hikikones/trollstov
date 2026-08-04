@@ -43,9 +43,9 @@ The following table shows the entire syntax available.
 <pre>
 A normal paragraph with *bold* and _italic_ text.
 
-| Center paragraph
+: Center paragraph
 
-> Right paragraph
+; Right paragraph
 
 # This is a reveal marker
 ---
