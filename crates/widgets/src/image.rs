@@ -12,8 +12,6 @@ pub struct Image {
     id: u32,
     encoded: String,
     dims: Dimensions,
-    resize: ResizeMode,
-    alignment: crate::utils::Alignment,
     generation: u32,
 }
 
@@ -23,38 +21,83 @@ impl Image {
             id,
             encoded: String::new(),
             dims: Dimensions::ZERO,
-            resize: ResizeMode::Fit,
-            alignment: crate::utils::Alignment::Center,
             generation: 0,
         }
-    }
-
-    pub const fn with_resize(mut self, resize: ResizeMode) -> Self {
-        self.resize = resize;
-        self
-    }
-
-    pub const fn with_alignment(mut self, alignment: crate::utils::Alignment) -> Self {
-        self.alignment = alignment;
-        self
-    }
-
-    pub const fn with_layout(
-        mut self,
-        resize: ResizeMode,
-        alignment: crate::utils::Alignment,
-    ) -> Self {
-        self.resize = resize;
-        self.alignment = alignment;
-        self
     }
 
     pub const fn dims(&self) -> Dimensions {
         self.dims
     }
 
-    pub const fn set_resize(&mut self, resize: ResizeMode) {
-        self.resize = resize;
+    pub fn load_from_path(
+        &mut self,
+        path: impl AsRef<Path>,
+        kitty: &mut KittyGraphics,
+    ) -> Result<(), KittyError> {
+        kitty.load_from_path(path.as_ref())?;
+        kitty.encode(self)?;
+        Ok(())
+    }
+
+    pub fn load_from_png_bytes(
+        &mut self,
+        bytes: impl AsRef<[u8]>,
+        kitty: &mut KittyGraphics,
+    ) -> Result<(), KittyError> {
+        kitty.load_png_from_bytes(bytes.as_ref())?;
+        kitty.encode(self)?;
+        Ok(())
+    }
+
+    pub fn render(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        resize: ResizeMode,
+        alignment: crate::utils::Alignment,
+        kitty: &KittyGraphics,
+    ) {
+        let area = area.intersection(buf.area);
+
+        if area.is_empty() {
+            return;
+        }
+
+        let Err(err) = kitty.render(self, area, resize, alignment) else {
+            return; // Kitty render was OK
+        };
+
+        // Render error text inside image block
+        let inner = {
+            let block = Block::bordered()
+                .title(" ERROR ")
+                .title_alignment(Alignment::Center)
+                .style(Color::Red);
+            let inner = block.inner(area);
+            block.render(area, buf);
+            inner
+        };
+        crate::utils::print_text(
+            inner,
+            buf,
+            format!("{err}"),
+            Color::Red,
+            false,
+            Some(crate::Alignment::Center),
+        );
+    }
+
+    pub fn delete(&self) {
+        use std::io::Write;
+
+        let mut stdout = std::io::stdout().lock();
+        let _ = stdout.write_fmt(format_args!(
+            "{KITTY_START}{},{},{}{KITTY_END}",
+            KittyAction::Delete(KittyDelete::Id),
+            KittyId(self.id),
+            KittyVerbosity::Silent,
+        ));
+        let _ = stdout.flush();
     }
 
     fn clear(&mut self) {
@@ -77,11 +120,6 @@ pub struct KittyGraphics {
     generation: u32,
 }
 
-pub enum KittyLoad<'a> {
-    Path(&'a Path),
-    PngBytes(&'a [u8]),
-}
-
 impl KittyGraphics {
     pub fn new(cell_size: TerminalCellSize) -> Self {
         Self {
@@ -97,22 +135,6 @@ impl KittyGraphics {
 
     pub const fn increase_generation(&mut self) {
         self.generation += 1;
-    }
-
-    pub fn load_and_encode(&mut self, from: KittyLoad, img: &mut Image) -> Result<(), KittyError> {
-        match from {
-            KittyLoad::Path(path) => {
-                self.load_from_path(path)?;
-            }
-            KittyLoad::PngBytes(bytes) => {
-                self.load_png_from_bytes(bytes)?;
-            }
-        }
-
-        img.clear();
-        img.dims = self.encode(img.id, &mut img.encoded)?;
-
-        Ok(())
     }
 
     fn load_from_path(&mut self, path: &Path) -> Result<(), KittyLoadError> {
@@ -191,12 +213,12 @@ impl KittyGraphics {
         Ok(())
     }
 
-    fn encode(
-        &mut self,
-        id: u32,
-        writer: &mut impl std::fmt::Write,
-    ) -> Result<Dimensions, KittyEncodeError> {
+    fn encode(&mut self, image: &mut Image) -> Result<(), KittyEncodeError> {
+        let id = image.id;
+
         debug_assert_ne!(id, 0);
+
+        image.clear();
 
         let rgba = self.frames[0].buffer();
         let dims = Dimensions::from_tuple(rgba.dimensions());
@@ -220,7 +242,7 @@ impl KittyGraphics {
             self.formatter.slice(root_header),
             self.formatter.slice(chunk_header),
             b64,
-            writer,
+            &mut image.encoded,
         )?;
         self.formatter.clear();
 
@@ -255,55 +277,35 @@ impl KittyGraphics {
                     self.formatter.slice(root_header),
                     self.formatter.slice(chunk_header),
                     b64,
-                    writer,
+                    &mut image.encoded,
                 )?;
                 self.formatter.clear();
             }
 
             // Set animation controls
-            write!(
-                writer,
+            use std::fmt::Write;
+            image.encoded.write_fmt(format_args!(
                 "{KITTY_START}{},{},{},{},{}{KITTY_END}",
                 KittyAction::AnimationControl,
                 KittyId(id),
                 KittyAnimationState::RunNormal,
                 KittyAnimationLoop::Forever,
                 self.verbosity
-            )?;
+            ));
         }
 
-        Ok(dims)
+        image.dims = dims;
+
+        Ok(())
     }
 
-    pub fn render(&self, area: Rect, buf: &mut Buffer, image: &mut Image) {
-        let area = area.intersection(buf.area);
-
-        if area.is_empty() {
-            return;
-        }
-
-        let Err(error) = self.do_render(area, image) else {
-            return;
-        };
-
-        // Render error
-        let block = Block::bordered()
-            .title(" ERROR ")
-            .title_alignment(Alignment::Center)
-            .style(Color::Red);
-        let inner = block.inner(area);
-        block.render(area, buf);
-        crate::utils::print_text(
-            inner,
-            buf,
-            format!("{error}"),
-            Color::Red,
-            false,
-            Some(crate::Alignment::Center),
-        );
-    }
-
-    fn do_render(&self, area: Rect, image: &mut Image) -> std::io::Result<()> {
+    fn render(
+        &self,
+        image: &mut Image,
+        area: Rect,
+        resize: ResizeMode,
+        alignment: crate::utils::Alignment,
+    ) -> std::io::Result<()> {
         use std::io::Write;
 
         let mut stdout = std::io::stdout().lock();
@@ -315,7 +317,7 @@ impl KittyGraphics {
             image.generation = self.generation;
         }
 
-        let (id, dims, resize) = (image.id, image.dims, image.resize);
+        let (id, dims) = (image.id, image.dims);
 
         // Modify image layout if necessary
         let (image_size, scale, crop) = match resize {
@@ -375,7 +377,7 @@ impl KittyGraphics {
                 ..area
             },
             area,
-            image.alignment,
+            alignment,
         );
 
         // Set cursor position (row, col)

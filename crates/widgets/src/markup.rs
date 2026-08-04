@@ -18,7 +18,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use utils::Formatter;
 
 use crate::{
-    KittyError, KittyLoad, RectExt, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData,
+    KittyError, RectExt, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData,
     ansi::{AnsiParser, AnsiTag, AnsiWriter},
     image::{Dimensions, Image, KittyGraphics, ResizeMode},
     text_span::TextSpan,
@@ -174,9 +174,13 @@ impl Markup {
                             height: image_rows,
                             ..area
                         };
-                        let image = self.kitty.image_mut(index);
-                        image.set_resize(ResizeMode::FitWidthCropHeight { rows_outside_top });
-                        kitty.render(image_area, buf, image);
+                        self.kitty.image_mut(index).render(
+                            image_area,
+                            buf,
+                            ResizeMode::FitWidthCropHeight { rows_outside_top },
+                            crate::Alignment::CenterHorizontal,
+                            kitty,
+                        );
                         self.kitty.has_rendered = true;
                         area.shrink_down(image_rows);
                     }
@@ -756,8 +760,9 @@ impl MarkupKitty {
                 let image = &mut self.images[i];
 
                 if hash != image.hash {
-                    kitty
-                        .load_and_encode(KittyLoad::Path(&path), &mut image.image)
+                    image
+                        .image
+                        .load_from_path(&path, kitty)
                         .map_err(|err| match err {
                             KittyError::Load(err) => format!(
                                 "Failed to load image\n'{}'\ndue to\n\"{}\"",
@@ -785,8 +790,9 @@ impl MarkupKitty {
                     let png = self.math.to_png(ast).map_err(|err| {
                         format!("Failed to create math image due to\n\"{}\"", err)
                     })?;
-                    kitty
-                        .load_and_encode(KittyLoad::PngBytes(&png), &mut image.image)
+                    image
+                        .image
+                        .load_from_png_bytes(png, kitty)
                         .map_err(|err| match err {
                             KittyError::Load(err) => {
                                 format!("Failed to load math image due to\n\"{}\"", err)
@@ -827,7 +833,7 @@ impl MarkupImage {
     const fn new(id: u32) -> Self {
         Self {
             hash: 0,
-            image: Image::new(id).with_alignment(crate::Alignment::CenterHorizontal),
+            image: Image::new(id),
         }
     }
 }
