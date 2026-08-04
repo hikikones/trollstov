@@ -605,7 +605,6 @@ In aliquet dui sapien, ut semper elit sodales sed. Proin quis libero luctus libe
 #[cfg(debug_assertions)]
 const MARKUP: &str = r#"
 === Heading
-
 # this is a comment
 *left* paragraph with *bold*, _italic_ and maybe `verbatim text` that *should wrap* when line becomes _*tooooooooo*_ long..*.*
 
@@ -633,6 +632,9 @@ fn main() {
 ---
 
 =| Heading 3
+
+
+
 Lorem ipsum dolor sit amet,
 consectetur adipiscing elit.
 Donec fermentum ipsum nec sagittis feugiat.

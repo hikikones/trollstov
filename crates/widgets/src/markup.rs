@@ -255,13 +255,20 @@ impl Markup {
                         text: self.plain.formatter.push_str(text),
                         alignment,
                     });
+                    self.plain.items.push(MarkupPlain::EmptyLine);
                 }
-                MarkupBlock::Heading { text, alignment } => {
-                    // TODO: No empty line after heading?
+                MarkupBlock::Heading {
+                    text,
+                    alignment,
+                    newline,
+                } => {
                     self.plain.items.push(MarkupPlain::Heading {
                         text: self.plain.formatter.push_str(text),
                         alignment,
                     });
+                    if newline {
+                        self.plain.items.push(MarkupPlain::EmptyLine);
+                    }
                 }
                 MarkupBlock::List { items } => {
                     for item in items {
@@ -269,12 +276,14 @@ impl Markup {
                             text: self.plain.formatter.push_str(item),
                         });
                     }
+                    self.plain.items.push(MarkupPlain::EmptyLine);
                 }
                 MarkupBlock::Code { language, text } => {
                     self.plain.items.push(MarkupPlain::Code {
                         text: self.plain.formatter.push_str(text),
                         _language: self.plain.formatter.push_str(language),
                     });
+                    self.plain.items.push(MarkupPlain::EmptyLine);
                 }
                 MarkupBlock::Image { description, path } => {
                     let image_path = Path::new(path)
@@ -304,6 +313,8 @@ impl Markup {
                             text: self.plain.formatter.push_str(description),
                         });
                     }
+
+                    self.plain.items.push(MarkupPlain::EmptyLine);
                 }
                 MarkupBlock::Math { text } => {
                     match self
@@ -323,19 +334,27 @@ impl Markup {
                     }
 
                     image_counter += 1;
+
+                    self.plain.items.push(MarkupPlain::EmptyLine);
                 }
                 MarkupBlock::Break => {
                     self.plain.items.push(MarkupPlain::Break);
+                    self.plain.items.push(MarkupPlain::EmptyLine);
                 }
                 MarkupBlock::Comment { .. } => continue,
             }
-
-            // Add empty line between each block element
-            self.plain.items.push(MarkupPlain::EmptyLine);
         }
 
         // Remove last empty line
-        self.plain.items.pop();
+        let is_last_empty_line = self
+            .plain
+            .items
+            .last()
+            .map(|mp| matches!(mp, MarkupPlain::EmptyLine))
+            .unwrap_or(false);
+        if is_last_empty_line {
+            self.plain.items.pop();
+        }
     }
 
     fn process_markup(&mut self, area: &mut Rect, kitty: &KittyGraphics) {
@@ -940,14 +959,33 @@ impl Default for MarkupColors {
 
 #[derive(Debug)]
 pub enum MarkupBlock<'a> {
-    Paragraph { text: &'a str, alignment: Alignment },
-    Heading { text: &'a str, alignment: Alignment },
-    List { items: ListItems<'a> },
-    Code { language: &'a str, text: &'a str },
+    Paragraph {
+        text: &'a str,
+        alignment: Alignment,
+    },
+    Heading {
+        text: &'a str,
+        alignment: Alignment,
+        newline: bool,
+    },
+    List {
+        items: ListItems<'a>,
+    },
+    Code {
+        language: &'a str,
+        text: &'a str,
+    },
     // TODO: Table
-    Image { description: &'a str, path: &'a str },
-    Math { text: &'a str },
-    Comment { _text: &'a str },
+    Image {
+        description: &'a str,
+        path: &'a str,
+    },
+    Math {
+        text: &'a str,
+    },
+    Comment {
+        _text: &'a str,
+    },
     Break,
 }
 
@@ -1065,15 +1103,23 @@ impl<'a> MarkupBlockParser<'a> {
         };
 
         let heading_start = start + 1 + count + offset;
-        let (heading_end, end) = match self.graphemes.find_newline() {
-            Some((i, g)) => (i, i + g.len()),
-            None => (self.input.len(), self.input.len()),
+        let (heading_end, end, newline) = match self.graphemes.find_newline() {
+            Some((i, g)) => {
+                let newline = self
+                    .graphemes
+                    .peek()
+                    .map(|g| g.contains('\n'))
+                    .unwrap_or(false);
+                (i, i + g.len(), newline)
+            }
+            None => (self.input.len(), self.input.len(), false),
         };
 
         return (
             MarkupBlock::Heading {
                 text: self.input[heading_start..heading_end].trim(),
                 alignment,
+                newline,
             },
             start..end,
         );
