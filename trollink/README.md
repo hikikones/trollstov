@@ -13,6 +13,9 @@ A simple flashcard application for the terminal.
 
 `trollink` is a flashcard application for the terminal that helps you retain information using [spaced repetition][spaced_repetition]. Cards you find difficult are reviewed more often, while cards you know well appear less frequently, helping you focus your study time where it matters most.
 
+> [!WARNING]
+> Application is not yet ready for stable use. Breaking changes may come with no migration.
+
 ## 📌 Features
 
 - Write cards in a light markup
@@ -24,7 +27,7 @@ A simple flashcard application for the terminal.
 
 ## 📜 Markup
 
-Cards are written in a custom lightweight markup language, inspired by both [Markdown](https://en.wikipedia.org/wiki/Markdown) and [Djot](https://djot.net/). It provides a small set of syntax for formatting text in the terminal.
+Cards are written in a custom lightweight markup language, inspired by [Markdown](https://en.wikipedia.org/wiki/Markdown), [Typst](https://typst.app) and [Djot](https://djot.net). It provides a small set of syntax for formatting text in the terminal.
 
 Use `---` to mark reveal points in a card. You can have as many as you like. During review, cards are revealed one section at a time until the entire card is visible. At that point, you simply answer yes or no based on whether you successfully recalled everything.
 
