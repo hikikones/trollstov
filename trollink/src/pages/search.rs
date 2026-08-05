@@ -14,6 +14,14 @@ use crate::{
     settings::Colors,
 };
 
+// TODO: Search highlight adds ansi codes for visual matches.
+// This ruins the markup parser/viewer for various items.
+// E.g. a search for ".png" will highlight the matches, but also
+// display image load error as the path for the image is now "name<ansi>.png</ansi>".
+
+// TODO: Searching for .png without quotes "" will crash.
+// Render error as text when search is used wrongly.
+
 // TODO: Render a help text as markup when search comes up empty.
 // Or just add a help shortcut that shows how to search.
 
@@ -198,7 +206,7 @@ impl SearchPage {
                         self.index = 0;
                         self.query.clear();
                         self.query.push_str(input);
-                        let _ = db.search(input, |id| self.results.push(id));
+                        db.search(input, |id| self.results.push(id));
                         if let Some(id) = self.current_card() {
                             self.highlight(id, db);
                             self.state = State::Browse;

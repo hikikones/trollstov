@@ -182,6 +182,7 @@ impl Database {
             .unwrap()
     }
 
+    // TODO: Should return result here as fts query can easily panic.
     pub fn search(&self, input: &str, mut f: impl FnMut(CardId)) {
         self.sqlite
             .query(
@@ -195,6 +196,7 @@ impl Database {
             .unwrap();
     }
 
+    // TODO: Should return result here as fts query can easily panic.
     pub fn search_highlight(&self, id: CardId, input: &str, f: impl FnOnce(&str)) {
         const ANSI_REVERSE: &str = "\x1b[7m";
         const ANSI_NOT_REVERSE: &str = "\x1b[27m";
