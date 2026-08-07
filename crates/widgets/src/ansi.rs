@@ -1,7 +1,17 @@
 /// ANSI writer and parser for most Select Graphic Rendition (SGR) attributes.
 use std::{fmt::Write, ops::Range, str::CharIndices};
 
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::{
+    buffer::Buffer,
+    crossterm::event::KeyCode,
+    layout::{HorizontalAlignment, Rect, Size},
+    style::{Color, Modifier, Style},
+    widgets::Padding,
+};
+
+use crate::{
+    RectExt, ScrollMove, ScrollableData, Scrollbar, ScrollbarColors, ScrollbarData, TextSpan,
+};
 
 const ANSI_START: char = '\x1b';
 const ANSI_START2: char = '[';
@@ -391,79 +401,84 @@ impl AnsiTag {
 
 impl std::fmt::Display for AnsiTag {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_char(ANSI_START)?;
+        f.write_char(ANSI_START2)?;
+
         match *self {
-            Self::Reset => f.write_char('0'),
+            Self::Reset => f.write_char('0')?,
 
-            Self::Bold => f.write_char('1'),
-            Self::Faint => f.write_char('2'),
-            Self::Italic => f.write_char('3'),
-            Self::Underline => f.write_char('4'),
-            Self::SlowBlink => f.write_char('5'),
-            Self::RapidBlink => f.write_char('6'),
-            Self::Reverse => f.write_char('7'),
-            Self::Conceal => f.write_char('8'),
-            Self::CrossedOut => f.write_char('9'),
-            // Self::Framed => f.write_str("51"),
-            // Self::Encircled => f.write_str("52"),
-            // Self::Overlined => f.write_str("53"),
-
-            //
-            Self::NotBold => f.write_str("22"),
-            Self::NotItalic => f.write_str("23"),
-            Self::NotUnderline => f.write_str("24"),
-            Self::NotBlink => f.write_str("25"),
-            Self::NotReverse => f.write_str("27"),
-            Self::Reveal => f.write_str("28"),
-            Self::NotCrossedOut => f.write_str("29"),
-            // Self::NotFramedOrEncircled => f.write_str("54"),
-            // Self::NotOverlined => f.write_str("55"),
+            Self::Bold => f.write_char('1')?,
+            Self::Faint => f.write_char('2')?,
+            Self::Italic => f.write_char('3')?,
+            Self::Underline => f.write_char('4')?,
+            Self::SlowBlink => f.write_char('5')?,
+            Self::RapidBlink => f.write_char('6')?,
+            Self::Reverse => f.write_char('7')?,
+            Self::Conceal => f.write_char('8')?,
+            Self::CrossedOut => f.write_char('9')?,
+            // Self::Framed => f.write_str("51")?,
+            // Self::Encircled => f.write_str("52")?,
+            // Self::Overlined => f.write_str("53")?,
 
             //
-            Self::FgBlack => f.write_str("30"),
-            Self::FgRed => f.write_str("31"),
-            Self::FgGreen => f.write_str("32"),
-            Self::FgYellow => f.write_str("33"),
-            Self::FgBlue => f.write_str("34"),
-            Self::FgMagenta => f.write_str("35"),
-            Self::FgCyan => f.write_str("36"),
-            Self::FgWhite => f.write_str("37"),
+            Self::NotBold => f.write_str("22")?,
+            Self::NotItalic => f.write_str("23")?,
+            Self::NotUnderline => f.write_str("24")?,
+            Self::NotBlink => f.write_str("25")?,
+            Self::NotReverse => f.write_str("27")?,
+            Self::Reveal => f.write_str("28")?,
+            Self::NotCrossedOut => f.write_str("29")?,
+            // Self::NotFramedOrEncircled => f.write_str("54")?,
+            // Self::NotOverlined => f.write_str("55")?,
 
-            Self::FgBrightBlack => f.write_str("90"),
-            Self::FgBrightRed => f.write_str("91"),
-            Self::FgBrightGreen => f.write_str("92"),
-            Self::FgBrightYellow => f.write_str("93"),
-            Self::FgBrightBlue => f.write_str("94"),
-            Self::FgBrightMagenta => f.write_str("95"),
-            Self::FgBrightCyan => f.write_str("96"),
-            Self::FgBrightWhite => f.write_str("97"),
+            //
+            Self::FgBlack => f.write_str("30")?,
+            Self::FgRed => f.write_str("31")?,
+            Self::FgGreen => f.write_str("32")?,
+            Self::FgYellow => f.write_str("33")?,
+            Self::FgBlue => f.write_str("34")?,
+            Self::FgMagenta => f.write_str("35")?,
+            Self::FgCyan => f.write_str("36")?,
+            Self::FgWhite => f.write_str("37")?,
 
-            Self::FgDefault => f.write_str("39"),
+            Self::FgBrightBlack => f.write_str("90")?,
+            Self::FgBrightRed => f.write_str("91")?,
+            Self::FgBrightGreen => f.write_str("92")?,
+            Self::FgBrightYellow => f.write_str("93")?,
+            Self::FgBrightBlue => f.write_str("94")?,
+            Self::FgBrightMagenta => f.write_str("95")?,
+            Self::FgBrightCyan => f.write_str("96")?,
+            Self::FgBrightWhite => f.write_str("97")?,
 
-            Self::BgBlack => f.write_str("40"),
-            Self::BgRed => f.write_str("41"),
-            Self::BgGreen => f.write_str("42"),
-            Self::BgYellow => f.write_str("43"),
-            Self::BgBlue => f.write_str("44"),
-            Self::BgMagenta => f.write_str("45"),
-            Self::BgCyan => f.write_str("46"),
-            Self::BgWhite => f.write_str("47"),
+            Self::FgDefault => f.write_str("39")?,
 
-            Self::BgBrightBlack => f.write_str("100"),
-            Self::BgBrightRed => f.write_str("101"),
-            Self::BgBrightGreen => f.write_str("102"),
-            Self::BgBrightYellow => f.write_str("103"),
-            Self::BgBrightBlue => f.write_str("104"),
-            Self::BgBrightMagenta => f.write_str("105"),
-            Self::BgBrightCyan => f.write_str("106"),
-            Self::BgBrightWhite => f.write_str("107"),
+            Self::BgBlack => f.write_str("40")?,
+            Self::BgRed => f.write_str("41")?,
+            Self::BgGreen => f.write_str("42")?,
+            Self::BgYellow => f.write_str("43")?,
+            Self::BgBlue => f.write_str("44")?,
+            Self::BgMagenta => f.write_str("45")?,
+            Self::BgCyan => f.write_str("46")?,
+            Self::BgWhite => f.write_str("47")?,
 
-            Self::BgDefault => f.write_str("49"),
+            Self::BgBrightBlack => f.write_str("100")?,
+            Self::BgBrightRed => f.write_str("101")?,
+            Self::BgBrightGreen => f.write_str("102")?,
+            Self::BgBrightYellow => f.write_str("103")?,
+            Self::BgBrightBlue => f.write_str("104")?,
+            Self::BgBrightMagenta => f.write_str("105")?,
+            Self::BgBrightCyan => f.write_str("106")?,
+            Self::BgBrightWhite => f.write_str("107")?,
 
-            Self::Fg256(n) => f.write_fmt(format_args!("38;5;{}", n)),
-            Self::Bg256(n) => f.write_fmt(format_args!("48;5;{}", n)),
-            Self::FgTrueColor(r, g, b) => f.write_fmt(format_args!("38;2;{};{};{}", r, g, b)),
-            Self::BgTrueColor(r, g, b) => f.write_fmt(format_args!("48;2;{};{};{}", r, g, b)),
+            Self::BgDefault => f.write_str("49")?,
+
+            Self::Fg256(n) => f.write_fmt(format_args!("38;5;{}", n))?,
+            Self::Bg256(n) => f.write_fmt(format_args!("48;5;{}", n))?,
+            Self::FgTrueColor(r, g, b) => f.write_fmt(format_args!("38;2;{};{};{}", r, g, b))?,
+            Self::BgTrueColor(r, g, b) => f.write_fmt(format_args!("48;2;{};{};{}", r, g, b))?,
         }
+
+        f.write_char(ANSI_END)
     }
 }
 
@@ -516,9 +531,7 @@ impl AnsiWriter {
     }
 
     pub fn push_tag(&mut self, tag: AnsiTag) {
-        self.inner.extend([ANSI_START, ANSI_START2]);
         let _ = self.inner.write_fmt(format_args!("{tag}"));
-        self.inner.push(ANSI_END);
     }
 
     pub fn insert_char(&mut self, i: usize, ch: char) {
@@ -530,8 +543,8 @@ impl AnsiWriter {
     }
 
     pub fn insert_tag(&mut self, i: usize, tag: AnsiTag) {
-        self.inner
-            .insert_str(i, &format!("{ANSI_START}{ANSI_START2}{tag}{ANSI_END}"));
+        // TODO: use compact string lib?
+        self.inner.insert_str(i, &format!("{tag}"));
     }
 
     pub fn extend<'a>(&mut self, iter: impl IntoIterator<Item = &'a str>) {
@@ -725,5 +738,280 @@ impl<'a> Iterator for AnsiParserWithStyle<'a> {
         }
 
         None
+    }
+}
+
+pub struct AnsiViewer {
+    ansi: String,
+    scroll: u16,
+    hash: u64,
+    size: Size,
+    view: Size,
+    lines: u16,
+    scroll_area: Option<Rect>,
+    mode: AnsiViewMode,
+    span: TextSpan,
+    options: AnsiViewerOptions,
+    colors: AnsiViewerColors,
+}
+
+impl AnsiViewer {
+    pub const fn new() -> Self {
+        Self {
+            ansi: String::new(),
+            scroll: 0,
+            hash: 0,
+            size: Size::ZERO,
+            view: Size::ZERO,
+            lines: 0,
+            scroll_area: None,
+            mode: AnsiViewMode::DEFAULT,
+            span: TextSpan::new(),
+            options: AnsiViewerOptions::new(),
+            colors: AnsiViewerColors::new(),
+        }
+    }
+
+    pub const fn with_padding(mut self, padding: Padding) -> Self {
+        self.set_padding(padding);
+        self
+    }
+
+    pub const fn with_text_alignment(mut self, alignment: HorizontalAlignment) -> Self {
+        self.set_text_alignment(alignment);
+        self
+    }
+
+    pub const fn with_colors(mut self, colors: AnsiViewerColors) -> Self {
+        self.set_colors(colors);
+        self
+    }
+
+    pub const fn set_padding(&mut self, padding: Padding) -> &mut Self {
+        self.options.padding = padding;
+        self
+    }
+
+    pub const fn set_text_alignment(&mut self, alignment: HorizontalAlignment) -> &mut Self {
+        self.options.text_alignment = alignment;
+        self
+    }
+
+    pub const fn set_colors(&mut self, colors: AnsiViewerColors) -> &mut Self {
+        self.colors = colors;
+        self
+    }
+
+    pub const fn set_view_mode(&mut self, mode: AnsiViewMode) -> &mut Self {
+        self.mode = mode;
+        self
+    }
+
+    pub const fn current_scroll(&self) -> u16 {
+        self.scroll
+    }
+
+    pub fn input(&mut self, key: KeyCode) -> bool {
+        match key {
+            KeyCode::Down => self.scroll(ScrollMove::Down),
+            KeyCode::Up => self.scroll(ScrollMove::Up),
+            KeyCode::PageDown => self.scroll(ScrollMove::PageDown),
+            KeyCode::PageUp => self.scroll(ScrollMove::PageUp),
+            KeyCode::Home => self.scroll(ScrollMove::Start),
+            KeyCode::End => self.scroll(ScrollMove::End),
+            _ => false,
+        }
+    }
+
+    pub fn scroll(&mut self, sm: ScrollMove) -> bool {
+        let old_scroll = self.scroll;
+        let height = self.view.height;
+
+        self.scroll = match sm {
+            ScrollMove::Up => self.scroll.saturating_sub(1),
+            ScrollMove::Down => (self.scroll + 1).min(self.lines.saturating_sub(height)),
+            ScrollMove::PageUp => self.scroll.saturating_sub(height),
+            ScrollMove::PageDown => (self.scroll + height).min(self.lines.saturating_sub(height)),
+            ScrollMove::Start => 0,
+            ScrollMove::End => self.lines.saturating_sub(height),
+        };
+
+        self.scroll != old_scroll
+    }
+
+    pub fn render(&mut self, mut area: Rect, buf: &mut Buffer, ansi: &str) {
+        let mut inner = area.inner_padding(self.options.padding);
+
+        if inner.is_empty() {
+            return;
+        }
+
+        let hash = utils::hash_fast(ansi);
+        if self.hash != hash || self.size != area.as_size() {
+            self.size = area.as_size();
+            self.hash = utils::hash_fast(ansi);
+            self.view = inner.as_size();
+            self.scroll_area = None;
+            self.relayout(inner.width, ansi);
+        }
+
+        let skip = match self.mode {
+            AnsiViewMode::Text { center_vertical } => {
+                if center_vertical {
+                    inner.height = self.lines.min(inner.height);
+                    inner.y = area.y + (area.height.saturating_sub(inner.height)) / 2;
+                }
+
+                0
+            }
+            AnsiViewMode::Page {
+                scrollbar,
+                scrollbar_margin,
+            } => {
+                let is_scrollable = scrollbar
+                    && Scrollbar::is_scrollable(ScrollableData::new(
+                        self.lines as usize,
+                        inner.as_size(),
+                    ));
+                if is_scrollable {
+                    let scroll_area =
+                        Scrollbar::make_scroll_area_with_margin(&mut area, scrollbar_margin);
+                    inner.width = inner
+                        .width
+                        .saturating_sub(scroll_area.width + scrollbar_margin);
+                    self.view = inner.as_size();
+                    self.scroll_area = Some(scroll_area);
+                    self.relayout(inner.width, ansi);
+                }
+
+                self.update_scroll();
+                self.render_scrollbar(buf);
+
+                self.scroll
+            }
+        };
+
+        let mut ansi_parser = AnsiParser::new("").with_style();
+        let lines = self
+            .ansi
+            .lines()
+            .skip(skip as usize)
+            .take(inner.height as usize);
+
+        match self.options.text_alignment {
+            HorizontalAlignment::Left => {
+                let Rect { mut x, mut y, .. } = inner;
+                lines.for_each(|line| {
+                    ansi_parser.continue_with(line);
+
+                    for (s, style) in ansi_parser.continue_with(line) {
+                        (x, _) = buf.set_stringn(x, y, s, usize::MAX, style);
+                    }
+
+                    x = inner.x;
+                    y += 1;
+                });
+            }
+            HorizontalAlignment::Center | HorizontalAlignment::Right => {
+                self.span.set_alignment(self.options.text_alignment);
+                let mut line_area = Rect { height: 1, ..inner };
+                lines.for_each(|line| {
+                    ansi_parser.continue_with(line);
+
+                    for (s, style) in ansi_parser.continue_with(line) {
+                        self.span.push_str(s, style);
+                    }
+
+                    self.span.render(line_area, buf);
+                    self.span.clear();
+                    line_area.y += 1;
+                });
+            }
+        }
+    }
+
+    fn relayout(&mut self, max_width: u16, ansi: &str) {
+        self.ansi.clear();
+
+        self.ansi.push_str(ansi);
+        textwrap::fill_inplace(&mut self.ansi, max_width as usize);
+        self.lines = self.ansi.lines().count() as u16;
+    }
+
+    fn update_scroll(&mut self) {
+        let height = self.view.height;
+        self.scroll = self.scroll.min(self.lines.saturating_sub(height));
+    }
+
+    fn render_scrollbar(&self, buf: &mut Buffer) {
+        let Some(scroll_area) = self.scroll_area else {
+            return;
+        };
+
+        Scrollbar::new(ScrollbarData {
+            viewport_height: self.size.height,
+            current_scroll: self.scroll as usize,
+            total_items: self.lines as usize,
+        })
+        .with_colors(self.colors.scrollbar)
+        .render(scroll_area, buf);
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum AnsiViewMode {
+    // Span TODO
+    Text {
+        center_vertical: bool,
+    },
+    Page {
+        scrollbar: bool,
+        scrollbar_margin: u16,
+    },
+}
+
+impl AnsiViewMode {
+    pub const DEFAULT: Self = Self::Text {
+        center_vertical: false,
+    };
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AnsiViewerOptions {
+    pub padding: Padding,
+    pub text_alignment: HorizontalAlignment,
+}
+
+impl AnsiViewerOptions {
+    pub const fn new() -> Self {
+        Self {
+            padding: Padding::ZERO,
+            text_alignment: HorizontalAlignment::Left,
+        }
+    }
+}
+
+impl Default for AnsiViewerOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AnsiViewerColors {
+    pub scrollbar: ScrollbarColors,
+}
+
+impl AnsiViewerColors {
+    pub const fn new() -> Self {
+        Self {
+            scrollbar: ScrollbarColors::DEFAULT,
+        }
+    }
+}
+
+impl Default for AnsiViewerColors {
+    fn default() -> Self {
+        Self::new()
     }
 }

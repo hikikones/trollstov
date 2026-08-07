@@ -228,10 +228,7 @@ impl Pages {
                 Route::Tags => self.tags.on_render(render, settings.colors(), shortcuts),
                 Route::Settings => self.settings.on_render(render, settings, shortcuts),
             },
-            State::Search => {
-                self.search
-                    .on_render(render, settings.colors(), markup, kitty, shortcuts)
-            }
+            State::Search => self.search.on_render(render, settings.colors(), shortcuts),
             State::Logs => self.logs.on_render(render, settings.colors(), shortcuts),
         }
     }
@@ -252,7 +249,7 @@ impl Pages {
                 Route::Tags => self.tags.on_input(input, db),
                 Route::Settings => self.settings.on_input(input, settings),
             },
-            State::Search => self.search.on_input(input, db, markup),
+            State::Search => self.search.on_input(input, db, settings.colors()),
             State::Logs => self.logs.on_input(input),
         }
     }

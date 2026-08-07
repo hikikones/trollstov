@@ -1,11 +1,15 @@
 use ratatui::{
+    buffer::Buffer,
     crossterm::event::KeyCode,
-    layout::Rect,
-    style::{Color, Style},
-    widgets::{Block, Widget},
+    layout::{HorizontalAlignment, Rect},
+    style::Color,
+    widgets::{Block, Padding, Widget},
 };
 use shared::symbols;
-use widgets::{KittyGraphics, Markup, RectExt, ScrollMove, Shortcut, Shortcuts, TextInput};
+use widgets::{
+    AnsiTag, AnsiViewMode, AnsiViewer, AnsiWriter, RectExt, ScrollMove, Shortcut, Shortcuts,
+    TextInput,
+};
 
 use crate::{
     app::{Action, AppInput, AppRender},
@@ -13,14 +17,6 @@ use crate::{
     pages::{CardsParam, Route},
     settings::Colors,
 };
-
-// TODO: Search highlight adds ansi codes for visual matches.
-// This ruins the markup parser/viewer for various items.
-// E.g. a search for ".png" will highlight the matches, but also
-// display image load error as the path for the image is now "name<ansi>.png</ansi>".
-
-// TODO: Searching for .png without quotes "" will crash.
-// Render error as text when search is used wrongly.
 
 // TODO: Render a help text as markup when search comes up empty.
 // Or just add a help shortcut that shows how to search.
@@ -31,7 +27,8 @@ pub struct SearchPage {
     results: Vec<CardId>,
     index: usize,
     query: String,
-    content: String,
+    writer: AnsiWriter,
+    viewer: AnsiViewer,
     is_empty: bool,
 }
 
@@ -48,7 +45,8 @@ impl SearchPage {
             results: Vec::new(),
             index: 0,
             query: String::new(),
-            content: String::new(),
+            writer: AnsiWriter::new(),
+            viewer: AnsiViewer::new().with_padding(Padding::horizontal(1)),
             is_empty: false,
         }
     }
@@ -59,25 +57,8 @@ impl SearchPage {
         self.refresh(db);
     }
 
-    pub fn on_render(
-        &mut self,
-        render: AppRender,
-        colors: &Colors,
-        markup: &mut Markup,
-        kitty: &mut KittyGraphics,
-        shortcuts: &mut Shortcuts,
-    ) {
+    pub fn on_render(&mut self, render: AppRender, colors: &Colors, shortcuts: &mut Shortcuts) {
         let (mut area, buf) = render.area_and_buffer();
-
-        widgets::print_ascii(
-            area,
-            buf,
-            "Search",
-            colors.neutral,
-            Some(widgets::Alignment::CenterHorizontal),
-        );
-
-        area.shrink_down(2);
 
         if self.is_empty {
             widgets::print_ascii(
@@ -90,107 +71,100 @@ impl SearchPage {
             return;
         }
 
-        // Determine colors and shortcuts for search and results
-        let (border_color, border_text_color) = {
+        let (search_color, result_color) = {
             match self.state {
                 State::Search => {
                     shortcuts.push(Shortcut::new("Confirm", symbols::ENTER));
-                    (colors.neutral, colors.neutral)
+                    (colors.secondary, colors.neutral)
                 }
                 State::Browse => {
                     if self.current_card().is_some() {
                         shortcuts.extend([Shortcut::new("Edit", "e"), Shortcut::new("Goto", "g")]);
                     }
                     shortcuts.push(Shortcut::new("Search", "s"));
-                    (colors.secondary, Color::Reset)
+                    (colors.neutral, colors.secondary)
                 }
             }
         };
 
-        // Render search input
-        let search_line = widgets::align(
-            Rect {
-                width: (0.64 * area.width as f32).round() as u16,
-                height: 1,
-                ..area
-            },
-            area,
-            widgets::Alignment::CenterHorizontal,
-        );
+        self.render_search(&mut area, buf, search_color, colors);
+        self.render_result(area, buf, result_color, colors.neutral);
+    }
+
+    fn render_search(
+        &mut self,
+        area: &mut Rect,
+        buf: &mut Buffer,
+        border_color: Color,
+        colors: &Colors,
+    ) {
+        let inner = {
+            let search_area = Rect { height: 3, ..*area };
+            let block = Block::bordered()
+                .title(" Search ")
+                .title_alignment(HorizontalAlignment::Center)
+                .title_style(colors.neutral)
+                .border_style(border_color)
+                .padding(Padding::horizontal(1));
+            let inner = block.inner(search_area);
+            block.render(search_area, buf);
+            area.shrink_down(search_area.height);
+            inner
+        };
+
         self.search
             .set_colors(colors.text_input())
             .set_enabled(matches!(self.state, State::Search))
-            .render(search_line, buf);
+            .render(inner, buf);
+    }
 
-        area.shrink_down(2);
-
-        // Results block
-        let card_area = {
+    fn render_result(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        border_color: Color,
+        neutral_color: Color,
+    ) {
+        let inner = {
             let block = Block::bordered().border_style(border_color);
             let inner = block.inner(area);
             block.render(area, buf);
             inner
         };
 
-        // Title for block
         utils::format_int2(self.index + 1, self.results.len(), |i, len| {
             widgets::print_asciis(
                 area,
                 buf,
                 [" ", i, " / ", len, " "],
-                border_text_color,
+                neutral_color,
                 Some(widgets::Alignment::CenterHorizontal),
             );
         });
 
-        // Render search results
-        match self.current_card() {
-            Some(_id) => {
-                markup.render(card_area, buf, self.content.as_str(), kitty);
-            }
-            None => {
-                if !self.query.is_empty() {
-                    if self.query.chars().count() < 3 {
-                        widgets::print_ascii(
-                            card_area,
-                            buf,
-                            "Search query must be at least 3 characters",
-                            colors.neutral,
-                            Some(widgets::Alignment::Center),
-                        );
-                    } else {
-                        let center = widgets::align(
-                            Rect {
-                                height: 2,
-                                ..card_area
-                            },
-                            card_area,
-                            widgets::Alignment::Center,
-                        );
-                        widgets::print_ascii(
-                            center,
-                            buf,
-                            "No cards found from query",
-                            colors.neutral,
-                            Some(widgets::Alignment::CenterHorizontal),
-                        );
-                        widgets::print_ascii(
-                            Rect {
-                                y: center.y + 1,
-                                ..center
-                            },
-                            buf,
-                            self.query.as_str(),
-                            Style::new().fg(colors.neutral).italic(),
-                            Some(widgets::Alignment::CenterHorizontal),
-                        );
-                    }
-                }
-            }
-        }
+        let (text_alignment, view_mode) = match self.current_card() {
+            Some(_) => (
+                HorizontalAlignment::Left,
+                AnsiViewMode::Page {
+                    scrollbar: false,
+                    scrollbar_margin: 1,
+                },
+            ),
+            None => (
+                HorizontalAlignment::Center,
+                AnsiViewMode::Text {
+                    center_vertical: true,
+                },
+            ),
+        };
+
+        self.viewer
+            .set_text_alignment(text_alignment)
+            .set_view_mode(view_mode)
+            .render(inner, buf, self.writer.as_str());
     }
 
-    pub fn on_input(&mut self, input: AppInput, db: &Database, markup: &mut Markup) -> Action {
+    pub fn on_input(&mut self, input: AppInput, db: &Database, colors: &Colors) -> Action {
         if self.is_empty {
             return Action::None;
         }
@@ -201,18 +175,43 @@ impl SearchPage {
             State::Search => match key {
                 KeyCode::Enter => {
                     let input = self.search.as_str_trim();
-                    if !input.is_empty() {
-                        self.results.clear();
-                        self.index = 0;
-                        self.query.clear();
-                        self.query.push_str(input);
-                        db.search(input, |id| self.results.push(id));
-                        if let Some(id) = self.current_card() {
-                            self.highlight(id, db);
-                            self.state = State::Browse;
-                        }
+                    if input.is_empty() {
+                        return Action::None;
+                    }
+
+                    self.index = 0;
+                    self.results.clear();
+                    self.writer.clear();
+                    self.query.clear();
+                    self.query.push_str(input);
+
+                    if let Err(err) = db.search(input, |id| self.results.push(id)) {
+                        self.writer
+                            .push_fmt(format_args!("{}{err}", AnsiTag::FgRed));
                         return Action::Render;
                     }
+
+                    if input.chars().count() < 3 {
+                        self.writer.push_fmt(format_args!(
+                            "{}Search query must be at least 3 characters",
+                            AnsiTag::FgYellow
+                        ));
+                        return Action::Render;
+                    }
+
+                    if self.results.is_empty() {
+                        self.writer.push_fmt(format_args!(
+                            "{}No cards found from query\n{}'{input}'",
+                            AnsiTag::from_color_fg(colors.neutral),
+                            AnsiTag::Italic
+                        ));
+                        return Action::Render;
+                    }
+
+                    self.highlight(self.results[0], db);
+                    self.viewer.scroll(ScrollMove::Start);
+                    self.state = State::Browse;
+                    return Action::Render;
                 }
                 KeyCode::Down => {
                     if !self.results.is_empty() {
@@ -229,10 +228,10 @@ impl SearchPage {
             },
             State::Browse => match key {
                 KeyCode::Up => {
-                    if markup.scroll_index() == 0 {
+                    if self.viewer.current_scroll() == 0 {
                         self.state = State::Search;
                         return Action::Render;
-                    } else if markup.scroll(ScrollMove::Up) {
+                    } else if self.viewer.scroll(ScrollMove::Up) {
                         return Action::Render;
                     }
                 }
@@ -240,7 +239,7 @@ impl SearchPage {
                     if self.results.len() > 1 {
                         self.index = (self.index + 1) % self.results.len();
                         self.highlight(self.current_card().unwrap(), db);
-                        markup.scroll(ScrollMove::Start);
+                        self.viewer.scroll(ScrollMove::Start);
                         return Action::Render;
                     }
                 }
@@ -252,7 +251,7 @@ impl SearchPage {
                             self.index -= 1;
                         }
                         self.highlight(self.current_card().unwrap(), db);
-                        markup.scroll(ScrollMove::Start);
+                        self.viewer.scroll(ScrollMove::Start);
                         return Action::Render;
                     }
                 }
@@ -271,7 +270,7 @@ impl SearchPage {
                     return Action::Render;
                 }
                 _ => {
-                    if markup.input(key) {
+                    if self.viewer.input(key) {
                         return Action::Render;
                     }
                 }
@@ -288,10 +287,11 @@ impl SearchPage {
     }
 
     fn highlight(&mut self, id: CardId, db: &Database) {
-        self.content.clear();
         db.search_highlight(id, &self.query, |content| {
-            self.content.push_str(content);
-        });
+            self.writer.clear();
+            self.writer.push_str(content);
+        })
+        .unwrap();
     }
 
     fn refresh(&mut self, db: &Database) {
